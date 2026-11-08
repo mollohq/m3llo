@@ -190,3 +190,43 @@ fn sharing_off_hides_the_strip() {
         "a feed load keeps it hidden while sharing is off"
     );
 }
+
+/// The chase feed with the crew's quests and these steps done.
+fn chase_feed_with_quests(steps: serde_json::Value) -> FeedResponse {
+    let mut feed = chase_feed();
+    feed.zones.quests = Some(
+        serde_json::from_value(serde_json::json!({
+            "owner_id": "user-1", "made_ms": 1_793_880_000_000_i64,
+            "ends_ms": 1_793_880_000_000_i64 + 14 * 86_400_000,
+            "steps": steps, "gifts": {}
+        }))
+        .expect("a quests payload"),
+    );
+    feed
+}
+
+/// A new crew does its quests first: the strip waits until every step is
+/// done, then shows when the members share game activity.
+#[test]
+fn the_strip_waits_for_the_quests() {
+    let mut h = Harness::new();
+    crew_of_three(&mut h);
+    h.emit(Event::FeedLoaded {
+        response: chase_feed_with_quests(serde_json::json!({
+            "friend": {"user_id": "u2"}, "call": {"user_ids": ["u2"]}, "clip": {"clip_id": "c1"}
+        })),
+    });
+    assert!(
+        !h.app().get_you_strip().ready,
+        "the first session is still open"
+    );
+    assert_eq!(count_of(&h, "YouStrip"), 0);
+
+    h.emit(Event::FeedLoaded {
+        response: chase_feed_with_quests(serde_json::json!({
+            "friend": {"user_id": "u2"}, "call": {"user_ids": ["u2"]}, "clip": {"clip_id": "c1"},
+            "session": {"minutes": 40}
+        })),
+    });
+    assert!(h.app().get_you_strip().ready, "every step is done");
+}

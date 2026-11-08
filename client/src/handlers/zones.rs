@@ -103,7 +103,10 @@ pub(crate) fn refresh(ctx: &AppContext) {
         .head2head
         .as_ref()
         .and_then(|d| super::clip::head2head_chase(ctx, d));
-    super::stats::set_chase(ctx, chase.as_ref());
+    // No quests in the zones: a crew made before quests, or the 14 days are
+    // over. Nothing to wait for.
+    let quests_done = zones.quests.as_ref().is_none_or(super::quests::all_done);
+    super::stats::set_chase(ctx, chase.as_ref(), quests_done);
     let mut z = build_from_zones(ctx, &zones);
     keep_posters(&ctx.app.get_feed_zones(), &mut z);
     log::debug!(

@@ -40,10 +40,11 @@ fn keep_head2head(strip: &mut YouStripData, old: &YouStripData) {
 }
 
 /// Set the head2head half of the You strip from the chase of the open crew
-/// (plan you-strip.md section 4). The strip shows only when the viewer shares
-/// game activity and another member does too: a new crew of one has the
-/// quest card instead. The record half stays.
-pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>) {
+/// (plan you-strip.md section 4). The strip shows only when the crew's quests
+/// are done (`quests_done`), the viewer shares game activity and another
+/// member does too: until then head2head has too little to compare, and a
+/// new crew has the quest card. The record half stays.
+pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>, quests_done: bool) {
     let (viewer, _) = super::clip::h2h_roster(ctx);
     let mut strip = ctx.app.get_you_strip();
     strip.viewer = super::clip::live_person(ctx, &viewer);
@@ -61,16 +62,17 @@ pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>) {
                 .collect();
             let sharing = ctx.settings.borrow().share_game_activity;
             log::debug!(
-                "you strip: {} bars, {} held, {} contested, rival={}, sharing={}",
+                "you strip: {} bars, {} held, {} contested, rival={}, sharing={}, quests_done={}",
                 bars.len(),
                 c.held.len(),
                 c.contested,
                 c.game_rival,
-                sharing
+                sharing,
+                quests_done
             );
             strip.bars = ModelRc::new(VecModel::from(bars));
             strip.held_icons = images(&mut c.held.iter());
-            strip.ready = c.game_rival && sharing;
+            strip.ready = quests_done && c.game_rival && sharing;
         }
         None => {
             strip.bars = ModelRc::default();
