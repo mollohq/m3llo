@@ -226,7 +226,7 @@ pub(crate) fn gift_key(step: &str, crew_id: &str) -> String {
 }
 
 /// Every step of the crew's quests is done. The You strip waits for it
-/// (plan you-strip.md): until then the quest card is the crew's funnel.
+/// (YOU-STRIP.md): until then the quest card is the crew's funnel.
 pub(crate) fn all_done(q: &ZoneQuests) -> bool {
     done(q).iter().all(|d| *d)
 }

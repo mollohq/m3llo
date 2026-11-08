@@ -17,7 +17,7 @@ pub fn wire(ctx: &AppContext) {
         });
     }
 
-    // The You view (plan you-strip.md): refresh per-game stats on open so the
+    // The You view (YOU-STRIP.md): refresh per-game stats on open so the
     // Games tab shows current numbers, not the last crew-select snapshot.
     {
         let cmd = ctx.cmd_tx.clone();

@@ -688,7 +688,7 @@ struct YouStripSnap {
     /// `"image"` (icon slot art) or `"monogram"`.
     art: &'static str,
     /// The strip shows: the quests are done and two members share game
-    /// activity (plan you-strip.md).
+    /// activity (YOU-STRIP.md).
     ready: bool,
     /// The titles the viewer holds.
     held: usize,

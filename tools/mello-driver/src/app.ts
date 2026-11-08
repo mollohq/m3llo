@@ -33,7 +33,7 @@ export type FeedCard = {
     art: "image" | "monogram";
   };
 
-/** One bar of the You strip or the Belts tab (plan you-strip.md). */
+/** One bar of the You strip or the Belts tab (YOU-STRIP.md). */
 export type ChaseBar = { kind: "take" | "hold"; title_id: string; member: string; delta: string; delta_unit: string };
 
 export type AppState = {

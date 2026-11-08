@@ -1,5 +1,5 @@
 //! The chase of the You strip: the belts the viewer can take and the belts the
-//! viewer holds, each with the gap to the other member. Plan `you-strip.md`
+//! viewer holds, each with the gap to the other member. Spec `features/YOU-STRIP.md`
 //! section 2, spec `features/HEAD2HEAD.md`.
 //!
 //! Everything comes from the `head2head` zone data: `titles` (the holder and

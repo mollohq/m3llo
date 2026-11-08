@@ -911,7 +911,7 @@ pub struct ViewPair {
 }
 
 /// Every pair of the viewer for the You view: closest score first, no cap
-/// (plan you-strip.md section 3). The deciding title follows the rule of the
+/// (YOU-STRIP.md section 3). The deciding title follows the rule of the
 /// pair rows on the board, over every contested title, session titles too.
 pub fn view_pairs(
     data: &Value,

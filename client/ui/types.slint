@@ -518,7 +518,7 @@ export struct GameStatsCardData {
     week-value: string,       // "6.5": the week's hours, for a game with no record
 }
 
-// One row of the Head2head tab of the You view (plan you-strip.md
+// One row of the Head2head tab of the You view (YOU-STRIP.md
 // section 3): the viewer against one member, with the deciding title.
 export struct YouPairRow {
     other: H2hPerson,
@@ -532,7 +532,7 @@ export struct YouPairRow {
     unit: string,
 }
 
-// One bar of the You strip (plan you-strip.md section 1.2).
+// One bar of the You strip (YOU-STRIP.md section 1.2).
 export struct ChaseBarData {
     take: bool,             // TAKE a belt from its holder, else HOLD yours
     title-id: string,
@@ -548,7 +548,7 @@ export struct ChaseBarData {
     ratio: float,           // 0 to 1: the fill of a take, the mark of a hold
 }
 
-// The "You strip" pinned atop the crew feed (spec 19, plan you-strip.md): the
+// The "You strip" pinned atop the crew feed (spec 19, YOU-STRIP.md): the
 // viewer, the chase bars of the open crew, the game record. Only the viewer
 // sees it; display strings are pre-formatted in Rust.
 export struct YouStripData {
@@ -573,7 +573,7 @@ export struct YouStripData {
     held-icons: [image],    // the titles the viewer holds, display order
     bars: [ChaseBarData],   // 0 to 2: the closest take, the thinnest hold
     // Another member shares game activity with the viewer, who shares too.
-    // The strip shows only then (plan you-strip.md, 2026-11-08).
+    // The strip shows only then (YOU-STRIP.md, 2026-11-08).
     ready: bool,
 }
 

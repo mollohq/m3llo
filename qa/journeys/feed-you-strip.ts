@@ -1,4 +1,4 @@
-// FEED-14: the You strip (plan you-strip.md). alice makes a crew and bob
+// FEED-14: the You strip (YOU-STRIP.md). alice makes a crew and bob
 // joins: the quests are open, so neither has the strip. With the quests
 // cleared (dev_fault quests_clear, as a crew made before quests) and alice's
 // own library reported, titles are contested and both apps share game

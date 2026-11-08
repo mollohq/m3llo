@@ -1,4 +1,4 @@
-//! The You strip (`panels/you_strip.slint`, plan you-strip.md): the zones set
+//! The You strip (`panels/you_strip.slint`, YOU-STRIP.md): the zones set
 //! its head2head half (the viewer, the chase bars), the game stats its record
 //! half, and neither erases the other. It shows only when the viewer and
 //! another member share game activity.
@@ -231,7 +231,7 @@ fn the_strip_waits_for_the_quests() {
     assert!(h.app().get_you_strip().ready, "every step is done");
 }
 
-// ---- the You view (plan you-strip.md section 3) ----
+// ---- the You view (YOU-STRIP.md section 3) ----
 
 fn open_view(h: &mut Harness) {
     crew_of_three(h);

@@ -37,7 +37,7 @@ component Kicker inherits Text {
 }
 
 // One bar: TAKE a belt from its holder, or HOLD yours against the runner-up
-// (plan you-strip.md section 1.2). The whole strip is one button, so a click
+// (YOU-STRIP.md section 1.2). The whole strip is one button, so a click
 // on the bar goes to the strip. A pointer on the bar shows the stat sentence.
 component ChaseBar inherits Rectangle {
     in property <ChaseBarData> bar;
@@ -178,7 +178,7 @@ component ChaseBar inherits Rectangle {
 }
 
 // The You strip, pinned atop the crew feed (spec 19 section 2.3, plan
-// you-strip.md). Only the viewer sees it. Left to right: the viewer and the
+// YOU-STRIP.md). Only the viewer sees it. Left to right: the viewer and the
 // belts they hold, up to two chase bars, the game record, the chevron. It
 // shows (`ready`) only when the viewer and another member share game
 // activity: a new crew of one has the quest card instead. A tap opens the
@@ -340,7 +340,7 @@ export component YouStrip inherits Rectangle {
     }
 }
 
-// ---- previews: the states of plan you-strip.md section 1.1 ----
+// ---- previews: the states of YOU-STRIP.md section 1.1 ----
 
 component PreviewLabel inherits Text {
     x: 16px;

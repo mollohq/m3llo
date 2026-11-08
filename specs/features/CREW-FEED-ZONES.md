@@ -24,7 +24,8 @@ no other layout rule.
 | Crew history | One row for each past week, newest first | Past weeks exist |
 
 The feed has cards only. There are no headings or label lines outside a card.
-The You strip (spec 19 section 2.3) stays pinned above the zones.
+The You strip (`YOU-STRIP.md`) stays pinned above the zones. It shows once the
+crew's quests are done and two members share game activity.
 
 Red is state. A live stream on the Stage wears the red LIVE tag. A clip never
 wears a red border; an unread clip keeps its red tag.

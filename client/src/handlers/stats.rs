@@ -40,7 +40,7 @@ fn keep_head2head(strip: &mut YouStripData, old: &YouStripData) {
 }
 
 /// Set the head2head half of the You strip from the chase of the open crew
-/// (plan you-strip.md section 4). The strip shows only when the crew's quests
+/// (YOU-STRIP.md section 4). The strip shows only when the crew's quests
 /// are done (`quests_done`), the viewer shares game activity and another
 /// member does too: until then head2head has too little to compare, and a
 /// new crew has the quest card. The record half stays.
