@@ -658,9 +658,15 @@ type voiceLeaveInternalOpts struct {
 	// member, so the ghost's voice time and the voice_session duration end
 	// there and not when the GC finally notices. Zero means now.
 	leftAt time.Time
+	// onlyChannel, when set, releases the seat only if the user is seated in
+	// this channel. A bound session that ends must not release a seat the
+	// user has since taken in another channel.
+	onlyChannel string
 }
 
-func voiceLeaveInternal(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, userID string, opts ...voiceLeaveInternalOpts) {
+// voiceLeaveInternal releases the user's voice seat. It returns false when the
+// user had no seat to release.
+func voiceLeaveInternal(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, userID string, opts ...voiceLeaveInternalOpts) bool {
 	var opt voiceLeaveInternalOpts
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -668,7 +674,13 @@ func voiceLeaveInternal(ctx context.Context, logger runtime.Logger, nk runtime.N
 
 	voiceUserChannelMu.Lock()
 	channelID, wasInVoice := voiceUserChannel[userID]
+	if opt.onlyChannel != "" && channelID != opt.onlyChannel {
+		voiceUserChannelMu.Unlock()
+		return false
+	}
 	delete(voiceUserChannel, userID)
+	// The session binding goes with the seat.
+	clearVoiceSessionBindingLocked(userID)
 	voiceUserChannelMu.Unlock()
 
 	if !wasInVoice {
@@ -676,7 +688,7 @@ func voiceLeaveInternal(ctx context.Context, logger runtime.Logger, nk runtime.N
 		// after a racing join. Nothing else would remove it, so find it here.
 		channelID, wasInVoice = orphanVoiceChannel(userID)
 		if !wasInVoice {
-			return
+			return false
 		}
 	}
 
@@ -785,6 +797,7 @@ func voiceLeaveInternal(ctx context.Context, logger runtime.Logger, nk runtime.N
 		PushVoiceUpdate(ctx, logger, nk, crewID)
 		QueueSidebarVoiceDelta(logger, nk, crewID)
 	}
+	return true
 }
 
 // orphanVoiceChannel finds the room that holds userID as a member, for a user

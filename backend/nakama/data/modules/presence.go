@@ -351,12 +351,32 @@ func OnSessionEnd(ctx context.Context, logger runtime.Logger, evt *api.Event) {
 	}
 
 	// The session's push activity report dies with it (spec 23 §6.2).
-	if sessionID, _ := ctx.Value(runtime.RUNTIME_CTX_SESSION_ID).(string); sessionID != "" {
+	sessionID, _ := ctx.Value(runtime.RUNTIME_CTX_SESSION_ID).(string)
+	if sessionID != "" {
 		clearSessionActivity(userID, sessionID)
 	}
 
+	// A voice seat bound to this session goes with it, even when the user has
+	// other live sessions (a phone, a second client).
+	seatReleased := releaseBoundVoiceSeat(ctx, logger, globalNk, userID, sessionID)
+
 	remaining := registerSessionEnd(userID)
 	if remaining > 0 {
+		if seatReleased {
+			// The user is still online on another session, but no longer in voice.
+			now := time.Now().UTC().Format(time.RFC3339)
+			p := &UserPresence{
+				UserID:    userID,
+				Status:    StatusOnline,
+				LastSeen:  now,
+				Activity:  &Activity{Type: ActivityNone},
+				UpdatedAt: now,
+			}
+			if err := WritePresence(ctx, globalNk, p); err != nil {
+				logger.Error("failed to clear voice presence on session end for %s: %v", userID, err)
+			}
+			NotifyPresenceChanged(ctx, logger, globalNk, userID, p)
+		}
 		logger.Info("User %s session ended (%d active remain); skipping offline cleanup", userID, remaining)
 		return
 	}

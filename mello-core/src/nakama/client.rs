@@ -632,6 +632,14 @@ impl NakamaClient {
         self.socket_rpc("set_session_activity", &payload).await
     }
 
+    /// Binds the caller's voice seat in `channel_id` to this realtime session,
+    /// so the server releases the seat when this session ends, even while the
+    /// user has other sessions. Sent over the socket for the session id.
+    pub async fn voice_bind_session(&self, channel_id: &str) -> Result<()> {
+        let payload = serde_json::json!({ "channel_id": channel_id });
+        self.socket_rpc("voice_bind_session", &payload).await
+    }
+
     async fn ws_send(&self, msg: String) -> Result<()> {
         let Some(tx) = &self.ws_tx else {
             return Err(Error::NotConnected);
@@ -3429,6 +3437,39 @@ mod push_tests {
             payload,
             serde_json::json!({"active": false, "platform": "desktop"})
         );
+    }
+
+    /// The voice seat binding goes over the socket as a Nakama realtime RPC
+    /// envelope, so the server sees the session that holds the seat.
+    #[tokio::test]
+    async fn voice_bind_session_sends_a_socket_rpc_envelope() {
+        let mut client = NakamaClient::new(Config::development());
+        let (tx, mut rx) = mpsc::channel(4);
+        client.ws_tx = Some(tx);
+
+        client
+            .voice_bind_session("ch-1")
+            .await
+            .expect("queued on the socket");
+        let sent: serde_json::Value =
+            serde_json::from_str(&rx.recv().await.expect("one message")).expect("json");
+        assert_eq!(sent["rpc"]["id"], "voice_bind_session");
+        let payload: serde_json::Value = serde_json::from_str(
+            sent["rpc"]["payload"]
+                .as_str()
+                .expect("payload is a string"),
+        )
+        .expect("payload json");
+        assert_eq!(payload, serde_json::json!({"channel_id": "ch-1"}));
+    }
+
+    #[tokio::test]
+    async fn voice_bind_session_without_a_socket_is_not_connected() {
+        let client = NakamaClient::new(Config::development());
+        assert!(matches!(
+            client.voice_bind_session("ch-1").await,
+            Err(Error::NotConnected)
+        ));
     }
 
     #[tokio::test]

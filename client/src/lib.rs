@@ -48,6 +48,7 @@ mod open_url;
 mod perf_mode;
 mod platform;
 mod poll_loop;
+mod quit_voice;
 mod recent_games;
 mod renderer_choice;
 mod say_hi;
@@ -771,7 +772,9 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // --- Start poll loop ---
-    let _poll_timer = poll_loop::start(&ctx, event_rx, update_event_rx);
+    // The quit step after the event loop reads the core events too.
+    let event_rx = Rc::new(event_rx);
+    let _poll_timer = poll_loop::start(&ctx, event_rx.clone(), update_event_rx);
     let _activity_timer = activity_report::start(&ctx);
     log::info!("[startup] poll loop started");
 
@@ -790,6 +793,14 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     }
     slint::run_event_loop_until_quit()?;
     log::info!("[exit] event loop ended");
+
+    // Every quit path ends the event loop: leave voice here, bounded in time.
+    quit_voice::leave_voice_before_exit(
+        ctx.app.get_in_voice(),
+        &ctx.cmd_tx,
+        &event_rx,
+        quit_voice::QUIT_VOICE_LEAVE_TIMEOUT,
+    );
 
     ctx.hud_manager.shutdown();
     Ok(())

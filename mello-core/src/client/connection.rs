@@ -284,6 +284,8 @@ impl super::Client {
                 let local_id = self.nakama.current_user_id().map(String::from);
                 self.store_voice_join_grant(&crew_id, local_id.as_deref(), &resp);
                 self.last_voice_channel = Some(resp.channel_id.clone());
+                // The new session holds the seat now.
+                self.bind_voice_session(&resp.channel_id).await;
                 let _ = self.event_tx.send(Event::VoiceJoined {
                     crew_id,
                     channel_id: resp.channel_id,
