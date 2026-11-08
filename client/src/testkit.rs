@@ -128,6 +128,7 @@ impl Drop for Harness {
         self.ctx.app.global::<crate::SealedUi>().on_landed(|| {});
         self.ctx.app.global::<crate::ClipPlayerUi>().on_close(|| {});
         self.ctx.app.on_play_clip(|_| {});
+        self.ctx.app.on_clip_captured(|| {});
         self.ctx
             .app
             .global::<crate::SealedUi>()

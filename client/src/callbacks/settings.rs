@@ -29,25 +29,6 @@ pub(crate) fn clip_key_label(settings: &Settings) -> String {
         .unwrap_or_default()
 }
 
-/// The game clip key of these settings, for the hotkey manager.
-pub(crate) fn game_clip_binding(settings: &Settings) -> Option<platform::hotkeys::PttBinding> {
-    settings
-        .game_clip_key
-        .as_deref()
-        .and_then(platform::hotkeys::parse_ptt_string)
-        .map(|(binding, _)| binding)
-}
-
-/// The game clip key as Keybinds and the Game clips section show it.
-pub(crate) fn game_clip_key_label(settings: &Settings) -> String {
-    settings
-        .game_clip_key
-        .as_deref()
-        .and_then(platform::hotkeys::parse_ptt_string)
-        .map(|(_, label)| label)
-        .unwrap_or_default()
-}
-
 /// The stream key of these settings, for the hotkey manager.
 pub(crate) fn stream_binding(settings: &Settings) -> Option<platform::hotkeys::PttBinding> {
     settings
@@ -75,17 +56,24 @@ fn show_stream_key_settings(app: &MainWindow, settings: &Settings) {
 }
 
 /// The binding other than the stream key that uses this key, as the
-/// Keybinds warnings name it. The game clip key counts on Windows and
-/// macOS only, where the client binds it.
+/// Keybinds warnings name it.
 fn stream_key_taken_by(settings: &Settings, raw: &str) -> Option<&'static str> {
     if settings.ptt_key.as_deref() == Some(raw) {
         Some("Push-to-talk")
     } else if settings.clip_key.as_deref() == Some(raw) {
-        Some("Voice clip")
-    } else if cfg!(any(windows, target_os = "macos"))
-        && settings.game_clip_key.as_deref() == Some(raw)
-    {
-        Some("Game clip")
+        Some("Clip")
+    } else {
+        None
+    }
+}
+
+/// The binding other than the clip key that uses this key, as the
+/// Keybinds warnings name it.
+fn clip_key_taken_by(settings: &Settings, raw: &str) -> Option<&'static str> {
+    if settings.ptt_key.as_deref() == Some(raw) {
+        Some("Push-to-talk")
+    } else if settings.stream_key.as_deref() == Some(raw) {
+        Some("Stream key")
     } else {
         None
     }
@@ -117,17 +105,13 @@ fn game_clip_quality_name(quality: mello_core::events::GameClipQuality) -> &'sta
     }
 }
 
-/// Shows the Game clips section and its Keybinds row as these settings
-/// have them.
+/// Shows the Game clips section as these settings have it.
 fn show_game_clip_settings(app: &MainWindow, settings: &Settings) {
     let quality =
         mello_core::events::GameClipQuality::parse(&settings.game_clip_quality).unwrap_or_default();
     app.set_settings_game_clips_enabled(settings.game_clips_enabled);
     app.set_settings_game_clip_quality(quality.as_str().into());
     app.set_settings_game_clip_quality_name(game_clip_quality_name(quality).into());
-    app.set_game_clip_key_label(game_clip_key_label(settings).into());
-    app.set_settings_game_clip_key_warning("".into());
-    app.set_settings_game_clip_binding(false);
 }
 
 fn stop_diagnostic_capture(app: &MainWindow, cmd: &UnboundedSender<Command>) {
@@ -613,27 +597,12 @@ pub fn wire(ctx: &AppContext) {
                 };
                 app.set_settings_clip_binding(false);
                 let mut settings = s.borrow_mut();
-                // PTT keeps its key. The field keeps the clip key it had.
-                if settings.ptt_key.as_deref() == Some(raw_str.as_str()) {
-                    log::info!("Clip key refused, PTT uses it: {}", raw_str);
+                // A key that another binding uses stays with it. The field
+                // keeps the clip key it had.
+                if let Some(other) = clip_key_taken_by(&settings, &raw_str) {
+                    log::info!("Clip key refused, {other} uses it: {raw_str}");
                     app.set_settings_clip_key_warning(
-                        format!("Push-to-talk uses {label}. Pick another key.").into(),
-                    );
-                    return;
-                }
-                if cfg!(any(windows, target_os = "macos"))
-                    && settings.game_clip_key.as_deref() == Some(raw_str.as_str())
-                {
-                    log::info!("Clip key refused, the game clip key uses it: {}", raw_str);
-                    app.set_settings_clip_key_warning(
-                        format!("Game clip uses {label}. Pick another key.").into(),
-                    );
-                    return;
-                }
-                if settings.stream_key.as_deref() == Some(raw_str.as_str()) {
-                    log::info!("Clip key refused, the stream key uses it: {}", raw_str);
-                    app.set_settings_clip_key_warning(
-                        format!("Stream key uses {label}. Pick another key.").into(),
+                        format!("{other} uses {label}. Pick another key.").into(),
                     );
                     return;
                 }
@@ -643,53 +612,6 @@ pub fn wire(ctx: &AppContext) {
                 settings.save();
                 app.set_clip_key_label(label.into());
                 app.set_settings_clip_key_warning("".into());
-            });
-    }
-    // --- Game clips (CLIPS.md 15.2 and 15.10) ---
-    {
-        let s = ctx.settings.clone();
-        let app_weak = ctx.app.as_weak();
-        let hk = ctx.hotkey_mgr.clone();
-        ctx.app
-            .on_settings_game_clip_key_captured(move |key_text, ctrl, alt, shift, meta| {
-                let Some(app) = app_weak.upgrade() else {
-                    return;
-                };
-                let Some((binding, label, raw_str)) =
-                    platform::hotkeys::slint_key_to_ptt(key_text.as_str(), ctrl, alt, shift, meta)
-                else {
-                    log::debug!(
-                        "Unmappable key, staying in binding mode: {:?}",
-                        key_text.as_str()
-                    );
-                    return;
-                };
-                app.set_settings_game_clip_binding(false);
-                let mut settings = s.borrow_mut();
-                // A key that another binding uses stays with it. The field
-                // keeps the game clip key it had.
-                let taken_by = if settings.ptt_key.as_deref() == Some(raw_str.as_str()) {
-                    Some("Push-to-talk")
-                } else if settings.clip_key.as_deref() == Some(raw_str.as_str()) {
-                    Some("Voice clip")
-                } else if settings.stream_key.as_deref() == Some(raw_str.as_str()) {
-                    Some("Stream key")
-                } else {
-                    None
-                };
-                if let Some(other) = taken_by {
-                    log::info!("Game clip key refused, {other} uses it: {raw_str}");
-                    app.set_settings_game_clip_key_warning(
-                        format!("{other} uses {label}. Pick another key.").into(),
-                    );
-                    return;
-                }
-                log::info!("Game clip key registered: {} ({})", label, raw_str);
-                hk.borrow().register_game_clip(Some(binding));
-                settings.game_clip_key = Some(raw_str);
-                settings.save();
-                app.set_game_clip_key_label(label.into());
-                app.set_settings_game_clip_key_warning("".into());
             });
     }
     // --- The stream key (specs/12-STREAMING.md section 11) ---
@@ -730,6 +652,7 @@ pub fn wire(ctx: &AppContext) {
                 app.set_settings_stream_key_warning("".into());
             });
     }
+    // --- Game clips (CLIPS.md 15.10) ---
     {
         let s = ctx.settings.clone();
         let cmd = ctx.cmd_tx.clone();
@@ -779,9 +702,6 @@ pub fn wire(ctx: &AppContext) {
             s.borrow().save();
             hk.borrow().unregister_ptt();
             hk.borrow().register_clip(clip_binding(&defaults));
-            if cfg!(any(windows, target_os = "macos")) {
-                hk.borrow().register_game_clip(game_clip_binding(&defaults));
-            }
             hk.borrow().register_stream(stream_binding(&defaults));
             hk.borrow()
                 .set_active(defaults.input_mode == "push_to_talk");

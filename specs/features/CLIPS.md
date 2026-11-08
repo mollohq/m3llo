@@ -2,7 +2,7 @@
 
 > **Component:** Crew Memory, Clips, Crew Feed  
 > **Version:** 1.0  
-> **Status:** v1 In Progress (durable crew memory landed: clips and recaps persist outside the ledger trim; dot-matrix waveform clip cards landed; the crew feed is the zone feed, CREW-FEED-ZONES.md; game clips (F8) built on Windows, section 15)  
+> **Status:** v1 In Progress (durable crew memory landed: clips and recaps persist outside the ledger trim; dot-matrix waveform clip cards landed; the crew feed is the zone feed, CREW-FEED-ZONES.md; one clip key (F8): a game clip while the replay records, else a voice clip; game clips built on Windows, section 15)  
 > **Depends on:** CREW-EVENT-LEDGER.md, 13-VOICE-CHANNELS.md  
 > **Mockups:** m3llo-crew-feed-mockup-v4.html (populated), m3llo-crew-feed-cold-start-full.html (empty)
 
@@ -43,12 +43,23 @@ Good for capturing funny conversations, heated arguments, singing, whatever happ
 
 **Requires:** An active voice session. The client maintains a rolling disk buffer of mixed audio output.
 
-**Hotkey:** the clip key captures a voice clip from any app, a game included. It does what the clip button does, and only when the clip button shows: in voice, with microphone access.
+**Hotkey:** the clip key saves the last 30 seconds from any app, a game included. There is one clip key for game clips and voice clips. The clip button does the same as the key.
 
-- The key is F7 on a new install (`DEFAULT_CLIP_KEY`). Settings, KEYBINDS changes it (specs/01-CLIENT.md, Settings tabs). It is stored as `Settings::clip_key`, in the format of `ptt_key` ("F7", "Ctrl+F7").
-- The modifiers must match the binding. F7 with Shift does not clip when the key is F7.
-- A held key makes one clip. Auto-repeat does not make more.
-- KEYBINDS refuses a key that push-to-talk uses. When push-to-talk is on and gets the clip key later, the key stays push-to-talk.
+The client decides the clip type in one function (`client/src/clip_key.rs`, `clip_pressed`). The key and the button both call it. It reads the replay state that core last reported (section 15.2):
+
+| Replay state | In voice, with mic access | Result |
+|---|---|---|
+| Recording, Waiting, Paused | Yes or no | A game clip (`Command::CaptureGameClip`, section 15) |
+| Off | Yes | A voice clip (`Command::CaptureClip`). Core makes a stream clip when the user watches a stream. |
+| Off | No | No clip. The HUD toast says "Join voice to clip". |
+| DiskLow, Unavailable, NoPermission | Yes | A voice clip. The HUD toast says "Voice clip saved. " and then the reason, for example "Voice clip saved. Allow Screen Recording in Settings to clip your game". |
+| DiskLow, Unavailable, NoPermission | No | No clip. The HUD toast gives the reason (section 15.2). |
+
+- The key is F8 on a new install (`DEFAULT_CLIP_KEY`). Settings, KEYBINDS changes it (specs/01-CLIENT.md, Settings tabs). It is stored as `Settings::clip_key`, in the format of `ptt_key` ("F8", "Ctrl+F8").
+- A settings file from before the one clip key has a voice clip key (`clip_key`, F7) and a game clip key (`game_clip_key`, F8). On load, the value of `game_clip_key` becomes `clip_key`. The file does not keep `game_clip_key`.
+- The modifiers must match the binding. F8 with Shift does not clip when the key is F8.
+- The clip key has one held state. A held key makes one clip. Auto-repeat does not make more.
+- KEYBINDS refuses a key that push-to-talk or the stream key uses. When push-to-talk is on and gets the clip key later, the key stays push-to-talk.
 - The clip button shows the key after "CLIP 30S", in a plain box. With no key, the box is not there.
 - The listener is `client/src/platform/hotkeys.rs` (`register_clip`, `clip_key_step`).
 
@@ -144,7 +155,7 @@ Not needed for v1. Becomes essential when share export ships.
 v1 is quick clip only. No trim UI. User taps the clip button, last 30 seconds are grabbed immediately.
 
 ```
-User taps clip button (scissors icon, bottom bar) or presses F7
+User taps clip button (scissors icon, bottom bar) or presses the clip key (F8)
     │
     ▼
 Client reads last 30 seconds from disk buffer
@@ -469,7 +480,7 @@ Built on Windows and macOS. The platform parts are in sections 15.12 and
 
 ### 15.1 What F8 Does
 
-F8 saves the last 30 seconds of the user's own game as one MP4:
+While the replay records, F8 saves the last 30 seconds of the user's own game as one MP4:
 
 - the game video,
 - the game audio,
@@ -482,10 +493,9 @@ viewer's clip of a crew member's stream.
 
 | Key | Clip | Needs |
 |---|---|---|
-| F7 | Voice clip, audio only (section 3.1) | Voice, mic access |
-| F8 | Game clip: video, game audio, voice | Voice, and the replay records (section 15.2) |
+| F8 | Game clip while the replay records, else a voice or stream clip | A game clip: the replay records (section 15.2). A voice clip: voice, mic access (section 3.1) |
 
-The key is the only trigger. Auto highlights (a clip that game telemetry
+The clip key and the clip button are the only triggers. Auto highlights (a clip that game telemetry
 starts) need a way to ask the user first. They are a later iteration
 (section 15.14).
 
@@ -517,17 +527,21 @@ Known limit: with two games and a window that is not a game in focus, the
 primary game falls to the fullscreen or the oldest game, and after 10 s the
 replay moves to it.
 
-**The key** (`client/src/game_clip.rs`, `client/src/platform/hotkeys.rs`):
+**The key** (`client/src/clip_key.rs`, `client/src/platform/hotkeys.rs`):
 
-- F8 on a new install (`DEFAULT_GAME_CLIP_KEY`). Settings, KEYBINDS has a
-  Game clip row. It is stored as `Settings::game_clip_key`, in the format of
-  `ptt_key`.
-- KEYBINDS refuses a game clip key that push-to-talk or the voice clip key
-  uses, and the voice clip row refuses the game clip key.
-- F7 and F8 keep their own held state. A held key makes one clip.
-- The key makes a clip only while the replay records. Otherwise the HUD
-  toast says why: "Game clips are off in Settings", "No game to clip", "Join
-  voice to clip your game", "Clips are not available for this game".
+- The game clip key is the one clip key of section 3.1: F8 on a new
+  install (`DEFAULT_CLIP_KEY`), stored as `Settings::clip_key`. Settings,
+  KEYBINDS has one Clip row.
+- KEYBINDS refuses a clip key that push-to-talk or the stream key uses. The
+  stream key row refuses the clip key.
+- The clip key and the stream key keep their own held state. A held key
+  makes one clip.
+- The key makes a game clip only while the replay records. Otherwise it
+  makes a voice clip in voice (section 3.1). When the replay cannot clip,
+  the HUD toast says why: "Game clips are off: the disk is almost full",
+  "Clips are not available for this game", "Allow Screen Recording in
+  Settings to clip your game". In voice the toast starts with "Voice clip
+  saved. ".
 - A clip shows "Game clip saved". A capture that fails shows "No game clip".
 - The clip goes to the active crew. A user is always in a crew.
 
@@ -786,7 +800,7 @@ macOS shows its prompt the first time and opens System Settings, Privacy and
 Security, Screen and System Audio Recording after that. The row goes when the
 replay records.
 
-KEYBINDS has the Game clip row (section 15.2). The app picks the ring folder
+KEYBINDS has the one Clip row (section 3.1). The app picks the ring folder
 (the OS temp folder). It is not a setting. There is no switch for game clips
 while streaming: the rules of 12-STREAMING.md §3.7 keep the stream first.
 
@@ -823,17 +837,17 @@ Estimates at 720p60. The perf scenario that measures them is not built yet
 | Player | m3llo's own player, as on Windows (section 15.9). The VideoToolbox decoder takes one access unit as one sample (an AUD or an SEI alone is not a picture). The frames reach the clip view as RGBA through the client's frame timer. |
 | Stream host | The macOS stream host takes its capture from a `CaptureManager` too and encodes on its own thread, so a replay of the streamed game follows the stream's capture (F1, F2) and sheds first under overload (F3). A stream of a game takes the game's sound from the shared process tap (F7). |
 | Permission | Screen Recording, checked before each start and never asked while the user plays (section 15.10). The process tap asks for the audio capture permission at its first start. |
-| Key | F8, on the CGEventTap listener with its own held state. On a Mac keyboard F8 is the play and pause key unless "Use F1, F2, etc. keys as standard function keys" is on, or the user holds fn. |
+| Key | The clip key, F8, on the CGEventTap listener. The clip key has one held state, apart from the stream key. On a Mac keyboard F8 is the play and pause key unless "Use F1, F2, etc. keys as standard function keys" is on, or the user holds fn. |
 | Disk | The 2 GB rule reads `statvfs`. The ring files are preallocated (`F_PREALLOCATE`), so a full disk fails the start. The upload thread runs at the utility class. |
 
 ### 15.13 Tests
 
 | Level | Tests |
 |---|---|
-| Unit (`check.sh`) | The game clip key and KEYBINDS rules (`hotkeys.rs`), the client flow tests (`flow_tests.rs`: the key, the toasts, the settings, the card, the Screen Recording row; Windows and macOS), the replay worker rules (`replay.rs`, the free space on Windows and macOS), the game sensing rule for a fullscreen app bundle (`game_sensing.rs`), the upload worker against a local stub, the queue and the pace (`clip_upload/`), the upload budget (`upload_budget.rs`), the range reader, the Go tests (`game_clips_test.go`, `crew_feed_test.go`) |
+| Unit (`check.sh`) | The clip key and KEYBINDS rules (`hotkeys.rs`, `clip_key.rs`), the client flow tests (`flow_tests.rs`: the key, the toasts, the settings, the card, the Screen Recording row; Windows and macOS), the replay worker rules (`replay.rs`, the free space on Windows and macOS), the game sensing rule for a fullscreen app bundle (`game_sensing.rs`), the upload worker against a local stub, the queue and the pace (`clip_upload/`), the upload budget (`upload_budget.rs`), the range reader, the Go tests (`game_clips_test.go`, `crew_feed_test.go`) |
 | libmello ctest (`check-full.sh`) | `ReplayVideoRing`, `ReplayAudioRing`, `ReplayMux`, `ReplayMuxTime`, `ReplayMix`, `ReplayAvClock`, `ReplayGaps`, `ReplayLoad`, `ReplaySession`, `CaptureManager`, `SharedGameAudio`, `EncoderIntent`, `WindowCrop` (Windows), `ClipPlayer`, `ClipAudioStream`, `Mp4Write`, `Mp4Demux` (the box tree, Opus in ISOBMFF, a file from ffmpeg, cut and damaged files), `ProcessEnum`. On macOS too, except `WindowCrop`: `ReplaySession` and `ClipPlayer` with the reference clip and a fake decoder, `SharedGameAudio.OneProcessTapFeedsTwoConsumers`, `EncoderIntent.VideoToolboxRecordingHasAOneSecondGopAndNoBFrames`. By hand: `VideoPipelineMac.DISABLED_TheHostEncodesTheDisplayOnItsCaptureManager` (real display capture), `mello_sck_audio_probe` (the game audio choices). |
 | Replay lane | `scripts/replay-gate.sh` (`stream-gate replay`, `tools/stream-gate/src/replay.rs`). The reference clip goes through the replay, with presses at 35, 47, 60 and 62 s. Gates in `benchmarks/baselines/replay/gates.json`: the first frame is T0 within one GOP, no frame is missing, a length of 30 to 31 s, PSNR, SSIM and VMAF floors, the game audio markers within ±20 ms of their frames. `--playback` adds the streamed playback row (`playback.rs`, `http_shim.rs`): the first frame within 1 s, no buffering, every frame in order, a seek to 20 s within 1 s. `--lane mac` runs it on macOS (VideoToolbox, the vmaf CLI from PATH at the pinned version). The QA harness runs the lane, not `check.sh`. TESTING.md has the commands. |
-| Journey | `qa/journeys/feed-game-clip.ts` (FEED-12). An `e2e-game` build gives a fake game (`mello-core/src/e2e_game.rs`) whose replay records the reference clip. bob joins voice and presses F8 through `POST /game-clip-key` on the state port. bob's card shows the local poster. alice waits for the upload, plays the MP4 from local S3, pauses, seeks and closes the player. |
+| Journey | `qa/journeys/feed-game-clip.ts` (FEED-12). An `e2e-game` build gives a fake game (`mello-core/src/e2e_game.rs`) whose replay records the reference clip. bob joins voice and presses F8 through `POST /clip-key` on the state port. `POST /game-clip-key` is an alias of it. bob's card shows the local poster. alice waits for the upload, plays the MP4 from local S3, pauses, seeks and closes the player. |
 
 ### 15.14 Not Built Yet
 

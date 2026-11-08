@@ -10,8 +10,10 @@
 //! - `POST /fake-game` — `{"action":"start"|"end","game_id":"rocket-league",
 //!   "ago_min":12}` feeds a game sensor event for a catalogue game into the
 //!   core loop (`mello_core::e2e_game`). `ago_min` moves a start into the past.
-//! - `POST /game-clip-key` — press the game clip key (F8) once. The poll loop
-//!   takes the press as it takes the real key (`take_game_clip_keys`).
+//! - `POST /clip-key` — press the clip key (F8) once. The poll loop takes
+//!   the press as it takes the real key (`take_clip_keys`). `POST
+//!   /game-clip-key` is an alias of it, for the journeys that press the old
+//!   game clip key.
 //! - `POST /stream-key` — press the stream key (F9) once. The poll loop
 //!   takes the press as it takes the real key (`take_stream_keys`).
 //! - `GET /disabled` — the controls on screen that declare
@@ -59,9 +61,9 @@ static EVENT_SEQ: Mutex<u64> = Mutex::new(0);
 static VOICE_TRANSPORT: Mutex<Option<&'static str>> = Mutex::new(None);
 /// The other members of the watched SFU stream, from the core's events.
 static STREAM_MEMBERS: Mutex<Vec<StreamMember>> = Mutex::new(Vec::new());
-/// Game clip key presses from `POST /game-clip-key` that the poll loop has
-/// not taken.
-static GAME_CLIP_KEYS: AtomicU32 = AtomicU32::new(0);
+/// Clip key presses from `POST /clip-key` and its alias
+/// `POST /game-clip-key` that the poll loop has not taken.
+static CLIP_KEYS: AtomicU32 = AtomicU32::new(0);
 /// Stream key presses from `POST /stream-key` that the poll loop has not
 /// taken.
 static STREAM_KEYS: AtomicU32 = AtomicU32::new(0);
@@ -952,10 +954,10 @@ fn event_record(ev: &Event, seq: u64, ts_ms: u128) -> EventRecord {
     }
 }
 
-/// The game clip key presses that `POST /game-clip-key` made since the last
+/// The clip key presses that `POST /clip-key` made since the last
 /// call. Called from the poll loop.
-pub fn take_game_clip_keys() -> u32 {
-    GAME_CLIP_KEYS.swap(0, Ordering::Relaxed)
+pub fn take_clip_keys() -> u32 {
+    CLIP_KEYS.swap(0, Ordering::Relaxed)
 }
 
 /// The stream key presses that `POST /stream-key` made since the last call.
@@ -1015,8 +1017,8 @@ fn serve(mut stream: TcpStream, weak: &slint::Weak<MainWindow>) {
     let path = line.split_whitespace().nth(1).unwrap_or("/");
     let (status, body) = match path {
         "/fake-game" if method == "POST" => fake_game(&body_bytes),
-        "/game-clip-key" if method == "POST" => {
-            GAME_CLIP_KEYS.fetch_add(1, Ordering::Relaxed);
+        "/clip-key" | "/game-clip-key" if method == "POST" => {
+            CLIP_KEYS.fetch_add(1, Ordering::Relaxed);
             ("200 OK", r#"{"ok":true}"#.into())
         }
         "/stream-key" if method == "POST" => {
@@ -1983,11 +1985,11 @@ mod tests {
     }
 
     #[test]
-    fn a_game_clip_key_post_is_taken_once() {
-        let _ = take_game_clip_keys();
-        GAME_CLIP_KEYS.fetch_add(2, Ordering::Relaxed);
-        assert_eq!(take_game_clip_keys(), 2);
-        assert_eq!(take_game_clip_keys(), 0);
+    fn a_clip_key_post_is_taken_once() {
+        let _ = take_clip_keys();
+        CLIP_KEYS.fetch_add(2, Ordering::Relaxed);
+        assert_eq!(take_clip_keys(), 2);
+        assert_eq!(take_clip_keys(), 0);
     }
 
     #[test]

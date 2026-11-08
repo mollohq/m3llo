@@ -32,16 +32,20 @@ pub struct Settings {
     pub onboarding_via_invite: bool,
     pub start_on_boot: bool,
     pub ptt_key: Option<String>,
-    /// The voice clip key, as `ptt_key` stores a key ("F7", "Ctrl+F7").
-    /// `None` turns the key off.
+    /// The clip key, as `ptt_key` stores a key ("F8", "Ctrl+F8"). A press
+    /// saves a game clip while the replay records, else a voice or stream
+    /// clip (CLIPS.md section 3.1). `None` turns the key off.
     pub clip_key: Option<String>,
     /// Game clips (CLIPS.md 15.10): the replay of the game while the
     /// user is in voice. On by default.
     pub game_clips_enabled: bool,
     /// "1080p60", "720p60" or "720p30" (`GameClipQuality`).
     pub game_clip_quality: String,
-    /// The game clip key, in the format of `clip_key` ("F8").
-    pub game_clip_key: Option<String>,
+    /// The game clip key of a file from before the one clip key. Read on
+    /// load only: [`Settings::migrated`] moves it to `clip_key`. Never
+    /// written back.
+    #[serde(rename = "game_clip_key", skip_serializing)]
+    pub(crate) legacy_game_clip_key: Option<String>,
     /// The stream key, in the format of `clip_key` ("F9"). A press starts
     /// a stream of the detected game, or ends the hosted stream. `None`
     /// turns the key off.
@@ -144,7 +148,7 @@ impl Default for Settings {
             game_clip_quality: mello_core::events::GameClipQuality::default()
                 .as_str()
                 .to_string(),
-            game_clip_key: Some(crate::platform::hotkeys::DEFAULT_GAME_CLIP_KEY.to_string()),
+            legacy_game_clip_key: None,
             stream_key: Some(crate::platform::hotkeys::DEFAULT_STREAM_KEY.to_string()),
             start_minimized: false,
             close_to_tray: true,
@@ -221,13 +225,29 @@ impl Settings {
         match loaded {
             Ok(s) => {
                 log::info!("Settings loaded");
-                s
+                s.migrated()
             }
             Err(e) => {
                 log::warn!("Failed to load settings, using defaults: {}", e);
                 Self::default()
             }
         }
+    }
+
+    /// Moves the keys of an older file to their current fields. A file
+    /// from a build with game clips stores the game clip key (default "F8")
+    /// apart from the voice clip key ("F7"). The one clip key takes the
+    /// game clip key, so the key the user pressed for game clips stays.
+    pub(crate) fn migrated(mut self) -> Self {
+        if let Some(key) = self.legacy_game_clip_key.take() {
+            log::info!(
+                "[settings] clip key {:?} -> {:?} (from the game clip key)",
+                self.clip_key,
+                key
+            );
+            self.clip_key = Some(key);
+        }
+        self
     }
 
     /// The command that applies the saved input sensitivity to libmello.
@@ -325,13 +345,12 @@ mod tests {
         assert_eq!(old.vad_threshold, -25.0);
     }
 
-    /// A settings file from before game clips loads with them on at 720p60,
-    /// on F8. A quality the client does not know falls back to the default.
+    /// A settings file from before game clips loads with them on at 720p60.
+    /// A quality the client does not know falls back to the default.
     #[test]
     fn game_clips_default_on_at_720p60_also_for_old_settings_files() {
         let old: Settings = toml::from_str("dark_theme = false\n").expect("old file parses");
         assert!(old.game_clips_enabled);
-        assert_eq!(old.game_clip_key.as_deref(), Some("F8"));
         assert!(matches!(
             old.game_clips_command(),
             mello_core::Command::SetGameClips {
@@ -352,6 +371,46 @@ mod tests {
                 quality: mello_core::events::GameClipQuality::P720Fps60,
             }
         ));
+    }
+
+    /// Loads a settings file the way `Settings::load` does.
+    fn load_str(file: &str) -> Settings {
+        toml::from_str::<Settings>(file)
+            .expect("old file parses")
+            .migrated()
+    }
+
+    /// A file from a build with game clips has F7 and F8. The one clip key
+    /// takes F8, the key the user pressed for game clips.
+    #[test]
+    fn an_old_file_with_both_clip_keys_loads_the_game_clip_key_as_the_clip_key() {
+        let s = load_str("clip_key = \"F7\"\ngame_clip_key = \"F8\"\n");
+        assert_eq!(s.clip_key.as_deref(), Some("F8"));
+    }
+
+    /// A rebound game clip key carries over as it is.
+    #[test]
+    fn an_old_file_with_a_rebound_game_clip_key_keeps_that_key() {
+        let s = load_str("clip_key = \"F7\"\ngame_clip_key = \"Ctrl+F8\"\n");
+        assert_eq!(s.clip_key.as_deref(), Some("Ctrl+F8"));
+    }
+
+    /// A file with no game clip key keeps its clip key. The game clip key
+    /// is not written back.
+    #[test]
+    fn a_file_without_a_game_clip_key_keeps_its_clip_key() {
+        let s = load_str("clip_key = \"Shift+F6\"\n");
+        assert_eq!(s.clip_key.as_deref(), Some("Shift+F6"));
+
+        let migrated = load_str("game_clip_key = \"F8\"\n");
+        let saved = toml::to_string(&migrated).expect("serialize");
+        assert!(!saved.contains("game_clip_key"), "{saved}");
+    }
+
+    /// A new install has the one clip key on F8.
+    #[test]
+    fn a_new_install_has_the_clip_key_on_f8() {
+        assert_eq!(Settings::default().clip_key.as_deref(), Some("F8"));
     }
 
     /// A settings file from before the stream key loads with the key on F9.

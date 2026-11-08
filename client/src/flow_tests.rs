@@ -4897,100 +4897,172 @@ fn the_control_bar_ends_the_stream_while_you_host() {
     );
 }
 
-/// F7 clips the voice, as the CLIP 30S button does, and only when the bar
-/// shows that button: in voice, with mic access.
-#[test]
-fn the_clip_key_captures_a_voice_clip_only_in_voice() {
-    let mut h = Harness::new();
-    logged_in_app(&mut h);
-    let capture = |cmds: &[Command]| {
-        cmds.iter()
-            .filter(|c| matches!(c, Command::CaptureClip { .. }))
-            .count()
-    };
-
-    h.app().set_in_voice(false);
+/// Sets the replay state as core reports it, and drops the toasts and the
+/// commands so far.
+fn set_replay(h: &mut Harness, state: mello_core::events::GameClipState) {
+    h.emit(Event::GameClipStateChanged {
+        state,
+        game_name: "Counter-Strike 2".into(),
+        reason: "the reason core gives".into(),
+    });
+    let _ = crate::game_clip::take_toasts();
     let _ = h.commands();
-    crate::poll_loop::clip_key_pressed(h.app());
-    assert_eq!(
-        capture(&h.commands()),
-        0,
-        "out of voice the key does nothing"
-    );
-
-    h.app().set_in_voice(true);
-    h.app().set_mic_permission_granted(false);
-    crate::poll_loop::clip_key_pressed(h.app());
-    assert_eq!(
-        capture(&h.commands()),
-        0,
-        "without mic access the key does nothing"
-    );
-
-    h.app().set_mic_permission_granted(true);
-    crate::poll_loop::clip_key_pressed(h.app());
-    assert_eq!(capture(&h.commands()), 1);
 }
 
-/// F8 clips the game while core reports the replay running, also while it
-/// waits or is paused: its ring still has the game (CLIPS.md 15.2). With
-/// no replay, or one that is not available for the game, F8 makes no clip.
+/// The clip commands in `cmds`: (game clips, clips of the last 30 s).
+fn clips_sent(cmds: &[Command]) -> (usize, usize) {
+    let game = cmds
+        .iter()
+        .filter(|c| matches!(c, Command::CaptureGameClip))
+        .count();
+    let voice = cmds
+        .iter()
+        .filter(|c| matches!(c, Command::CaptureClip { seconds } if *seconds == 30.0))
+        .count();
+    (game, voice)
+}
+
+/// The clip key (F8) saves a game clip while core reports the replay
+/// recording, waiting or paused: the ring still has the game (CLIPS.md
+/// section 3.1). In voice or not, it is a game clip and no voice clip.
 #[test]
-fn the_game_clip_key_clips_only_while_the_replay_runs() {
+fn the_clip_key_saves_a_game_clip_while_the_replay_records() {
     use mello_core::events::GameClipState;
     let mut h = Harness::new();
     logged_in_app(&mut h);
-    let capture = |cmds: &[Command]| {
-        cmds.iter()
-            .filter(|c| matches!(c, Command::CaptureGameClip))
-            .count()
-    };
-    let _ = h.commands();
-
-    crate::game_clip::game_clip_key_pressed(h.ctx());
-    assert_eq!(capture(&h.commands()), 0, "no replay: no clip");
-
-    h.emit(Event::GameClipStateChanged {
-        state: GameClipState::Unavailable,
-        game_name: "Counter-Strike 2".into(),
-        reason: "no hardware encoder".into(),
-    });
-    crate::game_clip::game_clip_key_pressed(h.ctx());
-    assert_eq!(capture(&h.commands()), 0, "not available: no clip");
-
-    for state in [
-        GameClipState::Recording,
-        GameClipState::Waiting,
-        GameClipState::Paused,
-    ] {
-        h.emit(Event::GameClipStateChanged {
-            state,
-            game_name: "Counter-Strike 2".into(),
-            reason: String::new(),
-        });
-        crate::game_clip::game_clip_key_pressed(h.ctx());
-        assert_eq!(capture(&h.commands()), 1, "{state:?}: one clip");
+    for in_voice in [false, true] {
+        h.app().set_in_voice(in_voice);
+        h.app().set_mic_permission_granted(true);
+        for state in [
+            GameClipState::Recording,
+            GameClipState::Waiting,
+            GameClipState::Paused,
+        ] {
+            set_replay(&mut h, state);
+            crate::clip_key::clip_pressed(h.ctx());
+            assert_eq!(
+                clips_sent(&h.commands()),
+                (1, 0),
+                "{state:?}, in voice {in_voice}: one game clip"
+            );
+            assert!(crate::game_clip::take_toasts().is_empty());
+        }
     }
+}
 
-    h.emit(Event::GameClipStateChanged {
-        state: GameClipState::Off,
-        game_name: String::new(),
-        reason: String::new(),
-    });
-    crate::game_clip::game_clip_key_pressed(h.ctx());
-    assert_eq!(capture(&h.commands()), 0, "the replay stopped: no clip");
+/// With the replay off, the clip key saves the last 30 seconds of voice
+/// in voice with mic access. Core makes it a stream clip while the user
+/// watches a stream.
+#[test]
+fn the_clip_key_saves_a_voice_clip_in_voice_when_the_replay_is_off() {
+    use mello_core::events::GameClipState;
+    let mut h = Harness::new();
+    logged_in_app(&mut h);
+    h.app().set_in_voice(true);
+    h.app().set_mic_permission_granted(true);
+    set_replay(&mut h, GameClipState::Off);
 
-    h.emit(Event::GameClipStateChanged {
-        state: GameClipState::DiskLow,
-        game_name: "Counter-Strike 2".into(),
-        reason: "the disk is almost full".into(),
-    });
-    crate::game_clip::game_clip_key_pressed(h.ctx());
-    assert_eq!(capture(&h.commands()), 0, "a full disk: no clip");
+    crate::clip_key::clip_pressed(h.ctx());
+    assert_eq!(clips_sent(&h.commands()), (0, 1));
+    assert!(crate::game_clip::take_toasts().is_empty());
+}
+
+/// With the replay off and no voice (or no mic access), the clip key
+/// saves nothing and the toast says to join voice.
+#[test]
+fn the_clip_key_says_join_voice_out_of_voice_when_the_replay_is_off() {
+    use mello_core::events::GameClipState;
+    let mut h = Harness::new();
+    logged_in_app(&mut h);
+    set_replay(&mut h, GameClipState::Off);
+
+    h.app().set_in_voice(false);
+    h.app().set_mic_permission_granted(true);
+    crate::clip_key::clip_pressed(h.ctx());
+    assert_eq!(clips_sent(&h.commands()), (0, 0), "out of voice: no clip");
+    assert_eq!(crate::game_clip::take_toasts(), vec!["Join voice to clip"]);
+
+    h.app().set_in_voice(true);
+    h.app().set_mic_permission_granted(false);
+    crate::clip_key::clip_pressed(h.ctx());
+    assert_eq!(clips_sent(&h.commands()), (0, 0), "no mic access: no clip");
+    assert_eq!(crate::game_clip::take_toasts(), vec!["Join voice to clip"]);
+}
+
+/// The replay stopped on a full disk. In voice the clip key still saves
+/// the voice, and the toast says the clip has no game and why.
+#[test]
+fn the_clip_key_saves_a_voice_clip_and_says_why_on_a_full_disk() {
+    use mello_core::events::GameClipState;
+    let mut h = Harness::new();
+    logged_in_app(&mut h);
+    h.app().set_in_voice(true);
+    h.app().set_mic_permission_granted(true);
+    set_replay(&mut h, GameClipState::DiskLow);
+
+    crate::clip_key::clip_pressed(h.ctx());
+    assert_eq!(clips_sent(&h.commands()), (0, 1));
+    assert_eq!(
+        crate::game_clip::take_toasts(),
+        vec!["Voice clip saved. Game clips are off: the disk is almost full"]
+    );
+}
+
+/// The replay cannot clip and the user is not in voice: no clip, and the
+/// toast gives the reason as before.
+#[test]
+fn the_clip_key_gives_the_reason_out_of_voice_when_the_replay_cannot_clip() {
+    use mello_core::events::GameClipState;
+    let mut h = Harness::new();
+    logged_in_app(&mut h);
+    h.app().set_in_voice(false);
+    for (state, toast) in [
+        (
+            GameClipState::DiskLow,
+            "Game clips are off: the disk is almost full",
+        ),
+        (
+            GameClipState::Unavailable,
+            "Clips are not available for this game",
+        ),
+        (
+            GameClipState::NoPermission,
+            "Allow Screen Recording in Settings to clip your game",
+        ),
+    ] {
+        set_replay(&mut h, state);
+        crate::clip_key::clip_pressed(h.ctx());
+        assert_eq!(clips_sent(&h.commands()), (0, 0), "{state:?}: no clip");
+        assert_eq!(crate::game_clip::take_toasts(), vec![toast], "{state:?}");
+    }
+}
+
+/// The CLIP 30S button does what the clip key does: while the replay
+/// records it saves a game clip, not a voice clip.
+#[test]
+fn the_clip_button_saves_a_game_clip_while_the_replay_records() {
+    use mello_core::events::GameClipState;
+    let mut h = Harness::new();
+    h.app()
+        .window()
+        .set_size(slint::PhysicalSize::new(1600, 1000));
+    logged_in_app(&mut h);
+    h.app().set_in_voice(true);
+    h.app().set_mic_permission_granted(true);
+    h.pump();
+    set_replay(&mut h, GameClipState::Recording);
+
+    h.click_label("CLIP 30S");
+    assert_eq!(clips_sent(&h.commands()), (1, 0));
+
+    set_replay(&mut h, GameClipState::Off);
+    h.click_label("CLIP 30S");
+    assert_eq!(clips_sent(&h.commands()), (0, 1), "no replay: a voice clip");
 }
 
 /// macOS: with no Screen Recording permission the replay does not start.
-/// F8 makes no clip, the Game clips section shows the row that asks, and
+/// The clip key makes no game clip, the Game clips section shows the row
+/// that asks, and
 /// ALLOW sends the request to core (CLIPS.md 15.12a). The permission comes
 /// back: the row goes.
 #[cfg(any(windows, target_os = "macos"))]
@@ -5009,7 +5081,7 @@ fn without_screen_recording_the_settings_row_asks_for_it() {
     });
     assert!(h.app().get_game_clips_need_permission());
     let _ = h.commands();
-    crate::game_clip::game_clip_key_pressed(h.ctx());
+    crate::clip_key::clip_pressed(h.ctx());
     assert!(
         !h.commands()
             .iter()
@@ -5184,19 +5256,19 @@ fn a_game_clip_in_the_feed_is_a_footage_card() {
         .any(|c| matches!(c, Command::CloseGameClip)));
 }
 
-/// The clip button names the clip key, F7 on a new install.
+/// The clip button names the clip key, F8 on a new install.
 #[test]
 fn the_clip_button_names_the_clip_key() {
     let mut h = Harness::new();
     logged_in_app(&mut h);
     h.app().set_in_voice(true);
     h.pump();
-    assert_eq!(h.app().get_clip_key_label().as_str(), "F7");
-    assert!(drawn_texts(&h).iter().any(|t| t == "F7"));
+    assert_eq!(h.app().get_clip_key_label().as_str(), "F8");
+    assert!(drawn_texts(&h).iter().any(|t| t == "F8"));
 }
 
-/// The clip key is bound in Settings, Keybinds: the new key is saved, and
-/// the clip button shows it.
+/// The one clip key is bound in Settings, Keybinds: the new key is saved,
+/// and the clip button shows it. There is no second clip row.
 #[test]
 fn keybinds_rebinds_the_clip_key() {
     let mut h = Harness::new();
@@ -5204,7 +5276,9 @@ fn keybinds_rebinds_the_clip_key() {
     h.app().set_settings_open(true);
     h.pump();
     h.click_label("KEYBINDS");
-    h.click_label("Voice clip key");
+    assert!(h.controls_labelled("Game clip key").is_empty());
+    assert!(h.controls_labelled("Voice clip key").is_empty());
+    h.click_label("Clip key");
     assert!(h.app().get_settings_clip_binding(), "the field listens");
 
     // Shift+F8, F8 as Slint reports it. Shift stores the same on every
@@ -5231,96 +5305,35 @@ fn keybinds_refuses_the_push_to_talk_key() {
         .invoke_settings_clip_key_captured("v".into(), false, false, false, false);
     h.pump();
 
-    assert_eq!(h.app().get_clip_key_label().as_str(), "F7");
-    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F7"));
+    assert_eq!(h.app().get_clip_key_label().as_str(), "F8");
+    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F8"));
     assert_eq!(
         h.app().get_settings_clip_key_warning().as_str(),
         "Push-to-talk uses V. Pick another key."
     );
 }
 
-/// Reset to defaults gives the clip key back to F7.
+/// Reset to defaults gives the clip key back to F8 and the stream key
+/// back to F9.
 #[test]
-fn reset_to_defaults_gives_the_clip_key_back_to_f7() {
+fn reset_to_defaults_gives_the_clip_and_stream_keys_back() {
     let mut h = Harness::new();
     logged_in_app(&mut h);
-    // F10 as Slint reports it. F8 is the game clip key on Windows, F9 the
-    // stream key.
+    // F10 and F11 as Slint reports them.
     h.app()
         .invoke_settings_clip_key_captured("\u{F70D}".into(), false, false, false, false);
+    h.app()
+        .invoke_settings_stream_key_captured("\u{F70E}".into(), false, false, false, false);
     h.pump();
     assert_eq!(h.app().get_clip_key_label().as_str(), "F10");
+    assert_eq!(h.app().get_stream_key_label().as_str(), "F11");
 
     h.app().invoke_settings_reset_defaults();
     h.pump();
-    assert_eq!(h.app().get_clip_key_label().as_str(), "F7");
-    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F7"));
-}
-
-/// The game clip key is bound in Settings, Keybinds, below the voice clip
-/// key (CLIPS.md 15.2). The new key is saved and shown.
-#[cfg(any(windows, target_os = "macos"))]
-#[test]
-fn keybinds_rebinds_the_game_clip_key() {
-    let mut h = Harness::new();
-    logged_in_app(&mut h);
-    h.app().set_settings_open(true);
-    h.pump();
-    h.click_label("KEYBINDS");
-    assert_eq!(h.app().get_game_clip_key_label().as_str(), "F8");
-    h.click_label("Game clip key");
-    assert!(
-        h.app().get_settings_game_clip_binding(),
-        "the field listens"
-    );
-
-    // F10 as Slint reports it. F9 is the stream key.
-    h.app()
-        .invoke_settings_game_clip_key_captured("\u{F70D}".into(), false, false, false, false);
-    h.pump();
-
-    assert!(!h.app().get_settings_game_clip_binding());
-    assert_eq!(h.settings().borrow().game_clip_key.as_deref(), Some("F10"));
-    assert_eq!(h.app().get_game_clip_key_label().as_str(), "F10");
-    assert!(h.app().get_settings_game_clip_key_warning().is_empty());
-}
-
-/// One key, one binding: the game clip key refuses the voice clip key and
-/// the push-to-talk key, and the voice clip key refuses the game clip key.
-/// Each field keeps its key.
-#[cfg(any(windows, target_os = "macos"))]
-#[test]
-fn keybinds_keeps_the_voice_and_game_clip_keys_apart() {
-    let mut h = Harness::new();
-    logged_in_app(&mut h);
-    h.settings().borrow_mut().ptt_key = Some("KeyV".into());
-
-    // F7 as Slint reports it.
-    h.app()
-        .invoke_settings_game_clip_key_captured("\u{F70A}".into(), false, false, false, false);
-    h.pump();
-    assert_eq!(h.settings().borrow().game_clip_key.as_deref(), Some("F8"));
-    assert_eq!(
-        h.app().get_settings_game_clip_key_warning().as_str(),
-        "Voice clip uses F7. Pick another key."
-    );
-
-    h.app()
-        .invoke_settings_game_clip_key_captured("v".into(), false, false, false, false);
-    h.pump();
-    assert_eq!(
-        h.app().get_settings_game_clip_key_warning().as_str(),
-        "Push-to-talk uses V. Pick another key."
-    );
-
-    h.app()
-        .invoke_settings_clip_key_captured("\u{F70B}".into(), false, false, false, false);
-    h.pump();
-    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F7"));
-    assert_eq!(
-        h.app().get_settings_clip_key_warning().as_str(),
-        "Game clip uses F8. Pick another key."
-    );
+    assert_eq!(h.app().get_clip_key_label().as_str(), "F8");
+    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F8"));
+    assert_eq!(h.app().get_stream_key_label().as_str(), "F9");
+    assert_eq!(h.settings().borrow().stream_key.as_deref(), Some("F9"));
 }
 
 /// The stream key is bound in Settings, Keybinds, in the STREAMING section.
@@ -5348,9 +5361,9 @@ fn keybinds_rebinds_the_stream_key() {
 }
 
 /// One key, one binding: the stream key refuses the push-to-talk key and the
-/// voice clip key. The field keeps F9.
+/// clip key. The field keeps F9.
 #[test]
-fn keybinds_the_stream_key_refuses_the_ptt_and_voice_clip_keys() {
+fn keybinds_the_stream_key_refuses_the_ptt_and_clip_keys() {
     let mut h = Harness::new();
     logged_in_app(&mut h);
     h.settings().borrow_mut().ptt_key = Some("KeyV".into());
@@ -5364,24 +5377,6 @@ fn keybinds_the_stream_key_refuses_the_ptt_and_voice_clip_keys() {
         "Push-to-talk uses V. Pick another key."
     );
 
-    // F7 as Slint reports it.
-    h.app()
-        .invoke_settings_stream_key_captured("\u{F70A}".into(), false, false, false, false);
-    h.pump();
-    assert_eq!(h.settings().borrow().stream_key.as_deref(), Some("F9"));
-    assert_eq!(
-        h.app().get_settings_stream_key_warning().as_str(),
-        "Voice clip uses F7. Pick another key."
-    );
-}
-
-/// The stream key refuses the game clip key, where the client binds it.
-#[cfg(any(windows, target_os = "macos"))]
-#[test]
-fn keybinds_the_stream_key_refuses_the_game_clip_key() {
-    let mut h = Harness::new();
-    logged_in_app(&mut h);
-
     // F8 as Slint reports it.
     h.app()
         .invoke_settings_stream_key_captured("\u{F70B}".into(), false, false, false, false);
@@ -5390,13 +5385,13 @@ fn keybinds_the_stream_key_refuses_the_game_clip_key() {
     assert_eq!(h.app().get_stream_key_label().as_str(), "F9");
     assert_eq!(
         h.app().get_settings_stream_key_warning().as_str(),
-        "Game clip uses F8. Pick another key."
+        "Clip uses F8. Pick another key."
     );
 }
 
-/// The voice clip key refuses the stream key. Each field keeps its key.
+/// The clip key refuses the stream key. Each field keeps its key.
 #[test]
-fn keybinds_the_voice_clip_key_refuses_the_stream_key() {
+fn keybinds_the_clip_key_refuses_the_stream_key() {
     let mut h = Harness::new();
     logged_in_app(&mut h);
 
@@ -5404,27 +5399,10 @@ fn keybinds_the_voice_clip_key_refuses_the_stream_key() {
     h.app()
         .invoke_settings_clip_key_captured("\u{F70C}".into(), false, false, false, false);
     h.pump();
-    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F7"));
+    assert_eq!(h.settings().borrow().clip_key.as_deref(), Some("F8"));
+    assert_eq!(h.app().get_clip_key_label().as_str(), "F8");
     assert_eq!(
         h.app().get_settings_clip_key_warning().as_str(),
-        "Stream key uses F9. Pick another key."
-    );
-}
-
-/// The game clip key refuses the stream key. Each field keeps its key.
-#[cfg(any(windows, target_os = "macos"))]
-#[test]
-fn keybinds_the_game_clip_key_refuses_the_stream_key() {
-    let mut h = Harness::new();
-    logged_in_app(&mut h);
-
-    // F9 as Slint reports it.
-    h.app()
-        .invoke_settings_game_clip_key_captured("\u{F70C}".into(), false, false, false, false);
-    h.pump();
-    assert_eq!(h.settings().borrow().game_clip_key.as_deref(), Some("F8"));
-    assert_eq!(
-        h.app().get_settings_game_clip_key_warning().as_str(),
         "Stream key uses F9. Pick another key."
     );
 }
@@ -5504,7 +5482,7 @@ fn the_game_clips_section_saves_and_tells_core() {
         Some((true, GameClipQuality::P720Fps60))
     );
     assert!(h.app().get_settings_game_clips_enabled());
-    assert_eq!(h.app().get_game_clip_key_label().as_str(), "F8");
+    assert_eq!(h.app().get_clip_key_label().as_str(), "F8");
 }
 
 /// Hangup must change the screen on click, before the core answers.

@@ -2015,7 +2015,8 @@ component GamesTab inherits VerticalLayout {
     in property <[AudioDeviceData]> game-clip-qualities: [];
     in property <string> game-clip-quality: "720p60";
     in-out property <string> game-clip-quality-name: "720p, 60 fps";
-    in property <string> game-clip-key-label: "F8";
+    // The clip key (CLIPS.md 3.1), as Keybinds shows it.
+    in property <string> clip-key-label: "F8";
     // macOS: no Screen Recording permission. The row asks for it.
     in property <bool> game-clips-need-permission: false;
     callback game-clips-toggled(bool);
@@ -2047,8 +2048,8 @@ component GamesTab inherits VerticalLayout {
 
             ToggleRow {
                 title: "Game clips";
-                description: root.game-clip-key-label != ""
-                    ? "While you are in voice, m3llo keeps the last 30 seconds of the game you play. Press " + root.game-clip-key-label + " to save them as a clip."
+                description: root.clip-key-label != ""
+                    ? "While you are in voice, m3llo keeps the last 30 seconds of the game you play. Press " + root.clip-key-label + " to save them as a clip."
                     : "While you are in voice, m3llo keeps the last 30 seconds of the game you play. Set a key in Keybinds to save them as a clip.";
                 checked <=> root.game-clips-enabled;
                 toggled(v) => { root.game-clips-toggled(v); }
@@ -2880,7 +2881,7 @@ component KeybindRow inherits Rectangle {
     /// The label of the key field. A row whose title does not name the key
     /// sets its own.
     in property <string> control-label: root.title + " key";
-    /// "F7", "Ctrl+F7", or "" when no key is bound.
+    /// "F8", "Ctrl+F8", or "" when no key is bound.
     in property <string> key-label;
     /// The state under the field, for a key that another binding takes.
     /// The field keeps the key it had.
@@ -3023,15 +3024,10 @@ component KeybindsTab inherits VerticalLayout {
     padding-bottom: 80px;
     spacing: 48px;
 
-    in property <string> clip-key-label: "F7";
+    in property <string> clip-key-label: "F8";
     in property <string> clip-key-warning: "";
     in-out property <bool> clip-binding: false;
     callback clip-key-captured(string, bool, bool, bool, bool);
-    in property <bool> game-clips-available: false;
-    in property <string> game-clip-key-label: "F8";
-    in property <string> game-clip-key-warning: "";
-    in-out property <bool> game-clip-binding: false;
-    callback game-clip-key-captured(string, bool, bool, bool, bool);
     in property <string> stream-key-label: "F9";
     in property <string> stream-key-warning: "";
     in-out property <bool> stream-binding: false;
@@ -3043,21 +3039,13 @@ component KeybindsTab inherits VerticalLayout {
         SectionHeader { title: "CLIPS"; }
 
         KeybindRow {
-            title: "Voice clip";
-            description: "Saves the last 30 seconds of voice. Works in any app while you are in voice.";
+            title: "Clip";
+            control-label: "Clip key";
+            description: "Saves the last 30 seconds: your game while it runs, otherwise the crew voice.";
             key-label: root.clip-key-label;
             warning: root.clip-key-warning;
             binding <=> root.clip-binding;
             key-captured(k, c, a, s, m) => { root.clip-key-captured(k, c, a, s, m); }
-        }
-
-        if root.game-clips-available: KeybindRow {
-            title: "Game clip";
-            description: "Saves the last 30 seconds of your game, with the voice. Works while you are in voice and play.";
-            key-label: root.game-clip-key-label;
-            warning: root.game-clip-key-warning;
-            binding <=> root.game-clip-binding;
-            key-captured(k, c, a, s, m) => { root.game-clip-key-captured(k, c, a, s, m); }
         }
     }
 
@@ -3172,14 +3160,13 @@ export component SettingsModal inherits Rectangle {
     // 5 = Keybinds
     in-out property <int> active-tab: 0;
 
-    // Keybinds: the voice clip key (CLIPS.md 3.1).
-    in property <string> clip-key-label: "F7";
+    // Keybinds and the Game clips section: the clip key (CLIPS.md 3.1).
+    in property <string> clip-key-label: "F8";
     in property <string> clip-key-warning: "";
     in-out property <bool> clip-binding: false;
     callback clip-key-captured(string, bool, bool, bool, bool);
 
-    // Game clips (CLIPS.md 15.10): the Games section and the Keybinds
-    // row. Windows and macOS.
+    // Game clips (CLIPS.md 15.10): the Games section. Windows and macOS.
     in property <bool> game-clips-available: false;
     in property <bool> game-clips-need-permission: false;
     callback game-clips-permission-clicked();
@@ -3187,10 +3174,6 @@ export component SettingsModal inherits Rectangle {
     in property <[AudioDeviceData]> game-clip-qualities: [];
     in property <string> game-clip-quality: "720p60";
     in-out property <string> game-clip-quality-name: "720p, 60 fps";
-    in property <string> game-clip-key-label: "F8";
-    in property <string> game-clip-key-warning: "";
-    in-out property <bool> game-clip-binding: false;
-    callback game-clip-key-captured(string, bool, bool, bool, bool);
     in property <string> stream-key-label: "F9";
     in property <string> stream-key-warning: "";
     in-out property <bool> stream-binding: false;
@@ -3892,7 +3875,7 @@ export component SettingsModal inherits Rectangle {
                             game-clip-qualities: root.game-clip-qualities;
                             game-clip-quality: root.game-clip-quality;
                             game-clip-quality-name <=> root.game-clip-quality-name;
-                            game-clip-key-label: root.game-clip-key-label;
+                            clip-key-label: root.clip-key-label;
                             game-clips-need-permission: root.game-clips-need-permission;
                             game-clips-toggled(v) => { root.setting-changed-game-clips(v); }
                             game-clip-quality-selected(id) => { root.setting-changed-game-clip-quality(id); }
@@ -3906,11 +3889,6 @@ export component SettingsModal inherits Rectangle {
                             clip-key-warning: root.clip-key-warning;
                             clip-binding <=> root.clip-binding;
                             clip-key-captured(k, c, a, s, m) => { root.clip-key-captured(k, c, a, s, m); }
-                            game-clips-available: root.game-clips-available;
-                            game-clip-key-label: root.game-clip-key-label;
-                            game-clip-key-warning: root.game-clip-key-warning;
-                            game-clip-binding <=> root.game-clip-binding;
-                            game-clip-key-captured(k, c, a, s, m) => { root.game-clip-key-captured(k, c, a, s, m); }
                             stream-key-label: root.stream-key-label;
                             stream-key-warning: root.stream-key-warning;
                             stream-binding <=> root.stream-binding;
@@ -4048,10 +4026,9 @@ component SettingsPreview inherits Rectangle {
     in property <int> tab: 0;
     in property <length> scroll: 0px;
     in property <bool> notices-open: false;
-    in property <string> clip-key: "F7";
+    in property <string> clip-key: "F8";
     in property <string> clip-warning: "";
     in property <bool> clip-listening: false;
-    in property <string> game-clip-warning: "";
     in property <bool> game-clips-permission: false;
     in property <string> stream-warning: "";
 
@@ -4071,8 +4048,6 @@ component SettingsPreview inherits Rectangle {
         clip-binding: root.clip-listening;
         game-clips-available: true;
         game-clips-need-permission: root.game-clips-permission;
-        game-clip-key-label: "F8";
-        game-clip-key-warning: root.game-clip-warning;
         stream-key-label: "F9";
         stream-key-warning: root.stream-warning;
         game-clip-qualities: [
@@ -4140,6 +4115,5 @@ export component PreviewAboutLower inherits SettingsPreview { tab: 4; scroll: 70
 export component PreviewAboutTesters inherits SettingsPreview { tab: 4; scroll: 290px; }
 export component PreviewKeybinds inherits SettingsPreview { tab: 5; }
 export component PreviewKeybindsListening inherits SettingsPreview { tab: 5; clip-listening: true; }
-export component PreviewKeybindsTaken inherits SettingsPreview { tab: 5; clip-key: "F7"; clip-warning: "Push-to-talk uses V. Pick another key."; }
-export component PreviewKeybindsGameClipTaken inherits SettingsPreview { tab: 5; game-clip-warning: "Voice clip uses F7. Pick another key."; }
-export component PreviewKeybindsStreamTaken inherits SettingsPreview { tab: 5; stream-warning: "Game clip uses F8. Pick another key."; }
+export component PreviewKeybindsTaken inherits SettingsPreview { tab: 5; clip-key: "F8"; clip-warning: "Push-to-talk uses V. Pick another key."; }
+export component PreviewKeybindsStreamTaken inherits SettingsPreview { tab: 5; stream-warning: "Clip uses F8. Pick another key."; }

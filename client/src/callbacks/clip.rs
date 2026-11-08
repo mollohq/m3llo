@@ -64,10 +64,14 @@ pub fn wire(ctx: &AppContext) {
             loader.poster_wanted(app_weak.clone(), card_id.to_string(), wanted, max_w);
         });
 
-    let cmd = ctx.cmd_tx.clone();
+    // The clip button does what the clip key does (CLIPS.md section 3.1).
+    // A strong `AppContext`: the resolver reads the replay state and sends
+    // the toast. `Harness::drop` clears this callback, or the window would
+    // own itself.
+    let clip_ctx = ctx.clone();
     ctx.app.on_clip_captured(move || {
         log::info!("UI: clip button pressed");
-        let _ = cmd.send(Command::CaptureClip { seconds: 30.0 });
+        crate::clip_key::clip_pressed(&clip_ctx);
     });
 
     crate::game_clip_player::wire(ctx);

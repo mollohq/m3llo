@@ -37,7 +37,7 @@ fn quest_card(
     let settings = ctx.settings.borrow();
     let opened = crate::sealed::opened_keys(&settings, &crew);
     let is_open = |k: &str| opened.contains(k);
-    let clip_key = crate::callbacks::settings::game_clip_key_label(&settings);
+    let clip_key = crate::callbacks::settings::clip_key_label(&settings);
     let activity_on = settings.share_game_activity;
     drop(settings);
     let (viewer, members) = super::clip::h2h_roster(ctx);

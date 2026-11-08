@@ -219,7 +219,7 @@ export component ControlBar inherits Rectangle {
 
     // Clip
     callback clip-captured();
-    /// The voice clip key as Settings shows it ("F7"), or "" when no key is
+    /// The clip key as Settings shows it ("F8"), or "" when no key is
     /// bound. The clip button names it.
     in property <string> clip-key-label: "";
     // Preview only: render the clip button hovered.
@@ -1222,7 +1222,7 @@ export component PreviewClipKey inherits Rectangle {
         game-color: #DE9B35;
         can-stream: true;
         bar-state: 1;
-        clip-key-label: "F7";
+        clip-key-label: "F8";
     }
 }
 
@@ -1240,6 +1240,6 @@ export component PreviewClipKeyCombo inherits Rectangle {
         voice-channel-name: "GENERAL";
         mic-permission-granted: true;
         bar-state: 1;
-        clip-key-label: "Ctrl+F7";
+        clip-key-label: "Ctrl+F8";
     }
 }

@@ -338,8 +338,8 @@ export component MainWindow inherits Window {
     in-out property <bool> settings-ptt-mode: false;
     in property <string> settings-ptt-key-label: "Unassigned";
     in-out property <bool> settings-ptt-binding: false;
-    /// The voice clip key as the clip button and Keybinds show it ("F7"),
-    /// or "" when no key is bound.
+    /// The clip key as the clip button, Keybinds and the Game clips section
+    /// show it ("F8"), or "" when no key is bound.
     in property <string> clip-key-label: "";
     in property <string> settings-clip-key-warning: "";
     in-out property <bool> settings-clip-binding: false;
@@ -351,10 +351,6 @@ export component MainWindow inherits Window {
     in property <[AudioDeviceData]> settings-game-clip-qualities: [];
     in property <string> settings-game-clip-quality: "720p60";
     in-out property <string> settings-game-clip-quality-name: "";
-    /// The game clip key as Keybinds and the Game clips section show it ("F8").
-    in property <string> game-clip-key-label: "";
-    in property <string> settings-game-clip-key-warning: "";
-    in-out property <bool> settings-game-clip-binding: false;
     /// The stream key as Keybinds shows it ("F9"), or "" when no key is bound.
     in property <string> stream-key-label: "";
     in property <string> settings-stream-key-warning: "";
@@ -782,7 +778,6 @@ export component MainWindow inherits Window {
     callback setting-changed-vad-auto(bool);
     callback settings-ptt-key-captured(/* key_text */ string, /* ctrl */ bool, /* alt */ bool, /* shift */ bool, /* meta */ bool);
     callback settings-clip-key-captured(/* key_text */ string, /* ctrl */ bool, /* alt */ bool, /* shift */ bool, /* meta */ bool);
-    callback settings-game-clip-key-captured(/* key_text */ string, /* ctrl */ bool, /* alt */ bool, /* shift */ bool, /* meta */ bool);
     callback settings-stream-key-captured(/* key_text */ string, /* ctrl */ bool, /* alt */ bool, /* shift */ bool, /* meta */ bool);
     callback setting-changed-game-clips(bool);
     callback setting-changed-game-clip-quality(/* quality id */ string);
@@ -1901,9 +1896,6 @@ export component MainWindow inherits Window {
         game-clip-qualities: root.settings-game-clip-qualities;
         game-clip-quality: root.settings-game-clip-quality;
         game-clip-quality-name <=> root.settings-game-clip-quality-name;
-        game-clip-key-label: root.game-clip-key-label;
-        game-clip-key-warning: root.settings-game-clip-key-warning;
-        game-clip-binding <=> root.settings-game-clip-binding;
         stream-key-label: root.stream-key-label;
         stream-key-warning: root.settings-stream-key-warning;
         stream-binding <=> root.settings-stream-binding;
@@ -2048,10 +2040,6 @@ export component MainWindow inherits Window {
         clip-key-captured(key, ctrl, alt, shift, meta) => {
             root.settings-show-saved = true;
             root.settings-clip-key-captured(key, ctrl, alt, shift, meta);
-        }
-        game-clip-key-captured(key, ctrl, alt, shift, meta) => {
-            root.settings-show-saved = true;
-            root.settings-game-clip-key-captured(key, ctrl, alt, shift, meta);
         }
         stream-key-captured(key, ctrl, alt, shift, meta) => {
             root.settings-show-saved = true;

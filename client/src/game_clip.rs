@@ -1,8 +1,8 @@
-//! The game clip key (F8) in the client (CLIPS.md 15.2): the replay
-//! state that core reports, the key, and the HUD toast. The Settings section
-//! and the Keybinds row are in `callbacks/settings.rs`. A saved clip goes to
-//! core for the post and the upload (`mello_core::clip_upload`). The clip
-//! card comes with the todo `feed-card`.
+//! Game clips in the client (CLIPS.md 15.2): the replay state that core
+//! reports, the saved clip, and the HUD toast. The clip key (F8) is in
+//! `clip_key.rs`. The Settings section and the Keybinds row are in
+//! `callbacks/settings.rs`. A saved clip goes to core for the post and the
+//! upload (`mello_core::clip_upload`).
 
 use mello_core::events::GameClipState;
 use mello_core::{Command, Event};
@@ -10,8 +10,9 @@ use mello_core::{Command, Event};
 use crate::app_context::AppContext;
 use crate::hud_manager::HudClipToast;
 
-const DISK_LOW_TOAST: &str = "Game clips are off: the disk is almost full";
-const NO_PERMISSION_TOAST: &str = "Allow Screen Recording in Settings to clip your game";
+pub(crate) const DISK_LOW_TOAST: &str = "Game clips are off: the disk is almost full";
+pub(crate) const NO_PERMISSION_TOAST: &str = "Allow Screen Recording in Settings to clip your game";
+pub(crate) const UNAVAILABLE_TOAST: &str = "Clips are not available for this game";
 
 /// The replay as core last reported it.
 #[derive(Debug, Clone, Default)]
@@ -19,45 +20,6 @@ pub struct GameClipUi {
     pub state: GameClipState,
     pub game_name: String,
     pub reason: String,
-}
-
-/// F8: a clip while the replay runs. A paused or waiting replay still has
-/// its ring, so it clips too. Otherwise the HUD toast says why (CLIPS.md 15.2).
-pub(crate) fn game_clip_key_pressed(ctx: &AppContext) {
-    let ui = ctx.game_clip.borrow().clone();
-    match ui.state {
-        GameClipState::Recording | GameClipState::Waiting | GameClipState::Paused => {
-            log::info!("[game clip] key: clip {}", ui.game_name);
-            let _ = ctx.cmd_tx.send(Command::CaptureGameClip);
-        }
-        GameClipState::Off => {
-            let why = if !ctx.settings.borrow().game_clips_enabled {
-                "Game clips are off in Settings"
-            } else if ctx.app.get_in_voice() {
-                "No game to clip"
-            } else {
-                "Join voice to clip your game"
-            };
-            log::info!("[game clip] key ignored: {why}");
-            toast(ctx, why);
-        }
-        GameClipState::DiskLow => {
-            log::info!("[game clip] key ignored: the disk is almost full");
-            toast(ctx, DISK_LOW_TOAST);
-        }
-        GameClipState::Unavailable => {
-            log::info!(
-                "[game clip] key ignored: not available for {} ({})",
-                ui.game_name,
-                ui.reason
-            );
-            toast(ctx, "Clips are not available for this game");
-        }
-        GameClipState::NoPermission => {
-            log::info!("[game clip] key ignored: no screen recording permission");
-            toast(ctx, NO_PERMISSION_TOAST);
-        }
-    }
 }
 
 pub(crate) fn handle(ctx: &AppContext, event: Event) {
@@ -132,7 +94,9 @@ pub(crate) fn handle(ctx: &AppContext, event: Event) {
 
 /// The HUD clip toast over the game (4 s, the overlay's own timer). With
 /// the HUD off or hidden, the log line is all.
-fn toast(ctx: &AppContext, label: &str) {
+pub(crate) fn toast(ctx: &AppContext, label: &str) {
+    #[cfg(test)]
+    TOASTS.with(|t| t.borrow_mut().push(label.to_string()));
     if !ctx.hud_manager.is_enabled() {
         return;
     }
@@ -142,4 +106,16 @@ fn toast(ctx: &AppContext, label: &str) {
         label: label.to_string(),
     });
     ctx.hud_manager.push_state(state);
+}
+
+// The toasts of this thread, for the tests: the HUD is off in the harness.
+#[cfg(test)]
+thread_local! {
+    static TOASTS: std::cell::RefCell<Vec<String>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The toasts since the last call, on this thread.
+#[cfg(test)]
+pub(crate) fn take_toasts() -> Vec<String> {
+    TOASTS.with(|t| std::mem::take(&mut *t.borrow_mut()))
 }
