@@ -53,6 +53,10 @@ impl Bar {
     }
 }
 
+/// Titles that do not come from game activity: voice minutes, clips and win
+/// moments count with "Show crew what I play" off.
+const NOT_GAME_TITLES: [&str; 3] = ["mouth", "clipper", "winner"];
+
 /// The viewer's chase in one crew.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct Chase {
@@ -64,10 +68,10 @@ pub struct Chase {
     pub takes: Vec<Bar>,
     /// Every belt the viewer holds, smallest lead first.
     pub holds: Vec<Bar>,
-    /// A crew of one: nobody to chase yet.
-    pub solo: bool,
-    /// The titles the viewer has a value in, in display order.
-    pub own: Vec<String>,
+    /// Another member shares game activity with the viewer: their pair with
+    /// the viewer has a value in a game title. A pair holds only the titles
+    /// both contend for, so the viewer shares too. The strip shows only then.
+    pub game_rival: bool,
 }
 
 impl Chase {
@@ -143,15 +147,19 @@ pub fn chase(data: &Value, viewer: &Person, roster: &dyn Fn(&str) -> Person) -> 
 
     sort(&mut takes);
     sort(&mut holds);
-    let mut own: Vec<String> = wire.own_values.iter().map(|o| o.title_id.clone()).collect();
-    own.sort_by_key(|id| any_display_rank(id));
+    let game_rival = wire.pairs.iter().any(|p| {
+        p.a == viewer.id
+            && p.b != viewer.id
+            && p.values
+                .iter()
+                .any(|v| !NOT_GAME_TITLES.contains(&v.title_id.as_str()))
+    });
     Some(Chase {
         held: held.iter().map(|t| t.title_id.clone()).collect(),
         contested: contested.len(),
         takes,
         holds,
-        solo: wire.member_count < 2,
-        own,
+        game_rival,
     })
 }
 
@@ -506,9 +514,29 @@ mod tests {
         assert!(c.strip().is_empty());
         assert_eq!(c.contested, 0);
         assert!(c.held.is_empty());
-        assert!(c.solo);
-        assert_eq!(c.own, vec!["locked_in"]);
-        assert!(!run(r1()).solo, "a crew of three has people to chase");
+        assert!(!c.game_rival);
+        assert!(
+            run(r1()).game_rival,
+            "Ebba and Axel share Night Owl with you"
+        );
+    }
+
+    #[test]
+    fn voice_clips_and_wins_alone_are_no_game_rival() {
+        let pairs = |title: &str| {
+            feed(
+                vec![title_v(title)],
+                vec![],
+                vec![pair("u2", &[(title, json!(5), json!(9))])],
+            )
+        };
+        fn title_v(id: &str) -> Value {
+            title(id, "u2", json!(9), "")
+        }
+        for id in ["mouth", "clipper", "winner"] {
+            assert!(!run(pairs(id)).game_rival, "{id} is not game activity");
+        }
+        assert!(run(pairs("sampler")).game_rival);
     }
 
     #[test]

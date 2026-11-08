@@ -224,22 +224,17 @@ component Panel inherits Rectangle {
 }
 
 /// The You strip (plan you-strip.md): the record of Bob's last game, and the
-/// chase of a crew of three.
+/// chase of a crew of three. A crew of one has no strip.
 global Strip {
     out property <image> owl: @image-url("../icons/h2h-night-owl.svg");
     out property <image> collector: @image-url("../icons/h2h-collector.svg");
     out property <image> locked: @image-url("../icons/h2h-locked-in.svg");
     out property <image> carry: @image-url("../icons/h2h-carry.svg");
-    out property <YouStripData> solo: {
-        has-stats: true, game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2",
-        game-color: #DE9B35, icon: Crew.cs2, has-icon: true, has-record: true, streak-text: "W4",
-        streak-positive: true, win-rate-text: "62%", recent-form: ["W", "W", "L", "W", "D", "W"],
-        viewer: Crew.bob, solo: true, solo-icons: [carry, owl, collector, locked] };
     out property <YouStripData> three: {
         has-stats: true, game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2",
         game-color: #DE9B35, icon: Crew.cs2, has-icon: true, has-record: true, streak-text: "W4",
         streak-positive: true, win-rate-text: "62%", recent-form: ["W", "W", "L", "W", "D", "W"],
-        viewer: Crew.bob, held-icons: [owl],
+        viewer: Crew.bob, ready: true, held-icons: [owl],
         bars: [
             { take: true, title-id: "locked_in", title: "Locked In", icon: locked, other: Crew.jonas,
               you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 },
@@ -260,7 +255,6 @@ global Base {
 
 /// 1 · A crew of one, day 0: own belts, the solo board, the first five.
 export component PreviewFeedDay0 inherits Panel {
-    strip: Strip.solo;
     zones: {
         you: Crew.bob,
         stage: "own", own-chips: [{ belt: Own.carry }, { belt: Own.owl }, { belt: Own.collector }, { belt: Own.locked }],

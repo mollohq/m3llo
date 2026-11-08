@@ -5,7 +5,6 @@ import { CutShape } from "../components/cut.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { StatValue } from "../components/stat.slint";
 import { H2hHue } from "../components/head2head.slint";
-import { ZoneButton } from "../components/feed_board.slint";
 
 // One session of the recent form. A win is a white disc, a loss a hollow
 // ring, a draw a dim disc. A loss is not red: red is state.
@@ -180,18 +179,17 @@ component ChaseBar inherits Rectangle {
 
 // The You strip, pinned atop the crew feed (spec 19 section 2.3, plan
 // you-strip.md). Only the viewer sees it. Left to right: the viewer and the
-// belts they hold, up to two chase bars, the game record, the chevron. A crew
-// of one has the head2head line and Invite in place of the bars. Hidden
-// (zero height) with no record, no bar and no solo line. A tap opens the
+// belts they hold, up to two chase bars, the game record, the chevron. It
+// shows (`ready`) only when the viewer and another member share game
+// activity: a new crew of one has the quest card instead. A tap opens the
 // stats profile.
 export component YouStrip inherits Rectangle {
     in property <YouStripData> data;
 
     callback clicked();
-    callback invite();
 
-    property <bool> shown: data.has-stats || data.bars.length > 0 || data.solo;
-    property <bool> has-h2h: data.bars.length > 0 || data.solo;
+    property <bool> shown: data.ready;
+    property <bool> has-h2h: data.bars.length > 0;
     // The zones set the viewer. Before the first feed load it is empty.
     property <bool> has-viewer: data.viewer.name != "";
 
@@ -283,42 +281,6 @@ export component YouStrip inherits Rectangle {
                 clicked => { root.clicked(); }
             }
 
-            // A crew of one: no one to chase yet.
-            if root.data.solo: HorizontalLayout {
-                horizontal-stretch: 1;
-                spacing: 16px;
-                cross-axis-alignment: center;
-
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    spacing: 6px;
-                    alignment: center;
-                    Text {
-                        text: "Go head2head with your crew";
-                        font-family: Theme.font-display;
-                        font-size: 14px;
-                        font-weight: Theme.weight-display;
-                        color: Theme.text-primary;
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        alignment: start;
-                        for icon in root.data.solo-icons: Image {
-                            source: icon;
-                            colorize: Theme.text-secondary;
-                            width: 14px;
-                            height: 14px;
-                        }
-                    }
-                }
-                ZoneButton {
-                    label: "INVITE";
-                    tone: "line";
-                    a11y-label: "Invite to head2head";
-                    clicked => { root.invite(); }
-                }
-            }
-
             // Nothing to chase: the record keeps the right end.
             if !root.has-h2h: Rectangle { horizontal-stretch: 1; }
 
@@ -391,7 +353,7 @@ component PreviewLabel inherits Text {
 
 export component Preview inherits Rectangle {
     width: 865px;
-    height: 1010px;
+    height: 900px;
     background: Theme.surface;
 
     property <H2hPerson> me: { id: "me", name: "b0bben", initials: "B", hue-index: 0,
@@ -408,7 +370,6 @@ export component Preview inherits Rectangle {
     property <image> i-owl: @image-url("../icons/h2h-night-owl.svg");
     property <image> i-col: @image-url("../icons/h2h-collector.svg");
     property <image> i-lock: @image-url("../icons/h2h-locked-in.svg");
-    property <image> i-carry: @image-url("../icons/h2h-carry.svg");
     property <image> i-samp: @image-url("../icons/h2h-sampler.svg");
     property <image> i-belt: @image-url("../icons/h2h-belt.svg");
 
@@ -443,42 +404,41 @@ export component Preview inherits Rectangle {
         PreviewLabel { text: "R1 · A BELT TO TAKE, ONE TO HOLD"; }
         YouStrip { data: { has-stats: cs2.has-stats, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
             game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
-            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me, ready: true,
             held-icons: [i-owl, i-col, i-belt], bars: [take-lock, hold-owl] }; }
 
         PreviewLabel { text: "R2 · NO BELT, A GAME WITH NO RECORD"; }
         YouStrip { data: { has-stats: true, game-id: brawl.game-id, game-name: brawl.game-name, short-name: "BH",
             game-color: brawl.game-color, has-icon: true, icon: brawl.icon, has-record: false, week-value: "6.5",
-            viewer: me, bars: [take-owl, take-clip] }; }
-
-        PreviewLabel { text: "S1 · A CREW OF ONE"; }
-        YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
-            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
-            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
-            solo: true, solo-icons: [i-carry, i-owl, i-col, i-lock] }; }
+            viewer: me, ready: true, bars: [take-owl, take-clip] }; }
 
         PreviewLabel { text: "S2 · NOTHING TO TAKE"; }
         YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
             game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
-            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me, ready: true,
             held-icons: [i-owl, i-col, i-belt], bars: [hold-owl, hold-col] }; }
 
         PreviewLabel { text: "S3 · A TIE"; }
         YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
             game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "L2",
-            streak-positive: false, win-rate-text: "48%", recent-form: ["W", "L", "W", "W", "L", "L"], viewer: me,
+            streak-positive: false, win-rate-text: "48%", recent-form: ["W", "L", "W", "W", "L", "L"], viewer: me, ready: true,
             held-icons: [i-owl, i-col, i-belt], bars: [tie-samp, hold-owl] }; }
 
         PreviewLabel { text: "S4 · BELTS, NO GAME TRACKED"; }
-        YouStrip { data: { has-stats: false, viewer: me,
+        YouStrip { data: { has-stats: false, viewer: me, ready: true, ready: true,
             held-icons: [i-owl, i-col, i-belt], bars: [take-lock, hold-owl] }; }
 
         PreviewLabel { text: "S5 · ONE BELT IN REACH"; }
         YouStrip { data: { has-stats: true, game-id: brawl.game-id, game-name: brawl.game-name, short-name: "BH",
             game-color: brawl.game-color, has-icon: true, icon: brawl.icon, has-record: false, week-value: "6.5",
-            viewer: me, bars: [take-lock] }; }
+            viewer: me, ready: true, bars: [take-lock] }; }
 
-        PreviewLabel { text: "A RECORD, NO HEAD2HEAD DATA"; }
+        PreviewLabel { text: "SHARING, NOTHING IN REACH"; }
+        YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
+            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me, ready: true }; }
+
+        PreviewLabel { text: "NOT READY: A CREW OF ONE, OR NOBODY ELSE SHARES (HIDDEN)"; }
         YouStrip { data: cs2; }
     }
 }

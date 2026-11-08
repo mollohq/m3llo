@@ -1,6 +1,7 @@
 //! The You strip (`panels/you_strip.slint`, plan you-strip.md): the zones set
-//! its head2head half (the viewer, the chase bars, the solo line), the game
-//! stats its record half, and neither erases the other.
+//! its head2head half (the viewer, the chase bars), the game stats its record
+//! half, and neither erases the other. It shows only when the viewer and
+//! another member share game activity.
 
 use super::*;
 
@@ -95,13 +96,14 @@ fn the_strip_draws_the_closest_take_and_the_thinnest_hold() {
         ]
     );
     let strip = h.app().get_you_strip();
+    assert!(strip.ready, "Jonas and Max share Night Owl with the viewer");
     assert_eq!(strip.viewer.name.as_str(), "Test User");
     assert_eq!(
         strip.held_icons.row_count(),
         1,
         "the viewer holds Night Owl"
     );
-    assert!(!strip.solo);
+    assert_eq!(count_of(&h, "YouStrip"), 1, "the strip is drawn");
     assert_eq!(count_of(&h, "ChaseBar"), 2, "both bars are drawn");
 }
 
@@ -124,27 +126,67 @@ fn the_record_and_the_bars_keep_each_other() {
     });
     let strip = h.app().get_you_strip();
     assert!(bars(&h).is_empty(), "no head2head data, no bars");
+    assert!(!strip.ready, "no head2head data, no strip");
     assert!(strip.has_stats, "the feed keeps the record");
     assert_eq!(strip.game_name.as_str(), "Counter-Strike 2");
     assert_eq!(strip.viewer.name.as_str(), "Test User");
 }
 
-/// A crew of one has nobody to chase: the strip has the head2head line, and
-/// its Invite asks core for an invite code, as the Stage's invite does.
+/// A new crew of one has the quest card. The strip waits for another member
+/// who shares game activity.
 #[test]
-fn a_crew_of_one_gets_the_head2head_line_and_invite() {
+fn a_crew_of_one_has_no_strip() {
     let mut h = Harness::new();
     solo_crew_feed(&mut h);
+    h.emit(cs2_stats());
     let strip = h.app().get_you_strip();
-    assert!(strip.solo);
-    assert!(bars(&h).is_empty());
+    assert!(strip.has_stats, "the record is there");
+    assert!(!strip.ready, "but the strip waits for a second sharer");
+    // A hidden element is absent from the element queries.
+    assert_eq!(count_of(&h, "YouStrip"), 0, "the strip is not drawn");
+}
 
-    h.commands();
-    h.click_label("Invite to head2head");
+/// A member whose pair with the viewer holds only voice, clips and wins does
+/// not share game activity: no strip.
+#[test]
+fn a_member_with_only_voice_and_clips_is_no_rival() {
+    let mut h = Harness::new();
+    crew_of_three(&mut h);
+    let mut entry = h2h_entry(
+        2,
+        vec![h2h_title("mouth", "u2", serde_json::json!(140), "min")],
+        vec![
+            serde_json::json!({"a": "user-1", "b": "u2", "a_count": 0, "b_count": 1,
+            "values": [{"title_id": "mouth", "a_value": 90, "b_value": 140}]}),
+        ],
+        None,
+    );
+    entry.data["own_values"] =
+        serde_json::json!([{"title_id": "mouth", "value": 90, "unit": "min", "display": "90"}]);
+    h.emit(Event::FeedLoaded {
+        response: feed_of(vec![entry]),
+    });
+    assert!(!h.app().get_you_strip().ready);
+}
+
+/// The viewer who does not share game activity has no strip, and turning
+/// sharing off hides it at once.
+#[test]
+fn sharing_off_hides_the_strip() {
+    let mut h = Harness::new();
+    crew_of_three(&mut h);
+    h.emit(Event::FeedLoaded {
+        response: chase_feed(),
+    });
+    assert!(h.app().get_you_strip().ready);
+
+    h.app().invoke_setting_changed_share_game_activity(false);
+    assert!(!h.app().get_you_strip().ready, "hidden at once");
+    h.emit(Event::FeedLoaded {
+        response: chase_feed(),
+    });
     assert!(
-        h.commands()
-            .iter()
-            .any(|c| matches!(c, Command::CreateInviteCode { crew_id } if crew_id == "crew-0")),
-        "the strip's Invite asks for a code"
+        !h.app().get_you_strip().ready,
+        "a feed load keeps it hidden while sharing is off"
     );
 }

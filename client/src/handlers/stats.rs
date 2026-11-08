@@ -36,13 +36,13 @@ fn keep_head2head(strip: &mut YouStripData, old: &YouStripData) {
     strip.viewer = old.viewer.clone();
     strip.held_icons = old.held_icons.clone();
     strip.bars = old.bars.clone();
-    strip.solo = old.solo;
-    strip.solo_icons = old.solo_icons.clone();
+    strip.ready = old.ready;
 }
 
 /// Set the head2head half of the You strip from the chase of the open crew
-/// (plan you-strip.md section 4). `None`: the crew has no head2head data, so
-/// the strip shows the viewer and the record only. The record half stays.
+/// (plan you-strip.md section 4). The strip shows only when the viewer shares
+/// game activity and another member does too: a new crew of one has the
+/// quest card instead. The record half stays.
 pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>) {
     let (viewer, _) = super::clip::h2h_roster(ctx);
     let mut strip = ctx.app.get_you_strip();
@@ -59,31 +59,23 @@ pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>) {
                 .into_iter()
                 .map(|b| head2head::chase_bar_data(b, super::clip::live_person(ctx, &b.other)))
                 .collect();
+            let sharing = ctx.settings.borrow().share_game_activity;
             log::debug!(
-                "you strip: {} bars, {} held, {} contested, solo={}",
+                "you strip: {} bars, {} held, {} contested, rival={}, sharing={}",
                 bars.len(),
                 c.held.len(),
                 c.contested,
-                c.solo
+                c.game_rival,
+                sharing
             );
             strip.bars = ModelRc::new(VecModel::from(bars));
             strip.held_icons = images(&mut c.held.iter());
-            strip.solo = c.solo;
-            // The dim icons of the solo line: the card titles only, as the
-            // own chips of the Stage.
-            strip.solo_icons = images(
-                &mut c
-                    .own
-                    .iter()
-                    .filter(|id| head2head::title_name(id).is_some())
-                    .take(4),
-            );
+            strip.ready = c.game_rival && sharing;
         }
         None => {
             strip.bars = ModelRc::default();
             strip.held_icons = ModelRc::default();
-            strip.solo = false;
-            strip.solo_icons = ModelRc::default();
+            strip.ready = false;
         }
     }
     ctx.app.set_you_strip(strip);

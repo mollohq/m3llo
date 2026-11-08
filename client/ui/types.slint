@@ -556,8 +556,9 @@ export struct YouStripData {
     viewer: H2hPerson,
     held-icons: [image],    // the titles the viewer holds, display order
     bars: [ChaseBarData],   // 0 to 2: the closest take, the thinnest hold
-    solo: bool,             // a crew of one: the head2head line and Invite
-    solo-icons: [image],    // the viewer's own titles, dim, on the solo line
+    // Another member shares game activity with the viewer, who shares too.
+    // The strip shows only then (plan you-strip.md, 2026-11-08).
+    ready: bool,
 }
 
 export struct StreamCardData {
