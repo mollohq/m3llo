@@ -859,13 +859,13 @@ export class App {
     const [win] = await this.ui.props([await this.ui.window()]);
     const bar = 81 + 8;
     const clear = win?.size ? win.size.height - bar : Number.POSITIVE_INFINITY;
-    // The You strip ("YOUR STATS") is pinned above the feed. A control under
+    // The You strip (label "You") is pinned above the feed. A control under
     // it is not clickable either: a click lands on the strip. Each step
     // scrolls only as far as the control needs, so it does not overshoot.
     for (let i = 0; i < maxSteps; i++) {
       const all = await this.ui.controls();
       const c = all.find((c) => c.label === label);
-      const strip = all.find((c) => c.label === "YOUR STATS");
+      const strip = all.find((c) => c.label === "You");
       const top = strip ? strip.y + strip.height : 0;
       if (c && c.y >= top && c.y + c.height <= clear) return;
       if (c && c.y < top) {

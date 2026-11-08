@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { H2hPerson, BeltReveal, RecapSeal, FeedCardData, QuestGift, QuestRow } from "../types.slint";
+import { H2hPerson, BeltReveal, RecapSeal, FeedCardData, QuestGift, QuestRow, YouStripData, ChaseBarData } from "../types.slint";
 import { SealedFixtures } from "./sealed_fixtures.slint";
 import { CrewFeed } from "../panels/crew_feed.slint";
 import { ControlBar } from "../panels/control_bar.slint";
@@ -206,11 +206,12 @@ global Hist {
 /// The feed panel at 1x with the control bar, as in the app.
 component Panel inherits Rectangle {
     in property <ZonesData> zones;
+    in property <YouStripData> strip;
     width: 865px;
     height: 865px;
     background: Theme.bg-app;
     VerticalLayout {
-        CrewFeed { vertical-stretch: 1; zones: root.zones; }
+        CrewFeed { vertical-stretch: 1; zones: root.zones; you-strip: root.strip; }
         ControlBar {
             height: Theme.control-bar-height;
             user-name: "b0bben";
@@ -220,6 +221,31 @@ component Panel inherits Rectangle {
             can-stream: true;
         }
     }
+}
+
+/// The You strip (plan you-strip.md): the record of Bob's last game, and the
+/// chase of a crew of three.
+global Strip {
+    out property <image> owl: @image-url("../icons/h2h-night-owl.svg");
+    out property <image> collector: @image-url("../icons/h2h-collector.svg");
+    out property <image> locked: @image-url("../icons/h2h-locked-in.svg");
+    out property <image> carry: @image-url("../icons/h2h-carry.svg");
+    out property <YouStripData> solo: {
+        has-stats: true, game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2",
+        game-color: #DE9B35, icon: Crew.cs2, has-icon: true, has-record: true, streak-text: "W4",
+        streak-positive: true, win-rate-text: "62%", recent-form: ["W", "W", "L", "W", "D", "W"],
+        viewer: Crew.bob, solo: true, solo-icons: [carry, owl, collector, locked] };
+    out property <YouStripData> three: {
+        has-stats: true, game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2",
+        game-color: #DE9B35, icon: Crew.cs2, has-icon: true, has-record: true, streak-text: "W4",
+        streak-positive: true, win-rate-text: "62%", recent-form: ["W", "W", "L", "W", "D", "W"],
+        viewer: Crew.bob, held-icons: [owl],
+        bars: [
+            { take: true, title-id: "locked_in", title: "Locked In", icon: locked, other: Crew.jonas,
+              you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 },
+            { take: false, title-id: "night_owl", title: "Night Owl", icon: owl, other: Crew.max,
+              you-value: "03:14", other-value: "03:02", unit: "", delta: "+12", delta-unit: "min", ratio: 0.978 },
+        ] };
 }
 
 global Base {
@@ -234,6 +260,7 @@ global Base {
 
 /// 1 · A crew of one, day 0: own belts, the solo board, the first five.
 export component PreviewFeedDay0 inherits Panel {
+    strip: Strip.solo;
     zones: {
         you: Crew.bob,
         stage: "own", own-chips: [{ belt: Own.carry }, { belt: Own.owl }, { belt: Own.collector }, { belt: Own.locked }],
@@ -250,6 +277,7 @@ export component PreviewFeedDay0 inherits Panel {
 /// 2 · Three members, a little activity: Max's clip on stage, the board with
 /// a sealed belt, People moves up, one session.
 export component PreviewFeedSmall inherits Panel {
+    strip: Strip.three;
     zones: {
         you: Crew.bob,
         stage: "card", stage-card: Hist.hero-max,

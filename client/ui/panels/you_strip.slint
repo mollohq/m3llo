@@ -1,79 +1,211 @@
 import { Theme } from "../theme.slint";
-import { YouStripData } from "../types.slint";
+import { YouStripData, ChaseBarData, H2hPerson } from "../types.slint";
 import { GameIcon } from "../components/game_icon.slint";
 import { CutShape } from "../components/cut.slint";
+import { UserAvatar } from "../components/avatar.slint";
+import { StatValue } from "../components/stat.slint";
+import { H2hHue } from "../components/head2head.slint";
+import { ZoneButton } from "../components/feed_board.slint";
 
+// One session of the recent form. A win is a white disc, a loss a hollow
+// ring, a draw a dim disc. A loss is not red: red is state.
 component FormPip inherits Rectangle {
     in property <string> letter;
 
-    width: 17px;
-    height: 17px;
-    border-radius: 3px;
-    background: letter == "W" ? Theme.action
-              : letter == "L" ? Theme.live-bg
-              : Theme.raised;
+    width: 7px;
+    height: 7px;
+    border-radius: 3.5px;
+    background: letter == "W" ? Theme.text-primary
+              : letter == "D" ? Theme.text-tertiary
+              : transparent;
+    border-width: letter == "L" ? 1px : 0px;
+    border-color: Theme.text-secondary;
+}
 
-    Text {
-        text: letter;
-        font-family: Theme.font-label;
-        font-size: 9px;
-        font-weight: Theme.weight-label;
-        color: letter == "W" ? Theme.on-action
-             : letter == "L" ? Theme.live
-             : Theme.text-secondary;
-        horizontal-alignment: center;
-        vertical-alignment: center;
+// The 1 px keyline between the parts of the strip.
+component Sep inherits Rectangle {
+    width: 1px;
+    height: 48px;
+    background: Theme.card-border;
+}
+
+component Kicker inherits Text {
+    font-family: Theme.font-label;
+    font-size: 9px;
+    font-weight: Theme.weight-label;
+    letter-spacing: Theme.track-label;
+    color: Theme.text-secondary;
+}
+
+// One bar: TAKE a belt from its holder, or HOLD yours against the runner-up
+// (plan you-strip.md section 1.2). The whole strip is one button, so a click
+// on the bar goes to the strip. A pointer on the bar shows the stat sentence.
+component ChaseBar inherits Rectangle {
+    in property <ChaseBarData> bar;
+    callback clicked();
+
+    property <color> hue: H2hHue.of(root.bar.other.hue-index);
+
+    horizontal-stretch: 1;
+    min-width: 180px;
+    height: col.preferred-height;
+
+    col := VerticalLayout {
+        spacing: 5px;
+
+        HorizontalLayout {
+            spacing: 6px;
+            cross-axis-alignment: center;
+            height: 20px;
+
+            Kicker { text: root.bar.take ? "TAKE" : "HOLD"; }
+            Image {
+                source: root.bar.icon;
+                colorize: Theme.text-primary;
+                width: 14px;
+                height: 14px;
+            }
+            Kicker {
+                text: root.bar.title.to-uppercase();
+                color: Theme.text-body;
+                overflow: elide;
+                horizontal-stretch: 0;
+            }
+            UserAvatar {
+                size: 18px;
+                initials: root.bar.other.initials;
+                avatar: root.bar.other.avatar;
+                has-avatar: root.bar.other.has-avatar;
+                color-index: root.bar.other.hue-index;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            StatValue {
+                value: root.bar.delta;
+                unit: root.bar.delta-unit;
+                value-size: 14px;
+                unit-size: 11px;
+                gap: 3px;
+            }
+        }
+
+        // The track. A take fills to the ratio, the holder's mark at the end.
+        // A hold is full, the runner-up's mark at the ratio.
+        Rectangle {
+            height: 4px;
+            background: Theme.card-border;
+
+            Rectangle {
+                x: 0;
+                y: 0;
+                width: parent.width * (root.bar.take ? root.bar.ratio : 1.0);
+                height: parent.height;
+                background: Theme.text-primary;
+            }
+            Rectangle {
+                x: root.bar.take ? parent.width - self.width
+                                 : clamp(parent.width * root.bar.ratio - 1px, 0px, parent.width - self.width);
+                y: -3px;
+                width: 2px;
+                height: 10px;
+                background: root.hue;
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 4px;
+            cross-axis-alignment: end;
+
+            Text {
+                text: "You";
+                font-family: Theme.font-body;
+                font-weight: Theme.weight-sentence;
+                font-size: 11px;
+                color: Theme.text-secondary;
+            }
+            StatValue {
+                value: root.bar.you-value;
+                unit: root.bar.unit;
+                value-size: 12px;
+                unit-size: 10px;
+                gap: 3px;
+                hue: Theme.text-body;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            Text {
+                text: root.bar.other.name;
+                font-family: Theme.font-body;
+                font-weight: Theme.weight-sentence;
+                font-size: 11px;
+                color: Theme.text-secondary;
+                overflow: elide;
+            }
+            StatValue {
+                value: root.bar.other-value;
+                unit: root.bar.unit;
+                value-size: 12px;
+                unit-size: 10px;
+                gap: 3px;
+                hue: Theme.text-body;
+            }
+        }
+    }
+
+    tip-ta := TouchArea {
+        // a11y: none (hover detector for the tooltip; the click goes to the strip button)
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+
+    // Above the bar, as the tooltip of a title chip.
+    if root.bar.stat-line != "" && tip-ta.has-hover: Rectangle {
+        x: 0;
+        y: -self.height - 10px;
+        width: tip-text.preferred-width + 12px;
+        height: 20px;
+        background: Theme.raised-hover;
+        border-width: 1px;
+        border-color: Theme.graphic-med;
+
+        tip-text := Text {
+            text: root.bar.stat-line;
+            font-family: Theme.font-body;
+            font-weight: Theme.weight-sentence;
+            font-size: 11px;
+            color: Theme.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
     }
 }
 
-component StatCell inherits VerticalLayout {
-    in property <string> value;
-    in property <string> label;
-    in property <color> value-color: Theme.text-primary;
-
-    alignment: center;
-    spacing: 2px;
-
-    Text {
-        text: value;
-        font-family: Theme.font-display;
-        font-size: 17px;
-        font-weight: Theme.weight-display;
-        letter-spacing: -0.2px;
-        color: value-color;
-        horizontal-alignment: center;
-    }
-
-    Text {
-        text: label;
-        font-family: Theme.font-label;
-        font-size: 8.5px;
-        font-weight: Theme.weight-label;
-        letter-spacing: Theme.track-label;
-        color: Theme.text-secondary;
-        horizontal-alignment: center;
-    }
-}
-
-// Personal stats card pinned to the top of the crew feed. Only the viewer sees
-// it. Hidden (zero height) until the viewer has tracked game stats.
-// Tapping it opens the full per-game stats profile (spec 19 A2).
+// The You strip, pinned atop the crew feed (spec 19 section 2.3, plan
+// you-strip.md). Only the viewer sees it. Left to right: the viewer and the
+// belts they hold, up to two chase bars, the game record, the chevron. A crew
+// of one has the head2head line and Invite in place of the bars. Hidden
+// (zero height) with no record, no bar and no solo line. A tap opens the
+// stats profile.
 export component YouStrip inherits Rectangle {
     in property <YouStripData> data;
 
     callback clicked();
+    callback invite();
 
-    height: data.has-stats ? 92px : 0px;
-    visible: data.has-stats;
+    property <bool> shown: data.has-stats || data.bars.length > 0 || data.solo;
+    property <bool> has-h2h: data.bars.length > 0 || data.solo;
+    // The zones set the viewer. Before the first feed load it is empty.
+    property <bool> has-viewer: data.viewer.name != "";
+
+    height: shown ? 92px : 0px;
+    visible: shown;
     background: transparent;
 
+    // Lined up with the zone cards under it (the feed pads them by 20 px).
     Rectangle {
-        x: 16px;
+        x: 20px;
         y: 8px;
-        width: parent.width - 32px;
+        width: parent.width - 40px;
         height: 76px;
         background: transparent;
-        border-width: 0px;
 
         CutShape {
             width: parent.width;
@@ -93,141 +225,260 @@ export component YouStrip inherits Rectangle {
 
         strip-ta := TouchArea {
             accessible-role: button;
-            accessible-label: "YOUR STATS";
+            accessible-label: "You";
             mouse-cursor: pointer;
             clicked => { root.clicked(); }
         }
 
         HorizontalLayout {
-            padding: 14px;
-            spacing: 14px;
+            padding-left: 16px;
+            padding-right: 18px;
+            spacing: 16px;
+            cross-axis-alignment: center;
 
-            // Game icon, badge fallback (vertically centered via the layout).
-            VerticalLayout {
-                alignment: center;
-                GameIcon {
-                    game-id: data.game-id;
-                    short-name: data.short-name;
-                    badge-color: data.game-color;
-                    runtime-icon: data.icon;
-                    has-runtime-icon: data.has-icon;
-                    size: 40px;
+            // The viewer: octagon, name, the belts held.
+            if root.has-viewer: HorizontalLayout {
+                spacing: 12px;
+                cross-axis-alignment: center;
+                horizontal-stretch: 0;
+
+                UserAvatar {
+                    size: 44px;
+                    initials: root.data.viewer.initials;
+                    avatar: root.data.viewer.avatar;
+                    has-avatar: root.data.viewer.has-avatar;
+                    color-index: root.data.viewer.hue-index;
                 }
-            }
-
-            // Game name + recent form.
-            VerticalLayout {
-                horizontal-stretch: 1;
-                alignment: center;
-                spacing: 4px;
-
-                Text {
-                    text: "YOUR STATS";
-                    font-family: Theme.font-label;
-                    font-size: 8.5px;
-                    font-weight: Theme.weight-label;
-                    letter-spacing: Theme.track-kicker;
-                    color: Theme.text-secondary;
-                }
-
-                Text {
-                    text: data.game-name;
-                    font-family: Theme.font-display;
-                    font-size: 14px;
-                    font-weight: Theme.weight-display;
-                    letter-spacing: -0.1px;
-                    color: Theme.text-primary;
-                }
-
-                HorizontalLayout {
+                VerticalLayout {
                     spacing: 4px;
-                    alignment: start;
-                    for pip in data.recent-form: FormPip {
-                        letter: pip;
+                    alignment: center;
+                    Text {
+                        text: root.data.viewer.name;
+                        font-family: Theme.font-display;
+                        font-size: 15px;
+                        font-weight: Theme.weight-display;
+                        color: Theme.text-primary;
+                        overflow: elide;
+                        max-width: 120px;
                     }
+                    if root.data.held-icons.length > 0: HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        for icon in root.data.held-icons: Image {
+                            source: icon;
+                            colorize: Theme.text-primary;
+                            width: 14px;
+                            height: 14px;
+                        }
+                    }
+                    if root.data.held-icons.length == 0: Kicker { text: "0 BELTS"; }
                 }
             }
 
-            // Headline stats.
-            HorizontalLayout {
-                spacing: 20px;
+            if root.has-viewer && root.has-h2h: Sep { }
 
-                StatCell {
-                    value: data.streak-text;
-                    label: "streak";
-                    value-color: data.streak-positive ? Theme.text-primary : Theme.live;
+            // Up to two bars.
+            for b in root.data.bars: ChaseBar {
+                bar: b;
+                clicked => { root.clicked(); }
+            }
+
+            // A crew of one: no one to chase yet.
+            if root.data.solo: HorizontalLayout {
+                horizontal-stretch: 1;
+                spacing: 16px;
+                cross-axis-alignment: center;
+
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 6px;
+                    alignment: center;
+                    Text {
+                        text: "Go head2head with your crew";
+                        font-family: Theme.font-display;
+                        font-size: 14px;
+                        font-weight: Theme.weight-display;
+                        color: Theme.text-primary;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        for icon in root.data.solo-icons: Image {
+                            source: icon;
+                            colorize: Theme.text-secondary;
+                            width: 14px;
+                            height: 14px;
+                        }
+                    }
                 }
-
-                StatCell {
-                    value: data.win-rate-text;
-                    label: "win rate";
-                }
-
-                StatCell {
-                    value: data.record-text;
-                    label: "record";
-                    value-color: Theme.text-secondary;
+                ZoneButton {
+                    label: "INVITE";
+                    tone: "line";
+                    a11y-label: "Invite to head2head";
+                    clicked => { root.invite(); }
                 }
             }
 
-            // Tap affordance → full stats profile.
-            VerticalLayout {
-                alignment: center;
-                Rectangle {
-                    width: 14px;
-                    height: 14px;
-                    Image {
-                        source: @image-url("../icons/chevron-down.svg");
-                        width: 14px;
-                        height: 14px;
-                        transform-rotation: -90deg;
-                        colorize: strip-ta.has-hover ? Theme.text-secondary : Theme.text-tertiary;
+            // Nothing to chase: the record keeps the right end.
+            if !root.has-h2h: Rectangle { horizontal-stretch: 1; }
+
+            if root.has-viewer && root.data.has-stats: Sep { }
+
+            // The game record, or the week's hours for a game with no record.
+            if root.data.has-stats: HorizontalLayout {
+                spacing: 10px;
+                cross-axis-alignment: center;
+                horizontal-stretch: 0;
+
+                GameIcon {
+                    game-id: root.data.game-id;
+                    short-name: root.data.short-name;
+                    badge-color: root.data.game-color;
+                    runtime-icon: root.data.icon;
+                    has-runtime-icon: root.data.has-icon;
+                    size: 32px;
+                }
+                if root.data.has-record: VerticalLayout {
+                    spacing: 4px;
+                    alignment: center;
+                    StatValue {
+                        value: root.data.streak-text;
+                        unit: root.data.win-rate-text;
+                        value-size: 15px;
+                        unit-size: 11px;
+                        hue: root.data.streak-positive ? Theme.text-primary : Theme.text-body;
+                    }
+                    HorizontalLayout {
+                        spacing: 3px;
+                        alignment: start;
+                        for pip in root.data.recent-form: FormPip { letter: pip; }
                     }
                 }
+                if !root.data.has-record: VerticalLayout {
+                    spacing: 3px;
+                    alignment: center;
+                    StatValue {
+                        value: root.data.week-value;
+                        unit: "h";
+                        value-size: 15px;
+                        unit-size: 11px;
+                    }
+                    Kicker { text: "THIS WEEK"; }
+                }
+            }
+
+            Image {
+                source: @image-url("../icons/chevron-down.svg");
+                width: 14px;
+                height: 14px;
+                transform-rotation: -90deg;
+                colorize: strip-ta.has-hover ? Theme.text-secondary : Theme.text-tertiary;
             }
         }
     }
 }
 
-// Slint live-preview harness with mock data (win streak + loss skid variants).
+// ---- previews: the states of plan you-strip.md section 1.1 ----
+
+component PreviewLabel inherits Text {
+    x: 16px;
+    font-family: Theme.font-label;
+    font-size: 10px;
+    font-weight: Theme.weight-label;
+    letter-spacing: Theme.track-label;
+    color: Theme.text-secondary;
+}
+
 export component Preview inherits Rectangle {
-    width: 680px;
-    height: 210px;
-    background: #111114;
+    width: 865px;
+    height: 1010px;
+    background: Theme.surface;
+
+    property <H2hPerson> me: { id: "me", name: "b0bben", initials: "B", hue-index: 0,
+        avatar: @image-url("../previews/fixtures/avatars/b0bben.svg"), has-avatar: true };
+    property <H2hPerson> ebba: { id: "u2", name: "Ebba", initials: "E", hue-index: 2,
+        avatar: @image-url("../previews/fixtures/avatars/ebba.svg"), has-avatar: true };
+    property <H2hPerson> axel: { id: "u3", name: "Axel", initials: "A", hue-index: 0,
+        avatar: @image-url("../previews/fixtures/avatars/axel.svg"), has-avatar: true };
+    property <H2hPerson> alva: { id: "u4", name: "Alva", initials: "A", hue-index: 4,
+        avatar: @image-url("../previews/fixtures/avatars/alva.svg"), has-avatar: true };
+    property <H2hPerson> elin: { id: "u5", name: "Elin", initials: "E", hue-index: 3,
+        avatar: @image-url("../previews/fixtures/avatars/elin.svg"), has-avatar: true };
+
+    property <image> i-owl: @image-url("../icons/h2h-night-owl.svg");
+    property <image> i-col: @image-url("../icons/h2h-collector.svg");
+    property <image> i-lock: @image-url("../icons/h2h-locked-in.svg");
+    property <image> i-carry: @image-url("../icons/h2h-carry.svg");
+    property <image> i-samp: @image-url("../icons/h2h-sampler.svg");
+    property <image> i-belt: @image-url("../icons/h2h-belt.svg");
+
+    property <ChaseBarData> take-lock: { take: true, title-id: "locked_in", title: "Locked In", icon: i-lock,
+        stat-line: "Most game hours in the last 7 days.", other: ebba,
+        you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 };
+    property <ChaseBarData> hold-owl: { take: false, title-id: "night_owl", title: "Night Owl", icon: i-owl,
+        other: axel, you-value: "03:14", other-value: "03:02", unit: "", delta: "+12", delta-unit: "min", ratio: 0.978 };
+    property <ChaseBarData> hold-col: { take: false, title-id: "the_collector", title: "The Collector", icon: i-col,
+        other: elin, you-value: "212", other-value: "203", unit: "installed", delta: "+9", delta-unit: "", ratio: 0.958 };
+    property <ChaseBarData> take-owl: { take: true, title-id: "night_owl", title: "Night Owl", icon: i-owl,
+        other: axel, you-value: "03:02", other-value: "03:14", unit: "", delta: "−12", delta-unit: "min", ratio: 0.978 };
+    property <ChaseBarData> take-clip: { take: true, title-id: "clipper", title: "Clipper", icon: i-belt,
+        other: alva, you-value: "38", other-value: "41", unit: "clips", delta: "−3", delta-unit: "", ratio: 0.927 };
+    property <ChaseBarData> tie-samp: { take: true, title-id: "sampler", title: "Sampler", icon: i-samp,
+        other: elin, you-value: "5", other-value: "5", unit: "games", delta: "±0", delta-unit: "", ratio: 1.0 };
+
+    property <YouStripData> cs2: {
+        has-stats: true, game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2",
+        game-color: #DE9B35, has-icon: true, icon: @image-url("../previews/fixtures/capsule-sample-1.png"),
+        has-record: true, streak-text: "W4", streak-positive: true, record-text: "12W 5L", win-rate-text: "62%",
+        recent-form: ["W", "W", "L", "W", "D", "W"], viewer: me };
+    property <YouStripData> brawl: {
+        has-stats: true, game-id: "brawlhalla", game-name: "Brawlhalla", short-name: "BH",
+        game-color: #6E8FB8, has-icon: true, icon: @image-url("../previews/fixtures/capsule-sample-3.png"),
+        has-record: false, week-value: "6.5", viewer: me };
 
     VerticalLayout {
-        padding: 8px;
-        spacing: 8px;
+        padding-top: 12px;
+        spacing: 4px;
 
-        YouStrip {
-            data: {
-                has-stats: true,
-                game-id: "counter-strike-2",
-                game-name: "Counter-Strike 2",
-                short-name: "CS2",
-                game-color: #DE9B35,
-                has-icon: true, icon: @image-url("../previews/fixtures/capsule-sample-1.png"),
-                streak-text: "W4",
-                streak-positive: true,
-                record-text: "12W 5L",
-                win-rate-text: "62%",
-                recent-form: ["W", "W", "L", "W", "D", "W"],
-            };
-        }
+        PreviewLabel { text: "R1 · A BELT TO TAKE, ONE TO HOLD"; }
+        YouStrip { data: { has-stats: cs2.has-stats, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
+            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
+            held-icons: [i-owl, i-col, i-belt], bars: [take-lock, hold-owl] }; }
 
-        YouStrip {
-            data: {
-                has-stats: true,
-                game-id: "valorant",
-                game-name: "Valorant",
-                short-name: "VAL",
-                game-color: #FF4655,
-                streak-text: "L3",
-                streak-positive: false,
-                record-text: "8W 11L",
-                win-rate-text: "42%",
-                recent-form: ["L", "W", "L", "L", "D", "L"],
-            };
-        }
+        PreviewLabel { text: "R2 · NO BELT, A GAME WITH NO RECORD"; }
+        YouStrip { data: { has-stats: true, game-id: brawl.game-id, game-name: brawl.game-name, short-name: "BH",
+            game-color: brawl.game-color, has-icon: true, icon: brawl.icon, has-record: false, week-value: "6.5",
+            viewer: me, bars: [take-owl, take-clip] }; }
+
+        PreviewLabel { text: "S1 · A CREW OF ONE"; }
+        YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
+            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
+            solo: true, solo-icons: [i-carry, i-owl, i-col, i-lock] }; }
+
+        PreviewLabel { text: "S2 · NOTHING TO TAKE"; }
+        YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
+            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "W4",
+            streak-positive: true, win-rate-text: "62%", recent-form: cs2.recent-form, viewer: me,
+            held-icons: [i-owl, i-col, i-belt], bars: [hold-owl, hold-col] }; }
+
+        PreviewLabel { text: "S3 · A TIE"; }
+        YouStrip { data: { has-stats: true, game-id: cs2.game-id, game-name: cs2.game-name, short-name: cs2.short-name,
+            game-color: cs2.game-color, has-icon: true, icon: cs2.icon, has-record: true, streak-text: "L2",
+            streak-positive: false, win-rate-text: "48%", recent-form: ["W", "L", "W", "W", "L", "L"], viewer: me,
+            held-icons: [i-owl, i-col, i-belt], bars: [tie-samp, hold-owl] }; }
+
+        PreviewLabel { text: "S4 · BELTS, NO GAME TRACKED"; }
+        YouStrip { data: { has-stats: false, viewer: me,
+            held-icons: [i-owl, i-col, i-belt], bars: [take-lock, hold-owl] }; }
+
+        PreviewLabel { text: "S5 · ONE BELT IN REACH"; }
+        YouStrip { data: { has-stats: true, game-id: brawl.game-id, game-name: brawl.game-name, short-name: "BH",
+            game-color: brawl.game-color, has-icon: true, icon: brawl.icon, has-record: false, week-value: "6.5",
+            viewer: me, bars: [take-lock] }; }
+
+        PreviewLabel { text: "A RECORD, NO HEAD2HEAD DATA"; }
+        YouStrip { data: cs2; }
     }
 }

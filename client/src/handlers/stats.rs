@@ -3,12 +3,14 @@ use mello_core::Event;
 use slint::{Color, Model, ModelRc, SharedString, VecModel};
 
 use crate::app_context::AppContext;
+use crate::head2head::{self, chase::Chase};
 use crate::{GameStatsCardData, YouStripData};
 
 pub fn handle(ctx: &AppContext, event: Event) {
     if let Event::UserGameStatsLoaded { games } = event {
         log::info!("[ui] user game stats loaded ({} games)", games.len());
         let mut strip = build_you_strip(&games);
+        keep_head2head(&mut strip, &ctx.app.get_you_strip());
         if strip.has_stats {
             attach_icon(ctx, &strip.game_id, &strip.game_name, |img, has| {
                 strip.icon = img;
@@ -26,6 +28,65 @@ pub fn handle(ctx: &AppContext, event: Event) {
         ctx.app
             .set_stats_profile_games(ModelRc::new(VecModel::from(cards)));
     }
+}
+
+/// The record half of the strip comes from the game stats, the head2head half
+/// from the feed of the open crew. A new record keeps the head2head half.
+fn keep_head2head(strip: &mut YouStripData, old: &YouStripData) {
+    strip.viewer = old.viewer.clone();
+    strip.held_icons = old.held_icons.clone();
+    strip.bars = old.bars.clone();
+    strip.solo = old.solo;
+    strip.solo_icons = old.solo_icons.clone();
+}
+
+/// Set the head2head half of the You strip from the chase of the open crew
+/// (plan you-strip.md section 4). `None`: the crew has no head2head data, so
+/// the strip shows the viewer and the record only. The record half stays.
+pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>) {
+    let (viewer, _) = super::clip::h2h_roster(ctx);
+    let mut strip = ctx.app.get_you_strip();
+    strip.viewer = super::clip::live_person(ctx, &viewer);
+    let images = |ids: &mut dyn Iterator<Item = &String>| -> ModelRc<slint::Image> {
+        ModelRc::new(VecModel::from(
+            ids.map(|id| head2head::any_icon(id)).collect::<Vec<_>>(),
+        ))
+    };
+    match chase {
+        Some(c) => {
+            let bars: Vec<crate::ChaseBarData> = c
+                .strip()
+                .into_iter()
+                .map(|b| head2head::chase_bar_data(b, super::clip::live_person(ctx, &b.other)))
+                .collect();
+            log::debug!(
+                "you strip: {} bars, {} held, {} contested, solo={}",
+                bars.len(),
+                c.held.len(),
+                c.contested,
+                c.solo
+            );
+            strip.bars = ModelRc::new(VecModel::from(bars));
+            strip.held_icons = images(&mut c.held.iter());
+            strip.solo = c.solo;
+            // The dim icons of the solo line: the card titles only, as the
+            // own chips of the Stage.
+            strip.solo_icons = images(
+                &mut c
+                    .own
+                    .iter()
+                    .filter(|id| head2head::title_name(id).is_some())
+                    .take(4),
+            );
+        }
+        None => {
+            strip.bars = ModelRc::default();
+            strip.held_icons = ModelRc::default();
+            strip.solo = false;
+            strip.solo_icons = ModelRc::default();
+        }
+    }
+    ctx.app.set_you_strip(strip);
 }
 
 /// The square icon of a game, from the icon slot ladder (exe or crew icon,
@@ -201,6 +262,7 @@ fn empty_strip() -> YouStripData {
         win_rate_text: SharedString::new(),
         weekly_time_text: SharedString::new(),
         recent_form: ModelRc::new(VecModel::from(Vec::<SharedString>::new())),
+        ..Default::default()
     }
 }
 
@@ -229,11 +291,7 @@ fn weekly_minutes(g: &UserGameStats) -> (u32, u32) {
 /// figure is shown instead. An inflated number a crewmate can disprove costs
 /// more than the larger number gains.
 fn weekly_time_text(g: &UserGameStats) -> String {
-    let (wall, active) = weekly_minutes(g);
-    if wall == 0 && active == 0 {
-        return String::new();
-    }
-    let shown = if active * 3 < wall { active } else { wall };
+    let shown = weekly_shown_minutes(g);
     if shown == 0 {
         return String::new();
     }
@@ -246,6 +304,24 @@ fn weekly_time_text(g: &UserGameStats) -> String {
         format!("{m}m")
     };
     format!("{duration} this week")
+}
+
+/// The minutes the week line shows. Wall time is the headline, except when a
+/// game was clearly left running: if it held the foreground for under a third
+/// of its wall time, the active figure is shown instead.
+fn weekly_shown_minutes(g: &UserGameStats) -> u32 {
+    let (wall, active) = weekly_minutes(g);
+    if active * 3 < wall {
+        active
+    } else {
+        wall
+    }
+}
+
+/// The week's hours as the strip's number: "6.5", "0.0", "112".
+fn week_value(g: &UserGameStats) -> String {
+    let hours = f64::from(weekly_shown_minutes(g)) / 60.0;
+    head2head::value_text(&serde_json::json!(hours), "h").0
 }
 
 fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
@@ -277,6 +353,8 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
         win_rate_text: win_rate_text(g.wins, g.losses).into(),
         weekly_time_text: weekly_time_text(g).into(),
         recent_form: ModelRc::new(VecModel::from(form_pips(g, 6))),
+        week_value: week_value(g).into(),
+        ..Default::default()
     }
 }
 

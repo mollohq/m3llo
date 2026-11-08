@@ -8849,6 +8849,11 @@ fn solo_crew_feed(h: &mut Harness) {
 fn a_live_session_with_poster_art_keeps_the_tile_in_a_carousel_cell() {
     let mut h = Harness::new();
     solo_crew_feed(&mut h);
+    // A crew of one has the You strip's head2head line, so the carousel row
+    // starts low. The window is tall enough to show the whole cell.
+    h.app()
+        .window()
+        .set_size(slint::PhysicalSize::new(1600, 1800));
     let _art = install_with_poster(&h, "291550", "Brawlhalla");
     h.emit(game_detected(
         "brawlhalla",
@@ -9838,6 +9843,7 @@ mod art_worker;
 mod quests;
 mod sealed;
 mod testers;
+mod you_strip;
 mod zones;
 
 // ---- the recap is never a one-cell card ----

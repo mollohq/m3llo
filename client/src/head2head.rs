@@ -12,6 +12,8 @@ use crate::converters::{avatar_color_index, make_initials};
 use crate::sealed::Seal;
 use crate::{H2hPairRow, H2hPerson, Head2headData, TitleHeld};
 
+pub mod chase;
+
 /// Seats head2head shows, as in the backend. A crew of five or more has none.
 pub const SEATS: i32 = 5;
 /// Most pair rows on the card: two columns of two. The card is always two grid
@@ -94,10 +96,21 @@ const SESSION_TITLE_NAMES: [(&str, &str); 6] = [
 /// session title, or an id this client does not know, uses the belt icon and
 /// a name made from the id.
 pub fn belt_look(id: &str) -> (String, slint::Image) {
-    if let Some(t) = look(id) {
-        return (t.name.to_string(), icon_of(id));
+    if look(id).is_some() {
+        return (any_title_name(id), icon_of(id));
     }
-    let name = SESSION_TITLE_NAMES
+    let icon = slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg"))
+        .unwrap_or_default();
+    (any_title_name(id), icon)
+}
+
+/// The name of any title: a card title, a session title, or a name made from
+/// an id this client does not know.
+pub(crate) fn any_title_name(id: &str) -> String {
+    if let Some(t) = look(id) {
+        return t.name.to_string();
+    }
+    SESSION_TITLE_NAMES
         .iter()
         .find(|(i, _)| *i == id)
         .map(|(_, n)| n.to_string())
@@ -112,14 +125,24 @@ pub fn belt_look(id: &str) -> (String, slint::Image) {
                 })
                 .collect::<Vec<_>>()
                 .join(" ")
-        });
-    let icon = slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg"))
-        .unwrap_or_default();
-    (name, icon)
+        })
 }
 
 fn display_rank(id: &str) -> usize {
     TITLES.iter().position(|t| t.id == id).unwrap_or(usize::MAX)
+}
+
+/// Display order over every title: the card titles, then the session titles,
+/// then any other id.
+fn any_display_rank(id: &str) -> usize {
+    if let Some(i) = TITLES.iter().position(|t| t.id == id) {
+        return i;
+    }
+    SESSION_TITLE_NAMES
+        .iter()
+        .position(|(i, _)| *i == id)
+        .map(|i| TITLES.len() + i)
+        .unwrap_or(usize::MAX)
 }
 
 // ---- wire ----
@@ -874,6 +897,29 @@ pub fn build_rows_sealed(
 }
 
 // ---- Slint ----
+
+/// The icon of any title: its own for a card title, the belt for the rest.
+pub fn any_icon(id: &str) -> slint::Image {
+    belt_look(id).1
+}
+
+/// One bar of the You strip. `other` is the member as the UI draws them.
+pub fn chase_bar_data(b: &chase::Bar, other: H2hPerson) -> crate::ChaseBarData {
+    crate::ChaseBarData {
+        take: b.kind == chase::Kind::Take,
+        title_id: b.title_id.as_str().into(),
+        title: b.title.as_str().into(),
+        icon: any_icon(&b.title_id),
+        stat_line: crate::sealed::stat_line(&b.title_id).into(),
+        other,
+        you_value: b.you_value.as_str().into(),
+        other_value: b.other_value.as_str().into(),
+        unit: b.unit.as_str().into(),
+        delta: b.delta.as_str().into(),
+        delta_unit: b.delta_unit.as_str().into(),
+        ratio: b.ratio(),
+    }
+}
 
 fn icon_of(id: &str) -> slint::Image {
     // A rebuild draws every chip again, and parsing an SVG is the slow part.
