@@ -257,6 +257,7 @@ set(MELLO_SOURCES
     src/audio/audio_backend_test.cpp
     src/audio/clip_audio_stream.cpp
     src/audio/ui_sound_mixer.cpp
+    src/audio/ogg_opus.cpp
     src/audio/clip_buffer.cpp
     src/audio/clip_encoder.cpp
     src/audio/opus_codec.cpp

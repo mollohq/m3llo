@@ -395,14 +395,17 @@ MELLO_API MelloResult mello_clip_stop_playback(MelloContext* ctx);
 /** Number of sound slots: ids are 0 .. MELLO_SOUND_SLOTS - 1. */
 #define MELLO_SOUND_SLOTS 32
 
-/** Copy `frames` frames of 48 kHz interleaved stereo int16 PCM into slot
- *  `id`. At most 10 s. A second load of a slot replaces its sound.
- *  Returns MELLO_ERROR_INVALID_PARAM for a bad id, no PCM or too many frames. */
-MELLO_API MelloResult mello_sound_load(MelloContext* ctx, uint32_t id,
-                                       const int16_t* stereo_pcm, size_t frames);
+/** Copy the Ogg Opus file `ogg_opus` (`len` bytes, mono or stereo, at most
+ *  10 s) into slot `id`. libmello keeps only the Opus data. A second load of
+ *  a slot replaces its sound.
+ *  Returns MELLO_ERROR_INVALID_PARAM for a bad id or a file that does not parse. */
+MELLO_API MelloResult mello_sound_load_opus(MelloContext* ctx, uint32_t id,
+                                            const uint8_t* ogg_opus, size_t len);
 
-/** Play slot `id` once at `gain` (0..1). It does not wait. At most 4 sounds
- *  play at the same time: a fifth replaces the one that started first.
+/** Play slot `id` once at `gain` (0..1). It does not wait: a libmello worker
+ *  thread decodes the sound, which starts a few ms later, and frees the PCM
+ *  after it has played. At most 4 sounds play at the same time: a fifth
+ *  replaces the one that started first.
  *  Returns MELLO_ERROR_FAILED when the slot is empty or 16 plays wait. */
 MELLO_API MelloResult mello_sound_play(MelloContext* ctx, uint32_t id, float gain);
 

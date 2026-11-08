@@ -650,11 +650,11 @@ MelloResult mello_clip_stop_playback(MelloContext* ctx) {
 static_assert(mello::audio::UiSoundMixer::kMaxSounds == MELLO_SOUND_SLOTS,
               "mello.h MELLO_SOUND_SLOTS must match the mixer");
 
-MelloResult mello_sound_load(MelloContext* ctx, uint32_t id, const int16_t* stereo_pcm,
-                             size_t frames) {
-    if (!ctx || !stereo_pcm || id >= MELLO_SOUND_SLOTS) return MELLO_ERROR_INVALID_PARAM;
+MelloResult mello_sound_load_opus(MelloContext* ctx, uint32_t id, const uint8_t* ogg_opus,
+                                  size_t len) {
+    if (!ctx || !ogg_opus || id >= MELLO_SOUND_SLOTS) return MELLO_ERROR_INVALID_PARAM;
     try {
-        return ctx_cast(ctx)->audio().load_ui_sound(id, stereo_pcm, frames)
+        return ctx_cast(ctx)->audio().load_ui_sound_opus(id, ogg_opus, len)
                    ? MELLO_OK
                    : MELLO_ERROR_INVALID_PARAM;
     } catch (...) {

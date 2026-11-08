@@ -43,7 +43,8 @@ libmello/
 │   │   ├── stream_audio_pipeline.hpp/cpp # Game audio: host encode, viewer playout (NetEQ in the mix)
 │   │   ├── stream_audio_link.hpp   # Host audio capture times and receiver reports for the peer
 │   │   ├── stream_resampler.hpp/cpp # PushSincResampler for the WASAPI edges
-│   │   └── ui_sound_mixer.hpp/cpp  # Notification sounds: preloaded slots, mixed into the output
+│   │   ├── ogg_opus.hpp/cpp        # Ogg Opus parse and decode, for the notification sounds
+│   │   └── ui_sound_mixer.hpp/cpp  # Notification sounds: Opus slots, decode on play, mixed into the output
 │   │
 │   ├── video/
 │   │   ├── video_pipeline.hpp/cpp
@@ -139,7 +140,7 @@ The entire library is exposed through a single C header (`mello.h`). This is the
 | **Game clip replay** | `mello_replay_start`, `stop`, `state`, `capture` | Windows and macOS. One replay at a time per context: a start stops a running one. `MelloReplayConfig` names the game window (an HWND, a CGWindowID; NULL: the game's main window) and pid, the clip quality (height, fps, kbps) and the ring folder (NULL: the OS temp folder). `capture` writes the last N seconds as an MP4 and a JPEG poster and blocks for about a second. `MelloReplayState`: `OFF`, `RECORDING`, `WAITING` (no frames now, or a monitor frame), `FAILED`, `PAUSED` (overload, 12-STREAMING.md §3.7). CLIPS.md §15 |
 | **Game clip player** | `mello_clip_player_start`, `set_native_frame_callback`, `set_frame_callback`, `set_paused`, `seek`, `get_state`, `stop` | Every platform: m3llo's own MP4 demux and libopus. The caller gives the clip's length and a read callback (`MelloClipReadCallback`, which returns the bytes, 0 at the end, `MELLO_CLIP_READ_WAIT` or -1). The video goes through the viewer's decoder and the native frame callback (Windows) or the RGBA frame callback (macOS, Linux), the sound into the voice output on its own stereo stream. `stop` joins threads. CLIPS.md §15.9 |
 | **Game clip tests** | `mello_test_replay_start_reference`, `mello_test_replay_reference_info` | The stream gate's replay lane: the replay on the reference clip in place of a game window. No product code calls them |
-| **Notification sounds** | `mello_sound_load`, `mello_sound_play` | `MELLO_SOUND_SLOTS` (32) preloaded 48 kHz stereo sounds, at most 4 at once. `play` is safe from any thread and never blocks the render thread. The sounds play while deafened and outside a call, are not in a voice clip, and are in the AEC render reference. features/NOTIFICATION-SOUNDS.md §3 |
+| **Notification sounds** | `mello_sound_load_opus`, `mello_sound_play` | `MELLO_SOUND_SLOTS` (32) Ogg Opus sounds, at most 4 at once. A worker thread decodes a sound when it plays and frees the PCM after. `play` is safe from any thread and never blocks the render thread. The sounds play while deafened and outside a call, are not in a voice clip, and are in the AEC render reference. features/NOTIFICATION-SOUNDS.md §3 |
 | **Devices** | `mello_get_audio_inputs`, `get_audio_outputs`, `set_audio_input`, `set_audio_output`, `get_encoders` | Query/switch audio devices and video encoders at runtime |
 
 ### Callbacks
@@ -489,6 +490,14 @@ libmello is **synchronous C++ by design** — no async runtimes. Threads are cre
 | Player demux | The player's demux thread | m3llo's own MP4 demux over the read callback for its whole life: the samples in file order, H.264 to Annex B for the viewer, Opus through libopus to 48 kHz stereo PCM for the clip sound. A read that waits asks again every 15 ms; a stop or a seek ends it. |
 | Player video | The viewer's decode and present threads | `ClipFrameSource` in place of the receive timeline (14-VIDEO-PIPELINE.md §8.4). |
 | Player sound | The voice render thread | `ClipAudioStream`: an SPSC ring that the demux thread fills. The played samples minus the output latency are the clock of the video. |
+
+### Notification sounds
+
+| Part | Thread | Work |
+|---|---|---|
+| Load, play | The caller (the client's UI thread) | `mello_sound_load_opus` parses the file into the slot. `mello_sound_play` queues a request. Both take the mixer's `mutex_` only. |
+| Decode | The mixer's worker thread, started by the first load | Decodes the request with its one Opus decoder, outside the lock. Hands the PCM to the render thread through an SPSC queue. Frees the played PCM that comes back. |
+| Mix | The voice render thread | `UiSoundMixer::mix_into` in `render_frame`. No lock, no allocation, no free: a played sound goes back to the worker through a second SPSC queue. |
 
 ---
 

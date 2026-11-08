@@ -705,7 +705,7 @@ Controls added with the notification sounds (features/NOTIFICATION-SOUNDS.md):
 
 | Control | C API | mello-core | Client |
 |---|---|---|---|
-| Load a sound | `mello_sound_load` (slot 0..`MELLO_SOUND_SLOTS` - 1) | `VoiceManager` loads every `Sound` when it attaches the `SoundPlayer` | - |
+| Load a sound | `mello_sound_load_opus` (an Ogg Opus file, slot 0..`MELLO_SOUND_SLOTS` - 1) | `VoiceManager` loads every `Sound` when it attaches the `SoundPlayer` | - |
 | Play a sound | `mello_sound_play` (gain 0..1) | `SoundPlayer::play` | `SoundCues::cue` with the sound volume setting |
 
 All user-facing voice toggles in `client` and `mello-core` must map to these runtime controls (no dead settings).
