@@ -199,6 +199,7 @@ impl super::Client {
         };
 
         self.last_voice_channel = Some(resp.channel_id.clone());
+        self.bind_voice_session(&resp.channel_id).await;
         if !reconnect {
             self.sfu_voice_reconnect = None;
         }
@@ -216,6 +217,15 @@ impl super::Client {
         self.store_voice_join_grant(&crew_id, local_id.as_deref(), &resp);
         self.start_voice_media(&crew_id, local_id.as_deref(), &resp, reconnect)
             .await;
+    }
+
+    /// Bind the voice seat to this realtime session after a `voice_join`, so
+    /// the server releases the seat when this session ends. A failed bind
+    /// never fails the join: the seat then keeps the per-user rule.
+    pub(super) async fn bind_voice_session(&self, channel_id: &str) {
+        if let Err(e) = self.nakama.voice_bind_session(channel_id).await {
+            log::warn!("voice_bind_session failed: {}", e);
+        }
     }
 
     /// Keep a `voice_join` answer for the reconnect scheduler.

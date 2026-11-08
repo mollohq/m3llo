@@ -695,6 +695,36 @@ reconnect. Nakama keeps the report per session in memory and drops it in
 
 **Response:** `{"success": true}` (ignored by the client).
 
+### 4.7 Voice Seat Session RPC
+
+#### `voice_bind_session`
+
+Binds the caller's voice seat to the calling realtime session. **Socket RPC**:
+`voice_join` goes over HTTP and carries no session, so the client names the
+session with this call.
+
+**Request:**
+```json
+{ "channel_id": "ch_abc" }
+```
+
+mello-core sends it after every successful `voice_join`: the first join and the
+re-join after a realtime reconnect. A failed bind does not fail the join.
+
+Server rules:
+
+- Nakama records the binding only when the caller is seated in `channel_id`.
+- An HTTP call has no session. It does nothing and returns success.
+- A new bind replaces the old one. A leave or a channel switch removes it.
+- `OnSessionEnd` of the bound session releases the seat, also when the user
+  has other live sessions (a phone, a second client). The user then stays
+  online with activity `none`.
+- The end of another session of the same user does not touch the seat.
+- A seat with no binding (older clients, guests) goes with the last session.
+
+**Response:** `{"success": true, "bound": true}`. `bound` is false when nothing
+was recorded. The client ignores the response.
+
 ---
 
 ## 5. Client ↔ Server Communication
@@ -702,8 +732,9 @@ reconnect. Nakama keeps the report per session in memory and drops it in
 ### 5.1 Client → Server (HTTP RPCs)
 
 All client-to-server actions use Nakama HTTP RPCs (`POST /v2/rpc/{id}`), not raw
-WebSocket messages. The one exception is `set_session_activity` (§4.6): it must
-identify the session, so it goes over the socket (`NakamaClient::socket_rpc`). The mello-core `NakamaClient` has a generic `rpc()` helper
+WebSocket messages. The exceptions are `set_session_activity` (§4.6) and
+`voice_bind_session` (§4.7): they must identify the session, so they go over the
+socket (`NakamaClient::socket_rpc`). The mello-core `NakamaClient` has a generic `rpc()` helper
 and thin typed wrappers for each call. See Section 4 for payloads.
 
 | Action | RPC ID | Called when |
@@ -713,7 +744,8 @@ and thin typed wrappers for each call. See Section 4 for payloads.
 | Set active crew | `set_active_crew` | Crew focused in UI |
 | Subscribe sidebar | `subscribe_sidebar` | After crews loaded |
 | Join voice | `voice_join` | User clicks channel / auto-join |
-| Leave voice | `voice_leave` | User leaves voice or crew |
+| Leave voice | `voice_leave` | User leaves voice or crew; app quit while in voice |
+| Bind voice seat (socket) | `voice_bind_session` | After every successful `voice_join` |
 | Speaking update | `voice_speaking` | VAD state changes |
 | Create channel | `channel_create` | Admin creates voice channel |
 | Rename channel | `channel_rename` | Admin renames voice channel |
