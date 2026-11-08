@@ -1451,7 +1451,7 @@ The poll loop takes each press (`HotkeyManager::poll_stream`) and calls `stream_
 
 - Only a start or a stop that the key made gets a notification. `AppContext::stream_key_action` holds it until `StreamStarted`, `StreamEnded` or `StreamFailed`. A start or a stop from the app UI clears it, and sends no notification.
 - The key needs no voice call. It does not use the HUD, and it works with the HUD off.
-- A held or auto-repeating key gives one press. The key has its own held state, apart from the clip keys. A push-to-talk binding on the same keys keeps the keys for push-to-talk.
+- A held or auto-repeating key gives one press. The key has its own held state, apart from the clip key. A push-to-talk binding on the same keys keeps the keys for push-to-talk.
 - Platforms: Windows and Linux X11 (`rdev`), macOS (CGEventTap). On a Wayland session the GlobalShortcuts portal binds no stream key, so the key has no effect.
 - The hook only listens. The key also reaches the game. Some games load a quick save on F9. The KEYBINDS row says so.
 - E2e builds: `POST /stream-key` on the state port presses the key once (`e2e_state::take_stream_keys`).

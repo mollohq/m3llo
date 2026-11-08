@@ -20,13 +20,11 @@ pub struct PttBinding {
     pub meta: bool,
 }
 
-/// The voice clip key of a new install (CLIPS.md section 3.1), in the
-/// storage format of `Settings::clip_key`. Keybinds in Settings changes it.
-pub const DEFAULT_CLIP_KEY: &str = "F7";
-
-/// The game clip key (CLIPS.md 15.2), in the same format: Windows and
-/// macOS. Keybinds in Settings changes it.
-pub const DEFAULT_GAME_CLIP_KEY: &str = "F8";
+/// The clip key of a new install (CLIPS.md section 3.1), in the storage
+/// format of `Settings::clip_key`. A press saves a game clip while the
+/// replay records, else a voice or stream clip. Keybinds in Settings
+/// changes it.
+pub const DEFAULT_CLIP_KEY: &str = "F8";
 
 /// The stream key (spec 12 section 11, "Stream key"), in the same format.
 /// A press starts a stream of the detected game, or ends the hosted stream.
@@ -70,8 +68,6 @@ pub struct HotkeyManager {
     event_rx: mpsc::Receiver<PttEvent>,
     clip_binding: Arc<Mutex<Option<PttBinding>>>,
     clip_rx: mpsc::Receiver<()>,
-    game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-    game_clip_rx: mpsc::Receiver<()>,
     stream_binding: Arc<Mutex<Option<PttBinding>>>,
     stream_rx: mpsc::Receiver<()>,
 }
@@ -86,7 +82,6 @@ impl HotkeyManager {
     pub fn disabled() -> Self {
         let (_tx, event_rx) = mpsc::channel();
         let (_clip_tx, clip_rx) = mpsc::channel();
-        let (_game_clip_tx, game_clip_rx) = mpsc::channel();
         let (_stream_tx, stream_rx) = mpsc::channel();
         Self {
             binding: Arc::new(Mutex::new(None)),
@@ -94,8 +89,6 @@ impl HotkeyManager {
             event_rx,
             clip_binding: Arc::new(Mutex::new(None)),
             clip_rx,
-            game_clip_binding: Arc::new(Mutex::new(None)),
-            game_clip_rx,
             stream_binding: Arc::new(Mutex::new(None)),
             stream_rx,
         }
@@ -107,8 +100,6 @@ impl HotkeyManager {
         let (event_tx, event_rx) = mpsc::channel();
         let clip_binding: Arc<Mutex<Option<PttBinding>>> = Arc::new(Mutex::new(None));
         let (clip_tx, clip_rx) = mpsc::channel();
-        let game_clip_binding: Arc<Mutex<Option<PttBinding>>> = Arc::new(Mutex::new(None));
-        let (game_clip_tx, game_clip_rx) = mpsc::channel();
         let stream_binding: Arc<Mutex<Option<PttBinding>>> = Arc::new(Mutex::new(None));
         let (stream_tx, stream_rx) = mpsc::channel();
 
@@ -118,8 +109,6 @@ impl HotkeyManager {
             event_tx,
             clip_binding.clone(),
             clip_tx,
-            game_clip_binding.clone(),
-            game_clip_tx,
             stream_binding.clone(),
             stream_tx,
         )?;
@@ -130,8 +119,6 @@ impl HotkeyManager {
             event_rx,
             clip_binding,
             clip_rx,
-            game_clip_binding,
-            game_clip_rx,
             stream_binding,
             stream_rx,
         })
@@ -153,7 +140,7 @@ impl HotkeyManager {
         self.event_rx.try_recv().ok()
     }
 
-    /// The voice clip key. `None` turns the key off.
+    /// The clip key (F8). `None` turns the key off.
     pub fn register_clip(&self, binding: Option<PttBinding>) {
         *self.clip_binding.lock().unwrap() = binding;
     }
@@ -164,19 +151,8 @@ impl HotkeyManager {
         self.clip_rx.try_recv().is_ok()
     }
 
-    /// The game clip key (F8). `None` turns the key off. It keeps its own
-    /// held state, apart from the voice clip key.
-    pub fn register_game_clip(&self, binding: Option<PttBinding>) {
-        *self.game_clip_binding.lock().unwrap() = binding;
-    }
-
-    /// True once for each press of the game clip key since the last call.
-    pub fn poll_game_clip(&self) -> bool {
-        self.game_clip_rx.try_recv().is_ok()
-    }
-
     /// The stream key (F9). `None` turns the key off. It keeps its own held
-    /// state, apart from the clip keys.
+    /// state, apart from the clip key.
     pub fn register_stream(&self, binding: Option<PttBinding>) {
         *self
             .stream_binding
@@ -200,8 +176,6 @@ fn start_listener(
     event_tx: mpsc::Sender<PttEvent>,
     clip_binding: Arc<Mutex<Option<PttBinding>>>,
     clip_tx: mpsc::Sender<()>,
-    game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-    game_clip_tx: mpsc::Sender<()>,
     stream_binding: Arc<Mutex<Option<PttBinding>>>,
     stream_tx: mpsc::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -231,13 +205,10 @@ fn start_listener(
         event_tx: mpsc::Sender<PttEvent>,
         clip_binding: Arc<Mutex<Option<PttBinding>>>,
         clip_tx: mpsc::Sender<()>,
-        game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-        game_clip_tx: mpsc::Sender<()>,
         stream_binding: Arc<Mutex<Option<PttBinding>>>,
         stream_tx: mpsc::Sender<()>,
         ptt_held: bool,
         clip_held: bool,
-        game_clip_held: bool,
         stream_held: bool,
         prev_modifier_flags: u64,
     }
@@ -271,33 +242,6 @@ fn start_listener(
             ) {
                 log::info!("[hotkeys] clip key pressed");
                 let _ = ctx.clip_tx.send(());
-            }
-        }
-
-        // The game clip key (F8), with its own held state: a held key makes
-        // one clip (CLIPS.md 15.2).
-        let game_clip = ctx.game_clip_binding.lock().unwrap().clone();
-        if let (Some(game_clip), true) = (
-            game_clip,
-            ev == K_CG_EVENT_KEY_DOWN || ev == K_CG_EVENT_KEY_UP,
-        ) {
-            let vk = CGEventGetIntegerValueField(event, K_CG_KEYBOARD_EVENT_KEYCODE) as u16;
-            let flags = CGEventGetFlags(event);
-            let mods_match = (flags & FLAG_CONTROL != 0) == game_clip.ctrl
-                && (flags & FLAG_ALT != 0) == game_clip.alt
-                && (flags & FLAG_SHIFT != 0) == game_clip.shift
-                && (flags & FLAG_COMMAND != 0) == game_clip.meta;
-            let ptt_on_key = ptt_on_clip_key(&ctx.binding.lock().unwrap(), &game_clip)
-                && ctx.active.load(Ordering::Relaxed);
-            if clip_key_step(
-                &mut ctx.game_clip_held,
-                Some(vk) == code_str_to_macos_vk(&game_clip.code_str),
-                ev == K_CG_EVENT_KEY_DOWN,
-                mods_match,
-                ptt_on_key,
-            ) {
-                log::info!("[hotkeys] game clip key pressed");
-                let _ = ctx.game_clip_tx.send(());
             }
         }
 
@@ -406,13 +350,10 @@ fn start_listener(
         event_tx,
         clip_binding,
         clip_tx,
-        game_clip_binding,
-        game_clip_tx,
         stream_binding,
         stream_tx,
         ptt_held: false,
         clip_held: false,
-        game_clip_held: false,
         stream_held: false,
         prev_modifier_flags: 0,
     });
@@ -568,8 +509,6 @@ fn start_listener(
     event_tx: mpsc::Sender<PttEvent>,
     clip_binding: Arc<Mutex<Option<PttBinding>>>,
     clip_tx: mpsc::Sender<()>,
-    game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-    game_clip_tx: mpsc::Sender<()>,
     stream_binding: Arc<Mutex<Option<PttBinding>>>,
     stream_tx: mpsc::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -579,8 +518,6 @@ fn start_listener(
         event_tx,
         clip_binding,
         clip_tx,
-        game_clip_binding,
-        game_clip_tx,
         stream_binding,
         stream_tx,
     )
@@ -596,16 +533,11 @@ fn start_listener(
     event_tx: mpsc::Sender<PttEvent>,
     clip_binding: Arc<Mutex<Option<PttBinding>>>,
     clip_tx: mpsc::Sender<()>,
-    game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-    game_clip_tx: mpsc::Sender<()>,
     stream_binding: Arc<Mutex<Option<PttBinding>>>,
     stream_tx: mpsc::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if super::linux_shortcuts::wayland_session() {
-        // Game clips are Windows only (CLIPS.md 15.14): the portal
-        // binds no game clip key. It binds no stream key either (spec 12
-        // section 11, "Stream key").
-        drop(game_clip_tx);
+        // The portal binds no stream key (spec 12 section 11, "Stream key").
         drop(stream_tx);
         super::linux_shortcuts::start(binding, active, event_tx, clip_binding, clip_tx)
     } else {
@@ -615,8 +547,6 @@ fn start_listener(
             event_tx,
             clip_binding,
             clip_tx,
-            game_clip_binding,
-            game_clip_tx,
             stream_binding,
             stream_tx,
         )
@@ -631,8 +561,6 @@ fn start_rdev_listener(
     event_tx: mpsc::Sender<PttEvent>,
     clip_binding: Arc<Mutex<Option<PttBinding>>>,
     clip_tx: mpsc::Sender<()>,
-    game_clip_binding: Arc<Mutex<Option<PttBinding>>>,
-    game_clip_tx: mpsc::Sender<()>,
     stream_binding: Arc<Mutex<Option<PttBinding>>>,
     stream_tx: mpsc::Sender<()>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -757,8 +685,6 @@ fn start_rdev_listener(
             // The PTT state resets while PTT is off; the clip key keeps its own.
             let mut clip_mods = ModifierState::default();
             let mut clip_held = false;
-            // The game clip key keeps its own held state (CLIPS.md 15.2).
-            let mut game_clip_held = false;
             // The stream key keeps its own held state too.
             let mut stream_held = false;
 
@@ -784,21 +710,6 @@ fn start_rdev_listener(
                     ) {
                         log::info!("[hotkeys] clip key pressed");
                         let _ = clip_tx.send(());
-                    }
-                }
-                let game_clip = game_clip_binding.lock().unwrap().clone();
-                if let Some(game_clip) = game_clip {
-                    let ptt_on_key = ptt_on_clip_key(&binding.lock().unwrap(), &game_clip)
-                        && active.load(Ordering::Relaxed);
-                    if clip_key_step(
-                        &mut game_clip_held,
-                        Some(key) == code_str_to_rdev_key(&game_clip.code_str),
-                        pressed,
-                        clip_mods.matches(&game_clip),
-                        ptt_on_key,
-                    ) {
-                        log::info!("[hotkeys] game clip key pressed");
-                        let _ = game_clip_tx.send(());
                     }
                 }
                 let stream = stream_binding
@@ -1138,33 +1049,30 @@ mod tests {
         assert_eq!(label, "F9");
     }
 
-    /// The stream key has its own held state: the game clip key that is
-    /// still held does not hide a press of the stream key, and a stream key
-    /// that auto-repeats gives one press.
+    /// The stream key has its own held state: the clip key that is still
+    /// held does not hide a press of the stream key, and a stream key that
+    /// auto-repeats gives one press.
     #[test]
     fn the_stream_key_keeps_its_own_held_state() {
-        let mut game_clip_held = false;
+        let mut clip_held = false;
         let mut stream_held = false;
-        // F8 goes down and stays down.
-        assert!(clip_key_step(&mut game_clip_held, true, true, true, false));
-        // F9 goes down while F8 is held: one stream press.
-        assert!(!clip_key_step(
-            &mut game_clip_held,
-            false,
-            true,
-            true,
-            false
-        ));
+        // The clip key (F8) goes down and stays down.
+        assert!(clip_key_step(&mut clip_held, true, true, true, false));
+        // The stream key (F9) goes down while F8 is held: one stream press,
+        // and no second clip.
+        assert!(!clip_key_step(&mut clip_held, false, true, true, false));
         assert!(clip_key_step(&mut stream_held, true, true, true, false));
         // F9 repeats: no second press.
         assert!(!clip_key_step(&mut stream_held, true, true, true, false));
+        // F8 still repeats: no second clip.
+        assert!(!clip_key_step(&mut clip_held, true, true, true, false));
     }
 
     #[test]
     fn the_default_clip_key_parses() {
         let (b, label) = parse_ptt_string(DEFAULT_CLIP_KEY).expect("default clip key");
-        assert_eq!(b.code_str, "F7");
+        assert_eq!(b.code_str, "F8");
         assert!(!(b.ctrl || b.alt || b.shift || b.meta));
-        assert_eq!(label, "F7");
+        assert_eq!(label, "F8");
     }
 }

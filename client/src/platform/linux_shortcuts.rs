@@ -1,4 +1,4 @@
-//! Push-to-talk and the voice clip key on a Wayland session through the
+//! Push-to-talk and the clip key on a Wayland session through the
 //! GlobalShortcuts portal.
 //!
 //! Wayland gives no app the keys of another app's window, so `rdev` sees
@@ -7,7 +7,7 @@
 //! user confirms once in the desktop's dialog.
 //!
 //! The thread binds the shortcuts that have a key: push-to-talk once the user
-//! sets one, the clip key from the first start (F7 by default, CLIPS.md
+//! sets one, the clip key from the first start (F8 by default, CLIPS.md
 //! section 3.1). A new key binds both again in a new session. A key is a
 //! preferred trigger only: the user may choose another one in the dialog or
 //! in the desktop's shortcut settings. As in `hotkeys.rs`, push-to-talk keeps
@@ -28,6 +28,8 @@ use super::hotkeys::{PttBinding, PttEvent};
 use crate::LINUX_APP_ID;
 
 const PTT_ID: &str = "push-to-talk";
+// The portal id of the clip key. It keeps the id of the old voice clip
+// key, so a confirmed shortcut stays bound after an update.
 const CLIP_ID: &str = "voice-clip";
 
 /// True on a Wayland session, where the portal is the only way to see a key
@@ -390,7 +392,7 @@ mod tests {
 
     #[test]
     fn the_clip_key_binds_without_push_to_talk() {
-        let clip = binding("F7", false, false, false, false);
+        let clip = binding("F8", false, false, false, false);
         let w = Wanted::of(None, Some(&clip));
         assert!(w.ptt.is_none());
         assert_eq!(w.clip, Some(PttKey::of(&clip)));
@@ -400,7 +402,7 @@ mod tests {
 
     #[test]
     fn push_to_talk_keeps_keys_the_clip_key_also_names() {
-        let key = binding("F7", false, false, false, false);
+        let key = binding("F8", false, false, false, false);
         let w = Wanted::of(Some(&key), Some(&key));
         assert_eq!(w.ptt, Some(PttKey::of(&key)));
         assert!(w.clip.is_none());

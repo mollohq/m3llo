@@ -163,14 +163,13 @@ The KEYBINDS tab has two sections: CLIPS, then STREAMING. Each row is a `Keybind
 
 | Section | Row | Field label | Default | Platforms | Refuses the key of |
 |---|---|---|---|---|---|
-| CLIPS | Voice clip | "Voice clip key" | F7 | All | Push-to-talk, Game clip (Windows and macOS), Stream key |
-| CLIPS | Game clip | "Game clip key" | F8 | Windows and macOS. The row is not shown on Linux | Push-to-talk, Voice clip, Stream key |
-| STREAMING | Start / end stream | "Stream key" | F9 | All. The key has no effect on Wayland | Push-to-talk, Voice clip, Game clip (Windows and macOS) |
+| CLIPS | Clip | "Clip key" | F8 | All | Push-to-talk, Stream key |
+| STREAMING | Start / end stream | "Stream key" | F9 | All. The key has no effect on Wayland | Push-to-talk, Clip |
 
 - A click on the field listens for the next key. Escape stops listening. A modifier alone is not a key.
-- A refused key does not change the binding. The field keeps the key it had, gets a red border, and shows "<binding> uses <key>. Pick another key." under it. Example: "Game clip uses F8. Pick another key."
-- The key is saved at once (`Settings::clip_key`, `game_clip_key`, `stream_key`). The hotkey manager gets the new key at once.
-- RESET TO DEFAULTS gives F7, F8 and F9 back.
+- A refused key does not change the binding. The field keeps the key it had, gets a red border, and shows "<binding> uses <key>. Pick another key." under it. Example: "Clip uses F8. Pick another key."
+- The key is saved at once (`Settings::clip_key`, `stream_key`). The hotkey manager gets the new key at once.
+- RESET TO DEFAULTS gives F8 and F9 back.
 - The sentence of the stream row says that some games use F9 to load a save. The key also reaches the game (specs/12-STREAMING.md section 11, "Stream key").
 - The push-to-talk key stays in the AUDIO tab.
 

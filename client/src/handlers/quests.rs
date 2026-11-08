@@ -206,7 +206,7 @@ pub(crate) struct Input<'a> {
     pub crew_name: &'a str,
     pub viewer_id: &'a str,
     pub opened: &'a dyn Fn(&str) -> bool,
-    /// The game clip key as Keybinds shows it ("F8"), or "".
+    /// The clip key as Keybinds shows it ("F8"), or "".
     pub clip_key: &'a str,
     /// The viewer shares game activity (spec 17). Step 5 needs it.
     pub activity_on: bool,

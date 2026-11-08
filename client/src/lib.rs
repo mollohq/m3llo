@@ -9,6 +9,7 @@ mod build_info;
 pub(crate) mod callbacks;
 mod chat_images;
 mod chat_ui;
+mod clip_key;
 mod converters;
 #[cfg(target_os = "windows")]
 pub mod dcomp_presenter;
@@ -541,12 +542,6 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
         hotkey_mgr
             .borrow()
             .register_clip(callbacks::settings::clip_binding(&s));
-        // The game clip key (CLIPS.md 15.2): Windows and macOS.
-        if cfg!(any(windows, target_os = "macos")) {
-            hotkey_mgr
-                .borrow()
-                .register_game_clip(callbacks::settings::game_clip_binding(&s));
-        }
         // The stream key (spec 12 section 11): Windows, macOS and X11.
         hotkey_mgr
             .borrow()
