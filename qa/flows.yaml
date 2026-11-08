@@ -567,6 +567,15 @@ flows:
     protocol: []
     issues: []
 
+  - id: FEED-14
+    title: "The You strip: hidden while the quests are open; then each member sees the belts to take and to hold, mirrored on the other side; the strip opens the You view"
+    priority: P1
+    users: 2
+    harness: [the_strip_draws_the_closest_take_and_the_thinnest_hold, the_strip_waits_for_the_quests, a_crew_of_one_has_no_strip, sharing_off_hides_the_strip, the_strip_opens_the_you_view_on_belts, the_head2head_tab_lists_every_pair, the_view_reopens_on_belts_and_closes]
+    journeys: [qa/journeys/feed-you-strip.ts]
+    protocol: []
+    issues: []
+
   # ── Settings ──────────────────────────────────────────────────
   - id: SET-01
     title: Change the profile avatar

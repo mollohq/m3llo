@@ -367,6 +367,21 @@ export async function generateRecap(token: string, crewId: string): Promise<bool
   return r.ok;
 }
 
+/**
+ * Delete the quest record of a crew (`dev_fault` `quests_clear`): the crew is
+ * like one made before quests, with nothing to wait for. False when
+ * `dev_fault` is off on this stack.
+ */
+export async function clearQuests(token: string, crewId: string): Promise<boolean> {
+  const r = await fetch(`${nakamaBase()}/v2/rpc/dev_fault`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(JSON.stringify({ action: "quests_clear", crew_id: crewId })),
+    signal: AbortSignal.timeout(30_000),
+  });
+  return r.ok;
+}
+
 /** The `crew_feed` RPC as one member sees it. For timing and for checks. */
 export async function crewFeed(token: string, crewId: string): Promise<{ ms: number; feed: any }> {
   const t0 = Date.now();

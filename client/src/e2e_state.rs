@@ -185,6 +185,7 @@ struct Snapshot {
     game_clip_player: GameClipPlayerSnap,
     /// The stats strip: the viewer's last game with its square icon.
     you_strip: YouStripSnap,
+    you_view: YouViewSnap,
     /// The live session cards of the Sessions zone, in screen order.
     live_sessions: Vec<LiveSessionSnap>,
     /// Sealed belts and recap in the feed, and the card in the centre.
@@ -686,6 +687,55 @@ struct YouStripSnap {
     game_name: String,
     /// `"image"` (icon slot art) or `"monogram"`.
     art: &'static str,
+    /// The strip shows: the quests are done and two members share game
+    /// activity (plan you-strip.md).
+    ready: bool,
+    /// The titles the viewer holds.
+    held: usize,
+    /// The bars of the strip, as drawn.
+    bars: Vec<ChaseBarSnap>,
+}
+
+#[derive(Serialize)]
+struct ChaseBarSnap {
+    /// `"take"` or `"hold"`.
+    kind: &'static str,
+    title_id: String,
+    /// The holder of a take, the runner-up of a hold.
+    member: String,
+    delta: String,
+    delta_unit: String,
+}
+
+#[derive(Serialize)]
+struct YouViewSnap {
+    open: bool,
+    /// `"head2head"`, `"belts"` or `"games"`.
+    tab: &'static str,
+    pairs: Vec<YouPairSnap>,
+    holds: Vec<ChaseBarSnap>,
+    takes: Vec<ChaseBarSnap>,
+    games: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct YouPairSnap {
+    member: String,
+    you: i32,
+    them: i32,
+    title: String,
+}
+
+fn chase_bar_snaps(m: &slint::ModelRc<crate::ChaseBarData>) -> Vec<ChaseBarSnap> {
+    m.iter()
+        .map(|b| ChaseBarSnap {
+            kind: if b.take { "take" } else { "hold" },
+            title_id: b.title_id.to_string(),
+            member: b.other.name.to_string(),
+            delta: b.delta.to_string(),
+            delta_unit: b.delta_unit.to_string(),
+        })
+        .collect()
 }
 
 #[derive(Serialize)]
@@ -1377,7 +1427,35 @@ fn read(app: &MainWindow) -> Snapshot {
                 has_stats: strip.has_stats,
                 game_name: strip.game_name.to_string(),
                 art: if strip.has_icon { "image" } else { "monogram" },
+                ready: strip.ready,
+                held: strip.held_icons.row_count(),
+                bars: chase_bar_snaps(&strip.bars),
             }
+        },
+        you_view: YouViewSnap {
+            open: app.get_you_view_open(),
+            tab: match app.get_you_view_tab() {
+                0 => "head2head",
+                2 => "games",
+                _ => "belts",
+            },
+            pairs: app
+                .get_you_view_pairs()
+                .iter()
+                .map(|p| YouPairSnap {
+                    member: p.other.name.to_string(),
+                    you: p.you_count,
+                    them: p.them_count,
+                    title: p.title.to_string(),
+                })
+                .collect(),
+            holds: chase_bar_snaps(&app.get_you_view_holds()),
+            takes: chase_bar_snaps(&app.get_you_view_takes()),
+            games: app
+                .get_you_view_games()
+                .iter()
+                .map(|g| g.game_name.to_string())
+                .collect(),
         },
         live_sessions: app
             .get_feed_zones()
