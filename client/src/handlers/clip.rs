@@ -295,6 +295,46 @@ pub(super) fn h2h_roster(ctx: &AppContext) -> (Person, Vec<Person>) {
 /// The head2head of the crew for the zones (`zones.head2head`): the crew's
 /// data (titles, members, seats, own chips), and the belt hero of the Stage
 /// when a belt moved within the news window (`BeltMove::is_news`).
+/// The chase of the You strip from the head2head data of the zones.
+pub(super) fn head2head_chase(
+    ctx: &AppContext,
+    raw: &serde_json::Value,
+) -> Option<head2head::chase::Chase> {
+    let data = normalized_entry_data(raw);
+    let (viewer, members) = h2h_roster(ctx);
+    let roster = |id: &str| -> Person {
+        if id == viewer.id {
+            return viewer.clone();
+        }
+        members
+            .iter()
+            .find(|m| m.id == id)
+            .cloned()
+            .unwrap_or_else(|| Person::unknown(id))
+    };
+    head2head::chase::chase(&data, &viewer, &roster)
+}
+
+/// Every pair of the viewer for the Head2head tab of the You view.
+pub(super) fn head2head_view_pairs(
+    ctx: &AppContext,
+    raw: &serde_json::Value,
+) -> Vec<head2head::ViewPair> {
+    let data = normalized_entry_data(raw);
+    let (viewer, members) = h2h_roster(ctx);
+    let roster = |id: &str| -> Person {
+        if id == viewer.id {
+            return viewer.clone();
+        }
+        members
+            .iter()
+            .find(|m| m.id == id)
+            .cloned()
+            .unwrap_or_else(|| Person::unknown(id))
+    };
+    head2head::view_pairs(&data, &viewer, &roster, head2head::now_ms())
+}
+
 pub(super) fn head2head_zone(
     ctx: &AppContext,
     raw: &serde_json::Value,

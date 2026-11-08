@@ -111,31 +111,26 @@ Authenticated; returns only the caller's own stats across all games. Owner-read 
 
 ### 2.3 You strip
 
-> **Implemented.** The selection rule changed. The strip picks the most
-> recently played game with `games.first()`. It no longer picks the first game
-> that has a win/loss record. Selection by record left an empty strip for any
-> user whose games have no adapter.
->
-> The strip shows play time when no record exists. Functions: `weekly_minutes`
-> and `weekly_time_text` in `client/src/handlers/stats.rs`. Both apply the
-> overnight guard. See [22](./22-GAME-UI-SURFACES.md) section 4.3.
+> **Built as a chase.** The strip and the view it opens are specified in
+> [features/YOU-STRIP.md](./features/YOU-STRIP.md). This section keeps the
+> game record that the strip carries at its right end.
 
-A compact card pinned at the **top of the crew feed**, showing the viewer's top/active game:
+The record is the viewer's most recently played game (`games.first()` of
+`user_game_stats_get`). Selection by record left an empty strip for any user
+whose games have no adapter.
 
-```
-[CS2]  Counter-Strike 2          W4 streak
-       62% WR · 5–3 this week    Gold II ↑
-       recent: W W L W D                  ›
-```
+- A game with a record shows the streak, the win rate and the recent form.
+- A game with no record shows the week's hours. Functions: `weekly_minutes`,
+  `weekly_shown_minutes` and `week_value` in `client/src/handlers/stats.rs`.
+  They apply the overnight guard. See [22](./22-GAME-UI-SURFACES.md) section 4.3.
+- The strip shows only when the crew's quests are done and two members share
+  game activity (`YOU-STRIP.md` section 1.1).
 
-- Source: `user_game_stats_get`, pick the most recently played game (or let the user pin one).
-- Tappable → profile.
-- Always present (even at zero crew activity); shows an empty/encouraging state if no games tracked.
+### 2.4 Profile / "Me" view — PARTLY BUILT
 
-### 2.4 Profile / "Me" view — NOT BUILT
-
-> Designed. Not built. The store holds `RecentDays`, which supplies the trend
-> views below, so the data is available.
+> The per-game cards are the Games tab of the You view (`YOU-STRIP.md`
+> section 3). The trend views below are not built. The store holds
+> `RecentDays`, which supplies them, so the data is available.
 
 A dedicated stats view, deeper than the strip:
 - Per-game cards: streak (current/longest), W/L/D record, win-rate, recent-form sparkline.

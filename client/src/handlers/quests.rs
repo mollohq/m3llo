@@ -225,6 +225,12 @@ pub(crate) fn gift_key(step: &str, crew_id: &str) -> String {
     sealed::quest_key(step, crew_id)
 }
 
+/// Every step of the crew's quests is done. The You strip waits for it
+/// (YOU-STRIP.md): until then the quest card is the crew's funnel.
+pub(crate) fn all_done(q: &ZoneQuests) -> bool {
+    done(q).iter().all(|d| *d)
+}
+
 /// Which steps are done, in `STEPS` order. Crew made is always done.
 fn done(q: &ZoneQuests) -> [bool; 5] {
     [

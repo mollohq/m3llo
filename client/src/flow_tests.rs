@@ -9838,6 +9838,7 @@ mod art_worker;
 mod quests;
 mod sealed;
 mod testers;
+mod you_strip;
 mod zones;
 
 // ---- the recap is never a one-cell card ----

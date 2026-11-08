@@ -17,11 +17,11 @@ pub fn wire(ctx: &AppContext) {
         });
     }
 
-    // Stats profile (spec 19 A2): refresh per-game stats on open so the modal
-    // shows current numbers, not the last crew-select snapshot.
+    // The You view (YOU-STRIP.md): refresh per-game stats on open so the
+    // Games tab shows current numbers, not the last crew-select snapshot.
     {
         let cmd = ctx.cmd_tx.clone();
-        ctx.app.on_stats_profile_opened(move || {
+        ctx.app.on_you_view_opened(move || {
             let _ = cmd.send(Command::GetUserGameStats);
         });
     }

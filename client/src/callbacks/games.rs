@@ -1,4 +1,5 @@
 use mello_core::Command;
+use slint::ComponentHandle;
 
 use crate::app_context::AppContext;
 
@@ -7,6 +8,7 @@ pub fn wire(ctx: &AppContext) {
     {
         let cmd = ctx.cmd_tx.clone();
         let s = ctx.settings.clone();
+        let app = ctx.app.as_weak();
         ctx.app
             .on_setting_changed_share_game_activity(move |enabled| {
                 let mut settings = s.borrow_mut();
@@ -14,6 +16,13 @@ pub fn wire(ctx: &AppContext) {
                 settings.save();
                 let _ = cmd.send(Command::SetShareGameActivity { enabled });
                 log::info!("[settings] share_game_activity = {}", enabled);
+                // The You strip shows only while the viewer shares. Sharing
+                // again shows it on the next feed load.
+                if let (false, Some(app)) = (enabled, app.upgrade()) {
+                    let mut strip = app.get_you_strip();
+                    strip.ready = false;
+                    app.set_you_strip(strip);
+                }
             });
     }
 

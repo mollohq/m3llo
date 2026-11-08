@@ -98,7 +98,22 @@ pub(crate) fn refresh(ctx: &AppContext) {
         .map(|f| f.zones.clone());
     // Before the feed loads the zones still draw the client state: a live
     // stream, live sessions, voice.
-    let mut z = build_from_zones(ctx, &zones.unwrap_or_default());
+    let zones = zones.unwrap_or_default();
+    let chase = zones
+        .head2head
+        .as_ref()
+        .and_then(|d| super::clip::head2head_chase(ctx, d));
+    // No quests in the zones: a crew made before quests, or the 14 days are
+    // over. Nothing to wait for.
+    let quests_done = zones.quests.as_ref().is_none_or(super::quests::all_done);
+    super::stats::set_chase(ctx, chase.as_ref(), quests_done);
+    let pairs = zones
+        .head2head
+        .as_ref()
+        .map(|d| super::clip::head2head_view_pairs(ctx, d))
+        .unwrap_or_default();
+    super::stats::set_you_view(ctx, chase.as_ref(), &pairs);
+    let mut z = build_from_zones(ctx, &zones);
     keep_posters(&ctx.app.get_feed_zones(), &mut z);
     log::debug!(
         "feed zones: stage={} board={} clips={} people={} sessions={} history={} plus={}",

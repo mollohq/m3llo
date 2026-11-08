@@ -514,12 +514,45 @@ export struct GameStatsCardData {
     best-streak-text: string, // "W7 best · L3 worst" ("" when no history)
     recent-form: [string],    // each "W" | "L" | "D", newest last (≤10)
     last-played-text: string, // "2h ago" / "3d ago" / ""
+    has-record: bool,         // false: the game has no win/loss source
+    week-value: string,       // "6.5": the week's hours, for a game with no record
 }
 
-// Personal stats for the "You strip" pinned atop the crew feed (spec 19).
-// Only the viewer sees it; display strings are pre-formatted in Rust.
+// One row of the Head2head tab of the You view (YOU-STRIP.md
+// section 3): the viewer against one member, with the deciding title.
+export struct YouPairRow {
+    other: H2hPerson,
+    you-count: int,
+    them-count: int,
+    title: string,            // "" when every title of the pair ties
+    icon: image,
+    stat-line: string,
+    you-value: string,
+    other-value: string,
+    unit: string,
+}
+
+// One bar of the You strip (YOU-STRIP.md section 1.2).
+export struct ChaseBarData {
+    take: bool,             // TAKE a belt from its holder, else HOLD yours
+    title-id: string,
+    title: string,
+    icon: image,
+    stat-line: string,      // the tooltip (`sealed::stat_line`)
+    other: H2hPerson,       // the holder of a take, the runner-up of a hold
+    you-value: string,
+    other-value: string,
+    unit: string,           // of both values
+    delta: string,          // "−1.3", "+12", "±0"
+    delta-unit: string,     // "h", "min", "%", or "" for a count
+    ratio: float,           // 0 to 1: the fill of a take, the mark of a hold
+}
+
+// The "You strip" pinned atop the crew feed (spec 19, YOU-STRIP.md): the
+// viewer, the chase bars of the open crew, the game record. Only the viewer
+// sees it; display strings are pre-formatted in Rust.
 export struct YouStripData {
-    has-stats: bool,        // false → strip hidden (no games tracked yet)
+    has-stats: bool,        // the record half: false without a tracked game
     game-id: string,        // games.json id, for the bundled icon lookup
     game-name: string,
     short-name: string,
@@ -534,6 +567,14 @@ export struct YouStripData {
     win-rate-text: string,  // "62%"
     weekly-time-text: string, // "4h 12m this week" (pre-formatted in Rust)
     recent-form: [string],  // each "W" | "L" | "D", newest last
+    week-value: string,     // "6.5": the week's hours, for a game with no record
+    // Head2head of the open crew. Empty without head2head data.
+    viewer: H2hPerson,
+    held-icons: [image],    // the titles the viewer holds, display order
+    bars: [ChaseBarData],   // 0 to 2: the closest take, the thinnest hold
+    // Another member shares game activity with the viewer, who shares too.
+    // The strip shows only then (YOU-STRIP.md, 2026-11-08).
+    ready: bool,
 }
 
 export struct StreamCardData {

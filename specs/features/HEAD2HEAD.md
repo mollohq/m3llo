@@ -2,7 +2,7 @@
 
 > **Component:** Crew Feed, Crew Memory
 > **Version:** 1.2
-> **Status:** built. The zone feed draws head2head as the belts of the Board, the belt hero and the own chips of the Stage, and the seats of the People zone (CREW-FEED-ZONES.md). The pairs view is not drawn (section 8).
+> **Status:** built. The zone feed draws head2head as the belts of the Board, the belt hero and the own chips of the Stage, and the seats of the People zone (CREW-FEED-ZONES.md). The You strip draws the chase bars, and the You view the pairs (YOU-STRIP.md).
 > **Depends on:** 16-CREW-EVENT-LEDGER.md (section 3.6, library documents), 19 (per-game stats and recap), CREW-FEED-ZONES.md
 
 ---
@@ -182,6 +182,8 @@ Where the feed draws it:
 - **Belt hero.** The Stage holds the newest move that involves the viewer, as holder or as previous holder, up to 14 days old, in a crew of two or more (`stage.kind` `belt`). The card says who held the title, the title, who holds it now, a headline ("Sara took Night Owl from Bob") and the values ("03:40 beats 03:14."). The client builds it from `moved_at_ms`, `previous_holder_user_id` and the values. While the belt is sealed on the board, the Stage does not show it. A move between two other members is no belt hero.
 - **Own chips.** A crew of one: the Stage holds the viewer's octagon, the full name, up to four chips from `own_values` in display order (The Carry, Night Owl, The Collector, Locked In, Has a Life, Sampler, One Trick) in the viewer's identity hue, and "Go head2head with your crew". On a new crew the chips are sealed (SEALED-REVEAL.md section 9); an opened chip shows its title and value.
 - **Seats.** The People zone draws `open_seats` and the red invite while a seat is open.
+- **You strip.** The belt the viewer is closest to taking and the viewer's belt with the smallest lead, from `titles`, `own_values` and `pairs` (`YOU-STRIP.md` section 2).
+- **You view.** Every pair of the viewer, closest score first, with the deciding title and both values (`YOU-STRIP.md` section 3).
 
 ### Unread belt
 
@@ -229,10 +231,8 @@ A belt move sends a push to the previous holder. A new member sends a push to th
 
 ## 8. Later
 
-- The pairs view: the viewer against every member, with the deciding title of
-  each pair. The payload has `pairs`; the zone feed does not draw them. It
-  comes back with the redesign of the You strip.
-- The opened view with the round robin of all pairs.
+- The round robin of all pairs, every member against every member. The
+  payload carries only the viewer's pairs.
 - A per-crew off switch.
 - Recompute on member join and leave.
 - The client sends `tz_offset_min` with `game_session_end`.

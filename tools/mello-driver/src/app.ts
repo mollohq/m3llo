@@ -33,6 +33,9 @@ export type FeedCard = {
     art: "image" | "monogram";
   };
 
+/** One bar of the You strip or the Belts tab (YOU-STRIP.md). */
+export type ChaseBar = { kind: "take" | "hold"; title_id: string; member: string; delta: string; delta_unit: string };
+
 export type AppState = {
   screen: "onboarding" | "sign_in" | "app" | "blank";
   onboarding_step: number;
@@ -237,7 +240,23 @@ export type AppState = {
     error: string;
   };
   /** The stats strip of the feed: the viewer's last game, with its square icon. */
-  you_strip: { has_stats: boolean; game_name: string; art: "image" | "monogram" };
+  you_strip: {
+    has_stats: boolean;
+    game_name: string;
+    art: "image" | "monogram";
+    /** The strip shows: quests done, two members share game activity. */
+    ready: boolean;
+    held: number;
+    bars: ChaseBar[];
+  };
+  you_view: {
+    open: boolean;
+    tab: "head2head" | "belts" | "games";
+    pairs: { member: string; you: number; them: number; title: string }[];
+    holds: ChaseBar[];
+    takes: ChaseBar[];
+    games: string[];
+  };
   /** The live session cards (a game in progress), in screen order. `index` is the place in `feed_zones.sessions`. */
   live_sessions: { game_name: string; member_names: string[]; since_min: number; since_text: string; index: number; octagons: number; with_avatar: number; poster: boolean }[];
   /** The chat input has the cursor. */
@@ -859,14 +878,18 @@ export class App {
     const [win] = await this.ui.props([await this.ui.window()]);
     const bar = 81 + 8;
     const clear = win?.size ? win.size.height - bar : Number.POSITIVE_INFINITY;
-    // The You strip ("YOUR STATS") is pinned above the feed. A control under
-    // it is not clickable either: a click lands on the strip. Each step
-    // scrolls only as far as the control needs, so it does not overshoot.
+    // The feed scrolls under the panel head (48 px and a 1 px keyline,
+    // crew_feed.slint) and, when it shows, the pinned You strip (label "You").
+    // A control under either is not clickable: a click lands on the head or
+    // the strip. The strip is hidden until a crew's quests are done, so the
+    // head alone counts then. Each step scrolls only as far as the control
+    // needs, so it does not overshoot.
+    const head = 48 + 1 + 8;
     for (let i = 0; i < maxSteps; i++) {
       const all = await this.ui.controls();
       const c = all.find((c) => c.label === label);
-      const strip = all.find((c) => c.label === "YOUR STATS");
-      const top = strip ? strip.y + strip.height : 0;
+      const strip = all.find((c) => c.label === "You");
+      const top = Math.max(head, strip ? strip.y + strip.height : 0);
       if (c && c.y >= top && c.y + c.height <= clear) return;
       if (c && c.y < top) {
         await this.ui.scrollAt(x, y, Math.min(300, Math.ceil(top - c.y) + 24));

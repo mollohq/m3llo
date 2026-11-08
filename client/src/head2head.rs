@@ -12,6 +12,8 @@ use crate::converters::{avatar_color_index, make_initials};
 use crate::sealed::Seal;
 use crate::{H2hPairRow, H2hPerson, Head2headData, TitleHeld};
 
+pub mod chase;
+
 /// Seats head2head shows, as in the backend. A crew of five or more has none.
 pub const SEATS: i32 = 5;
 /// Most pair rows on the card: two columns of two. The card is always two grid
@@ -94,10 +96,21 @@ const SESSION_TITLE_NAMES: [(&str, &str); 6] = [
 /// session title, or an id this client does not know, uses the belt icon and
 /// a name made from the id.
 pub fn belt_look(id: &str) -> (String, slint::Image) {
-    if let Some(t) = look(id) {
-        return (t.name.to_string(), icon_of(id));
+    if look(id).is_some() {
+        return (any_title_name(id), icon_of(id));
     }
-    let name = SESSION_TITLE_NAMES
+    let icon = slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg"))
+        .unwrap_or_default();
+    (any_title_name(id), icon)
+}
+
+/// The name of any title: a card title, a session title, or a name made from
+/// an id this client does not know.
+pub(crate) fn any_title_name(id: &str) -> String {
+    if let Some(t) = look(id) {
+        return t.name.to_string();
+    }
+    SESSION_TITLE_NAMES
         .iter()
         .find(|(i, _)| *i == id)
         .map(|(_, n)| n.to_string())
@@ -112,14 +125,24 @@ pub fn belt_look(id: &str) -> (String, slint::Image) {
                 })
                 .collect::<Vec<_>>()
                 .join(" ")
-        });
-    let icon = slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg"))
-        .unwrap_or_default();
-    (name, icon)
+        })
 }
 
 fn display_rank(id: &str) -> usize {
     TITLES.iter().position(|t| t.id == id).unwrap_or(usize::MAX)
+}
+
+/// Display order over every title: the card titles, then the session titles,
+/// then any other id.
+fn any_display_rank(id: &str) -> usize {
+    if let Some(i) = TITLES.iter().position(|t| t.id == id) {
+        return i;
+    }
+    SESSION_TITLE_NAMES
+        .iter()
+        .position(|(i, _)| *i == id)
+        .map(|i| TITLES.len() + i)
+        .unwrap_or(usize::MAX)
 }
 
 // ---- wire ----
@@ -873,7 +896,127 @@ pub fn build_rows_sealed(
     Some(model)
 }
 
+/// One row of the Head2head tab of the You view: the viewer against one
+/// member, with the deciding title and both values in it.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ViewPair {
+    pub opponent: Person,
+    pub you_count: i32,
+    pub them_count: i32,
+    /// The deciding title, empty when every title of the pair ties.
+    pub title_id: String,
+    pub you_value: String,
+    pub other_value: String,
+    pub unit: String,
+}
+
+/// Every pair of the viewer for the You view: closest score first, no cap
+/// (YOU-STRIP.md section 3). The deciding title follows the rule of the
+/// pair rows on the board, over every contested title, session titles too.
+pub fn view_pairs(
+    data: &Value,
+    viewer: &Person,
+    roster: &dyn Fn(&str) -> Person,
+    now_ms: i64,
+) -> Vec<ViewPair> {
+    let Ok(wire) = serde_json::from_value::<WireFeed>(data.clone()) else {
+        return Vec::new();
+    };
+    let contested: Vec<&WireTitle> = wire
+        .titles
+        .iter()
+        .filter(|t| !t.holder_user_id.is_empty())
+        .collect();
+    let mut pairs: Vec<&WirePair> = wire
+        .pairs
+        .iter()
+        .filter(|p| p.a == viewer.id && p.a_count + p.b_count > 0)
+        .collect();
+    // Stable: equal scores keep the payload order.
+    pairs.sort_by_key(|p| (p.a_count - p.b_count).abs());
+    let mut used: Vec<String> = Vec::new();
+    pairs
+        .into_iter()
+        .map(|p| {
+            let picked = deciding_chip(p, &contested, &viewer.id, roster, now_ms, None, &used);
+            let decides = picked.as_ref().is_some_and(|(_, d)| *d);
+            let title_id = picked.map(|(c, _)| c.id).unwrap_or_default();
+            if decides {
+                used.push(title_id.clone());
+            }
+            let unit = contested
+                .iter()
+                .find(|t| t.title_id == title_id)
+                .map(|t| t.unit.clone())
+                .unwrap_or_default();
+            let values = p.values.iter().find(|v| v.title_id == title_id);
+            let (you_value, unit) = values
+                .map(|v| value_text(&v.a_value, &unit))
+                .unwrap_or_default();
+            let other_value = values
+                .map(|v| value_text(&v.b_value, &unit).0)
+                .unwrap_or_default();
+            ViewPair {
+                opponent: roster(&p.b),
+                you_count: p.a_count,
+                them_count: p.b_count,
+                title_id,
+                you_value,
+                other_value,
+                unit,
+            }
+        })
+        .collect()
+}
+
 // ---- Slint ----
+
+/// The icon of any title: its own for a card title, the belt for the rest.
+pub fn any_icon(id: &str) -> slint::Image {
+    belt_look(id).1
+}
+
+/// One row of the Head2head tab. `other` is the member as the UI draws them.
+pub fn view_pair_data(p: &ViewPair, other: H2hPerson) -> crate::YouPairRow {
+    let has_title = !p.title_id.is_empty();
+    crate::YouPairRow {
+        other,
+        you_count: p.you_count,
+        them_count: p.them_count,
+        title: if has_title {
+            any_title_name(&p.title_id).into()
+        } else {
+            Default::default()
+        },
+        icon: if has_title {
+            any_icon(&p.title_id)
+        } else {
+            Default::default()
+        },
+        stat_line: crate::sealed::stat_line(&p.title_id).into(),
+        you_value: p.you_value.as_str().into(),
+        other_value: p.other_value.as_str().into(),
+        unit: p.unit.as_str().into(),
+    }
+}
+
+/// One bar of the You strip. `other` is the member as the UI draws them.
+pub fn chase_bar_data(b: &chase::Bar, other: H2hPerson) -> crate::ChaseBarData {
+    crate::ChaseBarData {
+        take: b.kind == chase::Kind::Take,
+        title_id: b.title_id.as_str().into(),
+        title: b.title.as_str().into(),
+        icon: any_icon(&b.title_id),
+        stat_line: crate::sealed::stat_line(&b.title_id).into(),
+        other,
+        you_value: b.you_value.as_str().into(),
+        other_value: b.other_value.as_str().into(),
+        unit: b.unit.as_str().into(),
+        delta: b.delta.as_str().into(),
+        delta_unit: b.delta_unit.as_str().into(),
+        ratio: b.ratio(),
+    }
+}
 
 fn icon_of(id: &str) -> slint::Image {
     // A rebuild draws every chip again, and parsing an SVG is the slow part.
@@ -1124,6 +1267,83 @@ mod tests {
             v["belt_moved_recent"] = m;
         }
         v
+    }
+
+    #[test]
+    fn the_view_lists_every_pair_closest_first_with_both_values() {
+        let mut pairs = vec![
+            pair_v("u2", 5, 1, vec![pv("locked_in", json!(12.9), json!(3.0))]),
+            pair_v(
+                "u3",
+                4,
+                4,
+                vec![pv("night_owl", json!("03:14"), json!("03:02"))],
+            ),
+        ];
+        // More pairs than the board card draws.
+        for i in 0..PAIR_ROWS {
+            pairs.push(pair_v(
+                &format!("x{i}"),
+                3,
+                1,
+                vec![pv("locked_in", json!(9.0), json!(2.0))],
+            ));
+        }
+        let data = feed(
+            8,
+            vec![
+                title("locked_in", "me", json!(12.9), "h"),
+                title("night_owl", "me", json!("03:14"), ""),
+            ],
+            pairs,
+            None,
+        );
+        let rows = view_pairs(&data, &me(), &roster, NOW);
+        assert_eq!(rows.len(), PAIR_ROWS + 2, "no cap");
+        assert_eq!(rows[0].opponent.id, "u3", "4 to 4 is the closest");
+        assert_eq!(
+            (
+                rows[0].title_id.as_str(),
+                rows[0].you_value.as_str(),
+                rows[0].other_value.as_str()
+            ),
+            ("night_owl", "03:14", "03:02")
+        );
+        let last = rows.last().unwrap();
+        assert_eq!(last.opponent.id, "u2", "5 to 1 is the widest");
+        assert_eq!(
+            (
+                last.you_value.as_str(),
+                last.other_value.as_str(),
+                last.unit.as_str()
+            ),
+            ("12.9", "3.0", "h")
+        );
+    }
+
+    #[test]
+    fn a_session_title_can_decide_a_pair_in_the_view() {
+        let data = feed(
+            2,
+            vec![title("clipper", "u2", json!(41), "clips")],
+            vec![pair_v(
+                "u2",
+                0,
+                1,
+                vec![pv("clipper", json!(38), json!(41))],
+            )],
+            None,
+        );
+        let rows = view_pairs(&data, &me(), &roster, NOW);
+        assert_eq!(
+            (
+                rows[0].title_id.as_str(),
+                rows[0].you_value.as_str(),
+                rows[0].other_value.as_str(),
+                rows[0].unit.as_str()
+            ),
+            ("clipper", "38", "41", "clips")
+        );
     }
 
     #[test]
