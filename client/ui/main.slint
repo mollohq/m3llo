@@ -33,6 +33,8 @@ import {
     StreamCardData,
     YouStripData,
     GameStatsCardData,
+    ChaseBarData,
+    YouPairRow,
     BeltHeroData,
     HeroStreamData,
     GameIntegrationData,
@@ -67,7 +69,7 @@ import { InviteShareModal } from "panels/invite_share_modal.slint";
 import { ChatImageViewer } from "panels/image_viewer.slint";
 import { CrewSettingsModal } from "panels/crew_settings_modal.slint";
 import { RiotLinkModal } from "panels/riot_link_modal.slint";
-import { StatsProfileModal } from "panels/stats_profile_modal.slint";
+import { YouView } from "panels/you_view.slint";
 // --- stage 9 (streaming-quality): the stream card's popovers ---
 import { StreamCardUi, StreamStatsData, ChatFocus } from "types.slint";
 import { StreamVolumePopover, StreamSettingsPopover, ExpandedStreamCard } from "panels/active_streams_panel.slint";
@@ -548,10 +550,15 @@ export component MainWindow inherits Window {
     // --- Crew feed ---
     in property <YouStripData> you-strip;
     // Personal stats profile (spec 19 A2), opened from the You strip.
-    in-out property <bool> stats-profile-open: false;
-    in property <[GameStatsCardData]> stats-profile-games: [];
+    // The You view (plan you-strip.md section 3), opened from the You strip.
+    in-out property <bool> you-view-open: false;
+    in-out property <int> you-view-tab: 1;   // 0 Head2head, 1 Belts, 2 Games
+    in property <[GameStatsCardData]> you-view-games: [];
+    in property <[YouPairRow]> you-view-pairs: [];
+    in property <[ChaseBarData]> you-view-holds: [];
+    in property <[ChaseBarData]> you-view-takes: [];
     // Fired on open so the client can refresh user_game_stats.
-    callback stats-profile-opened();
+    callback you-view-opened();
     in property <ZonesData> feed-zones;
     /// A locked week or the m3llo+ strip of the zone feed: the coming soon
     /// modal opens (no purchase flow yet).
@@ -1175,8 +1182,9 @@ export component MainWindow inherits Window {
                             }
                             you-strip: root.you-strip;
                             you-strip-clicked => {
-                                root.stats-profile-open = true;
-                                root.stats-profile-opened();
+                                root.you-view-tab = 1;
+                                root.you-view-open = true;
+                                root.you-view-opened();
                             }
                             history-more => { root.zones-history-more(); }
                             session-seen(id) => { root.session-seen(id); }
@@ -2072,10 +2080,17 @@ export component MainWindow inherits Window {
     }
 
     // ===================== RIOT LINK DIALOG =====================
-    if stats-profile-open: StatsProfileModal {
-        games: root.stats-profile-games;
+    if you-view-open: YouView {
+        viewer: root.you-strip.viewer;
+        belt-count: root.you-strip.held-icons.length;
+        crew-name: root.active-crew-name;
+        tab <=> root.you-view-tab;
+        pairs: root.you-view-pairs;
+        holds: root.you-view-holds;
+        takes: root.you-view-takes;
+        games: root.you-view-games;
         dismiss-requested => {
-            root.stats-profile-open = false;
+            root.you-view-open = false;
         }
     }
 

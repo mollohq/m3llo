@@ -315,6 +315,26 @@ pub(super) fn head2head_chase(
     head2head::chase::chase(&data, &viewer, &roster)
 }
 
+/// Every pair of the viewer for the Head2head tab of the You view.
+pub(super) fn head2head_view_pairs(
+    ctx: &AppContext,
+    raw: &serde_json::Value,
+) -> Vec<head2head::ViewPair> {
+    let data = normalized_entry_data(raw);
+    let (viewer, members) = h2h_roster(ctx);
+    let roster = |id: &str| -> Person {
+        if id == viewer.id {
+            return viewer.clone();
+        }
+        members
+            .iter()
+            .find(|m| m.id == id)
+            .cloned()
+            .unwrap_or_else(|| Person::unknown(id))
+    };
+    head2head::view_pairs(&data, &viewer, &roster, head2head::now_ms())
+}
+
 pub(super) fn head2head_zone(
     ctx: &AppContext,
     raw: &serde_json::Value,

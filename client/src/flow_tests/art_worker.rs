@@ -315,7 +315,7 @@ fn the_stats_strip_and_profile_cards_take_the_worker_icon() {
     serve(&mut h, &ids, slot);
 
     assert!(h.app().get_you_strip().has_icon, "the strip has the icon");
-    let cards = h.app().get_stats_profile_games();
+    let cards = h.app().get_you_view_games();
     assert_eq!(cards.row_count(), 1);
     assert!(cards.row_data(0).expect("a card").has_icon);
 

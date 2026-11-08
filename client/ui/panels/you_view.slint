@@ -1,0 +1,622 @@
+import { Theme } from "../theme.slint";
+import { H2hPerson, ChaseBarData, GameStatsCardData, YouPairRow } from "../types.slint";
+import { GameIcon } from "../components/game_icon.slint";
+import { CutShape, CutButton } from "../components/cut.slint";
+import { UserAvatar } from "../components/avatar.slint";
+import { StatValue } from "../components/stat.slint";
+import { H2hHue } from "../components/head2head.slint";
+import { FormPip } from "./you_strip.slint";
+
+component Kicker inherits Text {
+    font-family: Theme.font-label;
+    font-size: 9px;
+    font-weight: Theme.weight-label;
+    letter-spacing: Theme.track-label;
+    color: Theme.text-secondary;
+}
+
+component Hairline inherits Rectangle {
+    height: 1px;
+    background: Theme.card-border;
+}
+
+// "12.9 vs 14.2 h": two values of one title, the unit once at the end.
+component Versus inherits HorizontalLayout {
+    in property <string> you-value;
+    in property <string> other-value;
+    in property <string> unit;
+
+    spacing: 4px;
+    alignment: start;
+    cross-axis-alignment: end;
+
+    StatValue { value: root.you-value; value-size: 13px; }
+    Text {
+        text: "vs";
+        font-family: Theme.font-body;
+        font-weight: Theme.weight-sentence;
+        font-size: 11px;
+        color: Theme.text-secondary;
+    }
+    StatValue { value: root.other-value; unit: root.unit; value-size: 13px; unit-size: 11px; gap: 3px; }
+}
+
+// A tab of the view. The active tab is white with a rule under it.
+component Tab inherits Rectangle {
+    in property <string> label;
+    in property <string> count;
+    in property <bool> active;
+    callback clicked();
+
+    accessible-role: tab;
+    accessible-label: root.label;
+    width: row.preferred-width;
+    height: 36px;
+
+    row := HorizontalLayout {
+        spacing: 6px;
+        cross-axis-alignment: center;
+        Text {
+            text: root.label.to-uppercase();
+            font-family: Theme.font-label;
+            font-size: 10px;
+            font-weight: Theme.weight-label;
+            letter-spacing: Theme.track-kicker;
+            color: root.active || ta.has-hover ? Theme.text-primary : Theme.text-secondary;
+        }
+        if root.count != "": Text {
+            text: root.count;
+            font-family: Theme.font-label;
+            font-size: 10px;
+            font-weight: Theme.weight-label;
+            color: root.active ? Theme.text-body : Theme.text-tertiary;
+        }
+    }
+    if root.active: Rectangle {
+        x: 0;
+        y: parent.height - 2px;
+        width: parent.width;
+        height: 2px;
+        background: Theme.text-primary;
+    }
+    ta := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// The viewer against one member: the score, the split of the titles (white
+// for the viewer, the member's hue for them), the deciding title.
+component PairRow inherits Rectangle {
+    in property <YouPairRow> pair;
+    property <color> hue: H2hHue.of(root.pair.other.hue-index);
+
+    height: 58px;
+
+    HorizontalLayout {
+        spacing: 14px;
+        cross-axis-alignment: center;
+
+        HorizontalLayout {
+            width: 150px;
+            spacing: 10px;
+            cross-axis-alignment: center;
+            UserAvatar {
+                size: 36px;
+                initials: root.pair.other.initials;
+                avatar: root.pair.other.avatar;
+                has-avatar: root.pair.other.has-avatar;
+                color-index: root.pair.other.hue-index;
+                bg-color: Theme.surface;
+            }
+            Text {
+                text: root.pair.other.name;
+                font-family: Theme.font-display;
+                font-size: 14px;
+                font-weight: Theme.weight-display;
+                color: Theme.text-primary;
+                overflow: elide;
+                horizontal-stretch: 1;
+            }
+        }
+
+        HorizontalLayout {
+            width: 64px;
+            spacing: 6px;
+            alignment: center;
+            Text {
+                text: root.pair.you-count;
+                font-family: Theme.font-display;
+                font-size: 18px;
+                font-weight: Theme.weight-display-bold;
+                color: Theme.text-primary;
+            }
+            Text {
+                text: "–";
+                font-family: Theme.font-display;
+                font-size: 18px;
+                font-weight: Theme.weight-display;
+                color: Theme.text-tertiary;
+            }
+            Text {
+                text: root.pair.them-count;
+                font-family: Theme.font-display;
+                font-size: 18px;
+                font-weight: Theme.weight-display-bold;
+                color: Theme.text-primary;
+            }
+        }
+
+        HorizontalLayout {
+            width: 150px;
+            height: 4px;
+            spacing: 2px;
+            for i in root.pair.you-count: Rectangle {
+                horizontal-stretch: 1;
+                background: Theme.text-primary;
+            }
+            for i in root.pair.them-count: Rectangle {
+                horizontal-stretch: 1;
+                background: root.hue;
+            }
+        }
+
+        Rectangle { horizontal-stretch: 1; }
+
+        if root.pair.title != "": HorizontalLayout {
+            spacing: 8px;
+            cross-axis-alignment: center;
+            Image {
+                source: root.pair.icon;
+                colorize: Theme.text-primary;
+                width: 14px;
+                height: 14px;
+            }
+            VerticalLayout {
+                spacing: 2px;
+                alignment: center;
+                Kicker { text: root.pair.title.to-uppercase(); color: Theme.text-body; }
+                Versus {
+                    you-value: root.pair.you-value;
+                    other-value: root.pair.other-value;
+                    unit: root.pair.unit;
+                }
+            }
+        }
+    }
+}
+
+// One belt in the Belts tab: the title, the bar with both values, the other
+// member, the delta. The bar reads as on the strip.
+component BeltRow inherits Rectangle {
+    in property <ChaseBarData> bar;
+    property <color> hue: H2hHue.of(root.bar.other.hue-index);
+
+    height: 58px;
+
+    HorizontalLayout {
+        spacing: 14px;
+        cross-axis-alignment: center;
+
+        Image {
+            source: root.bar.icon;
+            colorize: Theme.text-primary;
+            width: 16px;
+            height: 16px;
+        }
+        Text {
+            width: 128px;
+            text: root.bar.title;
+            font-family: Theme.font-display;
+            font-size: 14px;
+            font-weight: Theme.weight-display;
+            color: Theme.text-primary;
+            overflow: elide;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 5px;
+            alignment: center;
+            Rectangle {
+                height: 4px;
+                background: Theme.card-border;
+                Rectangle {
+                    x: 0;
+                    y: 0;
+                    width: parent.width * (root.bar.take ? root.bar.ratio : 1.0);
+                    height: parent.height;
+                    background: Theme.text-primary;
+                }
+                Rectangle {
+                    x: root.bar.take ? parent.width - self.width
+                                     : clamp(parent.width * root.bar.ratio - 1px, 0px, parent.width - self.width);
+                    y: -3px;
+                    width: 2px;
+                    height: 10px;
+                    background: root.hue;
+                }
+            }
+            HorizontalLayout {
+                spacing: 4px;
+                cross-axis-alignment: end;
+                Text {
+                    text: "You";
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                }
+                StatValue {
+                    value: root.bar.you-value; unit: root.bar.unit;
+                    value-size: 12px; unit-size: 10px; gap: 3px; hue: Theme.text-body;
+                }
+                Rectangle { horizontal-stretch: 1; }
+                Text {
+                    text: root.bar.other.name;
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 11px;
+                    color: Theme.text-secondary;
+                    overflow: elide;
+                }
+                StatValue {
+                    value: root.bar.other-value; unit: root.bar.unit;
+                    value-size: 12px; unit-size: 10px; gap: 3px; hue: Theme.text-body;
+                }
+            }
+        }
+        UserAvatar {
+            size: 20px;
+            initials: root.bar.other.initials;
+            avatar: root.bar.other.avatar;
+            has-avatar: root.bar.other.has-avatar;
+            color-index: root.bar.other.hue-index;
+            bg-color: Theme.surface;
+        }
+        Rectangle {
+            width: 84px;
+            HorizontalLayout {
+                alignment: end;
+                cross-axis-alignment: center;
+                StatValue {
+                    value: root.bar.delta; unit: root.bar.delta-unit;
+                    value-size: 14px; unit-size: 11px; gap: 3px;
+                }
+            }
+        }
+    }
+}
+
+component Cell inherits VerticalLayout {
+    in property <string> value;
+    in property <string> unit;
+    in property <string> label;
+    in property <color> hue: Theme.text-primary;
+
+    width: 64px;
+    spacing: 2px;
+    alignment: center;
+    HorizontalLayout {
+        alignment: center;
+        StatValue { value: root.value; unit: root.unit; value-size: 16px; unit-size: 11px; gap: 3px; hue: root.hue; }
+    }
+    Text {
+        text: root.label.to-uppercase();
+        font-family: Theme.font-label;
+        font-size: 8.5px;
+        font-weight: Theme.weight-label;
+        letter-spacing: Theme.track-label;
+        color: Theme.text-secondary;
+        horizontal-alignment: center;
+    }
+}
+
+// One game in the Games tab: the record and the form, or the week's hours.
+component GameRow inherits Rectangle {
+    in property <GameStatsCardData> card;
+
+    height: 62px;
+
+    HorizontalLayout {
+        spacing: 14px;
+        cross-axis-alignment: center;
+
+        GameIcon {
+            game-id: root.card.game-id;
+            short-name: root.card.short-name;
+            badge-color: root.card.game-color;
+            runtime-icon: root.card.icon;
+            has-runtime-icon: root.card.has-icon;
+            size: 40px;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            spacing: 6px;
+            alignment: center;
+            Text {
+                text: root.card.game-name;
+                font-family: Theme.font-display;
+                font-size: 14px;
+                font-weight: Theme.weight-display;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+            if root.card.has-record: HorizontalLayout {
+                spacing: 3px;
+                alignment: start;
+                for pip in root.card.recent-form: FormPip { letter: pip; }
+            }
+        }
+        if root.card.has-record: HorizontalLayout {
+            spacing: 18px;
+            Cell {
+                value: root.card.streak-text;
+                label: "streak";
+                hue: root.card.streak-positive ? Theme.text-primary : Theme.text-body;
+            }
+            Cell { value: root.card.win-rate-text; label: "win rate"; }
+            Cell { width: 76px; value: root.card.record-text; label: "record"; hue: Theme.text-body; }
+        }
+        if !root.card.has-record: Cell {
+            width: 76px;
+            value: root.card.week-value;
+            unit: "h";
+            label: "this week";
+        }
+    }
+}
+
+// You in the open crew (plan you-strip.md section 3), opened from the You
+// strip. Head2head: the viewer against every member. Belts: every belt to
+// hold and to take. Games: the record of each tracked game. Only the viewer
+// sees it.
+export component YouView inherits Rectangle {
+    in property <H2hPerson> viewer;
+    in property <int> belt-count;
+    in property <string> crew-name;
+    in-out property <int> tab: 1;
+    in property <[YouPairRow]> pairs;
+    in property <[ChaseBarData]> holds;
+    in property <[ChaseBarData]> takes;
+    in property <[GameStatsCardData]> games;
+
+    callback dismiss-requested();
+
+    width: 100%;
+    height: 100%;
+    background: Theme.scrim;
+
+    TouchArea {
+        // a11y: none (backdrop: a click outside the dialog closes it)
+        clicked => { root.dismiss-requested(); }
+    }
+
+    // Whole pixels: a half-pixel panel draws the avatar images one pixel
+    // past their octagon frames.
+    panel := Rectangle {
+        x: round((parent.width - self.width) / 2 / 1px) * 1px;
+        y: round((parent.height - self.height) / 2 / 1px) * 1px;
+        width: 640px;
+        height: min(root.height - 80px, 640px);
+        clip: true;
+
+        // A modal panel is a card, so it carries the cut and a keyline.
+        CutShape { width: parent.width; height: parent.height; n: Theme.notch; corner: "tr"; fill: Theme.graphic-light; }
+        CutShape { width: parent.width; height: parent.height; n: Theme.notch; corner: "tr"; inset: Theme.keyline; fill: Theme.surface; }
+
+        TouchArea {
+            // a11y: none (input blocker: stops clicks reaching the backdrop)
+        }
+
+        VerticalLayout {
+            // The head: the viewer, the belts, the crew.
+            HorizontalLayout {
+                padding-left: 28px;
+                padding-right: 28px;
+                padding-top: 24px;
+                padding-bottom: 18px;
+                spacing: 16px;
+                cross-axis-alignment: center;
+
+                UserAvatar {
+                    size: 64px;
+                    initials: root.viewer.initials;
+                    avatar: root.viewer.avatar;
+                    has-avatar: root.viewer.has-avatar;
+                    color-index: root.viewer.hue-index;
+                    bg-color: Theme.surface;
+                }
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 4px;
+                    alignment: center;
+                    Text {
+                        text: root.viewer.name;
+                        font-family: Theme.font-display;
+                        font-size: 26px;
+                        font-weight: Theme.weight-display;
+                        color: Theme.text-primary;
+                        overflow: elide;
+                    }
+                    Kicker {
+                        text: (root.belt-count == 1 ? "1 BELT" : root.belt-count + " BELTS")
+                            + (root.crew-name != "" ? " · " + root.crew-name.to-uppercase() : "");
+                        color: Theme.text-body;
+                    }
+                }
+                Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    accessible-role: button;
+                    accessible-label: "Close";
+                    CutButton {
+                        width: parent.width;
+                        height: parent.height;
+                        outlined: true;
+                        line-color: close-ta.has-hover ? Theme.text-primary : Theme.graphic-med;
+                        surface-color: Theme.surface;
+                    }
+                    Image {
+                        source: @image-url("../icons/x.svg");
+                        width: 14px;
+                        height: 14px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        colorize: close-ta.has-hover ? Theme.text-primary : Theme.text-body;
+                    }
+                    close-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.dismiss-requested(); }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                padding-left: 28px;
+                padding-right: 28px;
+                spacing: 22px;
+                alignment: start;
+                Tab { label: "Head2head"; active: root.tab == 0; clicked => { root.tab = 0; } }
+                Tab { label: "Belts"; count: root.belt-count; active: root.tab == 1; clicked => { root.tab = 1; } }
+                Tab { label: "Games"; count: root.games.length; active: root.tab == 2; clicked => { root.tab = 2; } }
+            }
+            Hairline { }
+
+            // The body scrolls; the head and the tabs stay.
+            Flickable {
+                vertical-stretch: 1;
+                content-height: body.preferred-height;
+
+                body := VerticalLayout {
+                    padding-left: 28px;
+                    padding-right: 28px;
+                    padding-top: 8px;
+                    padding-bottom: 20px;
+                    alignment: start;
+
+                    if root.tab == 0: VerticalLayout {
+                        for row in root.pairs: VerticalLayout {
+                            PairRow { pair: row; }
+                            Hairline { }
+                        }
+                    }
+
+                    if root.tab == 1: VerticalLayout {
+                        if root.holds.length > 0: Kicker { text: "HOLD"; height: 32px; vertical-alignment: center; }
+                        for bar in root.holds: VerticalLayout {
+                            BeltRow { bar: bar; }
+                            Hairline { }
+                        }
+                        if root.takes.length > 0: Kicker { text: "TAKE"; height: 40px; vertical-alignment: bottom; }
+                        for bar in root.takes: VerticalLayout {
+                            BeltRow { bar: bar; }
+                            Hairline { }
+                        }
+                    }
+
+                    if root.tab == 2: VerticalLayout {
+                        for card in root.games: VerticalLayout {
+                            GameRow { card: card; }
+                            Hairline { }
+                        }
+                        if root.games.length == 0: Text {
+                            height: 80px;
+                            text: "No games tracked yet";
+                            font-family: Theme.font-body;
+                            font-weight: Theme.weight-sentence;
+                            font-size: 13px;
+                            color: Theme.text-secondary;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---- previews ----
+
+global Fx {
+    out property <H2hPerson> me: { id: "me", name: "b0bben", initials: "B", hue-index: 0,
+        avatar: @image-url("../previews/fixtures/avatars/b0bben.svg"), has-avatar: true };
+    out property <H2hPerson> ebba: { id: "u2", name: "Ebba", initials: "E", hue-index: 2,
+        avatar: @image-url("../previews/fixtures/avatars/ebba.svg"), has-avatar: true };
+    out property <H2hPerson> axel: { id: "u3", name: "Axel", initials: "A", hue-index: 0,
+        avatar: @image-url("../previews/fixtures/avatars/axel.svg"), has-avatar: true };
+    out property <H2hPerson> alva: { id: "u4", name: "Alva", initials: "A", hue-index: 4,
+        avatar: @image-url("../previews/fixtures/avatars/alva.svg"), has-avatar: true };
+    out property <H2hPerson> elin: { id: "u5", name: "Elin", initials: "E", hue-index: 3,
+        avatar: @image-url("../previews/fixtures/avatars/elin.svg"), has-avatar: true };
+
+    out property <image> owl: @image-url("../icons/h2h-night-owl.svg");
+    out property <image> col: @image-url("../icons/h2h-collector.svg");
+    out property <image> lock: @image-url("../icons/h2h-locked-in.svg");
+    out property <image> carry: @image-url("../icons/h2h-carry.svg");
+    out property <image> samp: @image-url("../icons/h2h-sampler.svg");
+    out property <image> belt: @image-url("../icons/h2h-belt.svg");
+
+    out property <[YouPairRow]> pairs: [
+        { other: axel, you-count: 4, them-count: 4, title: "Night Owl", icon: owl, you-value: "03:14", other-value: "03:02" },
+        { other: ebba, you-count: 5, them-count: 4, title: "Locked In", icon: lock, you-value: "12.9", other-value: "14.2", unit: "h" },
+        { other: alva, you-count: 2, them-count: 6, title: "Clipper", icon: belt, you-value: "38", other-value: "41", unit: "clips" },
+        { other: elin, you-count: 6, them-count: 1, title: "Sampler", icon: samp, you-value: "5", other-value: "4", unit: "games" },
+    ];
+    out property <[ChaseBarData]> holds: [
+        { take: false, title: "Night Owl", icon: owl, other: axel, you-value: "03:14", other-value: "03:02", delta: "+12", delta-unit: "min", ratio: 0.978 },
+        { take: false, title: "The Collector", icon: col, other: elin, you-value: "212", other-value: "203", unit: "installed", delta: "+9", ratio: 0.958 },
+        { take: false, title: "Clipper", icon: belt, other: alva, you-value: "41", other-value: "38", unit: "clips", delta: "+3", ratio: 0.927 },
+    ];
+    out property <[ChaseBarData]> takes: [
+        { take: true, title: "Locked In", icon: lock, other: ebba, you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 },
+        { take: true, title: "Sampler", icon: samp, other: elin, you-value: "5", other-value: "6", unit: "games", delta: "−1", ratio: 0.833 },
+        { take: true, title: "The Carry", icon: carry, other: axel, you-value: "2,927", other-value: "4,167", unit: "h", delta: "−1,240", delta-unit: "h", ratio: 0.702 },
+    ];
+    out property <[GameStatsCardData]> games: [
+        { game-id: "counter-strike-2", game-name: "Counter-Strike 2", short-name: "CS2", game-color: #DE9B35,
+          icon: @image-url("../previews/fixtures/capsule-sample-1.png"), has-icon: true, has-record: true,
+          streak-text: "W4", streak-positive: true, win-rate-text: "62%", record-text: "12W 5L",
+          recent-form: ["W", "L", "W", "W", "D", "W", "W", "W"] },
+        { game-id: "league-of-legends", game-name: "League of Legends", short-name: "LoL", game-color: #C8AA6E,
+          icon: @image-url("../previews/fixtures/capsule-sample-2.png"), has-icon: true, has-record: true,
+          streak-text: "L2", streak-positive: false, win-rate-text: "20%", record-text: "3W 12L",
+          recent-form: ["L", "L", "W", "L", "L"] },
+        { game-id: "brawlhalla", game-name: "Brawlhalla", short-name: "BH", game-color: #6E8FB8,
+          icon: @image-url("../previews/fixtures/capsule-sample-3.png"), has-icon: true, has-record: false, week-value: "6.5" },
+        { game-id: "deep-rock-galactic", game-name: "Deep Rock Galactic", short-name: "DRG", game-color: #B39158,
+          icon: @image-url("../previews/fixtures/capsule-sample-4.png"), has-icon: true, has-record: false, week-value: "2.1" },
+    ];
+}
+
+component PreviewShell inherits Rectangle {
+    in property <int> tab;
+    in property <[YouPairRow]> pairs: Fx.pairs;
+    width: 865px;
+    height: 760px;
+    background: Theme.bg-app;
+    YouView {
+        viewer: Fx.me;
+        belt-count: 3;
+        crew-name: "Night Owls";
+        tab: root.tab;
+        pairs: root.pairs;
+        holds: Fx.holds;
+        takes: Fx.takes;
+        games: Fx.games;
+    }
+}
+
+export component PreviewHead2head inherits PreviewShell { tab: 0; }
+export component PreviewBelts inherits PreviewShell { tab: 1; }
+export component PreviewGames inherits PreviewShell { tab: 2; }
+
+// A crew of 36: the list scrolls under the head and the tabs.
+export component PreviewBigCrew inherits PreviewShell {
+    tab: 0;
+    pairs: [
+        Fx.pairs[0], Fx.pairs[1], Fx.pairs[2], Fx.pairs[3], Fx.pairs[0], Fx.pairs[1], Fx.pairs[2],
+        Fx.pairs[3], Fx.pairs[0], Fx.pairs[1], Fx.pairs[2], Fx.pairs[3], Fx.pairs[0], Fx.pairs[1],
+    ];
+}
+
+export component Preview inherits PreviewBelts { }

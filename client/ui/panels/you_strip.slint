@@ -8,7 +8,7 @@ import { H2hHue } from "../components/head2head.slint";
 
 // One session of the recent form. A win is a white disc, a loss a hollow
 // ring, a draw a dim disc. A loss is not red: red is state.
-component FormPip inherits Rectangle {
+export component FormPip inherits Rectangle {
     in property <string> letter;
 
     width: 7px;

@@ -1224,7 +1224,7 @@ fn read(app: &MainWindow) -> Snapshot {
             ("new_crew", app.get_new_crew_open()),
             ("join_crew", app.get_join_crew_modal_open()),
             ("invite_share", app.get_invite_share_open()),
-            ("stats_profile", app.get_stats_profile_open()),
+            ("you_view", app.get_you_view_open()),
             ("source_picker", app.get_source_picker_open()),
             ("source_menu", app.get_source_menu_open()),
             ("riot_link", app.get_riot_dialog_open()),

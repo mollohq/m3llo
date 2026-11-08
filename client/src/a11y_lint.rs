@@ -363,7 +363,7 @@ mod runtime {
             ("new crew", MainWindow::set_new_crew_open),
             ("join crew", MainWindow::set_join_crew_modal_open),
             ("invite share", MainWindow::set_invite_share_open),
-            ("stats profile", MainWindow::set_stats_profile_open),
+            ("you view", MainWindow::set_you_view_open),
             ("stream source picker", MainWindow::set_source_picker_open),
             ("stream source menu", MainWindow::set_source_menu_open),
             ("riot link", MainWindow::set_riot_dialog_open),

@@ -26,7 +26,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             });
         }
         ctx.app
-            .set_stats_profile_games(ModelRc::new(VecModel::from(cards)));
+            .set_you_view_games(ModelRc::new(VecModel::from(cards)));
     }
 }
 
@@ -83,6 +83,29 @@ pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>, quests_done: bo
     ctx.app.set_you_strip(strip);
 }
 
+/// The head2head tabs of the You view: every pair of the viewer, and every
+/// belt to hold and to take, from the feed of the open crew.
+pub(super) fn set_you_view(ctx: &AppContext, chase: Option<&Chase>, pairs: &[head2head::ViewPair]) {
+    let bars = |list: &[head2head::chase::Bar]| -> ModelRc<crate::ChaseBarData> {
+        ModelRc::new(VecModel::from(
+            list.iter()
+                .map(|b| head2head::chase_bar_data(b, super::clip::live_person(ctx, &b.other)))
+                .collect::<Vec<_>>(),
+        ))
+    };
+    let (holds, takes) = chase
+        .map(|c| (bars(&c.holds), bars(&c.takes)))
+        .unwrap_or_default();
+    let rows: Vec<crate::YouPairRow> = pairs
+        .iter()
+        .map(|p| head2head::view_pair_data(p, super::clip::live_person(ctx, &p.opponent)))
+        .collect();
+    ctx.app.set_you_view_holds(holds);
+    ctx.app.set_you_view_takes(takes);
+    ctx.app
+        .set_you_view_pairs(ModelRc::new(VecModel::from(rows)));
+}
+
 /// The square icon of a game, from the icon slot ladder (exe or crew icon,
 /// then the art Worker icon). `set` gets the image and whether there is one;
 /// without art the surface draws the monogram.
@@ -120,7 +143,7 @@ pub(super) fn refresh_art(ctx: &AppContext) {
             ctx.app.set_you_strip(strip);
         }
     }
-    let cards = ctx.app.get_stats_profile_games();
+    let cards = ctx.app.get_you_view_games();
     for i in 0..cards.row_count() {
         let Some(mut c) = cards.row_data(i) else {
             continue;
@@ -352,13 +375,12 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
     }
 }
 
-/// Per-game cards for the stats profile (spec 19 A2), one per tracked game,
-/// in the backend's newest-played-first order.
+/// The Games tab of the You view: one card per tracked game, in the
+/// backend's newest-played-first order. A game with no record shows hours.
 fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
     let head = mello_core::catalogue::Head::bundled();
     games
         .iter()
-        .filter(|g| g.wins + g.losses + g.draws > 0)
         .map(|g| {
             let (name, short, color) = display_info(head.as_ref(), &g.game_id);
 
@@ -383,6 +405,8 @@ fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
                 best_streak_text: best.into(),
                 recent_form: ModelRc::new(VecModel::from(form_pips(g, 10))),
                 last_played_text: relative_time(g.last_played).into(),
+                has_record: g.wins + g.losses + g.draws > 0,
+                week_value: week_value(g).into(),
             }
         })
         .collect()

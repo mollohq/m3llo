@@ -514,6 +514,22 @@ export struct GameStatsCardData {
     best-streak-text: string, // "W7 best · L3 worst" ("" when no history)
     recent-form: [string],    // each "W" | "L" | "D", newest last (≤10)
     last-played-text: string, // "2h ago" / "3d ago" / ""
+    has-record: bool,         // false: the game has no win/loss source
+    week-value: string,       // "6.5": the week's hours, for a game with no record
+}
+
+// One row of the Head2head tab of the You view (plan you-strip.md
+// section 3): the viewer against one member, with the deciding title.
+export struct YouPairRow {
+    other: H2hPerson,
+    you-count: int,
+    them-count: int,
+    title: string,            // "" when every title of the pair ties
+    icon: image,
+    stat-line: string,
+    you-value: string,
+    other-value: string,
+    unit: string,
 }
 
 // One bar of the You strip (plan you-strip.md section 1.2).

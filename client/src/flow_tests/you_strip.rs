@@ -230,3 +230,96 @@ fn the_strip_waits_for_the_quests() {
     });
     assert!(h.app().get_you_strip().ready, "every step is done");
 }
+
+// ---- the You view (plan you-strip.md section 3) ----
+
+fn open_view(h: &mut Harness) {
+    crew_of_three(h);
+    h.emit(Event::FeedLoaded {
+        response: chase_feed(),
+    });
+    h.commands();
+    h.click_label("You");
+    next_frame();
+}
+
+/// A tap on the strip opens the view on Belts, with the holds and the takes
+/// of the open crew, and fetches the game stats again.
+#[test]
+fn the_strip_opens_the_you_view_on_belts() {
+    let mut h = Harness::new();
+    open_view(&mut h);
+    assert!(h.app().get_you_view_open());
+    assert_eq!(h.app().get_you_view_tab(), 1, "Belts");
+    assert!(h
+        .commands()
+        .iter()
+        .any(|c| matches!(c, Command::GetUserGameStats)));
+    assert_eq!(h.app().get_you_view_holds().row_count(), 1, "Night Owl");
+    assert_eq!(
+        h.app().get_you_view_takes().row_count(),
+        2,
+        "Locked In, The Carry"
+    );
+    assert_eq!(count_of(&h, "BeltRow"), 3);
+}
+
+/// Head2head lists the viewer against every member with a contested title,
+/// closest score first.
+#[test]
+fn the_head2head_tab_lists_every_pair() {
+    let mut h = Harness::new();
+    open_view(&mut h);
+    h.click_label("Head2head");
+    next_frame();
+    assert_eq!(h.app().get_you_view_tab(), 0);
+    let pairs = h.app().get_you_view_pairs();
+    let names: Vec<String> = (0..pairs.row_count())
+        .filter_map(|i| pairs.row_data(i))
+        .map(|p| format!("{} {}", p.other.name, p.title))
+        .collect();
+    assert_eq!(names, vec!["Jonas Night Owl", "Max Night Owl"]);
+    assert_eq!(count_of(&h, "PairRow"), 2);
+}
+
+/// The view keeps no tab between opens: the strip always opens it on Belts.
+/// Close closes it.
+#[test]
+fn the_view_reopens_on_belts_and_closes() {
+    let mut h = Harness::new();
+    open_view(&mut h);
+    h.click_label("Games");
+    next_frame();
+    assert_eq!(h.app().get_you_view_tab(), 2);
+    h.click_label("Close");
+    assert!(!h.app().get_you_view_open());
+
+    h.click_label("You");
+    next_frame();
+    assert!(h.app().get_you_view_open());
+    assert_eq!(h.app().get_you_view_tab(), 1, "Belts again");
+}
+
+/// Games lists every tracked game: a game with no record shows its week in
+/// hours.
+#[test]
+fn a_game_with_no_record_is_in_the_games_tab() {
+    let mut h = Harness::new();
+    crew_of_three(&mut h);
+    h.emit(Event::UserGameStatsLoaded {
+        games: vec![mello_core::crew_events::UserGameStats {
+            game_id: "brawlhalla".into(),
+            recent_days: vec![mello_core::crew_events::RecentDayEntry {
+                date: "2026-11-08".into(),
+                wall_min: 390,
+                active_min: 380,
+            }],
+            ..Default::default()
+        }],
+    });
+    let games = h.app().get_you_view_games();
+    assert_eq!(games.row_count(), 1);
+    let g = games.row_data(0).expect("a game");
+    assert!(!g.has_record);
+    assert_eq!(g.week_value.as_str(), "6.5");
+}

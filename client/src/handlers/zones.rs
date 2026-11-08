@@ -107,6 +107,12 @@ pub(crate) fn refresh(ctx: &AppContext) {
     // over. Nothing to wait for.
     let quests_done = zones.quests.as_ref().is_none_or(super::quests::all_done);
     super::stats::set_chase(ctx, chase.as_ref(), quests_done);
+    let pairs = zones
+        .head2head
+        .as_ref()
+        .map(|d| super::clip::head2head_view_pairs(ctx, d))
+        .unwrap_or_default();
+    super::stats::set_you_view(ctx, chase.as_ref(), &pairs);
     let mut z = build_from_zones(ctx, &zones);
     keep_posters(&ctx.app.get_feed_zones(), &mut z);
     log::debug!(
