@@ -232,7 +232,7 @@ impl Harness {
         // The real wiring — not a copy of it.
         crate::callbacks::wire_all(&ctx);
 
-        let poll = crate::poll_loop::PollState::new(&ctx, event_rx, update_rx);
+        let poll = crate::poll_loop::PollState::new(&ctx, Rc::new(event_rx), update_rx);
 
         Self {
             ctx,

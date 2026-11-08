@@ -21,7 +21,7 @@ const MAX_CORE_EVENTS_PER_POLL_TICK: usize = 128;
 /// under the headless test backend timers do not fire at all.
 pub struct PollState {
     ctx: AppContext,
-    event_rx: std::sync::mpsc::Receiver<Event>,
+    event_rx: Rc<std::sync::mpsc::Receiver<Event>>,
     update_event_rx: std::sync::mpsc::Receiver<UpdateEvent>,
     saved_timer: Rc<slint::Timer>,
     saved_app_weak: slint::Weak<MainWindow>,
@@ -32,7 +32,7 @@ pub struct PollState {
 impl PollState {
     pub fn new(
         ctx: &AppContext,
-        event_rx: std::sync::mpsc::Receiver<Event>,
+        event_rx: Rc<std::sync::mpsc::Receiver<Event>>,
         update_event_rx: std::sync::mpsc::Receiver<UpdateEvent>,
     ) -> Self {
         Self {
@@ -50,7 +50,7 @@ impl PollState {
 /// alive for polling to continue.
 pub fn start(
     ctx: &AppContext,
-    event_rx: std::sync::mpsc::Receiver<Event>,
+    event_rx: Rc<std::sync::mpsc::Receiver<Event>>,
     update_event_rx: std::sync::mpsc::Receiver<UpdateEvent>,
 ) -> slint::Timer {
     let state = PollState::new(ctx, event_rx, update_event_rx);
