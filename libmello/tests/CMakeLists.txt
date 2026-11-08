@@ -70,6 +70,8 @@ target_compile_definitions(mello_tests PRIVATE
     MELLO_REPLAY_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/replay"
     # H.264 streams for the Media Foundation decoder tests (test_windows_decoders.cpp).
     MELLO_VIDEO_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/video"
+    # The notification sounds that the client embeds (test_ui_sound_mixer.cpp).
+    MELLO_SOUNDS_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../../mello-core/assets/sounds"
 )
 
 # The NVENC, AMF and oneVPL headers, for the cost-tier tables of the encoders

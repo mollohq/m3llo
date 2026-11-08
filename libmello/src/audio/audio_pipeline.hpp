@@ -274,8 +274,8 @@ public:
     /// gate, are not in a voice clip, and are in the echo reference. The
     /// output volume does not apply: `gain` is the sound volume. Control
     /// thread, serialized by the caller.
-    bool load_ui_sound(uint32_t id, const int16_t* stereo, size_t frames) {
-        return ui_sounds_.load(id, stereo, frames);
+    bool load_ui_sound_opus(uint32_t id, const uint8_t* ogg, size_t len) {
+        return ui_sounds_.load_opus(id, ogg, len);
     }
     bool play_ui_sound(uint32_t id, float gain) { return ui_sounds_.play(id, gain); }
     size_t ui_sounds_playing() const { return ui_sounds_.active_voices(); }

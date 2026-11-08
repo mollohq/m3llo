@@ -1,26 +1,36 @@
 #pragma once
 
-// Notification sounds (specs/features/NOTIFICATION-SOUNDS.md): short 48 kHz stereo
-// sounds that the app loads once and plays on events (a member joins, a
-// mute, a message). The render thread mixes them into the speaker output
-// after the deafen gate and after the clip-buffer tap.
+// Notification sounds (specs/features/NOTIFICATION-SOUNDS.md): short sounds that
+// the app loads once as Ogg Opus and plays on events (a member joins, a mute,
+// a message). Only the Opus data stays in memory. A play decodes its sound on
+// the mixer's worker thread. The render thread mixes the PCM into the speaker
+// output after the deafen gate and after the clip-buffer tap, then gives it
+// back to the worker, which frees it.
 //
 // Threads:
 // - Control (any thread, the caller serializes, as for every MelloContext
-//   call): load, play. They take `control_mutex_` only.
-// - Render (the audio device thread): mix_into. It takes no lock and does
-//   not allocate.
+//   call): load_opus, play. They take `mutex_` only.
+// - Worker (one, started by the first load): decodes the plays and frees the
+//   played sounds. It takes `mutex_`, but not while it decodes.
+// - Render (the audio device thread): mix_into. It takes no lock, does not
+//   allocate and does not free.
 //
-// A loaded sound never changes and is freed only with the mixer. A second
-// load of the same slot publishes a new buffer and keeps the old one, so a
-// sound that plays on the render thread stays valid.
+// Memory: the Opus data of the loaded sounds, the worker's decoder and scratch
+// buffer (about 50 KB), and the PCM of the sounds that wait or play (at most
+// kMaxLive). The worker frees a played sound within kReapInterval.
+
+#include "ogg_opus.hpp"
 
 #include <array>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
+#include <deque>
 #include <memory>
 #include <mutex>
+#include <thread>
 #include <vector>
 
 namespace mello::audio {
@@ -33,23 +43,42 @@ public:
     /// Sounds that play at the same time. A play over the limit replaces the
     /// sound that started first.
     static constexpr size_t kMaxVoices = 4;
-    /// Play requests that wait for the render thread. A request over the
-    /// limit is dropped.
+    /// Plays that wait for the worker, and decoded sounds that wait for the
+    /// render thread. A play over the limit is dropped.
     static constexpr size_t kQueueSize = 16;
+    /// Decoded sounds that exist at one time: waiting, playing or played.
+    static constexpr size_t kMaxLive = kQueueSize + kMaxVoices;
     /// At most 10 s of sound in one slot.
     static constexpr size_t kMaxFrames = kSampleRate * 10;
+    /// How often the worker frees played sounds while any exist.
+    static constexpr std::chrono::milliseconds kReapInterval{200};
 
-    UiSoundMixer();
+    UiSoundMixer() = default;
+    /// Stops the worker. The render thread must be stopped first.
+    ~UiSoundMixer();
+    UiSoundMixer(const UiSoundMixer&) = delete;
+    UiSoundMixer& operator=(const UiSoundMixer&) = delete;
 
     // ---- Control ---------------------------------------------------------
 
-    /// Copies `frames` interleaved stereo frames into slot `id`. Returns
-    /// false for a bad id, no PCM or more than kMaxFrames.
-    bool load(uint32_t id, const int16_t* stereo, size_t frames);
-    /// Queues slot `id` to play at `gain` (0..1, clamped). Returns false
-    /// when the slot is empty or the queue is full.
+    /// Copies the Ogg Opus file `ogg` into slot `id`. Returns false for a bad
+    /// id, a file that does not parse or more than kMaxFrames.
+    bool load_opus(uint32_t id, const uint8_t* ogg, size_t len);
+    /// Queues slot `id` to decode and play at `gain` (0..1, clamped). Returns
+    /// false when the slot is empty or kQueueSize plays wait.
     bool play(uint32_t id, float gain);
     bool loaded(uint32_t id) const;
+
+    // ---- Tests -------------------------------------------------------------
+
+    /// Plays `frames` interleaved stereo frames at `gain` without a slot or
+    /// the worker. Returns false when kQueueSize sounds wait for the render
+    /// thread.
+    bool play_pcm(const int16_t* stereo, size_t frames, float gain);
+    /// Waits until the worker has decoded every queued play.
+    void wait_decoded();
+    /// Frees the played sounds and returns the count of sounds that wait or play.
+    size_t live_sounds();
 
     // ---- Render thread -----------------------------------------------------
 
@@ -62,31 +91,56 @@ public:
     size_t active_voices() const { return active_.load(std::memory_order_relaxed); }
 
 private:
-    struct Sound {
-        std::vector<int16_t> pcm;  // interleaved stereo
+    struct Pcm {
+        std::vector<int16_t> samples;  // interleaved stereo
         size_t frames = 0;
     };
     struct Request {
         uint32_t id = 0;
         float gain = 0.0f;
     };
+    struct Ready {
+        std::unique_ptr<Pcm> pcm;
+        float gain = 0.0f;
+    };
     struct Voice {
-        const Sound* sound = nullptr;
-        size_t pos = 0;  // frames played
+        std::unique_ptr<Pcm> pcm;
+        size_t pos = 0;      // frames played
         float gain = 0.0f;
         uint64_t order = 0;  // start order, for replacement
     };
 
-    void take_requests();
+    // A played sound goes back to the worker through `done_`. It never
+    // fills: every sound in it counts in `live_`, and `live_` <= kMaxLive.
+    static constexpr size_t kDoneSize = 32;
+    static_assert(kDoneSize >= kMaxLive, "a played sound must always fit in done_");
 
-    std::mutex control_mutex_;
-    std::vector<std::unique_ptr<Sound>> owned_;  // under control_mutex_
-    std::array<std::atomic<const Sound*>, kMaxSounds> sounds_;
+    void worker_loop();
+    bool submit_locked(std::unique_ptr<Pcm> pcm, float gain);
+    void reap_locked();
+    void take_ready();             // render thread
+    void retire(std::unique_ptr<Pcm> pcm);  // render thread
 
-    // One producer (under control_mutex_), one consumer (the render thread).
-    std::array<Request, kQueueSize> queue_{};
-    std::atomic<uint64_t> queue_write_{0};
-    std::atomic<uint64_t> queue_read_{0};
+    mutable std::mutex mutex_;
+    std::condition_variable wake_;  // the worker: a play or the stop
+    std::condition_variable idle_;  // wait_decoded
+    // Under mutex_.
+    std::array<std::shared_ptr<const OggOpus>, kMaxSounds> sounds_{};
+    std::deque<Request> requests_;
+    bool decoding_ = false;
+    bool stop_ = false;
+    size_t live_ = 0;
+    std::thread worker_;
+
+    // Worker (under mutex_) to render thread.
+    std::array<Ready, kQueueSize> ready_{};
+    std::atomic<uint64_t> ready_write_{0};
+    std::atomic<uint64_t> ready_read_{0};
+
+    // Render thread to worker (under mutex_).
+    std::array<std::unique_ptr<Pcm>, kDoneSize> done_{};
+    std::atomic<uint64_t> done_write_{0};
+    std::atomic<uint64_t> done_read_{0};
 
     // Render thread only.
     std::array<Voice, kMaxVoices> voices_{};
