@@ -89,7 +89,12 @@ fn extract_actor(data: &serde_json::Value, backend_type: &str) -> String {
     }
 }
 
-fn extract_title(data: &serde_json::Value, backend_type: &str, actor: &str) -> String {
+fn extract_title(
+    tr: &crate::Tr<'_>,
+    data: &serde_json::Value,
+    backend_type: &str,
+    actor: &str,
+) -> String {
     match backend_type {
         "clip" => format!(
             "{} clipped that",
@@ -168,23 +173,14 @@ fn extract_title(data: &serde_json::Value, backend_type: &str, actor: &str) -> S
             // Clips-only week: lead with the clip count, not "0m".
             let clips = data.get("clip_count").and_then(|v| v.as_i64()).unwrap_or(0);
             if hangout <= 0.0 && clips > 0 {
-                return format!("{} {}", clips, if clips == 1 { "clip" } else { "clips" });
+                return tr.invoke_clips(clips as i32).into();
             }
-            let hours = hangout / 60.0;
-            if hours >= 1.0 {
-                format!("{:.1}h", hours)
-            } else {
-                format!("{}m", hangout as i64)
-            }
+            crate::l10n_format::duration_hours_decimal_short(tr, hangout)
         }
         // The hangout time of the day, the first number of the daily recap.
         "daily_recap" => {
             let min = data.get("total_min").and_then(|v| v.as_i64()).unwrap_or(0);
-            if min > 0 {
-                humanize_duration_min(min)
-            } else {
-                "0m".to_string()
-            }
+            crate::l10n_format::duration_hm_short(tr, min)
         }
         _ => String::new(),
     }
@@ -387,7 +383,8 @@ pub(super) fn head2head_zone(
     let crew = with_seal(ctx, |seal| {
         head2head::to_slint_sealed(&model, &avatar, seal)
     });
-    let belt = head2head::belt_hero_data(&model, now_ms, &avatar).map(|hero| FeedCardData {
+    let tr = ctx.app.global::<crate::Tr>();
+    let belt = head2head::belt_hero_data(&tr, &model, now_ms, &avatar).map(|hero| FeedCardData {
         id: "head2head-belt".into(),
         card_type: "head2head".into(),
         head2head: hero,
@@ -427,6 +424,7 @@ pub(super) fn join_cards(
         .cloned()
         .unwrap_or_default();
     crate::joined_line::rows(
+        &ctx.app.global::<crate::Tr>(),
         joins,
         &viewer.id,
         now_ms,
@@ -593,7 +591,11 @@ pub(crate) fn live_session_cards(ctx: &AppContext) -> Vec<FeedCardData> {
                 game_hue_index: crate::recent_games::hue_index(&game_id, &g.game_name),
                 live: crate::LiveSessionData {
                     since_min: min as i32,
-                    since_text: crate::live_session::since_text(min).into(),
+                    since_text: crate::live_session::since_text(
+                        &ctx.app.global::<crate::Tr>(),
+                        min,
+                    )
+                    .into(),
                     names_line: names_line(&names).into(),
                     member_names: Rc::new(VecModel::from(
                         names
@@ -682,7 +684,11 @@ pub(super) fn refresh_game_art(ctx: &AppContext) {
 
 type MvpSlot = (String, String, String, String); // (name, initials, stat, user_id)
 
-fn extract_mvps(data: &serde_json::Value, backend_type: &str) -> (i32, MvpSlot, MvpSlot, MvpSlot) {
+fn extract_mvps(
+    tr: &crate::Tr<'_>,
+    data: &serde_json::Value,
+    backend_type: &str,
+) -> (i32, MvpSlot, MvpSlot, MvpSlot) {
     let empty = || {
         (
             "".to_string(),
@@ -711,11 +717,7 @@ fn extract_mvps(data: &serde_json::Value, backend_type: &str) -> (i32, MvpSlot, 
             .unwrap_or("")
             .to_string();
         let mins = v.get("hangout_min").and_then(|n| n.as_i64()).unwrap_or(0);
-        let stat = if mins >= 60 {
-            format!("{:.1}h", mins as f64 / 60.0)
-        } else {
-            format!("{}m", mins)
-        };
+        let stat = crate::l10n_format::duration_hours_decimal_short(tr, mins as f64);
         (name, initials, stat, user_id)
     };
     let count = members.len().min(3) as i32;
@@ -1068,7 +1070,12 @@ fn extract_recap_clip(ctx: &AppContext, data: &serde_json::Value) -> RecapClip {
         .get("ts")
         .and_then(|v| v.as_i64())
         .filter(|&t| t > 0)
-        .map(|t| crate::feed_age::weekday_of(t).to_string())
+        .map(|t| {
+            crate::l10n_format::weekday_name(
+                &ctx.app.global::<crate::Tr>(),
+                crate::l10n_format::civil_day(t).weekday,
+            )
+        })
         .unwrap_or_default();
     let waveform = c
         .get("waveform")
@@ -1078,7 +1085,8 @@ fn extract_recap_clip(ctx: &AppContext, data: &serde_json::Value) -> RecapClip {
     RecapClip {
         clip_path: clip_path.into(),
         title: str_of("title").into(),
-        duration: format!("{}:{:02}", whole / 60, whole % 60).into(),
+        duration: crate::l10n_format::duration_clock(&ctx.app.global::<crate::Tr>(), whole as i64)
+            .into(),
         duration_ms: (secs * 1000.0).round() as i32,
         game_name: str_of("game").into(),
         when: when.into(),
@@ -1125,24 +1133,19 @@ fn games_summary(data: &serde_json::Value) -> String {
 /// Humanized session length for the redesigned cards: "3m", "47m", "9h 7m".
 /// Sub-minute sessions round up to "1m" — "0:45" style strings read as
 /// ambiguous clock times (the exact complaint about the old card).
-fn humanize_duration(duration_secs: f64) -> String {
+fn humanize_duration(tr: &crate::Tr<'_>, duration_secs: f64) -> String {
     if duration_secs <= 0.0 {
         return String::new();
     }
     let mins = ((duration_secs / 60.0).ceil() as u64).max(1);
-    humanize_duration_min(mins as i64)
+    humanize_duration_min(tr, mins as i64)
 }
 
-fn humanize_duration_min(mins: i64) -> String {
+fn humanize_duration_min(tr: &crate::Tr<'_>, mins: i64) -> String {
     if mins <= 0 {
         return String::new();
     }
-    let mins = mins.max(1);
-    if mins >= 60 {
-        format!("{}h {}m", mins / 60, mins % 60)
-    } else {
-        format!("{}m", mins)
-    }
+    crate::l10n_format::duration_hm_short(tr, mins)
 }
 
 /// Tiles for the recent games card, keyed by game id, from the server's
@@ -1159,6 +1162,7 @@ pub(super) fn extract_recent_game_tiles(
     ctx: &AppContext,
     data: &serde_json::Value,
 ) -> Vec<RecentGameTile> {
+    let tr = ctx.app.global::<crate::Tr>();
     let installed = ctx.installed_games.borrow();
     let installed_ids: std::collections::HashSet<String> =
         installed.iter().map(|g| g.game_id.clone()).collect();
@@ -1255,10 +1259,11 @@ pub(super) fn extract_recent_game_tiles(
                 has_icon,
                 capsule,
                 has_capsule,
-                hours: crate::recent_games::hours_label(minutes, &launcher).into(),
+                hours: crate::recent_games::hours_label(&tr, minutes, &launcher).into(),
                 // The caption comes with the week's line, from three PCs.
                 when: if pc_count >= 3 {
                     crate::recent_games::when_label(
+                        &tr,
                         row.get("last_played").and_then(|v| v.as_i64()).unwrap_or(0),
                         crate::converters::current_time_ms(),
                     )
@@ -1267,7 +1272,9 @@ pub(super) fn extract_recent_game_tiles(
                 }
                 .into(),
                 caption: crate::recent_games::caption_label(
+                    &tr,
                     &crate::recent_games::when_label(
+                        &tr,
                         row.get("last_played").and_then(|v| v.as_i64()).unwrap_or(0),
                         crate::converters::current_time_ms(),
                     ),
@@ -1314,9 +1321,9 @@ fn game_session_display_min(duration_min: i64, active_min: i64) -> (i64, bool) {
 
 /// Wall-time duration for game sessions; uses active time when wall time is
 /// inflated (left running overnight). GAME-SURFACING §4.
-fn game_session_duration_display(duration_min: i64, active_min: i64) -> String {
+fn game_session_duration_display(tr: &crate::Tr<'_>, duration_min: i64, active_min: i64) -> String {
     let (display_min, use_active) = game_session_display_min(duration_min, active_min);
-    let body = humanize_duration_min(display_min);
+    let body = humanize_duration_min(tr, display_min);
     if body.is_empty() {
         return body;
     }
@@ -1331,20 +1338,32 @@ fn game_session_duration_display(duration_min: i64, active_min: i64) -> String {
 /// the unit and the tail. "2" "m" for 2 minutes; "2" "h" "05" for 125
 /// minutes; "1" "h" "" for a full hour. "~" leads the value of an active
 /// time. All empty for no duration.
-fn game_session_duration_stat(duration_min: i64, active_min: i64) -> (String, String, String) {
+fn game_session_duration_stat(
+    tr: &crate::Tr<'_>,
+    duration_min: i64,
+    active_min: i64,
+) -> (String, String, String) {
     let (min, approx) = game_session_display_min(duration_min, active_min);
     if min <= 0 {
         return (String::new(), String::new(), String::new());
     }
     let lead = if approx { "~" } else { "" };
     if min < 60 {
-        (format!("{lead}{min}"), "m".into(), String::new())
+        (
+            format!("{lead}{min}"),
+            tr.get_unit_minutes_short().into(),
+            String::new(),
+        )
     } else {
         let tail = match min % 60 {
             0 => String::new(),
             m => format!("{m:02}"),
         };
-        (format!("{lead}{}", min / 60), "h".into(), tail)
+        (
+            format!("{lead}{}", min / 60),
+            tr.get_unit_hours().into(),
+            tail,
+        )
     }
 }
 
@@ -1473,6 +1492,7 @@ pub(super) fn build_feed_card(
     ts: i64,
 ) -> FeedCardData {
     let data = normalized_entry_data(raw_data);
+    let tr = ctx.app.global::<crate::Tr>();
     let backend_type = derive_backend_type(feed_type, &data);
 
     let snapshot_urls: Vec<String> = data
@@ -1487,7 +1507,7 @@ pub(super) fn build_feed_card(
     let has_snapshots = !snapshot_urls.is_empty();
 
     let actor = extract_actor(&data, backend_type);
-    let title = extract_title(&data, backend_type, &actor);
+    let title = extract_title(&tr, &data, backend_type, &actor);
     let subtitle = extract_subtitle(&data, backend_type);
 
     let duration_secs = data
@@ -1511,12 +1531,11 @@ pub(super) fn build_feed_card(
         .unwrap_or(0) as i32;
 
     let duration_str = if duration_secs >= 3600.0 {
-        let h = (duration_secs / 3600.0) as u32;
-        let m = ((duration_secs % 3600.0) / 60.0) as u32;
-        format!("{}h {}m", h, m)
+        let h = (duration_secs / 3600.0) as i32;
+        let m = ((duration_secs % 3600.0) / 60.0) as i32;
+        tr.invoke_duration_h_m_short(h, m).into()
     } else if duration_secs > 0.0 {
-        let secs = duration_secs as u32;
-        format!("{}:{:02}", secs / 60, secs % 60)
+        crate::l10n_format::duration_clock(&tr, duration_secs as i64)
     } else {
         String::new()
     };
@@ -1615,36 +1634,7 @@ pub(super) fn build_feed_card(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let ago = now_secs - ts_secs;
-    let timestamp = if ago < 60 {
-        "just now".to_string()
-    } else if ago < 3600 {
-        format!("{}m ago", ago / 60)
-    } else if ago < 43200 {
-        format!("{}h ago", ago / 3600)
-    } else if ago < 86400 {
-        "yesterday".to_string()
-    } else if ago < 172800 {
-        "2 days ago".to_string()
-    } else if ago < 604800 {
-        let days = ago / 86400;
-        let weekday = match days % 7 {
-            0 => "today",
-            1 => "yesterday",
-            _ => match (ts_secs / 86400 + 4) % 7 {
-                0 => "Sunday",
-                1 => "Monday",
-                2 => "Tuesday",
-                3 => "Wednesday",
-                4 => "Thursday",
-                5 => "Friday",
-                _ => "Saturday",
-            },
-        };
-        weekday.to_string()
-    } else {
-        format!("{}d ago", ago / 86400)
-    };
+    let timestamp = crate::l10n_format::feed_card_age(&tr, now_secs - ts_secs, ts_secs);
 
     // Rich game-session card fields (spec 19 B2). Retype game sessions so the
     // feed dispatches them to the rich GameSessionCard instead of SessionCard.
@@ -1733,12 +1723,12 @@ pub(super) fn build_feed_card(
     };
     let active_min = data.get("active_min").and_then(|v| v.as_i64()).unwrap_or(0);
     let duration_human = if is_game_session {
-        game_session_duration_display(duration_min as i64, active_min)
+        game_session_duration_display(&tr, duration_min as i64, active_min)
     } else {
-        humanize_duration(duration_secs)
+        humanize_duration(&tr, duration_secs)
     };
     let (duration_value, duration_unit, duration_tail) = if is_game_session {
-        game_session_duration_stat(duration_min as i64, active_min)
+        game_session_duration_stat(&tr, duration_min as i64, active_min)
     } else {
         Default::default()
     };
@@ -1812,7 +1802,7 @@ pub(super) fn build_feed_card(
     let (part1_initials, part1_avatar, part1_has_avatar) = part_slot(1);
     let (part2_initials, part2_avatar, part2_has_avatar) = part_slot(2);
 
-    let (mvp_count, mvp0, mvp1, mvp2) = extract_mvps(&data, backend_type);
+    let (mvp_count, mvp0, mvp1, mvp2) = extract_mvps(&tr, &data, backend_type);
     let (mvp0_av, mvp0_has_av) = resolve_avatar(ctx, &mvp0.3);
     let (mvp1_av, mvp1_has_av) = resolve_avatar(ctx, &mvp1.3);
     let (mvp2_av, mvp2_has_av) = resolve_avatar(ctx, &mvp2.3);
@@ -1879,8 +1869,8 @@ pub(super) fn build_feed_card(
                 .and_then(|v| v.as_i64())
                 .filter(|&n| n > 0)
             {
-                Some(n) => format!("Week {n}"),
-                None => crate::feed_age::week_of_label(recap_week_start_ms(&data)),
+                Some(n) => crate::l10n_format::week_number(&tr, n),
+                None => crate::l10n_format::week_of(&tr, recap_week_start_ms(&data)),
             }
         } else {
             String::new()
@@ -1915,7 +1905,8 @@ pub(super) fn build_feed_card(
             Default::default()
         },
         age_label: if backend_type == "weekly_recap" {
-            crate::feed_age::recap_age_label(
+            crate::l10n_format::recap_age(
+                &tr,
                 recap_week_start_ms(&data),
                 crate::converters::current_time_ms(),
             )
@@ -1991,7 +1982,8 @@ pub(super) fn build_feed_card(
         recap_games_min,
         recap_clip,
         recap_range: if is_weekly_recap {
-            crate::feed_age::week_range(
+            crate::l10n_format::week_range(
+                &tr,
                 data.get("week_start").and_then(|v| v.as_i64()).unwrap_or(0),
                 data.get("week_end").and_then(|v| v.as_i64()).unwrap_or(0),
             )
@@ -2052,8 +2044,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             crate::sounds::cue(ctx, mello_core::sounds::Sound::ClipSaved);
 
             // An optimistic "NEW" clip card on the feed at once
-            let secs = duration_seconds as u32;
-            let dur_str = format!("{}:{:02}", secs / 60, secs % 60);
+            let tr = ctx.app.global::<crate::Tr>();
+            let dur_str = crate::l10n_format::duration_clock(&tr, duration_seconds as i64);
             let waveform_model: ModelRc<f32> =
                 ModelRc::new(slint::VecModel::from(decode_clip_waveform(&waveform)));
             let new_card = FeedCardData {
@@ -2061,7 +2053,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 card_type: "clip".into(),
                 title: "".into(),
                 subtitle: "".into(),
-                timestamp: "just now".into(),
+                timestamp: tr.get_just_now(),
                 duration: dur_str.into(),
                 duration_ms: (duration_seconds * 1000.0).round() as i32,
                 actor_name: "You".into(),
@@ -2177,8 +2169,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_clip_progress(0.0);
             ctx.app.set_clip_paused(false);
             ctx.app.set_clip_anim_tick(0.0);
-            ctx.app.set_clip_position_text("0:00".into());
-            let dur_text = format!("{}:{:02}", duration_ms / 60000, (duration_ms / 1000) % 60);
+            let tr = ctx.app.global::<crate::Tr>();
+            ctx.app
+                .set_clip_position_text(crate::l10n_format::duration_clock(&tr, 0).into());
+            let dur_text = crate::l10n_format::duration_clock(&tr, (duration_ms / 1000) as i64);
             ctx.app.set_clip_duration_text(dur_text.as_str().into());
             ctx.app.set_clip_duration_ms(duration_ms as i32);
         }
@@ -2192,7 +2186,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 0.0
             };
             ctx.app.set_clip_progress(progress);
-            let pos_text = format!("{}:{:02}", position_ms / 60000, (position_ms / 1000) % 60);
+            let pos_text = crate::l10n_format::duration_clock(
+                &ctx.app.global::<crate::Tr>(),
+                (position_ms / 1000) as i64,
+            );
             ctx.app.set_clip_position_text(pos_text.as_str().into());
 
             // Drive animation tick (increment by ~0.15 per ~60ms progress event)
@@ -2216,6 +2213,18 @@ pub fn handle(ctx: &AppContext, event: Event) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The functions under test, with the English `Tr` of a test window.
+    fn game_session_duration_display(duration_min: i64, active_min: i64) -> String {
+        super::game_session_duration_display(
+            crate::l10n_format::test_tr(),
+            duration_min,
+            active_min,
+        )
+    }
+    fn game_session_duration_stat(duration_min: i64, active_min: i64) -> (String, String, String) {
+        super::game_session_duration_stat(crate::l10n_format::test_tr(), duration_min, active_min)
+    }
 
     #[test]
     fn a_game_clip_plays_the_local_file_first_and_waits_for_the_upload() {

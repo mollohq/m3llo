@@ -65,6 +65,8 @@ pub struct ChatConvertOptions<'a> {
     /// `Theme.mention` as `#rrggbb`, for the mention spans in the markdown.
     pub mention_color: &'a str,
     pub first_unread_id: Option<&'a str>,
+    /// The messages of the UI, for the times and the day separators.
+    pub tr: &'a crate::Tr<'a>,
 }
 
 /// `color` as `#rrggbb` for a `<font color>` tag in styled text.
@@ -256,12 +258,17 @@ pub fn chat_messages_to_slint(
             display_styled,
             links: Rc::new(slint::VecModel::from(slint_links)).into(),
             timestamp: d.timestamp.into(),
-            display_time: d.display_time.into(),
+            display_time: crate::l10n_format::chat_time(
+                opts.tr,
+                d.display_time.as_ref(),
+                crate::l10n_format::clock_form(),
+            )
+            .into(),
             is_group_start: d.is_group_start,
             is_continuation: d.is_continuation,
             is_system: d.is_system,
             is_unread_divider: false,
-            day_label: d.day_label.clone().into(),
+            day_label: crate::l10n_format::chat_day(opts.tr, d.day_label.as_ref()).into(),
             reactions: Rc::new(slint::VecModel::from(reactions)).into(),
             is_gif,
             gif_image: slint::Image::default(),
@@ -606,20 +613,17 @@ pub fn current_time_ms() -> i64 {
 }
 
 /// Humanized elapsed play time for member rows: "3m", "47m", "1h 23m".
-pub fn format_elapsed_minutes(elapsed_ms: i64) -> String {
-    if elapsed_ms <= 0 {
-        return "1m".to_string();
-    }
-    let mins = ((elapsed_ms + 59_999) / 60_000).max(1);
-    if mins >= 60 {
-        format!("{}h {}m", mins / 60, mins % 60)
-    } else {
-        format!("{mins}m")
-    }
+pub fn format_elapsed_minutes(tr: &crate::Tr<'_>, elapsed_ms: i64) -> String {
+    let mins = ((elapsed_ms.max(0) + 59_999) / 60_000).max(1);
+    crate::l10n_format::duration_hm_short(tr, mins)
 }
 
 /// Sidebar game line: "Valorant · 1h 23m", or empty when not playing.
-pub fn format_game_line(game: &mello_core::presence::GamePresence, now_ms: i64) -> String {
+pub fn format_game_line(
+    tr: &crate::Tr<'_>,
+    game: &mello_core::presence::GamePresence,
+    now_ms: i64,
+) -> String {
     if game.game_name.is_empty() {
         return String::new();
     }
@@ -629,7 +633,7 @@ pub fn format_game_line(game: &mello_core::presence::GamePresence, now_ms: i64) 
         .then(String::new)
         .unwrap_or_else(|| {
             mello_core::presence::from_rfc3339_ms(&game.started_at)
-                .map(|started_ms| format_elapsed_minutes(now_ms.saturating_sub(started_ms)))
+                .map(|started_ms| format_elapsed_minutes(tr, now_ms.saturating_sub(started_ms)))
                 .unwrap_or_default()
         });
     let mut line = game.game_name.clone();
@@ -645,11 +649,12 @@ pub fn format_game_line(game: &mello_core::presence::GamePresence, now_ms: i64) 
 }
 
 pub fn game_line_from_presence(
+    tr: &crate::Tr<'_>,
     game: Option<&mello_core::presence::GamePresence>,
     now_ms: i64,
 ) -> String {
     game.filter(|g| !g.game_name.is_empty())
-        .map(|g| format_game_line(g, now_ms))
+        .map(|g| format_game_line(tr, g, now_ms))
         .unwrap_or_default()
 }
 
@@ -961,6 +966,22 @@ mod tests {
         assert_eq!(make_initials("مريم"), "مر");
         assert_eq!(make_initials(""), "?");
         assert_eq!(make_initials(" \t "), "?");
+    }
+
+    /// The functions under test, with the English `Tr` of a test window.
+    fn with_tr<T>(f: impl FnOnce(&crate::Tr<'_>) -> T) -> T {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        f(&app.global::<crate::Tr>())
+    }
+    fn game_line_from_presence(game: Option<&GamePresence>, now_ms: i64) -> String {
+        with_tr(|tr| super::game_line_from_presence(tr, game, now_ms))
+    }
+    fn format_game_line(game: &GamePresence, now_ms: i64) -> String {
+        with_tr(|tr| super::format_game_line(tr, game, now_ms))
+    }
+    fn format_elapsed_minutes(elapsed_ms: i64) -> String {
+        with_tr(|tr| super::format_elapsed_minutes(tr, elapsed_ms))
     }
 
     #[test]

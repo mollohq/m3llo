@@ -1197,6 +1197,7 @@ pub fn to_slint_sealed(
 
 /// The UI struct of the belt hero (frame E), or `None` without a move.
 pub fn belt_hero_data(
+    tr: &crate::Tr<'_>,
     m: &Model,
     now_ms: i64,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
@@ -1222,7 +1223,7 @@ pub fn belt_hero_data(
             prev_value: b.prev_value.as_str().into(),
             holder: person(&b.holder),
             holder_value: b.holder_value.as_str().into(),
-            age: crate::feed_age::ago_label(b.moved_ms, now_ms).into(),
+            age: crate::l10n_format::days_ago(tr, b.moved_ms, now_ms).into(),
             headline: b.headline().into(),
             detail: b.detail().into(),
         },

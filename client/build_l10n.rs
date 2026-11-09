@@ -196,8 +196,15 @@ fn accent(c: char) -> char {
 /// The pseudo translation of one string: each letter accented, and about
 /// 30 % more length as ` ~~~` at the end. A place (`{}`, `{0}`, `{n}`) and
 /// an escaped brace (`{{`, `}}`) stay as they are.
+///
+/// A string with no letter outside its places is a pattern or a mark
+/// (`{0} {1}`, `{0}:{1}`, `,`). It stays as it is: the padding would put
+/// ` ~` into each date, time and number.
 pub fn pseudo(s: &str) -> String {
     let chars: Vec<char> = s.chars().collect();
+    if !has_letter(&chars) {
+        return s.to_string();
+    }
     let mut out = String::with_capacity(s.len() * 2 + 8);
     let mut visible = 0usize;
     let mut i = 0;
@@ -225,6 +232,29 @@ pub fn pseudo(s: &str) -> String {
     out.push(' ');
     out.extend(std::iter::repeat_n('~', pad - 1));
     out
+}
+
+/// Whether `chars` has a letter outside its places and escaped braces.
+fn has_letter(chars: &[char]) -> bool {
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if (c == '{' || c == '}') && chars.get(i + 1) == Some(&c) {
+            i += 2;
+            continue;
+        }
+        if c == '{' {
+            if let Some(end) = chars[i..].iter().position(|&x| x == '}') {
+                i += end + 1;
+                continue;
+            }
+        }
+        if c.is_alphabetic() {
+            return true;
+        }
+        i += 1;
+    }
+    false
 }
 
 /// The `.po` text of the pseudo language for these messages.
@@ -340,6 +370,23 @@ mod tests {
     fn pseudo_accents_letters_and_adds_about_30_percent() {
         assert_eq!(pseudo("Create crew"), "Çřéáťé çřéw ~~~");
         assert_eq!(pseudo("OK"), "ÖK ~");
+    }
+
+    #[test]
+    fn pseudo_keeps_a_pattern_or_a_mark_with_no_letter() {
+        for kept in [
+            "{0} {1}",
+            "{0}:{1} {2}",
+            "{1} {0}, {2}",
+            ",",
+            "",
+            "{}%",
+            "{n}",
+        ] {
+            assert_eq!(pseudo(kept), kept);
+        }
+        assert_eq!(pseudo("{}h"), "{}h ~");
+        assert_eq!(pseudo("{0} to {1} {2}"), "{0} ťö {1} {2} ~");
     }
 
     #[test]

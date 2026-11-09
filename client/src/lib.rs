@@ -25,7 +25,6 @@ mod diag_capture;
 mod e2e_state;
 mod edit_shortcuts;
 mod emoji_font;
-mod feed_age;
 #[cfg(test)]
 mod flow_catalogue;
 #[cfg(test)]
@@ -47,6 +46,7 @@ mod i18n_lint;
 mod image_cache;
 mod ipc;
 mod joined_line;
+mod l10n_format;
 mod live_session;
 pub mod locale;
 mod member_audio;

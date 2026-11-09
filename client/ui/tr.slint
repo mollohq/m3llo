@@ -68,4 +68,262 @@ export global Tr {
     out property <string> image-unusable: @tr("That file is not an image we can use.");
     /// The emoji name does not obey the rule of the server.
     out property <string> emoji-name-rule: @tr("A name is 2 to 24 letters, digits or underscores.");
+
+    // --- Dates, times, durations and numbers (src/l10n_format.rs) ---
+    //
+    // Rust makes all date, time, duration and number text with these
+    // members. A pattern with no words has the context `format`: change the
+    // order of the places and the marks between them for your language. For
+    // example, Chinese can write `date-day-month` as "{1}{0}日".
+
+    /// A day of the week, in a date ("Sunday 1 Nov").
+    out property <string> weekday-sunday: @tr("Sunday");
+    out property <string> weekday-monday: @tr("Monday");
+    out property <string> weekday-tuesday: @tr("Tuesday");
+    out property <string> weekday-wednesday: @tr("Wednesday");
+    out property <string> weekday-thursday: @tr("Thursday");
+    out property <string> weekday-friday: @tr("Friday");
+    out property <string> weekday-saturday: @tr("Saturday");
+
+    /// The full name of a month, in a date ("2 October").
+    out property <string> month-january: @tr("January");
+    out property <string> month-february: @tr("February");
+    out property <string> month-march: @tr("March");
+    out property <string> month-april: @tr("April");
+    out property <string> month-may: @tr("May");
+    out property <string> month-june: @tr("June");
+    out property <string> month-july: @tr("July");
+    out property <string> month-august: @tr("August");
+    out property <string> month-september: @tr("September");
+    out property <string> month-october: @tr("October");
+    out property <string> month-november: @tr("November");
+    out property <string> month-december: @tr("December");
+
+    /// The short name of a month, in a short date ("6 Oct").
+    out property <string> month-short-january: @tr("short month" => "Jan");
+    out property <string> month-short-february: @tr("short month" => "Feb");
+    out property <string> month-short-march: @tr("short month" => "Mar");
+    out property <string> month-short-april: @tr("short month" => "Apr");
+    out property <string> month-short-may: @tr("short month" => "May");
+    out property <string> month-short-june: @tr("short month" => "Jun");
+    out property <string> month-short-july: @tr("short month" => "Jul");
+    out property <string> month-short-august: @tr("short month" => "Aug");
+    out property <string> month-short-september: @tr("short month" => "Sep");
+    out property <string> month-short-october: @tr("short month" => "Oct");
+    out property <string> month-short-november: @tr("short month" => "Nov");
+    out property <string> month-short-december: @tr("short month" => "Dec");
+
+    /// A date: {0} is the day of the month (a number), {1} is the name of
+    /// the month, full or short ("2 October", "6 Oct").
+    pure public function date-day-month(day: int, month: string) -> string {
+        // {0} is the day of the month, {1} is the name of the month.
+        @tr("format" => "{0} {1}", day, month)
+    }
+
+    /// A date with the year: {0} is the day of the month, {1} is the short
+    /// name of the month, {2} is the year ("29 Sep 2025").
+    pure public function date-day-month-year(day: int, month: string, year: int) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the year.
+        @tr("format" => "{0} {1} {2}", day, month, year)
+    }
+
+    /// A date inside the last week: {0} is the day of the month, {1} is
+    /// the short name of the month, {2} is the name of the day of the week
+    /// ("Sunday 1 Nov").
+    pure public function date-weekday-day-month(day: int, month: string, weekday: string) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the weekday.
+        @tr("format" => "{2} {0} {1}", day, month, weekday)
+    }
+
+    /// The short date of a chat message: {0} is the day of the month, {1}
+    /// is the short name of the month ("Oct 27").
+    pure public function date-month-day(day: int, month: string) -> string {
+        // {0} is the day of the month, {1} is the short month.
+        @tr("format" => "{1} {0}", day, month)
+    }
+
+    /// The short date of a chat message from an earlier year: {0} is the
+    /// day of the month, {1} is the short name of the month, {2} is the year
+    /// ("Oct 27, 2025").
+    pure public function date-month-day-year(day: int, month: string, year: int) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the year.
+        @tr("format" => "{1} {0}, {2}", day, month, year)
+    }
+
+    /// The days of a week in one month: {0} is the first day, {1} is the
+    /// last day, {2} is the name of the month ("12 to 18 October").
+    pure public function date-range-in-month(first: int, last: int, month: string) -> string {
+        // {0} is the first day, {1} is the last day, {2} is the month.
+        @tr("{0} to {1} {2}", first, last, month)
+    }
+
+    /// The days of a week across two months: {0} and {1} are the first day
+    /// and its month, {2} and {3} are the last day and its month
+    /// ("28 September to 4 October").
+    pure public function date-range-across-months(first: int, first-month: string, last: int, last-month: string) -> string {
+        // {0} {1} is the first day and month, {2} {3} is the last day and month.
+        @tr("{0} {1} to {2} {3}", first, first-month, last, last-month)
+    }
+
+    /// The title of a weekly recap with no number. The value is a short
+    /// date, the first day of the week ("Week of 6 Oct").
+    pure public function week-of(date: string) -> string {
+        // The value is a short date ("6 Oct").
+        @tr("Week of {}", date)
+    }
+
+    /// The title of a weekly recap: the number of the week ("Week 4").
+    pure public function week-number(n: int) -> string {
+        @tr("Week {}", n)
+    }
+
+    /// The short form of a week number, on a quest gift ("W45").
+    pure public function week-number-short(n: int) -> string {
+        @tr("W{}", n)
+    }
+
+    /// The time of day on a 24-hour clock: {0} is the hour, {1} is the
+    /// minute, each with two digits ("23:14", "00:14").
+    pure public function time-24h(hour: string, minute: string) -> string {
+        // A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+        @tr("format" => "{0}:{1}", hour, minute)
+    }
+
+    /// The time of day on a 12-hour clock: {0} is the hour (1 to 12), {1}
+    /// is the minute with two digits, {2} is the marker, `time-am` or
+    /// `time-pm` ("11:14 PM").
+    pure public function time-12h(hour: int, minute: string, marker: string) -> string {
+        // A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM or PM.
+        @tr("format" => "{0}:{1} {2}", hour, minute, marker)
+    }
+
+    /// The marker of a time before noon on a 12-hour clock.
+    out property <string> time-am: @tr("AM");
+    /// The marker of a time after noon on a 12-hour clock.
+    out property <string> time-pm: @tr("PM");
+
+    /// A day, relative to today.
+    out property <string> today: @tr("Today");
+    out property <string> yesterday: @tr("Yesterday");
+    /// The same words in lower case, as the feed card writes its age.
+    out property <string> today-lower: @tr("today");
+    out property <string> yesterday-lower: @tr("yesterday");
+    /// The value is a time of day ("Today 23:14").
+    pure public function today-at(time: string) -> string {
+        // The value is a time of day.
+        @tr("Today {}", time)
+    }
+    /// The value is a time of day ("Yesterday 22:30").
+    pure public function yesterday-at(time: string) -> string {
+        // The value is a time of day.
+        @tr("Yesterday {}", time)
+    }
+    /// How many days ago, from 2 to 6 ("3 days ago").
+    pure public function days-ago(n: int) -> string {
+        @tr("{n} day ago" | "{n} days ago" % n)
+    }
+    out property <string> this-week: @tr("This week");
+    out property <string> last-week: @tr("Last week");
+    /// How many weeks ago, from 2 up ("3 weeks ago").
+    pure public function weeks-ago(n: int) -> string {
+        @tr("{n} week ago" | "{n} weeks ago" % n)
+    }
+
+    /// A short age, under a minute.
+    out property <string> just-now: @tr("just now");
+    /// A short age in minutes, with the unit letter ("5m ago").
+    pure public function minutes-ago-short(n: int) -> string {
+        @tr("{}m ago", n)
+    }
+    /// A short age in hours, with the unit letter ("3h ago").
+    pure public function hours-ago-short(n: int) -> string {
+        @tr("{}h ago", n)
+    }
+    /// A short age in days, with the unit letter ("4d ago").
+    pure public function days-ago-short(n: int) -> string {
+        @tr("{}d ago", n)
+    }
+    /// A short age in weeks, with the unit letter ("2w ago").
+    pure public function weeks-ago-short(n: int) -> string {
+        @tr("{}w ago", n)
+    }
+
+    /// A duration in hours and minutes, with unit letters ("1h 23m").
+    pure public function duration-h-m-short(hours: int, minutes: int) -> string {
+        @tr("unit" => "{}h {}m", hours, minutes)
+    }
+    /// A duration in hours, with the unit letter. The value is a whole
+    /// number or a number with one decimal, formatted by Rust ("2h", "2.5h").
+    pure public function duration-h-short(hours: string) -> string {
+        @tr("unit" => "{}h", hours)
+    }
+    /// A duration in minutes, with the unit letter ("47m").
+    pure public function duration-m-short(minutes: int) -> string {
+        @tr("unit" => "{}m", minutes)
+    }
+    /// A duration in hours and minutes: {} is the hours, the second {} is
+    /// the minutes with two digits ("6 h 40").
+    pure public function duration-h-mm(hours: int, minutes: string) -> string {
+        // A duration: the first value is the hours, the second is the minutes ("6 h 40").
+        @tr("unit" => "{} h {}", hours, minutes)
+    }
+    /// A duration in minutes ("48 min").
+    pure public function duration-min(minutes: int) -> string {
+        @tr("unit" => "{} min", minutes)
+    }
+    /// A duration in hours, upper case. The value is a number formatted by
+    /// Rust ("4,167 H", "12.6 H").
+    pure public function duration-hours-upper(hours: string) -> string {
+        @tr("unit" => "{} H", hours)
+    }
+    /// A duration in hours. The value is a number formatted by Rust
+    /// ("4,167 h", "4.5 h").
+    pure public function duration-hours(hours: string) -> string {
+        @tr("unit" => "{} h", hours)
+    }
+    /// The length of a clip: {0} is the minutes, {1} is the seconds with
+    /// two digits ("0:45").
+    pure public function duration-clock(minutes: int, seconds: string) -> string {
+        // The length of a clip: {0} is the minutes, {1} is the seconds.
+        @tr("unit" => "{0}:{1}", minutes, seconds)
+    }
+    /// The unit of a number of hours next to the number.
+    out property <string> unit-hours: @tr("unit" => "h");
+    /// The unit of a number of minutes next to the number.
+    out property <string> unit-minutes: @tr("unit" => "min");
+    /// The unit letter of a number of minutes next to the number ("2 m").
+    out property <string> unit-minutes-short: @tr("unit" => "m");
+
+    /// How long a live session runs, in minutes ("since 12 min").
+    pure public function since-minutes(minutes: int) -> string {
+        @tr("since {} min", minutes)
+    }
+    /// How long a live session runs, in whole hours ("since 2 h").
+    pure public function since-hours(hours: int) -> string {
+        @tr("since {} h", hours)
+    }
+    /// How long a live session runs: {0} is the hours, {1} is the minutes
+    /// ("since 1 h 5 min").
+    pure public function since-hours-minutes(hours: int, minutes: int) -> string {
+        @tr("since {0} h {1} min", hours, minutes)
+    }
+    /// The play time of a game this week. The value is a duration
+    /// ("4h 12m this week").
+    pure public function play-time-this-week(duration: string) -> string {
+        // The value is a duration ("4h 12m").
+        @tr("{} this week", duration)
+    }
+    /// A count of clips ("3 clips").
+    pure public function clips(n: int) -> string {
+        @tr("{n} clip" | "{n} clips" % n)
+    }
+    /// Two parts of a caption: {0} is when the game was last played, {1} is
+    /// the hours of play ("2 days ago, 4 h").
+    pure public function caption-when-hours(when: string, hours: string) -> string {
+        // {0} is when the game was last played, {1} is the hours of play.
+        @tr("format" => "{0}, {1}", when, hours)
+    }
+
+    /// The mark between the groups of digits of a large number ("4,201").
+    out property <string> digit-group-separator: @tr("format" => ",");
 }

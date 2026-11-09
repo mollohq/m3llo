@@ -1,6 +1,6 @@
 use mello_core::crew_events::UserGameStats;
 use mello_core::Event;
-use slint::{Color, Model, ModelRc, SharedString, VecModel};
+use slint::{Color, ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::app_context::AppContext;
 use crate::head2head::{self, chase::Chase};
@@ -9,7 +9,7 @@ use crate::{GameStatsCardData, YouStripData};
 pub fn handle(ctx: &AppContext, event: Event) {
     if let Event::UserGameStatsLoaded { games } = event {
         log::info!("[ui] user game stats loaded ({} games)", games.len());
-        let mut strip = build_you_strip(&games);
+        let mut strip = build_you_strip(&ctx.app.global::<crate::Tr>(), &games);
         keep_head2head(&mut strip, &ctx.app.get_you_strip());
         if strip.has_stats {
             attach_icon(ctx, &strip.game_id, &strip.game_name, |img, has| {
@@ -18,7 +18,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             });
         }
         ctx.app.set_you_strip(strip);
-        let mut cards = build_profile_cards(&games);
+        let mut cards = build_profile_cards(&ctx.app.global::<crate::Tr>(), &games);
         for c in &mut cards {
             attach_icon(ctx, &c.game_id, &c.game_name, |img, has| {
                 c.icon = img;
@@ -307,20 +307,13 @@ fn weekly_minutes(g: &UserGameStats) -> (u32, u32) {
 /// if it held the foreground for under a third of its wall time, the active
 /// figure is shown instead. An inflated number a crewmate can disprove costs
 /// more than the larger number gains.
-fn weekly_time_text(g: &UserGameStats) -> String {
+fn weekly_time_text(tr: &crate::Tr<'_>, g: &UserGameStats) -> String {
     let shown = weekly_shown_minutes(g);
     if shown == 0 {
         return String::new();
     }
-    let (h, m) = (shown / 60, shown % 60);
-    let duration = if h > 0 && m > 0 {
-        format!("{h}h {m}m")
-    } else if h > 0 {
-        format!("{h}h")
-    } else {
-        format!("{m}m")
-    };
-    format!("{duration} this week")
+    let duration = crate::l10n_format::duration_hm_compact(tr, i64::from(shown));
+    tr.invoke_play_time_this_week(duration.into()).into()
 }
 
 /// The minutes the week line shows. Wall time is the headline, except when a
@@ -341,7 +334,7 @@ fn week_value(g: &UserGameStats) -> String {
     head2head::value_text(&serde_json::json!(hours), "h").0
 }
 
-fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
+fn build_you_strip(tr: &crate::Tr<'_>, games: &[UserGameStats]) -> YouStripData {
     // The backend returns games newest-played first, so the first entry is
     // what the person was last doing. This used to pick the first game with a
     // win/loss record, which meant the strip stayed empty — or showed a stale
@@ -368,7 +361,7 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
         streak_positive: g.current_streak >= 0,
         record_text: format!("{}W {}L", g.wins, g.losses).into(),
         win_rate_text: win_rate_text(g.wins, g.losses).into(),
-        weekly_time_text: weekly_time_text(g).into(),
+        weekly_time_text: weekly_time_text(tr, g).into(),
         recent_form: ModelRc::new(VecModel::from(form_pips(g, 6))),
         week_value: week_value(g).into(),
         ..Default::default()
@@ -377,7 +370,7 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
 
 /// The Games tab of the You view: one card per tracked game, in the
 /// backend's newest-played-first order. A game with no record shows hours.
-fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
+fn build_profile_cards(tr: &crate::Tr<'_>, games: &[UserGameStats]) -> Vec<GameStatsCardData> {
     let head = mello_core::catalogue::Head::bundled();
     games
         .iter()
@@ -404,7 +397,7 @@ fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
                 streak_positive: g.current_streak >= 0,
                 best_streak_text: best.into(),
                 recent_form: ModelRc::new(VecModel::from(form_pips(g, 10))),
-                last_played_text: relative_time(g.last_played).into(),
+                last_played_text: relative_time(tr, g.last_played).into(),
                 has_record: g.wins + g.losses + g.draws > 0,
                 week_value: week_value(g).into(),
             }
@@ -413,7 +406,7 @@ fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
 }
 
 /// Coarse relative timestamp for "last played" (ms since epoch; "" if unset).
-fn relative_time(ts_ms: i64) -> String {
+fn relative_time(tr: &crate::Tr<'_>, ts_ms: i64) -> String {
     if ts_ms <= 0 {
         return String::new();
     }
@@ -421,18 +414,7 @@ fn relative_time(ts_ms: i64) -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let ago = now_secs - ts_ms / 1000;
-    if ago < 60 {
-        "just now".to_string()
-    } else if ago < 3600 {
-        format!("{}m ago", ago / 60)
-    } else if ago < 86400 {
-        format!("{}h ago", ago / 3600)
-    } else if ago < 7 * 86400 {
-        format!("{}d ago", ago / 86400)
-    } else {
-        format!("{}w ago", ago / (7 * 86400))
-    }
+    crate::l10n_format::short_age(tr, now_secs - ts_ms / 1000)
 }
 
 fn parse_hex_color(hex: &str) -> Color {
@@ -445,6 +427,19 @@ fn parse_hex_color(hex: &str) -> Color {
 mod tests {
     use super::*;
     use mello_core::crew_events::RecentDayEntry;
+
+    /// The functions under test, with the English `Tr` of a test window.
+    fn with_tr<T>(f: impl FnOnce(&crate::Tr<'_>) -> T) -> T {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        f(&app.global::<crate::Tr>())
+    }
+    fn weekly_time_text(g: &UserGameStats) -> String {
+        with_tr(|tr| super::weekly_time_text(tr, g))
+    }
+    fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
+        with_tr(|tr| super::build_you_strip(tr, games))
+    }
 
     #[test]
     fn an_unknown_id_never_shows_as_a_raw_id() {

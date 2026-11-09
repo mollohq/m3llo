@@ -51,13 +51,13 @@ export component SessionPreviewCard inherits Rectangle {
     property <int> duration-hours: duration-min / 60;
     property <int> duration-remaining-mins: Math.mod(duration-min, 60);
     property <string> duration-text: duration-hours > 0
-        ? @tr("{}h {}m", duration-hours, duration-remaining-mins)
-        : @tr("{}m", duration-min);
+        ? @tr("unit" => "{}h {}m", duration-hours, duration-remaining-mins)
+        : @tr("unit" => "{}m", duration-min);
 
     // "1 h 12 min", as the hero chip reads (frame C).
     property <string> duration-hero-text: duration-hours > 0
-        ? @tr("{} h {} min", duration-hours, (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins)
-        : @tr("{} min", duration-min);
+        ? @tr("unit" => "{} h {} min", duration-hours, (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins)
+        : @tr("unit" => "{} min", duration-min);
 
     property <int> seen-threshold: image-count * 7 / 10;
 

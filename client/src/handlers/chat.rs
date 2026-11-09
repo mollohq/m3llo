@@ -82,7 +82,9 @@ impl ChatRefresh {
                 })
                 .collect()
         };
+        let tr = app.global::<crate::Tr>();
         let opts = ChatConvertOptions {
+            tr: &tr,
             user_id: &uid,
             reactions: &reactions,
             user_avatar: &uav,

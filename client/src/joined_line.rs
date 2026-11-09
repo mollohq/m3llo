@@ -7,6 +7,8 @@
 
 use mello_core::crew_events::FeedJoin;
 
+use crate::Tr;
+
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 /// The most cards the feed shows for joins.
 pub const MAX_ROWS: usize = 3;
@@ -53,19 +55,17 @@ pub fn line(name: &str, invited_by: &str) -> String {
 }
 
 /// The time of the join on the viewer's clock: "Today 23:14" or "Yesterday
-/// 23:14". `tz_offset_min` is the local offset, east positive. A join inside
-/// the 24 h window is on one of those two days.
-pub fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
-    let local = |ms: i64| ms + i64::from(tz_offset_min) * 60_000;
-    let day = |ms: i64| local(ms).div_euclid(DAY_MS);
-    let in_day = local(ts_ms).rem_euclid(DAY_MS) / 60_000;
-    let clock = format!("{:02}:{:02}", in_day / 60, in_day % 60);
-    let word = if day(ts_ms) >= day(now_ms) {
-        "Today"
-    } else {
-        "Yesterday"
-    };
-    format!("{word} {clock}")
+/// 23:14", in the clock form of the user. `tz_offset_min` is the local
+/// offset, east positive. A join inside the 24 h window is on one of those
+/// two days.
+pub fn when_label(tr: &Tr<'_>, ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
+    crate::l10n_format::today_or_yesterday_at(
+        tr,
+        ts_ms,
+        now_ms,
+        tz_offset_min,
+        crate::l10n_format::clock_form(),
+    )
 }
 
 /// The joins to draw. Joins older than 24 h, the viewer's own join and repeat
@@ -73,6 +73,7 @@ pub fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
 /// `name_of` gives the current name of a member from the roster; the name the
 /// event stored is the fallback.
 pub fn rows(
+    tr: &Tr<'_>,
     joins: &[FeedJoin],
     viewer_id: &str,
     now_ms: i64,
@@ -103,7 +104,7 @@ pub fn rows(
             name: display_name(&name),
             invited: invited_text(&inviter),
             line: line(&name, &inviter),
-            when: when_label(j.ts, now_ms, tz_offset_min),
+            when: when_label(tr, j.ts, now_ms, tz_offset_min),
         });
         if out.len() == MAX_ROWS {
             break;
@@ -135,6 +136,31 @@ mod tests {
     }
     fn none(_: &str) -> Option<String> {
         None
+    }
+
+    /// The functions under test, with the English `Tr` of a test window.
+    fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        super::when_label(&app.global::<Tr>(), ts_ms, now_ms, tz_offset_min)
+    }
+    fn rows(
+        joins: &[FeedJoin],
+        viewer_id: &str,
+        now_ms: i64,
+        tz_offset_min: i32,
+        name_of: &dyn Fn(&str) -> Option<String>,
+    ) -> Vec<Row> {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        super::rows(
+            &app.global::<Tr>(),
+            joins,
+            viewer_id,
+            now_ms,
+            tz_offset_min,
+            name_of,
+        )
     }
 
     #[test]

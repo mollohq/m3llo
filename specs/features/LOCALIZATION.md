@@ -280,3 +280,47 @@ languages only.
 
 CJK text in UTF-8 is 3 bytes for each character, but it is shorter in
 characters. The estimate stays under 0.5 MB.
+
+## 13. Dates, times, durations and numbers
+
+`client/src/l10n_format.rs` makes all date, time, duration and number text
+of the client. The words and the patterns are members of `Tr` (the section
+"Dates, times, durations and numbers" in `client/ui/tr.slint`).
+
+The rule: no date, time, duration or number text outside this module. Do
+not write a weekday, a month, "ago", "h", "min" or a `{:02}:{:02}` pattern in
+another file. Add a function to the module, and call it.
+
+| Part | What it does |
+|---|---|
+| Names | Weekdays, full and short months, from `Tr`. |
+| Dates | `day_month`, `week_range`, `week_of`, `chat_day`. Each date is one pattern message. |
+| Relative time | `days_ago` ("3 days ago", a plural), `recap_age`, `short_age` ("5m ago"), `feed_card_age`, `chat_time`. |
+| Time of day | `time_of_day`: 12 h or 24 h from `clock_form()`. The AM and PM markers come from `Tr`. |
+| Durations | `duration_hm_short` ("1h 23m"), `duration_h_mm` ("6 h 40"), `duration_clock` ("0:45"), `since`. The unit letters have the context `unit`. |
+| Numbers | `grouped`: the group separator is the message `digit-group-separator` (context `format`). |
+
+Decisions:
+
+- `mello-core` returns values (`chat::DayLabel`, `chat::MessageTime`). The
+  client makes the text.
+- The clock form comes from the OS setting of the user, not from the UI
+  language. Windows reads the short time format (`LOCALE_SSHORTTIME`). macOS
+  and Linux use 24 h. The value is read one time per run.
+- A test gets 24 h. A test that needs 12 h calls `set_test_clock_form`. No
+  test reads the OS setting.
+- Days are UTC days, except where a function takes a time zone offset or a
+  `mello-core` value in local time.
+
+How a translator changes a pattern: a pattern message has the context
+`format` and a `///` line that tells what each place is. Write the places in
+the order of the language, with its marks. Keep each place:
+
+| Message | English | Chinese |
+|---|---|---|
+| `date-day-month` | `{0} {1}` (5 October) | `{1}{0}日` (10月5日) |
+| `time-12h` | `{0}:{1} {2}` (11:14 PM) | `{2}{0}:{1}` (下午11:14) |
+
+The pseudo language `qps` keeps a message with no letter as it is, with no
+padding (`build_l10n::pseudo`). So a pattern or a separator does not change
+under `qps`, and the words in it do.

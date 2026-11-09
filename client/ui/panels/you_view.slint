@@ -361,7 +361,7 @@ component GameRow inherits Rectangle {
         if !root.card.has-record: Cell {
             width: 76px;
             value: root.card.week-value;
-            unit: @tr("h");
+            unit: @tr("unit" => "h");
             label: @tr("THIS WEEK");
         }
     }

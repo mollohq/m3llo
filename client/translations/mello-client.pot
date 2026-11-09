@@ -246,19 +246,25 @@ msgstr ""
 msgid "~1.5 Mbit/s"
 msgstr ""
 
+A duration: the first value is the hours, the second is the minutes ("6 h 
+40").
 #: client/ui/components/sealed.slint
+msgctxt "unit"
 msgid "{} h {}"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{} min"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{}h {}m"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{}m"
 msgstr ""
 
@@ -267,7 +273,7 @@ msgid "Sealed belt, open it"
 msgstr ""
 
 #. "Week 4", or "This week" before the server counts the weeks.
-#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "This week"
 msgstr ""
 
@@ -1846,10 +1852,11 @@ msgid "CLICK ANYWHERE TO CLOSE"
 msgstr ""
 
 #: client/ui/panels/session_preview_card.slint
+msgctxt "unit"
 msgid "{} h {} min"
 msgstr ""
 
-#: client/ui/panels/session_preview_card.slint
+#: client/ui/panels/session_preview_card.slint client/ui/tr.slint
 msgid "{n} clip"
 msgid_plural "{n} clips"
 msgstr[0] ""
@@ -2588,7 +2595,9 @@ msgid_plural "{n} BELTS"
 msgstr[0] ""
 msgstr[1] ""
 
+#. The unit of a number of hours next to the number.
 #: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgctxt "unit"
 msgid "h"
 msgstr ""
 
@@ -2673,6 +2682,348 @@ msgstr ""
 #. The emoji name does not obey the rule of the server.
 #: client/ui/tr.slint
 msgid "A name is 2 to 24 letters, digits or underscores."
+msgstr ""
+
+#. A day of the week, in a date ("Sunday 1 Nov").
+#: client/ui/tr.slint
+msgid "Sunday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Monday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Tuesday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Wednesday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Thursday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Friday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Saturday"
+msgstr ""
+
+#. The full name of a month, in a date ("2 October").
+#: client/ui/tr.slint
+msgid "January"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "February"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "March"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "April"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "May"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "June"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "July"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "August"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "September"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "October"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "November"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "December"
+msgstr ""
+
+#. The short name of a month, in a short date ("6 Oct").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jan"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Feb"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Mar"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Apr"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "May"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jun"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jul"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Aug"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Sep"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Oct"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Nov"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Dec"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the name of the month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1} {2}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the weekday.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{2} {0} {1}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}, {2}"
+msgstr ""
+
+#. {0} is the first day, {1} is the last day, {2} is the month.
+#: client/ui/tr.slint
+msgid "{0} to {1} {2}"
+msgstr ""
+
+#. {0} {1} is the first day and month, {2} {3} is the last day and month.
+#: client/ui/tr.slint
+msgid "{0} {1} to {2} {3}"
+msgstr ""
+
+#. The value is a short date ("6 Oct").
+#: client/ui/tr.slint
+msgid "Week of {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Week {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "W{}"
+msgstr ""
+
+#. A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1}"
+msgstr ""
+
+A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
+or PM.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1} {2}"
+msgstr ""
+
+#. The marker of a time before noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "AM"
+msgstr ""
+
+#. The marker of a time after noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "PM"
+msgstr ""
+
+#. A day, relative to today.
+#: client/ui/tr.slint
+msgid "Today"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Yesterday"
+msgstr ""
+
+#. The same words in lower case, as the feed card writes its age.
+#: client/ui/tr.slint
+msgid "today"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "yesterday"
+msgstr ""
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Today {}"
+msgstr ""
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Yesterday {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "Last week"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} week ago"
+msgid_plural "{n} weeks ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. A short age, under a minute.
+#: client/ui/tr.slint
+msgid "just now"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}m ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}h ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}d ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}w ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} H"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} h"
+msgstr ""
+
+#. The length of a clip: {0} is the minutes, {1} is the seconds.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0}:{1}"
+msgstr ""
+
+#. The unit of a number of minutes next to the number.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "min"
+msgstr ""
+
+#. The unit letter of a number of minutes next to the number ("2 m").
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "m"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {} min"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {} h"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {0} h {1} min"
+msgstr ""
+
+#. The value is a duration ("4h 12m").
+#: client/ui/tr.slint
+msgid "{} this week"
+msgstr ""
+
+#. {0} is when the game was last played, {1} is the hours of play.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}, {1}"
+msgstr ""
+
+#. The mark between the groups of digits of a large number ("4,201").
+#: client/ui/tr.slint
+msgctxt "format"
+msgid ","
 msgstr ""
 
 #: hud/ui/mini_player.slint

@@ -59,6 +59,7 @@ fn quest_card(
         )
     };
     let crew_name = ctx.app.get_active_crew_name().to_string();
+    let tr = ctx.app.global::<crate::Tr>();
     super::quests::build(
         q,
         &super::quests::Input {
@@ -82,6 +83,7 @@ fn quest_card(
                     })
                     .flatten()
             },
+            tr: &tr,
         },
     )
 }
@@ -230,17 +232,17 @@ fn stat(value: &str, unit: &str, tail: &str, label: &str) -> BoardStat {
 }
 
 /// "6 h 40" from 400 minutes; "48 min" under an hour.
-fn minutes_stat(min: i64, label: &str) -> BoardStat {
+fn minutes_stat(tr: &crate::Tr<'_>, min: i64, label: &str) -> BoardStat {
     let min = min.max(0);
     if min >= 60 {
         stat(
             &(min / 60).to_string(),
-            "h",
+            &tr.get_unit_hours(),
             &format!("{:02}", min % 60),
             label,
         )
     } else {
-        stat(&min.to_string(), "min", "", label)
+        stat(&min.to_string(), &tr.get_unit_minutes(), "", label)
     }
 }
 
@@ -249,13 +251,8 @@ fn count_stat(n: i64, label: &str) -> BoardStat {
 }
 
 /// "25 h 34" as text, for a person line.
-fn minutes_text(min: i64) -> String {
-    let min = min.max(0);
-    if min >= 60 {
-        format!("{} h {:02}", min / 60, min % 60)
-    } else {
-        format!("{min} min")
-    }
+fn minutes_text(tr: &crate::Tr<'_>, min: i64) -> String {
+    crate::l10n_format::duration_h_mm(tr, min)
 }
 
 /// The art of a card's game: the header capsule when there is one.
@@ -284,6 +281,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
     use mello_core::crew_events::FeedEntry;
     let live = ctx.app.get_active_stream_cards().row_count() > 0;
     let now_ms = crate::converters::current_time_ms();
+    let tr = ctx.app.global::<crate::Tr>();
     let card =
         |e: &FeedEntry| super::clip::build_feed_card(ctx, &e.id, &e.entry_type, &e.data, e.ts);
     let (viewer, members) = super::clip::h2h_roster(ctx);
@@ -389,9 +387,9 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
     match &recap {
         Some(r) => {
             z.recap_card = r.clone();
-            week_numbers(&mut z, r);
+            week_numbers(&tr, &mut z, r);
         }
-        None => z.week_big = minutes_stat(0, "HANGOUT"),
+        None => z.week_big = minutes_stat(&tr, 0, "HANGOUT"),
     }
     match &zs.board.today {
         Some(e) => {
@@ -401,7 +399,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                 .get("member_ids")
                 .and_then(|v| v.as_array())
                 .map_or(0, |a| a.len() as i64);
-            z.today_big = minutes_stat(n("total_min"), "HANGOUT");
+            z.today_big = minutes_stat(&tr, n("total_min"), "HANGOUT");
             z.today_stats = model(vec![
                 count_stat(n("clip_count"), "CLIPS"),
                 count_stat(n("session_count"), "SESSIONS"),
@@ -417,7 +415,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
         }
         None => {
             z.today_empty = true;
-            z.today_big = minutes_stat(0, "HANGOUT");
+            z.today_big = minutes_stat(&tr, 0, "HANGOUT");
         }
     }
     if z.board == "quiet" {
@@ -432,7 +430,10 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
     }
     if z.board == "past" && zs.board.last_activity_ms > 0 {
         let last = zs.board.last_activity_ms;
-        let mut line = format!("Nothing new since {}.", crate::feed_age::date_label(last));
+        let mut line = format!(
+            "Nothing new since {}.",
+            crate::l10n_format::date_label(&tr, last)
+        );
         if let Some(t) = z.titles.row_data(0) {
             if !t.belt.sealed {
                 line.push_str(&format!(
@@ -443,8 +444,8 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
             }
         }
         z.dormant_line = line.into();
-        let days = crate::feed_age::days_between(last, now_ms);
-        z.dormant_age = format!("{} weeks ago", (days / 7).max(2)).into();
+        let days = crate::l10n_format::days_between(last, now_ms);
+        z.dormant_age = crate::l10n_format::weeks_ago(&tr, (days / 7).max(2)).into();
     }
 
     // ── Clips: the server's order (game first, then newest), unread first.
@@ -476,7 +477,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
         .filter(|e| e.data.get("channel_id").is_some() || e.data.get("channel_name").is_some())
         .map(|e| e.ts)
         .max()
-        .map(|t| format!("Last call {}", crate::feed_age::date_label(t)))
+        .map(|t| format!("Last call {}", crate::l10n_format::date_label(&tr, t)))
         .unwrap_or_default();
     people_voice(ctx, &mut z, &last_call);
     z.people = z.open_seats > 0 || z.joined.row_count() > 0 || !z.voice.is_empty();
@@ -542,11 +543,11 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
             .map(|w| {
                 let mut h = HistoryWeek {
                     label: if w.week_number > 0 {
-                        format!("Week {}", w.week_number).into()
+                        crate::l10n_format::week_number(&tr, w.week_number.into()).into()
                     } else {
-                        crate::feed_age::week_of_label(w.week_start).into()
+                        crate::l10n_format::week_of(&tr, w.week_start).into()
                     },
-                    age: crate::feed_age::recap_age_label(w.week_start, now_ms).into(),
+                    age: crate::l10n_format::recap_age(&tr, w.week_start, now_ms).into(),
                     locked: w.locked,
                     ..Default::default()
                 };
@@ -559,7 +560,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                             .map(|t| LockedTeaser {
                                 person: person(&t.actor_id, &t.actor_name),
                                 kind: t.kind.to_uppercase().into(),
-                                duration: teaser_length(&t.kind, t.duration_seconds).into(),
+                                duration: teaser_length(&tr, &t.kind, t.duration_seconds).into(),
                                 code: crate::sealed::cells_path(&crate::sealed::belt_cells(
                                     crate::sealed::recap_seed(t.ts),
                                 ))
@@ -572,7 +573,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                 } else {
                     if let Some(r) = w.recap.as_ref().map(card) {
                         let mut tmp = ZonesData::default();
-                        week_numbers(&mut tmp, &r);
+                        week_numbers(&tr, &mut tmp, &r);
                         h.big = tmp.week_big;
                         h.stats = tmp.week_stats;
                         h.has_top = tmp.week_has_top;
@@ -595,12 +596,12 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
 
 /// The numbers of a recap week: hangout, clips, longest, games, top game,
 /// most active, most clipped and the games played.
-fn week_numbers(z: &mut ZonesData, r: &FeedCardData) {
-    z.week_big = minutes_stat(i64::from(r.recap_hangout_min), "HANGOUT");
+fn week_numbers(tr: &crate::Tr<'_>, z: &mut ZonesData, r: &FeedCardData) {
+    z.week_big = minutes_stat(tr, i64::from(r.recap_hangout_min), "HANGOUT");
     let games = rows(&r.recap_games);
     z.week_stats = model(vec![
         count_stat(i64::from(r.recap_clips), "CLIPS"),
-        minutes_stat(i64::from(r.recap_longest_min), "LONGEST"),
+        minutes_stat(tr, i64::from(r.recap_longest_min), "LONGEST"),
         count_stat(games.len() as i64, "GAMES"),
     ]);
     z.week_has_top = !r.game_name.is_empty();
@@ -611,7 +612,7 @@ fn week_numbers(z: &mut ZonesData, r: &FeedCardData) {
     };
     if !r.recap_active.name.is_empty() {
         z.most_active = person_of_recap(&r.recap_active);
-        z.most_active_value = minutes_text(i64::from(r.recap_active.count)).into();
+        z.most_active_value = minutes_text(tr, i64::from(r.recap_active.count)).into();
     }
     if !r.recap_clipped.name.is_empty() {
         z.most_clipped = person_of_recap(&r.recap_clipped);
@@ -651,12 +652,12 @@ fn locked_seal(week_start: i64) -> crate::RecapSeal {
 }
 
 /// "0:30" for a clip, "1 h 04" or "48 min" for a stream.
-fn teaser_length(kind: &str, seconds: f64) -> String {
+fn teaser_length(tr: &crate::Tr<'_>, kind: &str, seconds: f64) -> String {
     let secs = seconds.max(0.0).round() as i64;
     if kind == "stream" {
-        minutes_text(secs / 60)
+        minutes_text(tr, secs / 60)
     } else {
-        format!("{}:{:02}", secs / 60, secs % 60)
+        crate::l10n_format::duration_clock(tr, secs)
     }
 }
 
@@ -864,6 +865,9 @@ mod tests {
 
     #[test]
     fn minutes_read_as_hours_and_minutes() {
+        let tr = crate::l10n_format::test_tr();
+        let minutes_stat = |min, label| super::minutes_stat(tr, min, label);
+        let minutes_text = |min| super::minutes_text(tr, min);
         let s = minutes_stat(400, "HANGOUT");
         assert_eq!(
             (s.value.as_str(), s.unit.as_str(), s.tail.as_str()),

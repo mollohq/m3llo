@@ -218,6 +218,8 @@ pub(crate) struct Input<'a> {
     pub emoji_art: Option<Image>,
     /// The header art of a game by id, when the art cache has it.
     pub game_art: &'a dyn Fn(&str) -> Option<Image>,
+    /// The messages of the UI, for dates and durations.
+    pub tr: &'a crate::Tr<'a>,
 }
 
 /// The key of the gift of a step on a crew.
@@ -337,7 +339,7 @@ fn gift(i: usize, q: &ZoneQuests, inp: &Input, done: bool, owner: bool, opened: 
             }
             3 => {
                 let week = q.gifts.founding_weeks.first().copied().unwrap_or(q.made_ms);
-                g.text = format!("W{}", iso_week(week)).into();
+                g.text = inp.tr.invoke_week_number_short(iso_week(week) as i32);
             }
             4 => g.text = "30 DAYS".into(),
             _ => {}
@@ -370,7 +372,8 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
     match i {
         0 => {
             r.moment_title = inp.crew_name.into();
-            r.moment_sub = format!("Made {}", day_month(q.made_ms)).into();
+            r.moment_sub =
+                format!("Made {}", crate::l10n_format::date_label(inp.tr, q.made_ms)).into();
             r.name = "Crew banner".into();
             if let Some(art) = &inp.banner_art {
                 r.gift_art = art.clone();
@@ -428,7 +431,7 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
             r.gift_text = g.text.clone();
             if r.gift_text.is_empty() {
                 let week = q.gifts.founding_weeks.first().copied().unwrap_or(q.made_ms);
-                r.gift_text = format!("W{}", iso_week(week)).into();
+                r.gift_text = inp.tr.invoke_week_number_short(iso_week(week) as i32);
             }
             r.gift_line = "Open in Crew history for every member".into();
         }
@@ -441,11 +444,7 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
                     r.moment_art = art;
                     r.moment_has_art = true;
                 }
-                let span = if s.minutes >= 60 {
-                    format!("{} h {:02}", s.minutes / 60, s.minutes % 60)
-                } else {
-                    format!("{} min", s.minutes)
-                };
+                let span = crate::l10n_format::duration_h_mm(inp.tr, i64::from(s.minutes));
                 r.moment_title = if s.game_name.is_empty() {
                     span
                 } else {
@@ -484,26 +483,6 @@ fn suggest_invite_name(crew_name: &str) -> String {
         out.push('x');
     }
     out
-}
-
-/// "5 November" of a time in ms (UTC).
-fn day_month(ms: i64) -> String {
-    const MONTHS: [&str; 12] = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    let (_, m, d) = civil_from_days(ms.div_euclid(DAY_MS));
-    format!("{d} {}", MONTHS[(m - 1) as usize])
 }
 
 /// The date of a day count (H. Hinnant, civil_from_days): year, month, day.
@@ -671,11 +650,7 @@ fn session_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
             }
         };
     };
-    let value = if s.minutes >= 60 {
-        format!("{} h {:02}", s.minutes / 60, s.minutes % 60)
-    } else {
-        format!("{} min", s.minutes)
-    };
+    let value = crate::l10n_format::duration_h_mm(inp.tr, i64::from(s.minutes));
     let mut meta = names_line(&s.user_ids, &s.names, inp);
     if !s.game_name.is_empty() {
         meta = format!("{meta} · {}", s.game_name);
@@ -715,6 +690,7 @@ mod tests {
             banner_art: None,
             emoji_art: None,
             game_art: &|_| None,
+            tr: crate::l10n_format::test_tr(),
         }
     }
 

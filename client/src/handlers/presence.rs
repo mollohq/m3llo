@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use base64::Engine as _;
 use mello_core::{Command, Event};
-use slint::Model;
+use slint::{ComponentHandle, Model};
 
 use super::stream_cards::sync_active_stream_cards;
 use crate::app_context::AppContext;
@@ -189,7 +189,11 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 let is_online =
                     change.presence.status != mello_core::presence::PresenceStatus::Offline;
                 let now_ms = current_time_ms();
-                let game_line = game_line_from_presence(change.presence.game.as_ref(), now_ms);
+                let game_line = game_line_from_presence(
+                    &ctx.app.global::<crate::Tr>(),
+                    change.presence.game.as_ref(),
+                    now_ms,
+                );
                 let members: Vec<MemberData> = (0..current.row_count())
                     .map(|i| {
                         let mut m = current.row_data(i).unwrap();
@@ -446,6 +450,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                                 (
                                     cm.user_id.clone(),
                                     game_line_from_presence(
+                                        &ctx.app.global::<crate::Tr>(),
                                         cm.presence.as_ref().and_then(|p| p.game.as_ref()),
                                         now_ms,
                                     ),
