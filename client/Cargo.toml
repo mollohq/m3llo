@@ -27,8 +27,9 @@ build-stamp = { path = "../build-stamp" }
 mello-core = { path = "../mello-core" }
 perf-scenarios = { path = "../tools/perf-scenarios" }
 slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-skia", "accessibility", "unstable-fontique-011"] }
-# The OS UI language, for the CJK font fallback order (cjk_fonts.rs). Slint
-# already pulls this crate in; the version matches Cargo.lock.
+# The OS language, for the UI language (src/locale.rs) and the CJK font
+# fallback order (src/cjk_fonts.rs). Slint already pulls this crate in; the
+# version matches Cargo.lock.
 sys-locale = "0.3.2"
 tokio = { workspace = true }
 log = { workspace = true }
@@ -41,9 +42,6 @@ uuid = { version = "1", features = ["v4"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 paste = "1"
-# The OS language for the UI language (src/locale.rs). Slint uses the same
-# crate for its own choice, so it adds no package.
-sys-locale = "0.3"
 
 # Dev-only: embedded MCP server for AI-driven UI inspection (gated by the `mcp` feature).
 # Runtime is a no-op unless SLINT_MCP_PORT is set; never enabled in production builds.
