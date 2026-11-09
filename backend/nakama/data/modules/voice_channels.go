@@ -204,6 +204,29 @@ func canManageChannels(ctx context.Context, nk runtime.NakamaModule, crewID, use
 // RPCs
 // ---------------------------------------------------------------------------
 
+// channelNameFrom returns the voice channel name to store, from the name in
+// a request. stored is the present name on the rename path and "" on create.
+// The name is cleaned (text_rules.go) and must have VoiceChannelNameMinChars
+// to VoiceChannelNameMaxChars characters. A name equal to the stored name
+// passes at any length: channels made under the old 32-byte limit can have
+// up to 32 characters.
+func channelNameFrom(raw, stored string) (string, error) {
+	if stored != "" && raw == stored {
+		return stored, nil
+	}
+	name, err := cleanName(raw)
+	if err != nil {
+		return "", runtime.NewError(err.Error(), 3)
+	}
+	if stored != "" && name == stored {
+		return stored, nil
+	}
+	if n := nameLength(name); n < VoiceChannelNameMinChars || n > VoiceChannelNameMaxChars {
+		return "", runtime.NewError(fmt.Sprintf("name must be %d-%d characters", VoiceChannelNameMinChars, VoiceChannelNameMaxChars), 3)
+	}
+	return name, nil
+}
+
 func ChannelCreateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
@@ -222,8 +245,9 @@ func ChannelCreateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	if req.CrewID == "" || req.Name == "" {
 		return "", runtime.NewError("crew_id and name required", 3)
 	}
-	if len(req.Name) > 32 {
-		return "", runtime.NewError("name must be 32 characters or fewer", 3)
+	name, err := channelNameFrom(req.Name, "")
+	if err != nil {
+		return "", err
 	}
 	bitrate, err := validateChannelBitrate(req.BitrateKbps)
 	if err != nil {
@@ -244,7 +268,7 @@ func ChannelCreateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 
 	ch := &VoiceChannelDef{
 		ID:          generateChannelID(),
-		Name:        req.Name,
+		Name:        name,
 		IsDefault:   false,
 		SortOrder:   len(list.Channels),
 		BitrateKbps: bitrate,
@@ -289,9 +313,6 @@ func ChannelRenameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	if req.CrewID == "" || req.ChannelID == "" || req.Name == "" {
 		return "", runtime.NewError("crew_id, channel_id and name required", 3)
 	}
-	if len(req.Name) > 32 {
-		return "", runtime.NewError("name must be 32 characters or fewer", 3)
-	}
 
 	if !canManageChannels(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not authorized to manage channels", 7)
@@ -302,17 +323,21 @@ func ChannelRenameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 		return "", runtime.NewError("failed to load channels", 13)
 	}
 
-	found := false
+	var channel *VoiceChannelDef
 	for _, ch := range list.Channels {
 		if ch.ID == req.ChannelID {
-			ch.Name = req.Name
-			found = true
+			channel = ch
 			break
 		}
 	}
-	if !found {
+	if channel == nil {
 		return "", runtime.NewError("channel not found", 5)
 	}
+	name, err := channelNameFrom(req.Name, channel.Name)
+	if err != nil {
+		return "", err
+	}
+	channel.Name = name
 
 	if err := saveVoiceChannels(ctx, nk, req.CrewID, list); err != nil {
 		return "", runtime.NewError("failed to save channels", 13)
@@ -322,7 +347,7 @@ func ChannelRenameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 
 	PushCrewEvent(ctx, logger, nk, req.CrewID, "channel_renamed", map[string]interface{}{
 		"channel_id":   req.ChannelID,
-		"channel_name": req.Name,
+		"channel_name": name,
 	})
 
 	return `{"success":true}`, nil

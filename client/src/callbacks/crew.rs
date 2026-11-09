@@ -161,7 +161,8 @@ pub fn wire(ctx: &AppContext) {
     {
         let cmd = ctx.cmd_tx.clone();
         ctx.app.on_new_crew_search_users(move |query| {
-            if query.len() >= 2 {
+            // Two characters, not bytes: the server's minimum (search_users.go).
+            if query.chars().count() >= 2 {
                 let _ = cmd.send(Command::SearchUsers {
                     query: query.to_string(),
                 });

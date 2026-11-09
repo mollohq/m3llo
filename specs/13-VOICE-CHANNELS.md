@@ -268,7 +268,8 @@ type ChannelCreateResponse struct {
 
 // Validation:
 // - Caller must have channel_manage permission (see §5)
-// - Name must be 1-32 characters, trimmed, no leading/trailing whitespace
+// - Name is cleaned, then must be 1-24 characters (Unicode scalar values),
+//   see 04-BACKEND.md §4.4 "Text rules for names"
 // - Name must be unique within the crew (case-insensitive)
 // - Channel ID generated server-side: "ch_" + 8 random alphanumeric
 // - Position = max existing position + 1
@@ -770,7 +771,7 @@ This allows the sidebar to show "user_abc is in General @ Neon Syndicate" withou
 | `CHANNEL_NOT_FOUND` | Channel not found | Invalid channel_id for this crew |
 | `CANNOT_DELETE_DEFAULT` | Cannot delete default channel | Attempted to delete is_default channel |
 | `CHANNEL_NAME_TAKEN` | Name already exists | Duplicate channel name within crew |
-| `CHANNEL_NAME_INVALID` | Invalid channel name | Empty, too long (>32 chars), or invalid characters |
+| `CHANNEL_NAME_INVALID` | Invalid channel name | Empty after the clean rule, or too long (>24 characters) |
 | `NO_CHANNEL_PERMISSION` | Permission denied | User lacks channel_manage permission |
 
 ---
@@ -786,7 +787,7 @@ This allows the sidebar to show "user_abc is in General @ Neon Syndicate" withou
 - [ ] Delete channel with members → members moved to default, notified
 - [ ] Reorder channels → order persists and syncs to all members
 - [ ] Duplicate channel name → rejected
-- [ ] Channel name validation (empty, >32 chars) → rejected
+- [ ] Channel name validation (empty after the clean rule, >24 characters) → rejected
 
 ### Joining / Leaving
 - [ ] Click collapsed channel → joins that channel, leaves current

@@ -20,16 +20,14 @@ pub fn parse_capture_source_id(id: &str, mode: &str) -> (Option<u32>, Option<u64
     }
 }
 
+/// The initials of a person or a crew (`mello_core::names::initials`), "?"
+/// for an empty name.
 pub fn make_initials(name: &str) -> String {
-    let parts: Vec<&str> = name.split_whitespace().collect();
-    match parts.len() {
-        0 => "?".into(),
-        1 => parts[0].chars().take(2).collect::<String>().to_uppercase(),
-        _ => {
-            let first = parts[0].chars().next().unwrap_or('?');
-            let last = parts[parts.len() - 1].chars().next().unwrap_or('?');
-            format!("{}{}", first, last).to_uppercase()
-        }
+    let initials = mello_core::names::initials(name);
+    if initials.is_empty() {
+        "?".into()
+    } else {
+        initials
     }
 }
 
@@ -950,6 +948,20 @@ pub fn set_level_history(app: &MainWindow, hist: &DebugHistory) {
 mod tests {
     use super::*;
     use mello_core::presence::GamePresence;
+
+    #[test]
+    fn initials_work_for_every_script() {
+        assert_eq!(make_initials("小明"), "小明");
+        assert_eq!(make_initials("タナカ ユウ"), "タユ");
+        assert_eq!(make_initials("Олена Шевченко"), "ОШ");
+        assert_eq!(make_initials("Jürgen"), "JÜ");
+        assert_eq!(make_initials("José María"), "JM");
+        assert_eq!(make_initials("🔥Max🔥"), "🔥M");
+        assert_eq!(make_initials("🇸🇪 Nils"), "🇸🇪N");
+        assert_eq!(make_initials("مريم"), "مر");
+        assert_eq!(make_initials(""), "?");
+        assert_eq!(make_initials(" \t "), "?");
+    }
 
     #[test]
     fn game_line_empty_without_game() {

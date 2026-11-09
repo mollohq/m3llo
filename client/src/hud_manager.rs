@@ -257,24 +257,15 @@ impl HudManager {
     }
 }
 
-/// Derive initials from a display name (max 2 chars, uppercase).
+/// The initials of a display name (`mello_core::names::initials`): the first
+/// and the last word, or the first two graphemes of one word. "??" for an
+/// empty name.
 pub fn derive_initials(name: &str) -> String {
-    let words: Vec<&str> = name.split_whitespace().collect();
-    match words.len() {
-        0 => "??".to_string(),
-        1 => {
-            let chars: Vec<char> = words[0].chars().collect();
-            if chars.len() >= 2 {
-                format!("{}{}", chars[0], chars[1]).to_uppercase()
-            } else {
-                format!("{}", chars[0]).to_uppercase()
-            }
-        }
-        _ => {
-            let first = words[0].chars().next().unwrap_or('?');
-            let second = words[1].chars().next().unwrap_or('?');
-            format!("{}{}", first, second).to_uppercase()
-        }
+    let initials = mello_core::names::initials(name);
+    if initials.is_empty() {
+        "??".to_string()
+    } else {
+        initials
     }
 }
 
@@ -442,6 +433,20 @@ mod tests {
     #[test]
     fn initials_single_char() {
         assert_eq!(derive_initials("X"), "X");
+    }
+
+    #[test]
+    fn initials_take_the_last_word_not_the_second() {
+        assert_eq!(derive_initials("Anna Maria Larsson"), "AL");
+    }
+
+    #[test]
+    fn initials_any_script() {
+        assert_eq!(derive_initials("小明"), "小明");
+        assert_eq!(derive_initials("Олена Шевченко"), "ОШ");
+        assert_eq!(derive_initials("🔥Max🔥"), "🔥M");
+        assert_eq!(derive_initials("🇸🇪 Nils"), "🇸🇪N");
+        assert_eq!(derive_initials("   "), "??");
     }
 
     #[test]

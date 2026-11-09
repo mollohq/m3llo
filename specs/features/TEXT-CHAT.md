@@ -27,7 +27,7 @@ as the Nakama message `content` field. No DMs in beta.
 | Replies | Quote-reply with `reply_to` field | Simple, no threads |
 | DMs | Not in beta | Crew chat only |
 | Unread tracking | A read cursor per crew in the user's storage | Survives a restart. See 2.5 |
-| Message length | 2000 characters max | Enforced client-side and server-side |
+| Message length | 2000 characters max | A character is one Unicode scalar value, not a byte. Enforced server-side |
 | Message history | Pages on scroll-up, a window of the newest 200 on screen | Nakama cursor-based pagination. See 4.3 |
 
 ### What Changes
@@ -70,7 +70,7 @@ Every message sent via `channel_message_send` uses this JSON structure as the
 |-------|------|----------|-------------|
 | `v` | `integer` | Yes | Schema version. Always `1` for now. |
 | `type` | `string` | Yes | One of: `text`, `gif`, `image`, `system`. |
-| `body` | `string` | Yes | Message text. May contain markdown and mention tokens. Max 2000 chars. Empty string for gif-only messages. |
+| `body` | `string` | Yes | Message text. May contain markdown and mention tokens. Max 2000 characters (Unicode scalar values). Empty string for gif-only messages. |
 | `reply_to` | `string \| null` | No | Nakama message ID of the quoted message. `null` or omitted if not a reply. |
 | `mentions` | `string[]` | No | Array of user IDs mentioned in `body`. Used for notification routing. Omit if empty. |
 | `gif` | `object \| null` | No | GIF metadata. Required when `type` is `gif`. See §2.2. |
@@ -673,7 +673,7 @@ func BeforeChannelMessageSend(ctx context.Context, logger runtime.Logger,
 
     // Enforce body length
     body, _ := envelope["body"].(string)
-    if len(body) > 2000 {
+    if utf8.RuneCountInString(body) > 2000 {
         return nil, runtime.NewError("message too long (max 2000)", 3)
     }
 

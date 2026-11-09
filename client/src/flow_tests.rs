@@ -480,6 +480,30 @@ fn successful_onboarding_clears_the_pending_crew_avatar() {
     );
 }
 
+/// ★ The invite search in the new crew modal starts at two characters, not
+/// two bytes: one Chinese character (3 bytes) does not search, two do.
+#[test]
+fn new_crew_search_counts_characters_not_bytes() {
+    let mut h = Harness::new();
+    let searches = |cmds: Vec<Command>| -> Vec<String> {
+        cmds.into_iter()
+            .filter_map(|c| match c {
+                Command::SearchUsers { query } => Some(query),
+                _ => None,
+            })
+            .collect()
+    };
+
+    h.app().invoke_new_crew_search_users("小".into());
+    assert!(searches(h.commands()).is_empty(), "one character searches");
+
+    h.app().invoke_new_crew_search_users("小明".into());
+    assert_eq!(searches(h.commands()), vec!["小明".to_string()]);
+
+    h.app().invoke_new_crew_search_users("Jü".into());
+    assert_eq!(searches(h.commands()), vec!["Jü".to_string()]);
+}
+
 fn sample_user() -> mello_core::events::User {
     mello_core::events::User {
         id: "user-1".into(),
@@ -1370,6 +1394,40 @@ fn the_mention_picker_keeps_members_who_went_offline() {
         ["Alice Baker", "kim", "Newcomer"],
         "a join adds the newcomer and keeps the offline members"
     );
+}
+
+/// The mention picker folds case in every script, not only ASCII.
+#[test]
+fn the_mention_picker_matches_names_in_any_script() {
+    let h = Harness::new();
+    let member = |id: &str, name: &str| crate::MentionMemberData {
+        user_id: id.into(),
+        display_name: name.into(),
+        initials: crate::converters::make_initials(name).into(),
+    };
+    h.app().set_mention_members(
+        std::rc::Rc::new(slint::VecModel::from(vec![
+            member("u-olena", "Олена Шевченко"),
+            member("u-jurgen", "Jürgen"),
+            member("u-ming", "小明"),
+            member("u-max", "🔥Max🔥"),
+        ]))
+        .into(),
+    );
+    let suggested = |typed: &str| -> Vec<String> {
+        h.app().set_chat_input_text(typed.into());
+        h.app().invoke_chat_input_changed(typed.into());
+        let m = h.app().get_mention_suggestions();
+        (0..m.row_count())
+            .filter_map(|i| m.row_data(i))
+            .map(|r| r.display_name.to_string())
+            .collect()
+    };
+
+    assert_eq!(suggested("@ОЛЕ"), ["Олена Шевченко"]);
+    assert_eq!(suggested("@JÜR"), ["Jürgen"]);
+    assert_eq!(suggested("@小"), ["小明"]);
+    assert_eq!(suggested("@🔥m"), ["🔥Max🔥"]);
 }
 
 /// A mention renders as `@name` from the core's resolved body, also before the

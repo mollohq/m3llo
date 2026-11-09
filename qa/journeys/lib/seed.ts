@@ -77,13 +77,30 @@ export const GAME_POOL: Omit<SeedGame, "playtimeMin">[] = [
 /** The game that almost every member owns, so the top shared game is contested. */
 const SHARED_TOP = GAME_POOL[0];
 
+/**
+ * The names of the seeded members. Names in several scripts are in the first
+ * sixteen, so a small crew shows them too: Chinese, Japanese, Cyrillic,
+ * Arabic, Latin with diacritics, and emoji. Ids use `idPart`, so they stay
+ * ASCII.
+ */
 const FIRST_NAMES = [
-  "Jonas", "Max", "Sara", "Leo", "Mira", "Tobias", "Elin", "Oskar", "Nora", "Viktor",
-  "Alva", "Hugo", "Ida", "Axel", "Maja", "Felix", "Wilma", "Isak", "Stella", "Noah",
+  "Jonas", "🔥Max🔥", "Sara", "小明", "Mira", "Олена", "Elin", "タナカ", "Nora", "Jürgen",
+  "Alva", "José", "Ida", "مريم", "Maja", "Ostkatt", "Wilma", "Isak", "Stella", "Noah",
   "Freja", "Elias", "Saga", "Liam", "Astrid", "Gustav", "Ebba", "Adam", "Selma", "Melvin",
   "Tuva", "Albin", "Julia", "Theo", "Klara", "Edvin", "Lova", "Arvid", "Signe", "Ruben",
   "Agnes", "Sixten", "Vera", "Ivar", "Lea", "Nils", "Olivia", "Malte", "Tilda", "Folke",
 ];
+
+/**
+ * The name as a part of a device, session or clip id. An ASCII name of
+ * letters and digits gives its lower case, as before. Any other name gives
+ * its code points in hex ("小明" gives "u5c0f-660e"), so ids stay ASCII.
+ */
+export function idPart(name: string): string {
+  const lower = name.toLowerCase();
+  if (/^[a-z0-9]+$/.test(lower)) return lower;
+  return "u" + Array.from(name, (c) => (c.codePointAt(0) ?? 0).toString(16)).join("-");
+}
 
 /** mulberry32: a small seeded generator. */
 function prng(seed: number): () => number {
@@ -194,7 +211,7 @@ export async function seededDeviceExists(runId: string, name: string): Promise<b
   const r = await fetch(`${nakamaBase()}/v2/account/authenticate/device?create=false`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: BASIC },
-    body: JSON.stringify({ id: `seed-${runId}-${name}`.toLowerCase() }),
+    body: JSON.stringify({ id: `seed-${runId}-${idPart(name)}`.toLowerCase() }),
     signal: AbortSignal.timeout(20_000),
   });
   if (r.status === 404) return false;
@@ -295,7 +312,7 @@ export async function endSession(
  * `tz_offset_min`.
  */
 export async function seedMember(crewInviteCode: string, name: string, profile: SeedProfile, runId: string): Promise<SeededMember> {
-  const token = await deviceToken(`seed-${runId}-${name}`.toLowerCase());
+  const token = await deviceToken(`seed-${runId}-${idPart(name)}`.toLowerCase());
   const me = await call<{ user: { id: string } }>("GET", "/v2/account", { token });
   const userId = me.user.id;
   await call("PUT", "/v2/account", { token, body: { display_name: name, avatar_url: `/v2/storage/avatars/current/${userId}` } });
@@ -322,12 +339,12 @@ export async function seedMember(crewInviteCode: string, name: string, profile: 
 
   let seq = 0;
   for (const s of profile.sessions) {
-    await endSession(token, crewId, s.game, s.durationMin, s.endLocalMin, `seed-${runId}-${name}-${seq++}`.toLowerCase(), s.daysAgo);
+    await endSession(token, crewId, s.game, s.durationMin, s.endLocalMin, `seed-${runId}-${idPart(name)}-${seq++}`.toLowerCase(), s.daysAgo);
   }
   for (let c = 0; c < profile.clips; c++) {
     await rpc(token, "post_clip", {
       crew_id: crewId,
-      clip_id: `seed-${runId}-${name}-clip-${c}`.toLowerCase(),
+      clip_id: `seed-${runId}-${idPart(name)}-clip-${c}`.toLowerCase(),
       clip_type: "voice",
       duration_seconds: 12 + c * 5,
       game: profile.games[0]?.name ?? "",

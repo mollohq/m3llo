@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -33,7 +34,7 @@ func SearchUsersRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	}
 
 	query := strings.TrimSpace(req.Query)
-	if len(query) < 2 {
+	if utf8.RuneCountInString(query) < 2 {
 		resp, _ := json.Marshal(map[string]interface{}{"users": []SearchUserEntry{}})
 		return string(resp), nil
 	}
@@ -64,7 +65,7 @@ func SearchUsersRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 			if dn == "" {
 				dn = u.GetUsername()
 			}
-			if strings.Contains(strings.ToLower(dn), queryLower) {
+			if nameMatchesQuery(dn, queryLower) {
 				friendResults = append(friendResults, SearchUserEntry{
 					ID:          u.GetId(),
 					DisplayName: dn,
@@ -116,4 +117,12 @@ func SearchUsersRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 
 	resp, _ := json.Marshal(map[string]interface{}{"users": combined})
 	return string(resp), nil
+}
+
+// nameMatchesQuery reports whether a display name contains the query, with
+// case folded. queryLower is the query after strings.ToLower. strings.ToLower
+// folds every script that has case (Latin, Cyrillic, Greek and others), not
+// only ASCII.
+func nameMatchesQuery(name, queryLower string) bool {
+	return strings.Contains(strings.ToLower(name), queryLower)
 }

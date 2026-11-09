@@ -531,12 +531,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
             None => H2hPerson {
                 id: id.into(),
                 name: name.into(),
-                initials: name
-                    .chars()
-                    .take(2)
-                    .collect::<String>()
-                    .to_uppercase()
-                    .into(),
+                initials: crate::converters::make_initials(name).into(),
                 ..Default::default()
             },
         }

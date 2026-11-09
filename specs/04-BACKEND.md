@@ -81,7 +81,8 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | Module | Responsibilities |
 |--------|-----------------|
 | `main.go` | RPC and hook registration |
-| `auth.go` | Post-authentication hooks (create default metadata) |
+| `auth.go` | Post-authentication hooks (create default metadata); `BeforeUpdateAccount`, the display name rule (§4.4) |
+| `text_rules.go` | `cleanName`, `nameLength` and the name limits (§4.4) |
 | `crews.go` | `CreateCrewRPC`, `DiscoverCrewsRPC`, `UpdateCrewRPC`, `DeleteCrewRPC`, `ChangeCrewRoleRPC`, `KickCrewMemberRPC`, `GetCrewAvatarRPC`, after-join/leave hooks |
 | `streaming.go` | `StartStreamRPC`, `StopStreamRPC`, `UploadThumbnailRPC`; `CapturePolicy` and `loadCapturePolicy` for the `capture` block (§4.2) |
 | `search_users.go` | `SearchUsersRPC` — friends first, then other matches by display name |
@@ -113,12 +114,12 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 
 | RPC name | Auth | Description |
 |----------|------|-------------|
-| `create_crew` | Yes | Creates a Nakama group, stores avatar in storage, generates invite code, sends Nakama notifications to invited users. Returns crew ID + invite code. |
+| `create_crew` | Yes | Cleans the name and checks its length (§4.4). Creates a Nakama group, stores avatar in storage, generates invite code, sends Nakama notifications to invited users. Returns crew ID + invite code. |
 | `discover_crews` | No (`http_key`) | Paginated list of public (open) crews, with the admin curation applied (§4.3). Accepts `cursor`, returns `crews` + `cursor`. Used during onboarding without auth. With a session, it leaves out the caller's crews. |
 | `get_crew_avatar` | No (`http_key`) | Reads crew avatar base64 from storage by crew ID. Returns `{"data":"<base64>"}`. Works without auth for onboarding. |
-| `search_users` | Yes | Searches users by display name prefix. Returns friends first (via `nk.FriendsList`), then non-friends matching the query (via SQL `LIKE` on `users` table). Limit 100 friends, 20 results. |
+| `search_users` | Yes | Searches users by display name. The query is at least 2 characters (runes). The match folds case with `strings.ToLower` (Go) and `LOWER` (SQL). Returns friends first (via `nk.FriendsList`), then non-friends matching the query (via SQL `LIKE` on `users` table). Limit 100 friends, 20 results. |
 | `join_by_invite_code` | Yes | Looks up invite code in storage, joins the associated crew. Returns crew ID + name. |
-| `update_crew` | Yes | Updates crew name, description, avatar, open/closed status, and invite policy. Requires admin role (state ≤ 1). |
+| `update_crew` | Yes | Updates crew name, description, avatar, open/closed status, and invite policy. Requires admin role (state ≤ 1). A new name follows §4.4. |
 | `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). |
 | `change_crew_role` | Yes | Promotes/demotes a member between admin (1) and member (2). Requires owner role (state 0). |
 | `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. |
@@ -304,6 +305,53 @@ Duplicates are dropped. The featured list keeps the first position of each id.
 A hidden id is not checked against the groups: a deleted crew on the list does
 no harm. The write is conditional on the storage version (`"*"`, create only,
 when nothing was stored).
+
+### 4.4 Text rules for names
+
+A name can use any script. The rules are in `text_rules.go`. They apply to crew
+names, voice channel names and display names.
+
+**A character is one Unicode scalar value** (a Go `rune`, a Rust `char`). Every
+limit counts characters, not bytes. "小明" is 2 characters and 6 bytes.
+
+**The clean rule.** The server cleans a name before it checks the length, and
+stores the cleaned name.
+
+| Step | Rule |
+|---|---|
+| 1 | Reject a name that is not valid UTF-8 (`INVALID_ARGUMENT`). |
+| 2 | Remove control characters (category Cc). |
+| 3 | Remove the bidi embedding, override and isolate characters: U+202A to U+202E, U+2066 to U+2069. |
+| 4 | Remove U+200B (zero width space) and U+FEFF (byte order mark). |
+| 5 | Trim Unicode white space at both ends. |
+
+The rule keeps U+200D (zero width joiner), U+200C (zero width non-joiner) and
+the variation selectors. Emoji sequences and some scripts need them. The rule
+does not normalise to NFC: Go has NFC only in `golang.org/x/text`, which the
+plugin does not use.
+
+**The limits**, in characters after the clean rule:
+
+| Name | Minimum | Maximum | Where |
+|---|---|---|---|
+| Crew name | 2 | 24 | `create_crew`, `update_crew` |
+| Voice channel name | 1 | 24 | `channel_create`, `channel_rename` |
+| Display name | 1 | 32 | `BeforeUpdateAccount` (Nakama `PUT /v2/account`) |
+
+A name that is too short or too long fails with `INVALID_ARGUMENT`, for
+example "name must be 2-24 characters". An empty display name passes
+unchanged.
+
+**A longer name that exists already.** The old limit was 32 bytes for crew and
+channel names, so some names have 25 to 32 characters. An update that sends a
+name equal to the stored name passes at any length. The client sends the
+present name with other changes (a crew avatar, a profile avatar), so these
+updates must not fail. A new name must meet the limit.
+
+**The chat body** is not cleaned. Its limit is 2000 characters
+(`features/TEXT-CHAT.md` §2).
+
+**Initials** are not a server rule. See `01-CLIENT.md` §4.2.
 
 ---
 

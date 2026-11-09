@@ -4023,6 +4023,7 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tokio-tungstenite",
+ "unicode-segmentation",
  "url",
  "urlencoding",
  "webbrowser",

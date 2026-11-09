@@ -93,17 +93,29 @@ pub fn launcher_of(game_id: &str, launcher: &str) -> String {
 /// Two letters for the fallback tile: the first letters of the first two words
 /// ("Counter-Strike 2" gives "CS"), or the first two letters of a single
 /// word. Letters and digits only. Never empty for a non-empty name.
+///
+/// A letter is a grapheme (`mello_core::names::graphemes`) that starts with a
+/// letter or a digit, so a combining accent stays with its letter and a
+/// Chinese or Japanese name gives two graphemes.
 pub fn monogram(name: &str) -> String {
-    let words: Vec<&str> = name
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| !w.is_empty())
-        .collect();
-    let letters: String = match words.as_slice() {
-        [] => String::new(),
-        [one] => one.chars().take(2).collect(),
-        [a, b, ..] => a.chars().take(1).chain(b.chars().take(1)).collect(),
+    let mut words: Vec<Vec<&str>> = Vec::new();
+    let mut word: Vec<&str> = Vec::new();
+    for g in mello_core::names::graphemes(name) {
+        if g.chars().next().is_some_and(char::is_alphanumeric) {
+            word.push(g);
+        } else if !word.is_empty() {
+            words.push(std::mem::take(&mut word));
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    let letters: Vec<&str> = match words.as_slice() {
+        [] => Vec::new(),
+        [one] => one.iter().take(2).copied().collect(),
+        [a, b, ..] => a.iter().take(1).chain(b.iter().take(1)).copied().collect(),
     };
-    letters.to_uppercase()
+    letters.iter().map(|g| g.to_uppercase()).collect()
 }
 
 /// One of the five identity hues for a game, stable for the same id.
@@ -221,6 +233,19 @@ mod tests {
         assert_eq!(monogram("X"), "X");
         assert_eq!(monogram("  "), "");
         assert_eq!(monogram("ärlig Öl"), "ÄÖ");
+    }
+
+    #[test]
+    fn the_monogram_takes_graphemes_in_any_script() {
+        assert_eq!(monogram("原神"), "原神");
+        assert_eq!(monogram("ゼルダの伝説"), "ゼル");
+        assert_eq!(monogram("モンスターハンター ワールド"), "モワ");
+        assert_eq!(monogram("Ведьмак 3"), "В3");
+        // "é" as "e" + U+0301 is one letter, not a word break.
+        assert_eq!(monogram("Poke\u{301}mon"), "PO");
+        assert_eq!(monogram("Poke\u{301}mon Go"), "PG");
+        // Emoji are not letters.
+        assert_eq!(monogram("🔥 Fire Game"), "FG");
     }
 
     #[test]

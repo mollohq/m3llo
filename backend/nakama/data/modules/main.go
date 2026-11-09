@@ -63,6 +63,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterBeforeLinkCustom(BeforeLinkCustom); err != nil {
 		return err
 	}
+	if err := initializer.RegisterBeforeUpdateAccount(BeforeUpdateAccount); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// Session lifecycle hooks
