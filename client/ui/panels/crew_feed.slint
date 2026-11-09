@@ -394,7 +394,7 @@ component RecapPeople inherits Rectangle {
             VerticalLayout {
                 alignment: center;
                 StatValue {
-                    value: "\{card.recap-clipped.count}"; unit: card.recap-clipped.count == 1 ? "clip" : "clips";
+                    value: "\{card.recap-clipped.count}"; unit: @tr("clip" | "clips" % card.recap-clipped.count);
                     value-size: 13px; unit-size: 11px;
                     hue: Theme.text-body;
                     gap: 6px;

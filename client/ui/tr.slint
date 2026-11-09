@@ -1,0 +1,71 @@
+// ============================================================
+//  Tr: the user-visible messages that Rust shows
+//  (specs/features/LOCALIZATION.md).
+//
+//  Rust does not own user-visible sentences. When Rust must put a
+//  message on screen (a status, an error, a stage), it calls a member of
+//  this global and gets the message in the language of the UI:
+//
+//      app.global::<Tr>().get_reconnecting()            // a property
+//      app.global::<Tr>().invoke_update_bytes(a, b)      // a function
+//
+//  The rules:
+//  - Add a member only when Rust needs the message. A message that a
+//    .slint file shows stays in that file, in @tr().
+//  - A message with no value is an `out property <string>`. A message
+//    with a value is a `pure public function`.
+//  - The name tells what the message is about, not its words:
+//    `update-unavailable`, not `updater-unavailable-text`. Group the
+//    members by screen.
+//  - An argument is a value: a name, a number, a version. It is never a
+//    part of a sentence. Never join two messages in Rust. Write the full
+//    sentence here with {} places, and give each place a value.
+//  - A plural is one message with the Slint plural form:
+//        pure public function clips(n: int) -> string {
+//            @tr("{n} clip" | "{n} clips" % n)
+//        }
+//  - A context is written only when one English string has two meanings:
+//    @tr("verb" => "Open").
+//  - An upper-case label is written in upper case here. Do not call
+//    to-uppercase() on a translated message.
+//  - A message that Rust sets is not translated again when the language
+//    changes. The language is selected once, at startup.
+// ============================================================
+
+export global Tr {
+    // --- Updater: the force-update dialog (src/updater/startup_update.rs) ---
+
+    /// The update is downloading.
+    out property <string> update-stage-downloading: @tr("Downloading");
+    /// The download is complete and the update is checked.
+    out property <string> update-stage-verifying: @tr("Verifying");
+    /// The update is applied and the app restarts.
+    out property <string> update-stage-restarting: @tr("Restarting");
+    /// The updater could not start.
+    out property <string> update-unavailable: @tr("Updater unavailable");
+
+    /// The download progress, `percent` from 0 to 100.
+    pure public function update-percent(percent: int) -> string {
+        @tr("{}%", percent)
+    }
+
+    /// The downloaded size and the full size, in megabytes. Each value is
+    /// a number with one decimal, formatted by Rust.
+    pure public function update-bytes(downloaded: string, total: string) -> string {
+        @tr("{} / {} MB", downloaded, total)
+    }
+
+    // --- Connection state: the update banner (src/handlers/mod.rs) ---
+
+    out property <string> reconnecting: @tr("Reconnecting…");
+    out property <string> connection-lost: @tr("Connection lost");
+
+    // --- Crew emoji (src/callbacks/quests.rs, src/handlers/quests.rs) ---
+
+    /// The viewer, in the place of a name ("Added by You").
+    out property <string> you: @tr("You");
+    /// The chosen file is not an image that the app can read.
+    out property <string> image-unusable: @tr("That file is not an image we can use.");
+    /// The emoji name does not obey the rule of the server.
+    out property <string> emoji-name-rule: @tr("A name is 2 to 24 letters, digits or underscores.");
+}

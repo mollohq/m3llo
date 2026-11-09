@@ -11,3 +11,7 @@
 go.mod text eol=lf
 go.sum text eol=lf
 *.sh text eol=lf
+# The translation catalogs. scripts/l10n-extract.sh writes the .pot with LF
+# and its --check mode compares bytes, so a CRLF checkout would always differ.
+*.pot text eol=lf
+*.po text eol=lf

@@ -6,7 +6,7 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use super::{UpdateEvent, Updater};
-use crate::ForceUpdateWindow;
+use crate::{ForceUpdateWindow, Tr};
 
 // The dialog size, for centering on Windows and macOS. Linux has no
 // centering: Wayland does not let a client place its window, and on X11 the
@@ -104,6 +104,9 @@ pub(crate) fn run_gate(
     update_event_rx: Receiver<UpdateEvent>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dialog = ForceUpdateWindow::new()?;
+    // The dialog is the first component of the process: select the UI
+    // language now, before any text is set.
+    crate::locale::apply(&crate::settings::Settings::load().language);
     #[cfg(target_os = "windows")]
     crate::platform::set_exe_icon(&dialog);
     let (current_version, target_version, total_bytes) = {
@@ -118,7 +121,7 @@ pub(crate) fn run_gate(
 
     dialog.set_current_version(current_version.into());
     dialog.set_target_version(target_version.into());
-    dialog.set_bytes_text(format_update_bytes(0, total_bytes).into());
+    dialog.set_bytes_text(format_update_bytes(&dialog, 0, total_bytes));
     dialog
         .window()
         .on_close_requested(|| slint::CloseRequestResponse::KeepWindowShown);
@@ -158,32 +161,38 @@ pub(crate) fn run_gate(
             while let Ok(event) = event_rx.try_recv() {
                 match event {
                     UpdateEvent::DownloadStarted { total_bytes } => {
+                        let tr = dialog.global::<Tr>();
                         dialog.set_failed(false);
-                        dialog.set_stage("Downloading".into());
+                        dialog.set_stage(tr.get_update_stage_downloading());
                         dialog.set_progress(0.0);
-                        dialog.set_progress_text("0%".into());
-                        dialog.set_bytes_text(format_update_bytes(0, total_bytes).into());
+                        dialog.set_progress_text(tr.invoke_update_percent(0));
+                        dialog.set_bytes_text(format_update_bytes(&dialog, 0, total_bytes));
                     }
                     UpdateEvent::DownloadProgress {
                         progress,
                         downloaded_bytes,
                         total_bytes,
                     } => {
-                        dialog.set_stage("Downloading".into());
+                        let tr = dialog.global::<Tr>();
+                        dialog.set_stage(tr.get_update_stage_downloading());
                         dialog.set_progress(progress);
-                        dialog.set_progress_text(format_update_percent(progress).into());
-                        dialog.set_bytes_text(
-                            format_update_bytes(downloaded_bytes, total_bytes).into(),
-                        );
+                        dialog
+                            .set_progress_text(tr.invoke_update_percent(update_percent(progress)));
+                        dialog.set_bytes_text(format_update_bytes(
+                            &dialog,
+                            downloaded_bytes,
+                            total_bytes,
+                        ));
                     }
                     UpdateEvent::DownloadComplete => {
-                        dialog.set_stage("Verifying".into());
+                        dialog.set_stage(dialog.global::<Tr>().get_update_stage_verifying());
                         dialog.set_progress(-1.0);
                     }
                     UpdateEvent::ApplyStarted => {
-                        dialog.set_stage("Restarting".into());
+                        let tr = dialog.global::<Tr>();
+                        dialog.set_stage(tr.get_update_stage_restarting());
                         dialog.set_progress(1.0);
-                        dialog.set_progress_text("100%".into());
+                        dialog.set_progress_text(tr.invoke_update_percent(100));
                     }
                     UpdateEvent::Error(message) => {
                         show_failure(&dialog, message);
@@ -300,17 +309,22 @@ fn center_on_primary_screen(dialog: &ForceUpdateWindow) {
 #[cfg(not(any(target_os = "windows", target_os = "macos")))]
 fn center_on_primary_screen(_dialog: &ForceUpdateWindow) {}
 
-fn format_update_bytes(downloaded: u64, total: u64) -> String {
+/// "12.5 / 80.0 MB", in the UI language.
+fn format_update_bytes(
+    dialog: &ForceUpdateWindow,
+    downloaded: u64,
+    total: u64,
+) -> slint::SharedString {
     const MB: f64 = 1_048_576.0;
-    format!(
-        "{:.1} / {:.1} MB",
-        downloaded as f64 / MB,
-        total as f64 / MB
+    dialog.global::<Tr>().invoke_update_bytes(
+        format!("{:.1}", downloaded as f64 / MB).into(),
+        format!("{:.1}", total as f64 / MB).into(),
     )
 }
 
-fn format_update_percent(progress: f32) -> String {
-    format!("{}%", (progress.clamp(0.0, 1.0) * 100.0).round() as u32)
+/// The progress (0 to 1) as a whole percent.
+fn update_percent(progress: f32) -> i32 {
+    (progress.clamp(0.0, 1.0) * 100.0).round() as i32
 }
 
 fn update_error_code(message: &str) -> &'static str {
@@ -333,11 +347,12 @@ fn show_failure(dialog: &ForceUpdateWindow, message: String) {
 }
 
 fn reset_progress(dialog: &ForceUpdateWindow) {
+    let tr = dialog.global::<Tr>();
     dialog.set_failed(false);
     dialog.set_hard_failure(false);
-    dialog.set_stage("Downloading".into());
+    dialog.set_stage(tr.get_update_stage_downloading());
     dialog.set_progress(0.0);
-    dialog.set_progress_text("0%".into());
+    dialog.set_progress_text(tr.invoke_update_percent(0));
     dialog.set_error_code("".into());
     dialog.set_error_message("".into());
 }
@@ -349,7 +364,13 @@ fn start_update(updater: &Rc<RefCell<Option<Updater>>>, dialog: &ForceUpdateWind
         .borrow_mut()
         .as_mut()
         .map(|updater| updater.update_and_restart())
-        .unwrap_or_else(|| Err("Updater unavailable".into()));
+        .unwrap_or_else(|| {
+            Err(dialog
+                .global::<Tr>()
+                .get_update_unavailable()
+                .to_string()
+                .into())
+        });
 
     if let Err(e) = result {
         show_failure(dialog, e.to_string());

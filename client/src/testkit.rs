@@ -39,6 +39,19 @@ pub fn init_test_backend() {
     });
 }
 
+/// A new `MainWindow` that shows the source language, English.
+///
+/// Slint selects the OS language by itself when a thread makes its first
+/// component. The tests find controls by their English labels, so every
+/// window a test makes selects English explicitly. Use this, or
+/// [`Harness::new`], and never `MainWindow::new()` in a test.
+pub fn new_main_window() -> MainWindow {
+    init_test_backend();
+    let app = MainWindow::new().expect("failed to create MainWindow");
+    crate::locale::select_source_language();
+    app
+}
+
 /// Redirect settings writes to a process-wide temp dir, once.
 ///
 /// Callbacks call `Settings::save()` on almost every onboarding step, so
@@ -68,7 +81,7 @@ fn redirect_settings_to_temp_dir() {
 fn assert_element_queries_work() {
     static CHECKED: std::sync::Once = std::sync::Once::new();
     CHECKED.call_once(|| {
-        let probe = MainWindow::new().expect("failed to create probe window");
+        let probe = new_main_window();
         probe.set_onboarding_step(1);
         let found = ElementHandle::find_by_element_type_name(&probe, "Onboarding").count()
             + i_slint_backend_testing::ElementQuery::from_root(&probe)
@@ -220,7 +233,7 @@ impl Harness {
             .build()
             .expect("failed to build test runtime");
 
-        let app = MainWindow::new().expect("failed to create MainWindow");
+        let app = new_main_window();
         let (cmd_tx, cmd_rx) = unbounded_channel::<Command>();
         let (event_tx, event_rx) = std::sync::mpsc::channel::<Event>();
         let (update_tx, update_rx) = std::sync::mpsc::channel::<crate::updater::UpdateEvent>();

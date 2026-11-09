@@ -96,7 +96,7 @@ pub(crate) fn refresh_crew_emoji(ctx: &crate::app_context::AppContext) {
                 has_image: img.is_some(),
                 image: img.unwrap_or_default(),
                 added_by: if e.added_by == viewer {
-                    "You".into()
+                    ctx.app.global::<crate::Tr>().get_you()
                 } else {
                     e.added_by_name.clone().into()
                 },

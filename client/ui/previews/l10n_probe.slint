@@ -1,0 +1,13 @@
+// The translation probe for src/locale.rs. Compiled by build.rs in debug
+// builds only, with the same bundle as main.slint. The extractor does not
+// read previews/, so a message that only this file has is in no catalog.
+
+export component L10nProbe inherits Window {
+    in property <int> n: 1;
+    // A message of the catalogs (update_banner.slint).
+    out property <string> known: @tr("New version available");
+    // A message that no catalog has: it must show the English text.
+    out property <string> missing: @tr("A message that no catalog has");
+    // A plural of the catalogs (crew_feed.slint).
+    out property <string> plural: @tr("clip" | "clips" % root.n);
+}

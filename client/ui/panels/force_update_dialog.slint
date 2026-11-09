@@ -35,7 +35,7 @@ component ForceUpdateButton inherits Rectangle {
 }
 
 export component ForceUpdateWindow inherits Window {
-    title: "Updating m3llo";
+    title: @tr("Updating m3llo");
     no-frame: true;
     preferred-width: 360px;
     preferred-height: failed ? 244px : 188px;
@@ -48,7 +48,7 @@ export component ForceUpdateWindow inherits Window {
 
     in property <string> current-version: "";
     in property <string> target-version: "";
-    in property <string> stage: "Downloading";
+    in property <string> stage: @tr("Downloading");
     in property <float> progress: 0.0;
     in property <string> progress-text: "0%";
     in property <string> bytes-text: "";
@@ -66,9 +66,9 @@ export component ForceUpdateWindow inherits Window {
     property <string> version-text: current-version + " -> " + target-version;
     property <string> failure-body: error-message != "" ? error-message
         : hard-failure
-            ? "Your version can no longer connect to m3llo. Updating is required to continue."
-            : "Couldn't download the update. You can keep using your current version for now.";
-    property <string> secondary-action: hard-failure ? "Quit" : "Start m3llo " + current-version;
+            ? @tr("Your version can no longer connect to m3llo. Updating is required to continue.")
+            : @tr("Couldn't download the update. You can keep using your current version for now.");
+    property <string> secondary-action: hard-failure ? @tr("Quit") : @tr("Start m3llo {}", current-version);
 
     indeterminate-timer := Timer {
         interval: 16ms;
@@ -106,6 +106,7 @@ export component ForceUpdateWindow inherits Window {
                     padding-bottom: failed ? 18px : 20px;
 
                     Text {
+                        // i18n: none (the brand name)
                         text: "m3llo";
                         color: Theme.text-primary;
                         font-family: Theme.font-sans;
@@ -130,7 +131,7 @@ export component ForceUpdateWindow inherits Window {
                     spacing: 0px;
 
                     Text {
-                        text: "Update failed";
+                        text: @tr("Update failed");
                         color: Theme.text-primary;
                         font-family: Theme.font-sans;
                         font-size: Theme.font-lg;
@@ -214,7 +215,7 @@ export component ForceUpdateWindow inherits Window {
 
                     Text {
                         font-weight: Theme.weight-sentence;
-                        text: "Required update";
+                        text: @tr("Required update");
                         color: Theme.text-secondary;
                         font-family: Theme.font-sans;
                         font-size: Theme.font-sm;
@@ -252,7 +253,7 @@ export component ForceUpdateWindow inherits Window {
                     }
 
                     ForceUpdateButton {
-                        text: "Try again";
+                        text: @tr("Try again");
                         primary: true;
                         clicked => { root.retry-clicked(); }
                     }

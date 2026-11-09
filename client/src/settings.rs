@@ -122,6 +122,10 @@ pub struct Settings {
     pub sound_chat: bool,
     pub sound_clips: bool,
     pub sound_crew: bool,
+    /// The UI language: a catalog folder name ("sv", "pt-BR"). Empty is
+    /// "System": the OS language (specs/features/LOCALIZATION.md). The
+    /// `MELLO_LANG` environment variable comes before it.
+    pub language: String,
 }
 
 impl Default for Settings {
@@ -190,6 +194,7 @@ impl Default for Settings {
             sound_chat: true,
             sound_clips: true,
             sound_crew: true,
+            language: String::new(),
         }
     }
 }

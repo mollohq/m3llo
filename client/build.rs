@@ -1,3 +1,5 @@
+#[path = "build_l10n.rs"]
+mod build_l10n;
 #[path = "build_notices.rs"]
 mod build_notices;
 
@@ -77,6 +79,34 @@ fn main() {
     let debug_info = std::env::var("PROFILE").as_deref() == Ok("debug")
         || std::env::var("SLINT_EMIT_DEBUG_INFO").as_deref() == Ok("1");
 
+    // Translations (specs/features/LOCALIZATION.md). The bundle folder is
+    // written under OUT_DIR: a copy of each real catalog in translations/,
+    // and in debug builds the pseudo language `qps`, generated from the
+    // .pot. A release build never contains `qps`. Slint stops the build when
+    // a bundle folder has no catalog, so with no language the UI is not
+    // bundled and shows the English of the source.
+    let translations = manifest_dir.join("translations");
+    println!("cargo:rerun-if-changed={}", translations.display());
+    let pseudo = std::env::var("PROFILE").as_deref() == Ok("debug");
+    let bundle = build_l10n::prepare(&translations, &out_dir, pseudo)
+        .expect("prepare the translation bundle");
+    let languages = bundle
+        .as_ref()
+        .map(|(_, langs)| langs.join(","))
+        .unwrap_or_default();
+    // src/locale.rs matches MELLO_LANG, the setting and the OS against these.
+    println!("cargo:rustc-env=MELLO_BUNDLED_LANGUAGES={languages}");
+    let with_translations = |config: slint_build::CompilerConfiguration| {
+        // No default context: one English string is one message. A context is
+        // written in the source where one string has two meanings.
+        let config =
+            config.with_default_translation_context(slint_build::DefaultTranslationContext::None);
+        match &bundle {
+            Some((path, _)) => config.with_bundled_translations(path),
+            None => config,
+        }
+    };
+
     // The StatValue probe window for src/stat_value_tests.rs. Compiled first,
     // because the last compile_with_config call wins the
     // SLINT_INCLUDE_GENERATED variable that include_modules!() reads, and
@@ -91,11 +121,24 @@ fn main() {
         .unwrap();
     }
 
+    // The translation probe for src/locale.rs: one string the catalogs
+    // have and one they do not have. The same bundle as main.slint, so the
+    // language list is the same. Debug builds only, like the probe above.
+    if debug_info && pseudo {
+        slint_build::compile_with_config(
+            "ui/previews/l10n_probe.slint",
+            with_translations(slint_build::CompilerConfiguration::new().with_style(style.into())),
+        )
+        .unwrap();
+    }
+
     slint_build::compile_with_config(
         "ui/main.slint",
-        slint_build::CompilerConfiguration::new()
-            .with_style(style.into())
-            .with_debug_info(debug_info),
+        with_translations(
+            slint_build::CompilerConfiguration::new()
+                .with_style(style.into())
+                .with_debug_info(debug_info),
+        ),
     )
     .unwrap();
 }
