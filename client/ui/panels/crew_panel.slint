@@ -140,7 +140,7 @@ component VcMemberRow inherits Rectangle {
 
                 // Red is state: the link is down right now.
                 if reconnecting: Text {
-                    text: "Reconnecting";
+                    text: @tr("Reconnecting");
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     letter-spacing: Theme.track-label;
@@ -163,7 +163,7 @@ component VcMemberRow inherits Rectangle {
             if root.muted || root.deafened: StateGlyph {
                 icon: @image-url("../icons/mic-off.svg");
                 tint: Theme.graphic-med;
-                tip: "Muted";
+                tip: @tr("Muted");
                 secondary-clicked => {
                     if (root.adjustable) {
                         root.volume-requested();
@@ -175,7 +175,7 @@ component VcMemberRow inherits Rectangle {
             if root.deafened: StateGlyph {
                 icon: @image-url("../icons/headphone-off.svg");
                 tint: Theme.graphic-med;
-                tip: "Deafened";
+                tip: @tr("Deafened");
                 secondary-clicked => {
                     if (root.adjustable) {
                         root.volume-requested();
@@ -188,7 +188,7 @@ component VcMemberRow inherits Rectangle {
             if root.local-muted: StateGlyph {
                 icon: @image-url("../icons/volume-x.svg");
                 tint: Theme.live;
-                tip: "Muted for you";
+                tip: @tr("Muted for you");
                 secondary-clicked => {
                     root.volume-requested();
                 }
@@ -243,7 +243,7 @@ component VcMemberRow inherits Rectangle {
                 // Tab reaches the glyph; Enter or Space opens the popover.
                 glyph-fs := FocusScope {
                     accessible-role: button;
-                    accessible-label: "Volume for " + root.name;
+                    accessible-label: @tr("Volume for {}", root.name);
                     accessible-action-default => {
                         root.volume-requested();
                     }
@@ -299,12 +299,12 @@ component CatchupStoryCard inherits Rectangle {
                     crew.catchup-count > 0
                         ? (
                             crew.catchup-text == ""
-                                ? ("While away (" + crew.catchup-count + "): activity picked up.")
-                                : ("While away (" + crew.catchup-count + "): " + crew.catchup-text)
+                                ? @tr("While away ({}): activity picked up.", crew.catchup-count)
+                                : @tr("While away ({}): {}", crew.catchup-count, crew.catchup-text)
                         )
-                        : "All quiet lately."
+                        : @tr("All quiet lately.")
                 )
-                : "Loading recent story...";
+                : @tr("Loading recent story...");
             font-family: Theme.font-body;
             font-weight: Theme.weight-sentence;
             font-size: 10.5px;
@@ -499,7 +499,7 @@ component CompactCrewCard inherits Rectangle {
                     }
 
                     Text {
-                        text: "LIVE";
+                        text: @tr("LIVE");
                         font-size: 8px;
                         font-weight: 700;
                         color: white;
@@ -581,7 +581,7 @@ component CompactCrewCard inherits Rectangle {
 
             HorizontalLayout {
                 Text {
-                    text: "IN GAME NOW";
+                    text: @tr("IN GAME NOW");
                     font-size: 9px;
                     font-weight: 600;
                     color: Theme.skel-text;
@@ -865,7 +865,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         invite-touch := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Invite";
+                            accessible-label: @tr("Invite");
                             mouse-cursor: pointer;
                             clicked => { root.invite-clicked(); }
                         }
@@ -893,7 +893,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         chevron-touch := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Crew menu";
+                            accessible-label: @tr("Crew menu");
                             mouse-cursor: pointer;
                             clicked => { crew-context-popup.show(); }
                         }
@@ -942,7 +942,7 @@ component ActiveCrewCard inherits Rectangle {
                             }
 
                             Text {
-                                text: "Crew settings";
+                                text: @tr("Crew settings");
                                 font-size: 13px;
                                 color: Theme.text-primary;
                                 vertical-alignment: center;
@@ -951,7 +951,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         ctx-edit-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Crew settings";
+                            accessible-label: @tr("Crew settings");
                             mouse-cursor: pointer;
                             accessible-action-default => {
                                 root.crew-edit-requested();
@@ -980,7 +980,7 @@ component ActiveCrewCard inherits Rectangle {
                             }
 
                             Text {
-                                text: "Add channel";
+                                text: @tr("Add channel");
                                 font-size: 13px;
                                 color: Theme.text-primary;
                                 vertical-alignment: center;
@@ -989,7 +989,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         ctx-add-ch-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Add channel";
+                            accessible-label: @tr("Add channel");
                             mouse-cursor: pointer;
                             accessible-action-default => {
                                 root.crew-add-channel-requested();
@@ -1018,7 +1018,7 @@ component ActiveCrewCard inherits Rectangle {
                             }
 
                             Text {
-                                text: "Invite";
+                                text: @tr("Invite");
                                 font-size: 13px;
                                 color: Theme.text-primary;
                                 vertical-alignment: center;
@@ -1027,7 +1027,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         ctx-invite-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Invite";
+                            accessible-label: @tr("Invite");
                             mouse-cursor: pointer;
                             accessible-action-default => {
                                 root.invite-clicked();
@@ -1061,7 +1061,7 @@ component ActiveCrewCard inherits Rectangle {
                             }
 
                             Text {
-                                text: "Leave crew";
+                                text: @tr("Leave crew");
                                 font-size: 13px;
                                 color: #ef4444;
                                 vertical-alignment: center;
@@ -1070,7 +1070,7 @@ component ActiveCrewCard inherits Rectangle {
 
                         ctx-leave-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Leave crew";
+                            accessible-label: @tr("Leave crew");
                             mouse-cursor: pointer;
                             accessible-action-default => {
                                 root.crew-leave-requested();
@@ -1135,7 +1135,7 @@ component ActiveCrewCard inherits Rectangle {
                                 }
 
                                 if ch.active && root.voice-reconnecting: Text {
-                                    text: "RECONNECTING";
+                                    text: @tr("RECONNECTING");
                                     font-family: Theme.font-label;
                                     font-weight: Theme.weight-label;
                                     letter-spacing: Theme.track-label;
@@ -1348,7 +1348,7 @@ export component CrewPanel inherits Rectangle {
 
             SidebarActionButton {
                 horizontal-stretch: 1;
-                label: "New crew";
+                label: @tr("New crew");
                 icon: @image-url("../icons/plus.svg");
                 tapped => {
                     crew-create-requested();
@@ -1357,7 +1357,7 @@ export component CrewPanel inherits Rectangle {
 
             SidebarActionButton {
                 horizontal-stretch: 1;
-                label: "Discover";
+                label: @tr("Discover");
                 icon: @image-url("../icons/compass.svg");
                 tapped => {
                     browse-crews-requested();

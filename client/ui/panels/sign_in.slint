@@ -188,7 +188,7 @@ export component SignInPanel inherits Rectangle {
                 back-text := Text {
                     letter-spacing: Theme.track-label;
                     font-weight: Theme.weight-label;
-                    text: "Back";
+                    text: @tr("Back");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     color: back-touch.has-hover ? Theme.text-secondary : Theme.text-tertiary;
@@ -197,7 +197,7 @@ export component SignInPanel inherits Rectangle {
 
                 back-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Back";
+                    accessible-label: @tr("Back");
                     clicked => {
                         root.back();
                     }
@@ -215,7 +215,7 @@ export component SignInPanel inherits Rectangle {
 
             Text {
                 font-family: Theme.font-display;
-                text: "Sign In";
+                text: @tr("Sign In");
                 font-size: 48px;
                 font-weight: Theme.weight-display;
                 color: Theme.text-primary;
@@ -226,7 +226,7 @@ export component SignInPanel inherits Rectangle {
             Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: "Sign in with an existing account.";
+                text: @tr("Sign in with an existing account.");
                 font-size: 14px;
                 color: Theme.text-secondary;
                 font-family: Theme.font-label;
@@ -252,7 +252,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Steam";
+                        label: "Steam"; // i18n: none (brand name)
                         icon: @image-url("../icons/brands/steam.svg");
                         has-icon: true;
                         clicked => { root.signin-steam(); }
@@ -260,7 +260,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Twitch";
+                        label: "Twitch"; // i18n: none (brand name)
                         icon: @image-url("../icons/brands/twitch.svg");
                         has-icon: true;
                         clicked => { root.signin-twitch(); }
@@ -273,7 +273,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Google";
+                        label: "Google"; // i18n: none (brand name)
                         icon: @image-url("../icons/brands/google.svg");
                         has-icon: true;
                         clicked => { root.signin-google(); }
@@ -281,7 +281,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Apple";
+                        label: "Apple"; // i18n: none (brand name)
                         icon: @image-url("../icons/brands/apple.svg");
                         has-icon: true;
                         clicked => { root.signin-apple(); }
@@ -294,7 +294,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Discord";
+                        label: "Discord"; // i18n: none (brand name)
                         icon: @image-url("../icons/brands/discord.svg");
                         has-icon: true;
                         clicked => { root.signin-discord(); }
@@ -302,7 +302,7 @@ export component SignInPanel inherits Rectangle {
 
                     AuthButton {
                         horizontal-stretch: 1;
-                        label: "Email + password";
+                        label: @tr("Email + password");
                         icon: @image-url("../icons/mail.svg");
                         has-icon: true;
                         clicked => { show-email-form = true; }
@@ -326,7 +326,7 @@ export component SignInPanel inherits Rectangle {
                     Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
-                        text: "or";
+                        text: @tr("or");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         color: Theme.text-tertiary;
@@ -344,17 +344,17 @@ export component SignInPanel inherits Rectangle {
 
                 if show-email-form: InputField {
                     text <=> root.si-email;
-                    placeholder: "Email";
+                    placeholder: @tr("Email");
                 }
 
                 if show-email-form: InputField {
                     text <=> root.si-password;
-                    placeholder: "Password";
+                    placeholder: @tr("Password");
                     is-password: true;
                 }
 
                 if show-email-form: AccentButton {
-                    label: loading ? "SIGNING IN…" : "SIGN IN";
+                    label: loading ? @tr("SIGNING IN…") : @tr("SIGN IN");
                     enabled: !loading;
                     clicked => {
                         root.signin-email(root.si-email, root.si-password);
@@ -391,7 +391,7 @@ export component SignInPanel inherits Rectangle {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
                             font-family: Theme.font-label;
-                            text: "Start as a new player to make one.";
+                            text: @tr("Start as a new player to make one.");
                             color: Theme.text-secondary;
                             font-size: 13px;
                         }
@@ -409,7 +409,7 @@ export component SignInPanel inherits Rectangle {
                             letter-spacing: Theme.track-label;
                             font-weight: 600;
                             font-family: Theme.font-label;
-                            text: "Start as a new player";
+                            text: @tr("Start as a new player");
                             color: Theme.action;
                             font-size: 13px;
                             horizontal-alignment: center;
@@ -418,7 +418,7 @@ export component SignInPanel inherits Rectangle {
 
                         new-player-touch := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Start as a new player";
+                            accessible-label: @tr("Start as a new player");
                             clicked => {
                                 root.start-new-player();
                             }

@@ -124,7 +124,7 @@ component SourceCard inherits Rectangle {
 
                 fs-label := Text {
                     letter-spacing: Theme.track-label;
-                    text: "FS";
+                    text: @tr("FS");
                     font-family: Theme.font-label;
                     font-size: 9px;
                     font-weight: 600;
@@ -241,7 +241,7 @@ export component StreamSourcePicker inherits Rectangle {
 
                 // Title
                 Text {
-                    text: "PICK A WINDOW";
+                    text: @tr("PICK A WINDOW");
                     font-family: Theme.font-label;
                     font-size: 16px;
                     font-weight: 600;
@@ -254,7 +254,7 @@ export component StreamSourcePicker inherits Rectangle {
                 // Meta label
                 Text {
                     font-weight: Theme.weight-label;
-                    text: "CAP.01 // INPUT";
+                    text: @tr("CAP.01 // INPUT");
                     font-family: Theme.font-label;
                     font-size: 11px;
                     color: Theme.text-tertiary;
@@ -282,7 +282,7 @@ export component StreamSourcePicker inherits Rectangle {
 
                     close-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         clicked => { close-requested(); }
                     }
                 }
@@ -307,7 +307,7 @@ export component StreamSourcePicker inherits Rectangle {
                         if windows.length == 0: Text {
                             font-family: Theme.font-body;
                             font-weight: Theme.weight-sentence;
-                            text: "No open windows to stream. Open an app and try again.";
+                            text: @tr("No open windows to stream. Open an app and try again.");
                             font-size: 13px;
                             color: Theme.text-secondary;
                         }
@@ -315,7 +315,7 @@ export component StreamSourcePicker inherits Rectangle {
                         if windows.length > 0: VerticalLayout {
                             spacing: 16px;
 
-                            SectionHeader { title: "OPEN WINDOWS"; }
+                            SectionHeader { title: @tr("OPEN WINDOWS"); }
 
                             Rectangle {
                                 property <length> card-w: 160px;
@@ -397,7 +397,7 @@ export component StreamSourcePicker inherits Rectangle {
                         }
 
                         Text {
-                            text: "START STREAMING";
+                            text: @tr("START STREAMING");
                             font-family: Theme.font-label;
                             font-size: 13px;
                             font-weight: 600;
@@ -409,7 +409,7 @@ export component StreamSourcePicker inherits Rectangle {
 
                     start-btn-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "START STREAMING";
+                        accessible-label: @tr("START STREAMING");
                         clicked => {
                             if has-selection {
                                 start-stream(selected-id, selected-mode, selected-preset);

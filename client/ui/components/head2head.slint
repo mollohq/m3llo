@@ -171,7 +171,7 @@ export component OpenSeat inherits Rectangle {
             height: root.size;
         }
         if root.show-label: Text {
-            text: "OPEN";
+            text: @tr("OPEN");
             font-family: Theme.font-label;
             font-size: 9px;
             font-weight: Theme.weight-label;
@@ -190,12 +190,12 @@ export component InviteButton inherits Rectangle {
     in property <bool> compact: false;
     /// Two-line label for a narrow column.
     in property <bool> wrap: false;
-    /// What the button says, and what a screen reader reads.
-    in property <string> label-text: "Invite your crew";
+    /// What the button says, in upper case.
+    in property <string> label-text: @tr("INVITE YOUR CREW");
     /// What a screen reader and the harness call the button, when the short
     /// label on it says less. The crew panel has its own "Invite", so this
     /// keeps the name unique.
-    in property <string> a11y-label: "";
+    in property <string> a11y-label: @tr("Invite your crew");
 
     accessible-role: button;
     accessible-label: root.a11y-label != "" ? root.a11y-label : root.label-text;
@@ -208,7 +208,7 @@ export component InviteButton inherits Rectangle {
         fill-color: ta.pressed ? Theme.confirm-press : Theme.confirm;
     }
     label := Text {
-        text: root.label-text.to-uppercase();
+        text: root.label-text;
         font-family: Theme.font-label;
         font-size: root.compact ? 9px : 10px;
         font-weight: Theme.weight-label;
@@ -264,7 +264,7 @@ export component BeltHero inherits Rectangle {
         HorizontalLayout {
             height: 16px;
             vertical-stretch: 0;
-            CardLabel { text: "HEAD2HEAD"; vertical-alignment: center; }
+            CardLabel { text: @tr("HEAD2HEAD"); vertical-alignment: center; }
             Text {
                 horizontal-stretch: 1;
                 text: root.belt.age;
@@ -304,7 +304,7 @@ export component BeltHero inherits Rectangle {
                     alignment: center;
                     spacing: 1px;
                     Text {
-                        text: "WAS HELD BY";
+                        text: @tr("WAS HELD BY");
                         font-family: Theme.font-label; font-weight: Theme.weight-label;
                         font-size: 8.5px; letter-spacing: 1.6px; color: Theme.text-dim;
                     }
@@ -352,7 +352,7 @@ export component BeltHero inherits Rectangle {
                     alignment: center;
                     spacing: 1px;
                     Text {
-                        text: "NOW HELD BY";
+                        text: @tr("NOW HELD BY");
                         font-family: Theme.font-label; font-weight: Theme.weight-label;
                         font-size: 8.5px; letter-spacing: 1.6px; color: Theme.text-dim;
                         horizontal-alignment: right;

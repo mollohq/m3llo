@@ -131,7 +131,7 @@ component MemberRow inherits Rectangle {
 // ── Main window ─────────────────────────────────────────────────────────────
 
 export component MiniPlayerWindow inherits Window {
-    title: "m3llo HUD";
+    title: "m3llo HUD"; // i18n: none (the product name)
     no-frame: true;
     background: transparent;
     default-font-family: "Barlow";
@@ -267,7 +267,7 @@ export component MiniPlayerWindow inherits Window {
                                 background: #10B981;
                             }
                             Text {
-                                text: online-count + " online";
+                                text: @tr("{n} online" | "{n} online" % online-count);
                                 font-family: "Barlow";
                                 font-size: 10px;
                                 color: #8A8A8A;
@@ -372,7 +372,7 @@ export component MiniPlayerWindow inherits Window {
                             spacing: 2px;
 
                             Text {
-                                text: stream-card.streamer + " is streaming";
+                                text: @tr("{} is streaming", stream-card.streamer);
                                 font-family: "Barlow";
                                 font-size: 9px;
                                 color: #8A8A8A;
@@ -504,7 +504,7 @@ export component MiniPlayerWindow inherits Window {
                                 color: white;
                             }
                             Text {
-                                text: "Connected";
+                                text: @tr("Connected");
                                 font-family: "Barlow";
                                 font-size: 10px;
                                 color: #8A8A8A;

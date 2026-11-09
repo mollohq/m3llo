@@ -120,7 +120,7 @@ component CrewCard inherits Rectangle {
             Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: member-count < 10 ? "0" + member-count + " MEMBERS" : member-count + " MEMBERS";
+                text: @tr("{} MEMBERS", member-count < 10 ? "0\{member-count}" : "\{member-count}");
                 font-family: Theme.font-label;
                 font-size: 11px;
                 color: Theme.text-tertiary;
@@ -132,8 +132,8 @@ component CrewCard inherits Rectangle {
                 Text {
                     letter-spacing: Theme.track-label;
                     text: root.is-full
-                        ? "FULL"
-                        : (card-touch.has-hover ? "CONNECT" : "JOIN");
+                        ? @tr("FULL")
+                        : (card-touch.has-hover ? @tr("CONNECT") : @tr("JOIN"));
                     font-family: Theme.font-label;
                     font-size: 12px;
                     font-weight: Theme.weight-label;
@@ -169,7 +169,7 @@ component CreateCrewCard inherits Rectangle {
 
     create-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "Create your own crew";
+        accessible-label: @tr("Create your own crew");
         mouse-cursor: pointer;
         clicked => {
             root.clicked();
@@ -204,7 +204,7 @@ component CreateCrewCard inherits Rectangle {
 
         Text {
             font-weight: Theme.weight-label;
-            text: "CREATE YOUR\nOWN CREW";
+            text: @tr("CREATE YOUR\nOWN CREW");
             font-family: Theme.font-label;
             font-size: 14px;
             color: Theme.text-secondary;
@@ -250,7 +250,7 @@ component InviteCodeCard inherits Rectangle {
         alignment: center;
 
         Text {
-            text: "GOT AN INVITE?";
+            text: @tr("GOT AN INVITE?");
             font-family: Theme.font-label;
             font-size: 14px;
             font-weight: Theme.weight-label;
@@ -263,7 +263,7 @@ component InviteCodeCard inherits Rectangle {
         }
 
         Text {
-            text: "Paste the link or the code your friend sent you.";
+            text: @tr("Paste the link or the code your friend sent you.");
             font-family: Theme.font-body;
             font-size: Theme.font-md;
             font-weight: Theme.weight-sentence;
@@ -276,8 +276,8 @@ component InviteCodeCard inherits Rectangle {
         }
 
         field := MelloInputField {
-            label: "GOT AN INVITE?";
-            placeholder: "Invite link or code";
+            label: @tr("GOT AN INVITE?");
+            placeholder: @tr("Invite link or code");
             invalid: root.error != "";
             accepted => {
                 if !root.checking {
@@ -319,7 +319,7 @@ component InviteCodeCard inherits Rectangle {
             }
 
             Text {
-                text: root.checking ? "Checking…" : "Open invite";
+                text: root.checking ? @tr("Checking…") : @tr("Open invite");
                 font-family: Theme.font-label;
                 font-size: 14px;
                 font-weight: Theme.weight-label;
@@ -332,7 +332,7 @@ component InviteCodeCard inherits Rectangle {
 
             open-touch := TouchArea {
                 accessible-role: button;
-                accessible-label: root.checking ? "Checking…" : "Open invite";
+                accessible-label: root.checking ? @tr("Checking…") : @tr("Open invite");
                 accessible-enabled: !root.checking;
                 enabled: !root.checking;
                 mouse-cursor: root.checking ? MouseCursor.default : MouseCursor.pointer;
@@ -378,7 +378,7 @@ component DeviceUserCard inherits Rectangle {
                 spacing: 3px;
 
                 Text {
-                    text: "ON THIS DEVICE";
+                    text: @tr("ON THIS DEVICE");
                     font-family: Theme.font-label;
                     font-size: 9.5px;
                     font-weight: Theme.weight-label;
@@ -408,7 +408,7 @@ component DeviceUserCard inherits Rectangle {
                 }
 
                 sign-in-text := Text {
-                    text: "Sign in";
+                    text: @tr("Sign in");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     font-weight: Theme.weight-label;
@@ -420,7 +420,7 @@ component DeviceUserCard inherits Rectangle {
 
                 sign-in-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Sign in";
+                    accessible-label: @tr("Sign in");
                     mouse-cursor: pointer;
                     clicked => {
                         root.sign-in();
@@ -480,7 +480,7 @@ component StepIndicator inherits Rectangle {
 
         step-text := Text {
             font-weight: Theme.weight-label;
-            text: "STEP 0" + shown + " / 0" + total;
+            text: @tr("STEP 0{} / 0{}", shown, total);
             font-family: Theme.font-label;
             font-size: 13px;
             color: Theme.accent;
@@ -500,7 +500,7 @@ component StepIndicator inherits Rectangle {
                 background: shown >= 1 ? Theme.accent : Theme.graphic-light;
                 TouchArea {
                     accessible-role: button;
-                    accessible-label: "Go to step 1";
+                    accessible-label: @tr("Go to step 1");
                     clicked => {
                         root.step-clicked(first);
                     }
@@ -515,7 +515,7 @@ component StepIndicator inherits Rectangle {
                 background: shown >= 2 ? Theme.accent : Theme.graphic-light;
                 TouchArea {
                     accessible-role: button;
-                    accessible-label: "Go to step 2";
+                    accessible-label: @tr("Go to step 2");
                     clicked => {
                         root.step-clicked(first + 1);
                     }
@@ -530,7 +530,7 @@ component StepIndicator inherits Rectangle {
                 background: shown >= 3 ? Theme.accent : Theme.graphic-light;
                 TouchArea {
                     accessible-role: button;
-                    accessible-label: "Go to step 3";
+                    accessible-label: @tr("Go to step 3");
                     clicked => {
                         root.step-clicked(first + 2);
                     }
@@ -716,8 +716,8 @@ export component Onboarding inherits Rectangle {
     in property <[AudioDeviceData]> playback-devices: [];
     in property <string> selected-capture-id: "";
     in property <string> selected-playback-id: "";
-    in-out property <string> selected-capture-name: "System Default";
-    in-out property <string> selected-playback-name: "System Default";
+    in-out property <string> selected-capture-name: @tr("System Default");
+    in-out property <string> selected-playback-name: @tr("System Default");
 
     min-height: 800px;
     min-width: 1024px;
@@ -876,7 +876,7 @@ export component Onboarding inherits Rectangle {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Discover Your Crew";
+                            text: @tr("Discover Your Crew");
                             font-size: 48px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -886,7 +886,7 @@ export component Onboarding inherits Rectangle {
                         Text {
                             font-weight: Theme.weight-display;
                             font-family: Theme.font-display;
-                            text: "Pick a crew to hang out with, start your own, or open an invite from a friend.";
+                            text: @tr("Pick a crew to hang out with, start your own, or open an invite from a friend.");
                             font-size: 18px;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
@@ -931,7 +931,7 @@ export component Onboarding inherits Rectangle {
                                 signin-link-text := Text {
                                     width: parent.width;
                                     height: parent.height;
-                                    text: root.is-returning-user ? "Use another account" : "I already have an account";
+                                    text: root.is-returning-user ? @tr("Use another account") : @tr("I already have an account");
                                     font-family: Theme.font-label;
                                     font-size: 13px;
                                     font-weight: Theme.weight-label;
@@ -980,7 +980,7 @@ export component Onboarding inherits Rectangle {
 
                             Text {
                                 font-family: Theme.font-display;
-                                text: "Couldn't load crews";
+                                text: @tr("Couldn't load crews");
                                 font-size: 15px;
                                 font-weight: Theme.weight-display;
                                 color: Theme.text-primary;
@@ -989,7 +989,7 @@ export component Onboarding inherits Rectangle {
                             Text {
                                 font-weight: Theme.weight-display;
                                 font-family: Theme.font-display;
-                                text: "Check your connection, or create your own crew below.";
+                                text: @tr("Check your connection, or create your own crew below.");
                                 font-size: 13px;
                                 color: Theme.text-secondary;
                             }
@@ -1007,7 +1007,7 @@ export component Onboarding inherits Rectangle {
 
                             Text {
                                 font-family: Theme.font-display;
-                                text: "Retry";
+                                text: @tr("Retry");
                                 font-size: 14px;
                                 font-weight: Theme.weight-display;
                                 color: Theme.text-primary;
@@ -1015,7 +1015,7 @@ export component Onboarding inherits Rectangle {
 
                             retry-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Retry";
+                                accessible-label: @tr("Retry");
                                 clicked => { root.retry-discover(); }
                             }
                         }
@@ -1049,7 +1049,7 @@ export component Onboarding inherits Rectangle {
                                 Text {
                                     font-family: Theme.font-body;
                                     font-weight: Theme.weight-sentence;
-                                    text: "Pick a crew below, or create your own.";
+                                    text: @tr("Pick a crew below, or create your own.");
                                     font-size: Theme.font-md;
                                     color: Theme.text-body;
                                 }
@@ -1079,7 +1079,7 @@ export component Onboarding inherits Rectangle {
                             horizontal-stretch: 1.5;
                             preferred-width: 0px;
                             min-width: 0px;
-                            clicked => { root.create-crew-requested("New Crew"); }
+                            clicked => { root.create-crew-requested("New Crew"); } // i18n: none (the handler ignores the name)
                         }
 
                         // An invite is another way in, so the card is here
@@ -1136,7 +1136,7 @@ export component Onboarding inherits Rectangle {
                                 horizontal-stretch: 1.5;
                                 preferred-width: 0px;
                                 min-width: 0px;
-                                clicked => { root.create-crew-requested("New Crew"); }
+                                clicked => { root.create-crew-requested("New Crew"); } // i18n: none (the handler ignores the name)
                             }
 
                             if base != 0: CrewCard {
@@ -1278,7 +1278,7 @@ export component Onboarding inherits Rectangle {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "Profile & Device Setup";
+                    text: @tr("Profile & Device Setup");
                     font-size: 36px;
                     font-weight: Theme.weight-display;
                     color: Theme.text-primary;
@@ -1309,7 +1309,7 @@ export component Onboarding inherits Rectangle {
                         spacing: 2px;
 
                         Text {
-                            text: "JOINING CREW";
+                            text: @tr("JOINING CREW");
                             font-family: Theme.font-label;
                             font-size: 10px;
                             font-weight: Theme.weight-label;
@@ -1342,7 +1342,7 @@ export component Onboarding inherits Rectangle {
                     alignment: start;
 
                     Text {
-                        text: "CHOOSE IDENTITY";
+                        text: @tr("CHOOSE IDENTITY");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         font-weight: Theme.weight-label;
@@ -1507,7 +1507,7 @@ export component Onboarding inherits Rectangle {
 
                                 upload-touch := TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "Upload avatar";
+                                    accessible-label: @tr("Upload avatar");
                                     clicked => { root.upload-clicked(); }
                                 }
 
@@ -1538,7 +1538,7 @@ export component Onboarding inherits Rectangle {
                                         alignment: center;
                                         Text {
                                             font-weight: Theme.weight-label;
-                                            text: "UPLOAD";
+                                            text: @tr("UPLOAD");
                                             font-family: Theme.font-label;
                                             font-size: 9px;
                                             color: Theme.text-tertiary;
@@ -1568,7 +1568,7 @@ export component Onboarding inherits Rectangle {
 
                             reroll-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Reroll all";
+                                accessible-label: @tr("Reroll all");
                                 clicked => { root.reroll-clicked(); }
                             }
 
@@ -1585,7 +1585,7 @@ export component Onboarding inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "REROLL ALL";
+                                    text: @tr("REROLL ALL");
                                     font-family: Theme.font-label;
                                     font-size: 11px;
                                     font-weight: Theme.weight-label;
@@ -1602,7 +1602,7 @@ export component Onboarding inherits Rectangle {
                     }
 
                     Text {
-                        text: "CREW NICKNAME";
+                        text: @tr("CREW NICKNAME");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         font-weight: Theme.weight-label;
@@ -1616,8 +1616,8 @@ export component Onboarding inherits Rectangle {
 
                     InputField {
                         text <=> root.nickname;
-                        placeholder: "Enter handle...";
-                        label: "CREW NICKNAME";
+                        placeholder: @tr("Enter handle...");
+                        label: @tr("CREW NICKNAME");
                     }
 
                     Rectangle {
@@ -1630,13 +1630,13 @@ export component Onboarding inherits Rectangle {
 
                         SettingsToggle {
                             checked <=> root.share-game-activity;
-                            label: "Show crew what I play";
+                            label: @tr("Show crew what I play");
                         }
 
                         Text {
                             font-weight: Theme.weight-display;
                             font-family: Theme.font-display;
-                            text: "Show crew what I play";
+                            text: @tr("Show crew what I play");
                             font-size: 13px;
                             color: Theme.text-secondary;
                             vertical-alignment: center;
@@ -1650,7 +1650,7 @@ export component Onboarding inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Your installed games, play sessions and what you're in right now.";
+                        text: @tr("Your installed games, play sessions and what you're in right now.");
                         font-size: 12px;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
@@ -1663,7 +1663,7 @@ export component Onboarding inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "m3llo starts with your PC and keeps track of your sessions.";
+                        text: @tr("m3llo starts with your PC and keeps track of your sessions.");
                         font-size: 12px;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
@@ -1677,7 +1677,7 @@ export component Onboarding inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "MICROPHONE INPUT";
+                        text: @tr("MICROPHONE INPUT");
                         font-size: 10px;
                         font-weight: Theme.weight-display;
                         color: Theme.text-secondary;
@@ -1689,7 +1689,7 @@ export component Onboarding inherits Rectangle {
                     }
 
                     DeviceDropdown {
-                        label: "MICROPHONE INPUT";
+                        label: @tr("MICROPHONE INPUT");
                         devices: root.capture-devices;
                         selected-id: root.selected-capture-id;
                         selected-name <=> root.selected-capture-name;
@@ -1704,7 +1704,7 @@ export component Onboarding inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "SPEAKER OUTPUT";
+                        text: @tr("SPEAKER OUTPUT");
                         font-size: 10px;
                         font-weight: Theme.weight-display;
                         color: Theme.text-secondary;
@@ -1716,7 +1716,7 @@ export component Onboarding inherits Rectangle {
                     }
 
                     DeviceDropdown {
-                        label: "SPEAKER OUTPUT";
+                        label: @tr("SPEAKER OUTPUT");
                         devices: root.playback-devices;
                         selected-id: root.selected-playback-id;
                         selected-name <=> root.selected-playback-name;
@@ -1757,7 +1757,7 @@ export component Onboarding inherits Rectangle {
                 AccentButton {
                     horizontal-stretch: 0;
                     width: 200px;
-                    label: root.busy ? "Setting up…" : "Continue";
+                    label: root.busy ? @tr("Setting up…") : @tr("Continue");
                     enabled: nickname != "" && root.selected-avatar >= 0 && !root.busy;
                     clicked => {
                         root.continue-to-step(3);
@@ -1782,7 +1782,7 @@ export component Onboarding inherits Rectangle {
                 height: parent.height;
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: "Back";
+                text: @tr("Back");
                 font-family: Theme.font-label;
                 font-size: 13px;
                 color: back-touch.has-hover && !root.busy ? Theme.text-primary : Theme.text-secondary;
@@ -1791,7 +1791,7 @@ export component Onboarding inherits Rectangle {
 
             back-touch := TouchArea {
                 accessible-role: button;
-                accessible-label: "Back";
+                accessible-label: @tr("Back");
                 accessible-enabled: !root.busy;
                 enabled: !root.busy;
                 mouse-cursor: root.busy ? MouseCursor.default : MouseCursor.pointer;
@@ -1827,7 +1827,7 @@ export component Onboarding inherits Rectangle {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "Lock in your identity.";
+                    text: @tr("Lock in your identity.");
                     font-size: 48px;
                     font-weight: Theme.weight-display;
                     color: Theme.text-primary;
@@ -1838,7 +1838,7 @@ export component Onboarding inherits Rectangle {
                 Text {
                     letter-spacing: Theme.track-label;
                     font-weight: Theme.weight-label;
-                    text: "Save your setup so you can jump back in anytime.";
+                    text: @tr("Save your setup so you can jump back in anytime.");
                     font-size: 14px;
                     color: Theme.text-secondary;
                     font-family: Theme.font-label;
@@ -1911,7 +1911,7 @@ export component Onboarding inherits Rectangle {
 
                                 Text {
                                     letter-spacing: Theme.track-label;
-                                    text: nickname != "" ? nickname : "Anonymous";
+                                    text: nickname != "" ? nickname : @tr("Anonymous");
                                     font-family: Theme.font-label;
                                     font-size: 16px;
                                     font-weight: Theme.weight-label;
@@ -1931,7 +1931,7 @@ export component Onboarding inherits Rectangle {
                                     Text {
                                         font-weight: Theme.weight-sentence;
                                         font-family: Theme.font-body;
-                                        text: "ONLINE";
+                                        text: @tr("ONLINE");
                                         font-size: 12px;
                                         color: Theme.text-secondary;
                                         letter-spacing: 0.5px;
@@ -1961,7 +1961,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Steam";
+                                label: "Steam"; // i18n: none (brand name)
                                 icon: @image-url("../icons/brands/steam.svg");
                                 has-icon: true;
                                 clicked => {
@@ -1971,7 +1971,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Twitch";
+                                label: "Twitch"; // i18n: none (brand name)
                                 icon: @image-url("../icons/brands/twitch.svg");
                                 has-icon: true;
                                 clicked => {
@@ -1986,7 +1986,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Google";
+                                label: "Google"; // i18n: none (brand name)
                                 icon: @image-url("../icons/brands/google.svg");
                                 has-icon: true;
                                 clicked => {
@@ -1996,7 +1996,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Apple";
+                                label: "Apple"; // i18n: none (brand name)
                                 icon: @image-url("../icons/brands/apple.svg");
                                 has-icon: true;
                                 clicked => {
@@ -2011,7 +2011,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Discord";
+                                label: "Discord"; // i18n: none (brand name)
                                 icon: @image-url("../icons/brands/discord.svg");
                                 has-icon: true;
                                 clicked => {
@@ -2021,7 +2021,7 @@ export component Onboarding inherits Rectangle {
 
                             AuthButton {
                                 horizontal-stretch: 1;
-                                label: "Email + password";
+                                label: @tr("Email + password");
                                 icon: @image-url("../icons/mail.svg");
                                 has-icon: true;
                                 subdued: true;
@@ -2047,7 +2047,7 @@ export component Onboarding inherits Rectangle {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Link email & password";
+                            text: @tr("Link email & password");
                             font-size: 20px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -2058,7 +2058,7 @@ export component Onboarding inherits Rectangle {
                         Text {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
-                            text: "Your account will be tied to this email.";
+                            text: @tr("Your account will be tied to this email.");
                             font-family: Theme.font-label;
                             font-size: 13px;
                             color: Theme.text-secondary;
@@ -2071,12 +2071,12 @@ export component Onboarding inherits Rectangle {
 
                         InputField {
                             text <=> root.link-email-value;
-                            placeholder: "Email";
+                            placeholder: @tr("Email");
                         }
 
                         InputField {
                             text <=> root.link-password-value;
-                            placeholder: "Password";
+                            placeholder: @tr("Password");
                             is-password: true;
                         }
 
@@ -2104,7 +2104,7 @@ export component Onboarding inherits Rectangle {
 
                                 email-back-touch := TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "Back";
+                                    accessible-label: @tr("Back");
                                     clicked => {
                                         root.show-email-form = false;
                                     }
@@ -2125,7 +2125,7 @@ export component Onboarding inherits Rectangle {
 
                                     Text {
                                         letter-spacing: Theme.track-label;
-                                        text: "Back";
+                                        text: @tr("Back");
                                         font-family: Theme.font-label;
                                         font-size: 13px;
                                         font-weight: Theme.weight-label;
@@ -2138,7 +2138,7 @@ export component Onboarding inherits Rectangle {
                             // Link account → primary CTA
                             AccentButton {
                                 horizontal-stretch: 1;
-                                label: "Link account";
+                                label: @tr("Link account");
                                 enabled: root.link-email-value != "" && root.link-password-value != "";
                                 clicked => {
                                     root.link-email(root.link-email-value, root.link-password-value);

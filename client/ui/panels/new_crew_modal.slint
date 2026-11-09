@@ -99,7 +99,7 @@ export component NewCrewModal inherits Rectangle {
                 }
 
                 Text {
-                    text: created ? "CREW ESTABLISHED" : "INITIALIZE NEW CREW";
+                    text: created ? @tr("CREW ESTABLISHED") : @tr("INITIALIZE NEW CREW");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     font-weight: Theme.weight-label;
@@ -128,7 +128,7 @@ export component NewCrewModal inherits Rectangle {
 
                     close-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         mouse-cursor: pointer;
                         clicked => { close-requested(); }
                     }
@@ -142,7 +142,7 @@ export component NewCrewModal inherits Rectangle {
 
                 Text {
                     font-weight: Theme.weight-display;
-                    text: "Your crew is ready. Share this link to invite others:";
+                    text: @tr("Your crew is ready. Share this link to invite others:");
                     font-family: Theme.font-sans;
                     font-size: 14px;
                     color: Theme.text-secondary;
@@ -157,7 +157,7 @@ export component NewCrewModal inherits Rectangle {
                     border-color: Theme.graphic-light;
 
                     MelloTextInput {
-                        accessible-label: "Invite link";
+                        accessible-label: @tr("Invite link");
                         text: "m3llo.app/join/" + invite-code;
                         font-family: Theme.font-mono;
                         font-size: 12px;
@@ -180,7 +180,7 @@ export component NewCrewModal inherits Rectangle {
                     surface-color: Theme.surface;
 
                     Text {
-                        text: link-copied ? "Copied" : "Copy link";
+                        text: link-copied ? @tr("Copied") : @tr("Copy link");
                         font-family: Theme.font-sans;
                         font-size: 13px;
                         font-weight: Theme.weight-display;
@@ -191,7 +191,7 @@ export component NewCrewModal inherits Rectangle {
 
                     copy-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Copy link";
+                        accessible-label: @tr("Copy link");
                         mouse-cursor: pointer;
                         clicked => {
                             copy-invite-code();
@@ -209,7 +209,7 @@ export component NewCrewModal inherits Rectangle {
 
                     Text {
                         font-weight: Theme.weight-display;
-                        text: "Done";
+                        text: @tr("Done");
                         font-family: Theme.font-sans;
                         font-size: 13px;
                         color: done-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
@@ -219,7 +219,7 @@ export component NewCrewModal inherits Rectangle {
 
                     done-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Done";
+                        accessible-label: @tr("Done");
                         mouse-cursor: pointer;
                         clicked => { close-requested(); }
                     }
@@ -297,7 +297,7 @@ export component NewCrewModal inherits Rectangle {
                         if !has-avatar: Text {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
-                            text: "UPLOAD";
+                            text: @tr("UPLOAD");
                             font-family: Theme.font-label;
                             font-size: 9px;
                             color: Theme.text-tertiary;
@@ -307,7 +307,7 @@ export component NewCrewModal inherits Rectangle {
 
                         avatar-touch := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Upload crew avatar";
+                            accessible-label: @tr("Upload crew avatar");
                             mouse-cursor: pointer;
                             clicked => { avatar-pick-requested(); }
                         }
@@ -318,7 +318,7 @@ export component NewCrewModal inherits Rectangle {
                         spacing: 6px;
 
                         Text {
-                            text: "CREW IDENTIFIER";
+                            text: @tr("CREW IDENTIFIER");
                             font-family: Theme.font-sans;
                             font-size: 11px;
                             font-weight: Theme.weight-display;
@@ -329,7 +329,7 @@ export component NewCrewModal inherits Rectangle {
                         Text {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
-                            text: "JPG, PNG or GIF. Max 20MB.";
+                            text: @tr("JPG, PNG or GIF. Max 20MB.");
                             font-family: Theme.font-label;
                             font-size: 12px;
                             color: Theme.text-tertiary;
@@ -342,7 +342,7 @@ export component NewCrewModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "CREW NAME";
+                        text: @tr("CREW NAME");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         font-weight: Theme.weight-display;
@@ -357,7 +357,7 @@ export component NewCrewModal inherits Rectangle {
                         border-color: name-input.has-focus ? Theme.accent : Theme.graphic-light;
 
                         name-input := MelloTextInput {
-                            accessible-label: "CREW NAME";
+                            accessible-label: @tr("CREW NAME");
                             x: 16px;
                             width: parent.width - 32px;
                             height: parent.height;
@@ -375,7 +375,7 @@ export component NewCrewModal inherits Rectangle {
                             font-family: Theme.font-sans;
                             font-size: 14px;
                             vertical-alignment: center;
-                            text: "e.g. Shadow Syndicate";
+                            text: @tr("e.g. Shadow Syndicate");
                         }
                     }
                 }
@@ -385,7 +385,7 @@ export component NewCrewModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "DESCRIPTION";
+                        text: @tr("DESCRIPTION");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         font-weight: Theme.weight-display;
@@ -400,7 +400,7 @@ export component NewCrewModal inherits Rectangle {
                         border-color: desc-input.has-focus ? Theme.accent : Theme.graphic-light;
 
                         desc-input := MelloTextInput {
-                            accessible-label: "DESCRIPTION";
+                            accessible-label: @tr("DESCRIPTION");
                             x: 16px;
                             y: 12px;
                             width: parent.width - 32px;
@@ -419,7 +419,7 @@ export component NewCrewModal inherits Rectangle {
                             color: Theme.text-tertiary;
                             font-family: Theme.font-sans;
                             font-size: 14px;
-                            text: "Define your crew's primary objective...";
+                            text: @tr("Define your crew's primary objective...");
                         }
                     }
                 }
@@ -429,7 +429,7 @@ export component NewCrewModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "INVITE MEMBERS";
+                        text: @tr("INVITE MEMBERS");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         font-weight: Theme.weight-display;
@@ -452,7 +452,7 @@ export component NewCrewModal inherits Rectangle {
                             font-size: 14px;
                             font-italic: true;
                             vertical-alignment: center;
-                            text: "Available after setup";
+                            text: @tr("Available after setup");
                         }
                     }
                 }
@@ -462,7 +462,7 @@ export component NewCrewModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "INVITE MEMBERS";
+                        text: @tr("INVITE MEMBERS");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         font-weight: Theme.weight-display;
@@ -504,7 +504,7 @@ export component NewCrewModal inherits Rectangle {
 
                             chip-remove := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Remove " + user.display-name;
+                                accessible-label: @tr("Remove {}", user.display-name);
                                 mouse-cursor: pointer;
                                 clicked => { uninvite-user(user.id); }
                             }
@@ -518,7 +518,7 @@ export component NewCrewModal inherits Rectangle {
                         border-color: invite-input.has-focus ? Theme.accent : Theme.graphic-light;
 
                         invite-input := MelloTextInput {
-                            accessible-label: "INVITE MEMBERS";
+                            accessible-label: @tr("INVITE MEMBERS");
                             x: 16px;
                             width: parent.width - 32px;
                             height: parent.height;
@@ -538,7 +538,7 @@ export component NewCrewModal inherits Rectangle {
                             font-family: Theme.font-sans;
                             font-size: 14px;
                             vertical-alignment: center;
-                            text: "Search by display name...";
+                            text: @tr("Search by display name...");
                         }
                     }
 
@@ -571,7 +571,7 @@ export component NewCrewModal inherits Rectangle {
 
                                     if result.is-friend: Text {
                                         font-weight: Theme.weight-label;
-                                        text: "FRIEND";
+                                        text: @tr("FRIEND");
                                         font-family: Theme.font-label;
                                         font-size: 9px;
                                         letter-spacing: 1px;
@@ -599,7 +599,7 @@ export component NewCrewModal inherits Rectangle {
                     spacing: 8px;
 
                     Text {
-                        text: "VISIBILITY";
+                        text: @tr("VISIBILITY");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         font-weight: Theme.weight-display;
@@ -621,7 +621,7 @@ export component NewCrewModal inherits Rectangle {
                                 background: is-private ? Theme.graphic-light : transparent;
 
                                 Text {
-                                    text: "Private";
+                                    text: @tr("Private");
                                     font-family: Theme.font-sans;
                                     font-size: 12px;
                                     font-weight: 500;
@@ -632,7 +632,7 @@ export component NewCrewModal inherits Rectangle {
 
                                 TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "Private";
+                                    accessible-label: @tr("Private");
                                     mouse-cursor: pointer;
                                     clicked => { is-private = true; }
                                 }
@@ -643,7 +643,7 @@ export component NewCrewModal inherits Rectangle {
                                 background: !is-private ? Theme.graphic-light : transparent;
 
                                 Text {
-                                    text: "Public";
+                                    text: @tr("Public");
                                     font-family: Theme.font-sans;
                                     font-size: 12px;
                                     font-weight: 500;
@@ -654,7 +654,7 @@ export component NewCrewModal inherits Rectangle {
 
                                 TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "Public";
+                                    accessible-label: @tr("Public");
                                     mouse-cursor: pointer;
                                     clicked => { is-private = false; }
                                 }
@@ -674,7 +674,7 @@ export component NewCrewModal inherits Rectangle {
 
                     Text {
                         font-weight: Theme.weight-sentence;
-                        text: "Your crew will be created after account setup.";
+                        text: @tr("Your crew will be created after account setup.");
                         font-family: Theme.font-sans;
                         font-size: 11px;
                         color: Theme.text-tertiary;
@@ -715,7 +715,7 @@ export component NewCrewModal inherits Rectangle {
 
                             cancel-text := Text {
                                 font-weight: Theme.weight-display;
-                                text: "Cancel";
+                                text: @tr("Cancel");
                                 font-family: Theme.font-sans;
                                 font-size: 13px;
                                 color: cancel-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
@@ -725,7 +725,7 @@ export component NewCrewModal inherits Rectangle {
 
                             cancel-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Cancel";
+                                accessible-label: @tr("Cancel");
                                 mouse-cursor: pointer;
                                 clicked => { close-requested(); }
                             }
@@ -747,7 +747,7 @@ export component NewCrewModal inherits Rectangle {
                             }
 
                             create-text := Text {
-                                text: onboarding-mode ? "Save & Continue" : "Establish Crew";
+                                text: onboarding-mode ? @tr("Save & Continue") : @tr("Establish Crew");
                                 font-family: Theme.font-sans;
                                 font-size: 13px;
                                 font-weight: Theme.weight-display;
@@ -758,7 +758,7 @@ export component NewCrewModal inherits Rectangle {
 
                             create-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: onboarding-mode ? "Save & Continue" : "Establish Crew";
+                                accessible-label: onboarding-mode ? @tr("Save & Continue") : @tr("Establish Crew");
                                 mouse-cursor: crew-name-text != "" ? pointer : default;
                                 clicked => {
                                     if crew-name-text != "" {

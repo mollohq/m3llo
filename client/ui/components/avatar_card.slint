@@ -46,7 +46,7 @@ export component AvatarCard inherits Rectangle {
 
     av-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "Choose avatar";
+        accessible-label: @tr("Choose avatar");
         clicked => {
             if !root.spinning { root.clicked(); }
         }

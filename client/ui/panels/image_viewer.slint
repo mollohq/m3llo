@@ -97,7 +97,7 @@ export component ChatImageViewer inherits Rectangle {
                 }
                 prev-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Previous image";
+                    accessible-label: @tr("Previous image");
                     mouse-cursor: pointer;
                     y: (parent.height - 44px) / 2;
                     height: 44px;
@@ -116,7 +116,7 @@ export component ChatImageViewer inherits Rectangle {
                 if !root.current.has-image: Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: root.current.failed ? "Image not available" : "Loading image…";
+                    text: root.current.failed ? @tr("Image not available") : @tr("Loading image…");
                     font-size: Theme.font-md;
                     color: Theme.text-tertiary;
                     horizontal-alignment: center;
@@ -147,7 +147,7 @@ export component ChatImageViewer inherits Rectangle {
                 }
                 next-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Next image";
+                    accessible-label: @tr("Next image");
                     mouse-cursor: pointer;
                     y: (parent.height - 44px) / 2;
                     height: 44px;
@@ -187,7 +187,7 @@ export component ChatImageViewer inherits Rectangle {
                 }
                 TouchArea {
                     accessible-role: button;
-                    accessible-label: "Image " + (i + 1);
+                    accessible-label: @tr("Image {}", i + 1);
                     mouse-cursor: pointer;
                     clicked => { root.index = i; root.shown(i); }
                 }
@@ -232,6 +232,7 @@ export component ChatImageViewer inherits Rectangle {
             height: 36px;
             spacing: 8px;
 
+            // i18n: none (ids that the code compares; the labels are below)
             for action[i] in ["Save", "Copy"]: Rectangle {
                 width: 96px;
                 background: transparent;
@@ -243,7 +244,7 @@ export component ChatImageViewer inherits Rectangle {
                 }
                 action-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: action + " image";
+                    accessible-label: action == "Save" ? @tr("Save image") : @tr("Copy image");
                     mouse-cursor: pointer;
                     clicked => {
                         if action == "Save" { root.save(root.current.url); }
@@ -254,7 +255,7 @@ export component ChatImageViewer inherits Rectangle {
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     letter-spacing: Theme.track-label;
-                    text: action == "Save" ? "SAVE" : "COPY";
+                    text: action == "Save" ? @tr("SAVE") : @tr("COPY");
                     font-size: Theme.font-xs;
                     color: Theme.text-primary;
                     horizontal-alignment: center;
@@ -278,7 +279,7 @@ export component ChatImageViewer inherits Rectangle {
                 }
                 close-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Close image";
+                    accessible-label: @tr("Close image");
                     mouse-cursor: pointer;
                     clicked => { root.close(); }
                 }
@@ -286,7 +287,7 @@ export component ChatImageViewer inherits Rectangle {
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     letter-spacing: Theme.track-label;
-                    text: "CLOSE";
+                    text: @tr("CLOSE");
                     font-size: Theme.font-xs;
                     color: Theme.on-action;
                     horizontal-alignment: center;

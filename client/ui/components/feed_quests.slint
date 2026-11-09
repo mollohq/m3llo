@@ -106,7 +106,7 @@ component GiftTile inherits Rectangle {
             alignment: center;
             Text { text: "m"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 22px; color: Theme.text-primary; }
             Text { text: "3"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 22px; color: Theme.live; }
-            Text { text: "llo+"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 22px; color: Theme.text-primary; }
+            Text { text: "llo+"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 22px; color: Theme.text-primary; } // i18n: none (the brand name m3llo+)
         }
         Kicker { text: root.gift.text; horizontal-alignment: center; color: Theme.live; }
     }
@@ -162,7 +162,7 @@ component GiftColumn inherits Rectangle {
     // Only a gift the viewer can open is a control.
     if root.opens: TouchArea {
         accessible-role: button;
-        accessible-label: "Sealed gift, open it";
+        accessible-label: @tr("Sealed gift, open it");
         mouse-cursor: pointer;
         changed has-hover => { root.hover = self.has-hover; }
         clicked => {
@@ -296,15 +296,15 @@ component QuestRowView inherits Rectangle {
                 }
             }
             if root.step.action == "invite": ZoneButton {
-                label: "INVITE"; a11y-label: "Invite"; tone: "line";
+                label: @tr("INVITE"); a11y-label: @tr("Invite"); tone: "line";
                 clicked => { root.invite(); }
             }
             if root.step.action == "voice": ZoneButton {
-                label: "START VOICE"; a11y-label: "Start voice"; tone: "line";
+                label: @tr("START VOICE"); a11y-label: @tr("Start voice"); tone: "line";
                 clicked => { root.voice(); }
             }
             if root.step.action == "settings": ZoneButton {
-                label: "SETTINGS"; a11y-label: "Game activity settings"; tone: "line";
+                label: @tr("SETTINGS"); a11y-label: @tr("Game activity settings"); tone: "line";
                 clicked => { root.settings(); }
             }
         }
@@ -338,7 +338,7 @@ export component QuestCard inherits BoardShell {
 
         HorizontalLayout {
             height: 16px;
-            CardLabel { text: "QUESTS"; vertical-alignment: center; horizontal-stretch: 1; }
+            CardLabel { text: @tr("QUESTS"); vertical-alignment: center; horizontal-stretch: 1; }
             Text {
                 text: root.count;
                 font-family: Theme.font-display;

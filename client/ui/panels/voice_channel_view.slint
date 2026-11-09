@@ -6,7 +6,7 @@ import { VoiceChannelData, VoiceChannelMember } from "../types.slint";
 // ── Collapsed voice channel row (compact single-line) ──
 component VoiceChannelRow inherits Rectangle {
     in property <string> channel-name;
-    in property <string> status-text: "0 Members";
+    in property <string> status-text: @tr("0 Members");
     in property <bool> show-join: false;
 
     callback clicked();
@@ -81,7 +81,7 @@ component VoiceChannelRow inherits Rectangle {
             }
 
             join-label := Text {
-                text: "Join";
+                text: @tr("Join");
                 font-family: Theme.font-label;
                 font-size: 10px;
                 font-weight: Theme.weight-label;
@@ -93,7 +93,7 @@ component VoiceChannelRow inherits Rectangle {
 
             join-touch := TouchArea {
                 accessible-role: button;
-                accessible-label: "Join " + root.channel-name;
+                accessible-label: @tr("Join {}", root.channel-name);
                 clicked => { root.join-clicked(); }
             }
         }
@@ -165,7 +165,7 @@ component VoiceChannelExpanded inherits Rectangle {
 
                     Text {
                         font-weight: Theme.weight-label;
-                        text: members.length > 0 ? "Active Session" : "Empty";
+                        text: members.length > 0 ? @tr("Active Session") : @tr("Empty");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         color: Theme.text-tertiary;
@@ -182,7 +182,7 @@ component VoiceChannelExpanded inherits Rectangle {
 
                     Text {
                         font-weight: Theme.weight-label;
-                        text: "ACTIVE SESSION";
+                        text: @tr("ACTIVE SESSION");
                         font-family: Theme.font-label;
                         font-size: Theme.font-xs;
                         color: Theme.text-tertiary;
@@ -260,7 +260,7 @@ component VoiceChannelExpanded inherits Rectangle {
 
                     join-tile-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Join " + root.channel-name;
+                        accessible-label: @tr("Join {}", root.channel-name);
                         mouse-cursor: pointer;
                         clicked => { root.join-clicked(); }
                     }
@@ -271,7 +271,7 @@ component VoiceChannelExpanded inherits Rectangle {
 
                 Text {
                     letter-spacing: Theme.track-label;
-                    text: "Join";
+                    text: @tr("Join");
                     font-family: Theme.font-label;
                     font-size: 10px;
                     font-weight: Theme.weight-label;
@@ -336,7 +336,7 @@ component VoiceChannelExpanded inherits Rectangle {
             if members.length == 0 && !show-join: Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: "No one here yet";
+                text: @tr("No one here yet");
                 font-family: Theme.font-label;
                 font-size: 11px;
                 color: Theme.text-tertiary;
@@ -386,10 +386,10 @@ export component VoiceChannelView inherits Rectangle {
             if !channel.expanded: VoiceChannelRow {
                 channel-name: channel.name;
                 status-text: channel.active
-                    ? "Connected"
+                    ? @tr("Connected")
                     : (channel.member-count > 0
-                        ? "\{channel.member-count} Active"
-                        : "0 Members");
+                        ? @tr("{n} Active" | "{n} Active" % channel.member-count)
+                        : @tr("0 Members"));
                 show-join: !channel.active && root.mic-permission-granted;
                 clicked => { root.toggle-channel(channel.id); }
                 join-clicked => { root.join-voice-channel(channel.id); }
@@ -408,7 +408,7 @@ export component VoiceChannelView inherits Rectangle {
 
                 add-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "New channel";
+                    accessible-label: @tr("New channel");
                     mouse-cursor: pointer;
                     clicked => { root.creating = true; }
                 }
@@ -431,7 +431,7 @@ export component VoiceChannelView inherits Rectangle {
                     Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
-                        text: "New channel";
+                        text: @tr("New channel");
                         font-family: Theme.font-label;
                         font-size: 11px;
                         color: add-touch.has-hover ? Theme.text-primary : Theme.text-tertiary;
@@ -470,7 +470,7 @@ export component VoiceChannelView inherits Rectangle {
                         }
 
                         channel-input := MelloTextInput {
-                            accessible-label: "New channel";
+                            accessible-label: @tr("New channel");
                             font-family: Theme.font-mono;
                             font-size: 12px;
                             color: Theme.text-primary;

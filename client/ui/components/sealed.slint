@@ -74,16 +74,16 @@ export global SealedFmt {
         let tenths = Math.round(v * 10);
         return kind == 0
             ? (decimals == 1 ? "\{group(Math.floor(tenths / 10))}.\{Math.mod(tenths, 10)}" : group(Math.round(v)))
-            : kind == 1 ? "\{Math.floor(Math.round(v) / 60)} h \{pad2(Math.mod(Math.round(v), 60))}"
+            : kind == 1 ? @tr("{} h {}", Math.floor(Math.round(v) / 60), pad2(Math.mod(Math.round(v), 60)))
             : "\{pad2(Math.mod(Math.floor(Math.round(v) / 60), 24))}:\{pad2(Math.mod(Math.round(v), 60))}";
     }
     /// A span of minutes as the recap writes it: "9 h 10", "3 h 00", "40 min".
     public pure function span(m: int) -> string {
-        return m >= 60 ? "\{Math.floor(m / 60)} h \{pad2(Math.mod(m, 60))}" : "\{m} min";
+        return m >= 60 ? @tr("{} h {}", Math.floor(m / 60), pad2(Math.mod(m, 60))) : @tr("{} min", m);
     }
     /// Minutes as the recap card writes them while they count up.
     public pure function minutes(m: int) -> string {
-        return m >= 60 ? "\{Math.floor(m / 60)}h \{pad2(Math.mod(m, 60))}m" : "\{m}m";
+        return m >= 60 ? @tr("{}h {}m", Math.floor(m / 60), pad2(Math.mod(m, 60))) : @tr("{}m", m);
     }
 }
 
@@ -245,7 +245,7 @@ export component SealedBelt inherits Rectangle {
         enabled: root.live;
         accessible-enabled: root.live;
         accessible-role: button;
-        accessible-label: "Sealed belt, open it";
+        accessible-label: @tr("Sealed belt, open it");
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }
@@ -306,7 +306,7 @@ export component SealedRecap inherits Rectangle {
     callback clicked();
     in property <RecapSeal> seal;
     /// "Week 4", or "This week" before the server counts the weeks.
-    in property <string> week: "This week";
+    in property <string> week: @tr("This week");
     /// The pointer is over the card. Also set by the centre view for the back.
     in property <bool> hot: false;
     /// 0 to 1 while the field clears from the key, at the start of the opening.
@@ -398,7 +398,7 @@ export component SealedRecap inherits Rectangle {
             alignment: start;
 
             Text {
-                text: "WEEKLY RECAP";
+                text: @tr("WEEKLY RECAP");
                 font-family: Theme.font-label;
                 font-size: 11px;
                 font-weight: Theme.weight-label;
@@ -421,7 +421,7 @@ export component SealedRecap inherits Rectangle {
         enabled: root.interactive;
         accessible-enabled: root.interactive;
         accessible-role: button;
-        accessible-label: "Sealed recap, open it";
+        accessible-label: @tr("Sealed recap, open it");
         mouse-cursor: pointer;
         clicked => { root.clicked(); }
     }

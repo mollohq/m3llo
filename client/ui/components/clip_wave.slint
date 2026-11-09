@@ -45,7 +45,7 @@ export component ClipPlayRing inherits Rectangle {
 
     ring-hover := TouchArea {
         accessible-role: button;
-        accessible-label: root.is-playing && !root.is-paused ? "Pause" : "Play";
+        accessible-label: root.is-playing && !root.is-paused ? @tr("Pause") : @tr("Play");
         mouse-cursor: pointer;
         clicked => { root.ring-clicked(); }
     }
@@ -222,7 +222,7 @@ export component DotWaveform inherits Rectangle {
 
     touch := TouchArea {
         accessible-role: slider;
-        accessible-label: "Clip position";
+        accessible-label: @tr("Clip position");
         mouse-cursor: crosshair;
 
         changed pressed => {

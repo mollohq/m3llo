@@ -45,7 +45,7 @@ export component InviteWelcome inherits Rectangle {
         alignment: start;
 
         Text {
-            text: "YOU'RE INVITED";
+            text: @tr("YOU'RE INVITED");
             font-family: Theme.font-label;
             font-size: 10px;
             font-weight: Theme.weight-label;
@@ -72,8 +72,8 @@ export component InviteWelcome inherits Rectangle {
             inviter-text := Text {
                 horizontal-stretch: 1;
                 text: root.has-inviter
-                    ? root.inviter.name + " invited you to join"
-                    : "You're invited to join";
+                    ? @tr("{} invited you to join", root.inviter.name)
+                    : @tr("You're invited to join");
                 font-family: Theme.font-body;
                 font-size: 16px;
                 font-weight: Theme.weight-sentence;
@@ -140,7 +140,7 @@ export component InviteWelcome inherits Rectangle {
                         padding-left: root.members.length > 0 ? 6px : 0px;
 
                         member-count-text := Text {
-                            text: root.member-count == 1 ? "1 member" : root.member-count + " members";
+                            text: @tr("{n} member" | "{n} members" % root.member-count);
                             font-family: Theme.font-label;
                             font-size: 12px;
                             font-weight: Theme.weight-label;
@@ -154,7 +154,7 @@ export component InviteWelcome inherits Rectangle {
         Rectangle { height: 56px; }
 
         Text {
-            text: "Pick a name and an avatar, check your mic, and you're in.\nIt takes about a minute.";
+            text: @tr("Pick a name and an avatar, check your mic, and you're in.\nIt takes about a minute.");
             font-family: Theme.font-body;
             font-size: 15px;
             font-weight: Theme.weight-sentence;
@@ -184,7 +184,7 @@ export component InviteWelcome inherits Rectangle {
                     x: 24px;
                     width: parent.width - 48px;
                     height: parent.height;
-                    text: "Join " + root.crew-name;
+                    text: @tr("Join {}", root.crew-name);
                     font-family: Theme.font-label;
                     font-size: 14px;
                     font-weight: Theme.weight-label;
@@ -196,7 +196,7 @@ export component InviteWelcome inherits Rectangle {
 
                 join-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Join " + root.crew-name;
+                    accessible-label: @tr("Join {}", root.crew-name);
                     mouse-cursor: pointer;
                     clicked => { root.join-requested(); }
                 }
@@ -207,7 +207,7 @@ export component InviteWelcome inherits Rectangle {
                 height: 32px;
 
                 not-now-text := Text {
-                    text: "Not now — show me other crews";
+                    text: @tr("Not now — show me other crews");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     font-weight: Theme.weight-label;
@@ -217,7 +217,7 @@ export component InviteWelcome inherits Rectangle {
 
                 not-now-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Not now — show me other crews";
+                    accessible-label: @tr("Not now — show me other crews");
                     mouse-cursor: pointer;
                     clicked => { root.not-now-requested(); }
                 }

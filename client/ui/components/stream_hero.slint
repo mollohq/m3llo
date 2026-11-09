@@ -53,12 +53,12 @@ export component MediaChip inherits Rectangle {
 /// difference of the two descents, the StatValue rule, so LIVE, the number
 /// and its word stand on one baseline. The dot rides the label's x-height.
 export component StreamTag inherits MediaChip {
-    in property <string> label: "STREAM";
+    in property <string> label: @tr("noun" => "STREAM");
     in property <bool> live: false;
     /// "2 STREAMING": the number, in Oxanium, then the word. Both empty on a
     /// hero that holds one stream.
     in property <string> count: "";
-    in property <string> count-label: "STREAMING";
+    in property <string> count-label: @tr("STREAMING");
 
     property <length> label-size: 9px;
     property <length> number-size: 12px;
@@ -234,7 +234,7 @@ export component TwoStreamHero inherits Rectangle {
 
             watch-touch := TouchArea {
                 accessible-role: button;
-                accessible-label: "Watch " + s.streamer-name;
+                accessible-label: @tr("Watch {}", s.streamer-name);
                 mouse-cursor: pointer;
                 clicked => { root.watch-clicked(s.host-id); }
             }
@@ -259,7 +259,7 @@ export component TwoStreamHero inherits Rectangle {
     StreamTag {
         x: 18px;
         y: 14px;
-        label: "LIVE";
+        label: @tr("LIVE");
         live: true;
         count: root.streams.length;
     }

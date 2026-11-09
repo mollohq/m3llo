@@ -25,7 +25,7 @@ component ClipTag inherits MediaChip {
         height: root.small ? 9px : 10px;
     }
     Text {
-        text: "CLIP";
+        text: @tr("CLIP");
         font-family: Theme.font-label;
         font-weight: Theme.weight-label;
         font-size: 9px;
@@ -154,7 +154,7 @@ export component GameClipCard inherits Rectangle {
                 height: 10px;
             }
             Text {
-                text: "UPLOADING";
+                text: @tr("UPLOADING");
                 font-family: Theme.font-label;
                 font-weight: Theme.weight-label;
                 font-size: 9px;
@@ -246,7 +246,7 @@ export component GameClipCard inherits Rectangle {
 
     card-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "Play the game clip of " + root.clipper-name;
+        accessible-label: @tr("Play the game clip of {}", root.clipper-name);
         accessible-enabled: root.can-play;
         enabled: root.can-play;
         mouse-cursor: root.can-play ? pointer : default;

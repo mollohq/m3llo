@@ -259,7 +259,7 @@ export component MemberVolumePopover inherits Rectangle {
                     }
 
                     Text {
-                        text: "Only you hear this change.";
+                        text: @tr("Only you hear this change.");
                         font-family: Theme.font-body;
                         font-weight: Theme.weight-sentence;
                         font-size: 11px;
@@ -281,7 +281,7 @@ export component MemberVolumePopover inherits Rectangle {
 
                 HorizontalLayout {
                     Text {
-                        text: "USER VOLUME";
+                        text: @tr("USER VOLUME");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -298,7 +298,7 @@ export component MemberVolumePopover inherits Rectangle {
                         background: root.local-muted ? transparent : Theme.accent-bg;
 
                         pct-text := Text {
-                            text: root.local-muted ? "MUTED" : root.volume + "%";
+                            text: root.local-muted ? @tr("MUTED") : root.volume + "%";
                             font-family: Theme.font-label;
                             font-size: 11px;
                             font-weight: Theme.weight-label;
@@ -311,7 +311,7 @@ export component MemberVolumePopover inherits Rectangle {
                 }
 
                 MemberVolumeSlider {
-                    label: "Volume for " + root.name;
+                    label: @tr("Volume for {}", root.name);
                     value: root.volume;
                     enabled: !root.local-muted;
                     changed(v) => { root.volume-changed(v); }
@@ -353,7 +353,7 @@ export component MemberVolumePopover inherits Rectangle {
                 // libmello applies the gain before the limiter, so a loud
                 // voice above 100 % can clip.
                 if root.boosted: Text {
-                    text: "Above 100% a loud voice can distort.";
+                    text: @tr("Above 100% a loud voice can distort.");
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
                     font-size: 11px;
@@ -380,7 +380,7 @@ export component MemberVolumePopover inherits Rectangle {
                     cross-axis-alignment: center;
 
                     Text {
-                        text: "Mute";
+                        text: @tr("Mute");
                         font-family: Theme.font-display;
                         font-size: 13px;
                         font-weight: Theme.weight-display;
@@ -390,7 +390,7 @@ export component MemberVolumePopover inherits Rectangle {
                     }
 
                     SmallToggle {
-                        label: "Mute " + root.name + " for you";
+                        label: @tr("Mute {} for you", root.name);
                         checked: root.local-muted;
                         self-toggle: false;
                         toggled(v) => { root.local-mute-changed(v); }
@@ -410,7 +410,7 @@ export component MemberVolumePopover inherits Rectangle {
                 Text {
                     x: 14px;
                     height: parent.height;
-                    text: "RESET TO 100%";
+                    text: @tr("RESET TO 100%");
                     font-family: Theme.font-label;
                     font-size: 9.5px;
                     font-weight: Theme.weight-label;
@@ -423,7 +423,7 @@ export component MemberVolumePopover inherits Rectangle {
 
                 reset-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Reset volume to 100%";
+                    accessible-label: @tr("Reset volume to 100%");
                     enabled: reset-row.can-reset;
                     accessible-enabled: reset-row.can-reset;
                     mouse-cursor: reset-row.can-reset ? pointer : default;

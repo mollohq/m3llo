@@ -137,7 +137,7 @@ export component ExpandedClipPlayer inherits Rectangle {
                 }
                 PlayerButton {
                     icon: @image-url("../icons/x.svg");
-                    label: "Close the clip";
+                    label: @tr("Close the clip");
                     clicked => { ClipPlayerUi.close(); }
                 }
             }
@@ -197,7 +197,7 @@ export component ExpandedClipPlayer inherits Rectangle {
                     icon: ClipPlayerUi.paused || ClipPlayerUi.ended
                         ? @image-url("../icons/play-cut.svg")
                         : @image-url("../icons/pause.svg");
-                    label: ClipPlayerUi.ended ? "Play again" : ClipPlayerUi.paused ? "Play" : "Pause";
+                    label: ClipPlayerUi.ended ? @tr("Play again") : ClipPlayerUi.paused ? @tr("Play") : @tr("Pause");
                     clicked => { ClipPlayerUi.toggle-pause(); }
                 }
                 Text {
@@ -230,7 +230,7 @@ export component ExpandedClipPlayer inherits Rectangle {
                     }
                     TouchArea {
                         accessible-role: slider;
-                        accessible-label: "Clip position";
+                        accessible-label: @tr("Clip position");
                         mouse-cursor: pointer;
                         clicked => {
                             if ClipPlayerUi.duration-ms > 0 {
@@ -240,7 +240,7 @@ export component ExpandedClipPlayer inherits Rectangle {
                     }
                 }
                 if ClipPlayerUi.buffering: Text {
-                    text: "BUFFERING";
+                    text: @tr("BUFFERING");
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     font-size: 10px;

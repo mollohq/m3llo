@@ -51,7 +51,7 @@ component OverviewTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "CREW IDENTITY"; }
+        SectionHeader { title: @tr("CREW IDENTITY"); }
 
         HorizontalLayout {
             spacing: 28px;
@@ -115,14 +115,14 @@ component OverviewTab inherits VerticalLayout {
 
                     avatar-change-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Change";
+                        accessible-label: @tr("Change");
                         mouse-cursor: pointer;
                         clicked => { avatar-upload-clicked(); }
                     }
 
                     Text {
                         font-weight: Theme.weight-label;
-                        text: "Change";
+                        text: @tr("Change");
                         font-family: Theme.font-label;
                         font-size: 11px;
                         letter-spacing: 0.5px;
@@ -142,7 +142,7 @@ component OverviewTab inherits VerticalLayout {
                     spacing: 8px;
 
                     Text {
-                        text: "CREW NAME";
+                        text: @tr("CREW NAME");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         font-weight: Theme.weight-label;
@@ -151,7 +151,7 @@ component OverviewTab inherits VerticalLayout {
                     }
 
                     MelloInputField {
-                        label: "CREW NAME";
+                        label: @tr("CREW NAME");
                         text <=> crew-name-value;
                     }
                 }
@@ -160,7 +160,7 @@ component OverviewTab inherits VerticalLayout {
                     spacing: 8px;
 
                     Text {
-                        text: "DESCRIPTION";
+                        text: @tr("DESCRIPTION");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         font-weight: Theme.weight-label;
@@ -169,7 +169,7 @@ component OverviewTab inherits VerticalLayout {
                     }
 
                     MelloInputField {
-                        label: "DESCRIPTION";
+                        label: @tr("DESCRIPTION");
                         text <=> crew-description-value;
                     }
                 }
@@ -181,7 +181,7 @@ component OverviewTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 16px;
 
-        SectionHeader { title: "PRIVACY"; }
+        SectionHeader { title: @tr("PRIVACY"); }
 
         HorizontalLayout {
             spacing: 12px;
@@ -192,7 +192,7 @@ component OverviewTab inherits VerticalLayout {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "Open crew";
+                    text: @tr("Open crew");
                     font-size: 13px;
                     font-weight: Theme.weight-display;
                     color: Theme.text-primary;
@@ -200,7 +200,7 @@ component OverviewTab inherits VerticalLayout {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "Anyone can find and join this crew without an invite";
+                    text: @tr("Anyone can find and join this crew without an invite");
                     font-size: 11px;
                     color: Theme.text-tertiary;
                     wrap: word-wrap;
@@ -229,7 +229,7 @@ component OverviewTab inherits VerticalLayout {
 
                 privacy-ta := TouchArea {
                     accessible-role: switch;
-                    accessible-label: "Open crew";
+                    accessible-label: @tr("Open crew");
                     mouse-cursor: pointer;
                     clicked => { is-open = !is-open; }
                 }
@@ -241,7 +241,7 @@ component OverviewTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 16px;
 
-        SectionHeader { title: "INVITES"; }
+        SectionHeader { title: @tr("INVITES"); }
 
         HorizontalLayout {
             spacing: 12px;
@@ -252,7 +252,7 @@ component OverviewTab inherits VerticalLayout {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "Who can create invite links";
+                    text: @tr("Who can create invite links");
                     font-size: 13px;
                     font-weight: Theme.weight-display;
                     color: Theme.text-primary;
@@ -260,7 +260,7 @@ component OverviewTab inherits VerticalLayout {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: invite-policy == "admins" ? "Only admins can generate invite codes" : "All members can generate invite codes";
+                    text: invite-policy == "admins" ? @tr("Only admins can generate invite codes") : @tr("All members can generate invite codes");
                     font-size: 11px;
                     color: Theme.text-tertiary;
                     wrap: word-wrap;
@@ -282,7 +282,7 @@ component OverviewTab inherits VerticalLayout {
                     Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
-                        text: "Everyone";
+                        text: @tr("Everyone");
                         font-family: Theme.font-label;
                         font-size: 11px;
                         color: invite-policy == "everyone" ? Theme.text-primary : Theme.text-tertiary;
@@ -292,7 +292,7 @@ component OverviewTab inherits VerticalLayout {
 
                     inv-everyone-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Everyone";
+                        accessible-label: @tr("Everyone");
                         mouse-cursor: pointer;
                         clicked => { invite-policy = "everyone"; }
                     }
@@ -308,7 +308,7 @@ component OverviewTab inherits VerticalLayout {
                     Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
-                        text: "Admins";
+                        text: @tr("Admins");
                         font-family: Theme.font-label;
                         font-size: 11px;
                         color: invite-policy == "admins" ? Theme.text-primary : Theme.text-tertiary;
@@ -318,7 +318,7 @@ component OverviewTab inherits VerticalLayout {
 
                     inv-admins-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Admins";
+                        accessible-label: @tr("Admins");
                         mouse-cursor: pointer;
                         clicked => { invite-policy = "admins"; }
                     }
@@ -345,7 +345,7 @@ component VoiceChannelsTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "VOICE CHANNELS"; }
+        SectionHeader { title: @tr("VOICE CHANNELS"); }
 
         VerticalLayout {
             spacing: 8px;
@@ -427,7 +427,7 @@ component VoiceChannelsTab inherits VerticalLayout {
 
                         del-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Delete " + ch.name;
+                            accessible-label: @tr("Delete {}", ch.name);
                             mouse-cursor: pointer;
                             clicked => { delete-channel(ch.id); }
                         }
@@ -441,13 +441,13 @@ component VoiceChannelsTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 12px;
 
-        SectionHeader { title: "ADD CHANNEL"; }
+        SectionHeader { title: @tr("ADD CHANNEL"); }
 
         HorizontalLayout {
             spacing: 12px;
 
             add-ch-input := MelloInputField {
-                label: "New channel";
+                label: @tr("New channel");
                 horizontal-stretch: 1;
                 text <=> new-channel-name;
                 placeholder: "channel-name";
@@ -489,7 +489,7 @@ component VoiceChannelsTab inherits VerticalLayout {
 
                 add-ch-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Add channel";
+                    accessible-label: @tr("Add channel");
                     mouse-cursor: pointer;
                     clicked => {
                         if new-channel-name != "" {
@@ -576,7 +576,7 @@ component MemberRow inherits Rectangle {
             Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: member.role == 0 ? "Owner" : member.role == 1 ? "Admin" : "Member";
+                text: member.role == 0 ? @tr("Owner") : member.role == 1 ? @tr("Admin") : @tr("Member");
                 font-family: Theme.font-label;
                 font-size: 11px;
                 color: member.role == 0 ? Theme.text-secondary : Theme.text-tertiary;
@@ -596,7 +596,7 @@ component MemberRow inherits Rectangle {
 
             role-label := Text {
                 font-weight: Theme.weight-label;
-                text: member.role == 0 ? "OWNER" : member.role == 1 ? "ADMIN" : "MEMBER";
+                text: member.role == 0 ? @tr("OWNER") : member.role == 1 ? @tr("ADMIN") : @tr("MEMBER");
                 font-family: Theme.font-label;
                 font-size: 10px;
                 letter-spacing: 0.5px;
@@ -624,7 +624,7 @@ component MemberRow inherits Rectangle {
 
             role-btn-ta := TouchArea {
                 accessible-role: button;
-                accessible-label: member.role == 2 ? "Promote " + member.name : "Demote " + member.name;
+                accessible-label: member.role == 2 ? @tr("Promote {}", member.name) : @tr("Demote {}", member.name);
                 mouse-cursor: pointer;
                 clicked => {
                     if member.role == 2 {
@@ -654,7 +654,7 @@ component MemberRow inherits Rectangle {
 
             kick-ta := TouchArea {
                 accessible-role: button;
-                accessible-label: "Kick " + member.name;
+                accessible-label: @tr("Kick {}", member.name);
                 mouse-cursor: pointer;
                 clicked => { kick(member.id); }
             }
@@ -686,7 +686,7 @@ component MembersTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 0px;
 
-        SectionHeader { title: "OWNER"; }
+        SectionHeader { title: @tr("OWNER"); }
 
         for m in members: Rectangle {
             height: m.role == 0 ? root.row-h + root.row-gap : 0px;
@@ -705,7 +705,7 @@ component MembersTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 0px;
 
-        SectionHeader { title: "ADMINS"; }
+        SectionHeader { title: @tr("ADMINS"); }
 
         for m in members: Rectangle {
             height: m.role == 1 ? root.row-h + root.row-gap : 0px;
@@ -728,7 +728,7 @@ component MembersTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 0px;
 
-        SectionHeader { title: "MEMBERS"; }
+        SectionHeader { title: @tr("MEMBERS"); }
 
         for m in members: Rectangle {
             height: m.role == 2 ? root.row-h + root.row-gap : 0px;
@@ -853,7 +853,7 @@ export component CrewSettingsModal inherits Rectangle {
                 }
 
                 Text {
-                    text: "CREW SETTINGS";
+                    text: @tr("CREW SETTINGS");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     font-weight: Theme.weight-label;
@@ -881,7 +881,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                     close-btn-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         clicked => { close-requested(); }
                     }
                 }
@@ -941,7 +941,7 @@ export component CrewSettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "OVERVIEW";
+                                    text: @tr("OVERVIEW");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -953,7 +953,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                                 overview-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "OVERVIEW";
+                                    accessible-label: @tr("OVERVIEW");
                                     clicked => { active-tab = 0; }
                                 }
                             }
@@ -988,7 +988,7 @@ export component CrewSettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "CHANNELS";
+                                    text: @tr("CHANNELS");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -1000,7 +1000,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                                 channels-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "CHANNELS";
+                                    accessible-label: @tr("CHANNELS");
                                     clicked => { active-tab = 1; }
                                 }
                             }
@@ -1035,7 +1035,7 @@ export component CrewSettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "MEMBERS";
+                                    text: @tr("MEMBERS");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -1047,7 +1047,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                                 members-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "MEMBERS";
+                                    accessible-label: @tr("MEMBERS");
                                     clicked => { active-tab = 2; }
                                 }
                             }
@@ -1128,7 +1128,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                     delete-text := Text {
                         font-weight: Theme.weight-label;
-                        text: "DELETE CREW";
+                        text: @tr("DELETE CREW");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         letter-spacing: 1.2px;
@@ -1139,7 +1139,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                     delete-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "DELETE CREW";
+                        accessible-label: @tr("DELETE CREW");
                         mouse-cursor: pointer;
                         clicked => { delete-crew-requested(); }
                     }
@@ -1162,7 +1162,7 @@ export component CrewSettingsModal inherits Rectangle {
                     }
 
                     Text {
-                        text: "Save";
+                        text: @tr("Save");
                         font-family: Theme.font-label;
                         font-size: 13px;
                         font-weight: Theme.weight-label;
@@ -1176,7 +1176,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                     save-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Save";
+                        accessible-label: @tr("Save");
                         mouse-cursor: pointer;
                         clicked => {
                             root.save-crew(root.crew-name-value, root.crew-description-value);
@@ -1191,7 +1191,7 @@ export component CrewSettingsModal inherits Rectangle {
                     visible: root.show-saved;
                     x: 200px;
                     y: (parent.height - self.preferred-height) / 2;
-                    text: "Saved";
+                    text: @tr("Saved");
                     font-family: Theme.font-label;
                     font-size: 12px;
                     color: Theme.text-tertiary;
@@ -1220,7 +1220,7 @@ export component CrewSettingsModal inherits Rectangle {
                     }
 
                     Text {
-                        text: "Close";
+                        text: @tr("Close");
                         font-family: Theme.font-label;
                         font-size: 13px;
                         font-weight: Theme.weight-label;
@@ -1232,7 +1232,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                     close-footer-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         clicked => { close-requested(); }
                     }
                 }

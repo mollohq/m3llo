@@ -11,7 +11,9 @@
 //! - an operand of `==` or `!=` (an id or an enum-like value);
 //! - a lower-case word with no space (`"line"`, `"voice_activity"`): an id;
 //! - in a component whose name starts or ends with `Preview` (mock data);
-//! - on a line, or under a line, with `// i18n: none (<reason>)`.
+//! - on a line, or under a line, with `// i18n: none (<reason>)`;
+//! - in a file with `// i18n: none-file (<reason>)` in its first ten lines
+//!   (a developer tool). A file marker with no reason is an error.
 //!
 //! The UI is converted file by file. `i18n_pending.txt` lists the files that
 //! are not converted yet, with their count of untranslated strings. The
@@ -134,6 +136,34 @@ fn id_like(text: &str) -> bool {
 
 fn line_at(masked: &str, pos: usize) -> usize {
     masked[..pos].matches('\n').count() + 1
+}
+
+/// The marker that exempts a whole file, in one of its first
+/// [`FILE_MARKER_LINES`] lines: `// i18n: none-file (<reason>)`.
+const FILE_MARKER: &str = "i18n: none-file";
+const FILE_MARKER_LINES: usize = 10;
+
+/// `Ok(true)` when the first lines of the file have the file marker with a
+/// reason. `Err(line)` when the marker has no reason.
+fn file_exempt(src: &str) -> Result<bool, usize> {
+    for (i, line) in src.lines().take(FILE_MARKER_LINES).enumerate() {
+        let Some(comment) = line.find("//").map(|n| &line[n + 2..]) else {
+            continue;
+        };
+        let Some(at) = comment.find(FILE_MARKER) else {
+            continue;
+        };
+        let rest = comment[at + FILE_MARKER.len()..].trim();
+        let reason = rest
+            .strip_prefix('(')
+            .and_then(|r| r.strip_suffix(')'))
+            .map(str::trim);
+        return match reason {
+            Some(r) if !r.is_empty() => Ok(true),
+            _ => Err(i + 1),
+        };
+    }
+    Ok(false)
 }
 
 fn check_source(src: &str) -> Vec<Finding> {
@@ -280,14 +310,23 @@ fn ratchet(found: &BTreeMap<String, Vec<Finding>>, list: &BTreeMap<String, usize
 fn every_user_visible_string_is_translated() {
     let files = ui_files();
     assert!(files.len() > 50, "too few .slint files: {}", files.len());
-    let found: BTreeMap<String, Vec<Finding>> = files
-        .iter()
-        .map(|(rel, p)| {
-            let src = std::fs::read_to_string(p).expect("read .slint file");
-            (rel.clone(), check_source(&src))
-        })
-        .collect();
-    let problems = ratchet(&found, &pending(PENDING));
+    let mut problems = Vec::new();
+    let mut found: BTreeMap<String, Vec<Finding>> = BTreeMap::new();
+    for (rel, p) in &files {
+        let src = std::fs::read_to_string(p).expect("read .slint file");
+        let findings = match file_exempt(&src) {
+            Ok(true) => Vec::new(),
+            Ok(false) => check_source(&src),
+            Err(line) => {
+                problems.push(format!(
+                    "{rel}:{line}: `// {FILE_MARKER}` needs a reason: `// {FILE_MARKER} (<reason>)`"
+                ));
+                check_source(&src)
+            }
+        };
+        found.insert(rel.clone(), findings);
+    }
+    problems.extend(ratchet(&found, &pending(PENDING)));
     assert!(
         problems.is_empty(),
         "Untranslated UI strings (specs/features/LOCALIZATION.md). Put a user-visible \
@@ -436,6 +475,47 @@ mod tests {
     fn strings_in_comments_are_not_reported() {
         let src = "Rectangle {\n    // Text { text: \"Old label\"; }\n    /* \"Other\" */\n}\n";
         assert!(texts(src).is_empty());
+    }
+
+    #[test]
+    fn the_file_marker_exempts_the_whole_file() {
+        let body =
+            "export component A inherits Rectangle {\n    Text { text: \"Frame time\"; }\n}\n";
+        assert_eq!(file_exempt(body), Ok(false));
+        assert_eq!(texts(body), ["Frame time"]);
+
+        let marked = format!("// i18n: none-file (developer panel)\n{body}");
+        assert_eq!(file_exempt(&marked), Ok(true));
+
+        let below = format!("import {{ Theme }} from \"theme.slint\";\n\n// i18n: none-file (developer panel)\n{body}");
+        assert_eq!(file_exempt(&below), Ok(true));
+    }
+
+    #[test]
+    fn a_file_marker_with_no_reason_is_an_error() {
+        let body = "Text { text: \"Frame time\"; }\n";
+        assert_eq!(file_exempt(&format!("// i18n: none-file\n{body}")), Err(1));
+        assert_eq!(
+            file_exempt(&format!("\n// i18n: none-file ()\n{body}")),
+            Err(2)
+        );
+    }
+
+    #[test]
+    fn a_file_marker_far_below_the_top_has_no_effect() {
+        let src = format!(
+            "{}// i18n: none-file (too late)\nText {{ text: \"Frame time\"; }}\n",
+            "\n".repeat(FILE_MARKER_LINES)
+        );
+        assert_eq!(file_exempt(&src), Ok(false));
+    }
+
+    #[test]
+    fn an_empty_list_has_no_entries() {
+        let list = pending("# comment\n# Format: <count> <path>\n\n");
+        assert!(list.is_empty());
+        assert!(ratchet(&found(&[("a.slint", 0)]), &list).is_empty());
+        assert_eq!(ratchet(&found(&[("a.slint", 1)]), &list).len(), 2);
     }
 
     fn found(entries: &[(&str, usize)]) -> BTreeMap<String, Vec<Finding>> {

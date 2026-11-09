@@ -84,7 +84,7 @@ export component InviteShareModal inherits Rectangle {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "Invite people";
+                    text: @tr("Invite people");
                     font-size: Theme.font-xl;
                     font-weight: Theme.weight-display-bold;
                     color: Theme.text-primary;
@@ -94,7 +94,7 @@ export component InviteShareModal inherits Rectangle {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "Share this link to invite anyone to your crew:";
+                    text: @tr("Share this link to invite anyone to your crew:");
                     font-size: Theme.font-sm;
                     color: Theme.text-secondary;
                     horizontal-alignment: center;
@@ -106,7 +106,7 @@ export component InviteShareModal inherits Rectangle {
                     background: Theme.bg-app;
 
                     MelloTextInput {
-                        accessible-label: "Invite link";
+                        accessible-label: @tr("Invite link");
                         text: invite-url;
                         font-family: Theme.font-mono;
                         font-size: 12px;
@@ -136,7 +136,7 @@ export component InviteShareModal inherits Rectangle {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: copied ? "Copied" : "Copy link";
+                            text: copied ? @tr("Copied") : @tr("Copy link");
                             font-size: Theme.font-md;
                             font-weight: Theme.weight-display;
                             color: copied ? Theme.text-primary : Theme.on-action;
@@ -146,7 +146,7 @@ export component InviteShareModal inherits Rectangle {
 
                         copy-touch := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Copy link";
+                            accessible-label: @tr("Copy link");
                             mouse-cursor: pointer;
                             clicked => { copy-link(); }
                         }

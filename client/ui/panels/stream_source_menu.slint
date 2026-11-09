@@ -176,7 +176,7 @@ export component StreamSourceMenu inherits Rectangle {
             spacing: 0px;
 
             Text {
-                text: "STREAM SOMETHING ELSE";
+                text: @tr("STREAM SOMETHING ELSE");
                 font-family: Theme.font-label;
                 font-size: 9.5px;
                 font-weight: Theme.weight-label;
@@ -194,7 +194,7 @@ export component StreamSourceMenu inherits Rectangle {
             // 1. what you are playing
             if root.game-active: MenuRow {
                 title: root.game-name;
-                subtitle: "Detected by game sensor";
+                subtitle: @tr("Detected by game sensor");
                 current: root.streaming-game;
                 clicked => { root.stream-game(); }
 
@@ -212,8 +212,8 @@ export component StreamSourceMenu inherits Rectangle {
 
             // 2. any other application
             MenuRow {
-                title: "Pick a window";
-                subtitle: "Any app — browser, editor, emulator";
+                title: @tr("Pick a window");
+                subtitle: @tr("Any app — browser, editor, emulator");
                 clicked => { root.pick-window(); }
 
                 SourceGlyph {
@@ -223,10 +223,10 @@ export component StreamSourceMenu inherits Rectangle {
 
             // 3. everything at once
             MenuRow {
-                title: "Whole screen";
+                title: @tr("Whole screen");
                 subtitle: root.monitors.length > 0
                     ? root.monitors[0].name + " · " + root.monitors[0].resolution
-                    : "Your main display";
+                    : @tr("Your main display");
                 clicked => {
                     root.stream-screen(root.monitors.length > 0 ? root.monitors[0].id : "");
                 }
@@ -238,8 +238,8 @@ export component StreamSourceMenu inherits Rectangle {
 
             // 4. the rarest, and the only one with no engine behind it yet
             MenuRow {
-                title: "Camera only";
-                subtitle: root.camera-available ? root.camera-name : "Not available yet";
+                title: @tr("Camera only");
+                subtitle: root.camera-available ? root.camera-name : @tr("Not available yet");
                 enabled: root.camera-available;
                 clicked => { root.stream-camera(); }
 

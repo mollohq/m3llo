@@ -141,6 +141,11 @@ A control often has an upper-case label and a sentence-case
 | A string with no letter | `"0%"`, `" -> "` |
 | Text in a component whose name ends in `Preview` | mock data |
 | A line with `// i18n: none (<reason>)`, or the line under it | the brand name |
+| A file with `// i18n: none-file (<reason>)` in its first ten lines | `debug_panel.slint` (developer panel) |
+
+The file marker is for a developer tool that is not translated. Its text
+stays in English and is not in `@tr()`, so the file has no message in the
+`.pot`. A file marker with no reason fails the test.
 
 The UI is converted file by file. `client/src/i18n_pending.txt` lists the
 files that are not converted yet, as `<count> <path>`. The count is the
