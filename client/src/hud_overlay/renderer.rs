@@ -60,7 +60,10 @@ pub struct D2DRenderer {
 }
 
 impl D2DRenderer {
-    pub fn new(factory: ID2D1Factory) -> Result<Self> {
+    /// `locale` is the UI language (BCP 47). DirectWrite uses it to pick the
+    /// regional glyph shapes of CJK text.
+    pub fn new(factory: ID2D1Factory, locale: &str) -> Result<Self> {
+        let locale = HSTRING::from(locale);
         unsafe {
             let dwrite: IDWriteFactory = DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)?;
 
@@ -71,7 +74,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 FONT_SIZE_SM,
-                w!("en-US"),
+                &locale,
             )?;
 
             let tf_name = dwrite.CreateTextFormat(
@@ -81,7 +84,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 FONT_SIZE_MD,
-                w!("en-US"),
+                &locale,
             )?;
 
             let tf_name_bold = dwrite.CreateTextFormat(
@@ -91,7 +94,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 FONT_SIZE_MD,
-                w!("en-US"),
+                &locale,
             )?;
 
             let tf_channel = dwrite.CreateTextFormat(
@@ -101,7 +104,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 FONT_SIZE_XS,
-                w!("en-US"),
+                &locale,
             )?;
 
             let tf_mono_xxs = dwrite.CreateTextFormat(
@@ -111,7 +114,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 FONT_SIZE_XXS,
-                w!("en-US"),
+                &locale,
             )?;
             tf_mono_xxs.SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER)?;
             tf_mono_xxs.SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER)?;
@@ -123,7 +126,7 @@ impl D2DRenderer {
                 DWRITE_FONT_STYLE_NORMAL,
                 DWRITE_FONT_STRETCH_NORMAL,
                 9.0,
-                w!("en-US"),
+                &locale,
             )?;
             tf_badge.SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER)?;
             tf_badge.SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER)?;

@@ -20,6 +20,9 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 windows-numerics = "0.3"
 
 [target.'cfg(target_os = "windows")'.dependencies]
+# The UI language for the DirectWrite text formats. Slint already pulls this
+# crate in; the version matches Cargo.lock.
+sys-locale = "0.3.2"
 windows = { version = "0.62", features = [
     "Win32_Foundation",
     "Win32_System_Threading",
