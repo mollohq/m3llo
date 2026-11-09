@@ -19,6 +19,7 @@ This directory contains the technical specifications for Mello.
   stack; read the section below before any of them
 - `features/SFU-INTEGRATION.md` - Client/backend integration with the SFU
 - `EXTERNAL-SFU.md` - SFU integration: token signing, the SFU RPCs, region selection, the client side
+- `features/LOCALIZATION.md` - UI translations: `@tr()`, the `Tr` global, the catalogs, the lint, the pseudo language, language selection
 - Additional feature specs under `features/`
 
 ## The game stack: 16, 17, 18, 19, 22
