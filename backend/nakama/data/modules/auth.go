@@ -15,6 +15,7 @@ import (
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // ---------------------------------------------------------------------------
@@ -357,4 +358,61 @@ func AfterAuthenticateEmail(ctx context.Context, logger runtime.Logger, db *sql.
 
 	logger.Info("Initialized new user %s with tag %s", userID, tag)
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Display name rule (text_rules.go)
+// ---------------------------------------------------------------------------
+
+// BeforeUpdateAccount cleans the display name of an account update with
+// cleanName and limits it to DisplayNameMaxChars characters. A request
+// without a display name passes unchanged.
+func BeforeUpdateAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.UpdateAccountRequest) (*api.UpdateAccountRequest, error) {
+	if in.GetDisplayName() == nil {
+		return in, nil
+	}
+	stored := func() string {
+		userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
+		if !ok {
+			return ""
+		}
+		account, err := nk.AccountGetId(ctx, userID)
+		if err != nil {
+			logger.Warn("update account: failed to read account %s: %v", userID, err)
+			return ""
+		}
+		return account.GetUser().GetDisplayName()
+	}
+	name, err := displayNameFrom(in.GetDisplayName().GetValue(), stored)
+	if err != nil {
+		return nil, err
+	}
+	in.DisplayName = wrapperspb.String(name)
+	return in, nil
+}
+
+// displayNameFrom returns the display name to store, from the name in a
+// request. An empty name passes unchanged, as before this rule. Otherwise the
+// cleaned name must have 1 to DisplayNameMaxChars characters. A longer name
+// passes when it is equal to the stored name: the client sends the present
+// name with every profile save, and names from before this rule can be
+// longer. stored is called only for a name that is too long.
+func displayNameFrom(raw string, stored func() string) (string, error) {
+	if raw == "" {
+		return "", nil
+	}
+	name, err := cleanName(raw)
+	if err != nil {
+		return "", runtime.NewError(err.Error(), 3)
+	}
+	n := nameLength(name)
+	if n > DisplayNameMaxChars {
+		if s := stored(); s != "" && (raw == s || name == s) {
+			return s, nil
+		}
+	}
+	if n < 1 || n > DisplayNameMaxChars {
+		return "", runtime.NewError(fmt.Sprintf("display name must be 1-%d characters", DisplayNameMaxChars), 3)
+	}
+	return name, nil
 }

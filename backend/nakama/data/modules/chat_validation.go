@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"unicode/utf8"
 
 	"github.com/heroiclabs/nakama-common/rtapi"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -22,6 +23,8 @@ type messageEnvelope struct {
 	Data     map[string]interface{} `json:"data,omitempty"`
 }
 
+// maxBodyLength is the limit of a message body in characters (runes), not
+// bytes. The body is not cleaned: only its length is checked.
 const maxBodyLength = 2000
 
 // BeforeChannelMessageSendHook validates the structured message envelope.
@@ -89,7 +92,7 @@ func validateChatContent(content, chatBase string) error {
 		return runtime.NewError("invalid message type", 3)
 	}
 
-	if len(env.Body) > maxBodyLength {
+	if utf8.RuneCountInString(env.Body) > maxBodyLength {
 		return runtime.NewError("message too long (max 2000)", 3)
 	}
 

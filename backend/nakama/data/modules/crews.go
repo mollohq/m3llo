@@ -138,6 +138,29 @@ func newCrewMetadata(userID string, inviteOnly bool) map[string]interface{} {
 	}
 }
 
+// crewNameFrom returns the crew name to store, from the name in a request.
+// stored is the present name on the update path and "" on create. The name
+// is cleaned (text_rules.go) and must have CrewNameMinChars to
+// CrewNameMaxChars characters. A name equal to the stored name passes at any
+// length: crews made under the old 32-byte limit can have up to 32
+// characters.
+func crewNameFrom(raw, stored string) (string, error) {
+	if stored != "" && raw == stored {
+		return stored, nil
+	}
+	name, err := cleanName(raw)
+	if err != nil {
+		return "", runtime.NewError(err.Error(), 3)
+	}
+	if stored != "" && name == stored {
+		return stored, nil
+	}
+	if n := nameLength(name); n < CrewNameMinChars || n > CrewNameMaxChars {
+		return "", runtime.NewError(fmt.Sprintf("name must be %d-%d characters", CrewNameMinChars, CrewNameMaxChars), 3)
+	}
+	return name, nil
+}
+
 func CreateCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
@@ -149,9 +172,11 @@ func CreateCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 		return "", runtime.NewError("invalid request", 3)
 	}
 
-	if len(req.Name) < 2 || len(req.Name) > 32 {
-		return "", runtime.NewError("name must be 2-32 characters", 3)
+	name, err := crewNameFrom(req.Name, "")
+	if err != nil {
+		return "", err
 	}
+	req.Name = name
 
 	groups, _, err := nk.UserGroupsList(ctx, userID, 100, nil, "")
 	if err != nil {
@@ -267,10 +292,6 @@ func UpdateCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 		return "", runtime.NewError("not authorized to update crew", 7)
 	}
 
-	if req.Name != "" && (len(req.Name) < 2 || len(req.Name) > 32) {
-		return "", runtime.NewError("name must be 2-32 characters", 3)
-	}
-
 	// Resolve current group state so we can preserve fields we're not changing
 	groups, err := nk.GroupsGetId(ctx, []string{req.CrewID})
 	if err != nil || len(groups) == 0 {
@@ -278,7 +299,14 @@ func UpdateCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	}
 	group := groups[0]
 
-	name := req.Name
+	// A request without a name gives GroupUpdate an empty name.
+	name := ""
+	if req.Name != "" {
+		name, err = crewNameFrom(req.Name, group.GetName())
+		if err != nil {
+			return "", err
+		}
+	}
 	description := req.Description
 	avatarURL := group.GetAvatarUrl()
 	open := group.GetOpen().GetValue()
