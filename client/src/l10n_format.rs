@@ -97,7 +97,8 @@ pub fn set_test_clock_form(form: ClockForm) {
 
 /// The clock form of an OS time pattern, such as the Windows short time
 /// format: `HH:mm` is 24 h, `h:mm tt` is 12 h. Text in single quotes is a
-/// literal and does not count.
+/// literal and does not count. Only Windows reads such a pattern today.
+#[cfg(any(target_os = "windows", test))]
 pub fn clock_form_of_pattern(pattern: &str) -> ClockForm {
     let mut quoted = false;
     let mut twelve = false;
