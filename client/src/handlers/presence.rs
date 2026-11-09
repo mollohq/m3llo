@@ -295,16 +295,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
                             c.has_stream = stream.active;
                             let streamer = stream.streamer_username.clone().unwrap_or_default();
                             let title = stream.title.clone().unwrap_or_default();
-                            c.stream_name = if !streamer.is_empty() && !title.is_empty() {
-                                format!("{streamer} streaming {title}")
-                            } else if !streamer.is_empty() {
-                                format!("{streamer} streaming")
-                            } else if !title.is_empty() {
-                                format!("streaming {title}")
-                            } else {
-                                "streaming".to_string()
-                            }
-                            .into();
+                            c.stream_name =
+                                stream_line(&ctx.app.global::<crate::Tr>(), &streamer, &title);
                         }
 
                         c.game_count = 0;
@@ -720,16 +712,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                     c.has_stream = stream.active;
                     let streamer = stream.streamer_username.clone().unwrap_or_default();
                     let title = stream.title.clone().unwrap_or_default();
-                    c.stream_name = if !streamer.is_empty() && !title.is_empty() {
-                        format!("{streamer} streaming {title}")
-                    } else if !streamer.is_empty() {
-                        format!("{streamer} streaming")
-                    } else if !title.is_empty() {
-                        format!("streaming {title}")
-                    } else {
-                        "streaming".to_string()
-                    }
-                    .into();
+                    c.stream_name = stream_line(&ctx.app.global::<crate::Tr>(), &streamer, &title);
                 }
 
                 c.game_count = 0;
@@ -958,5 +941,16 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_profile_selected_avatar(-1);
         }
         _ => {}
+    }
+}
+
+/// The stream line of a crew card: "Bob streaming Valorant", "Bob
+/// streaming", "streaming Valorant" or "streaming".
+fn stream_line(tr: &crate::Tr<'_>, streamer: &str, title: &str) -> slint::SharedString {
+    match (streamer.is_empty(), title.is_empty()) {
+        (false, false) => tr.invoke_crew_card_streaming_name_title(streamer.into(), title.into()),
+        (false, true) => tr.invoke_crew_card_streamer_streaming(streamer.into()),
+        (true, false) => tr.invoke_crew_card_streaming_title(title.into()),
+        (true, true) => tr.get_crew_card_streaming(),
     }
 }

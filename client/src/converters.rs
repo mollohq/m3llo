@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use mello_core::chat::ReplyPreview;
 use slint::Model;
 use slint::StyledText;
 
@@ -125,7 +126,12 @@ pub fn chat_messages_to_slint(
     let display = mello_core::chat::prepare_messages_for_display(raw);
     let mut out = Vec::with_capacity(display.len() + 1);
 
-    for d in display {
+    for mut d in display {
+        // The core gives no body for a deleted message. The text, for copy
+        // and the row, is the notice in the UI language.
+        if d.is_deleted {
+            d.display_body = opts.tr.get_chat_message_deleted().into();
+        }
         if let Some(unread_id) = opts.first_unread_id {
             if d.message_id == unread_id {
                 out.push(ChatMessageData {
@@ -182,7 +188,7 @@ pub fn chat_messages_to_slint(
                 width: i.width as i32,
                 height: i.height as i32,
                 bytes_label: if i.bytes > 0 {
-                    crate::chat_images::size_label(i.bytes).into()
+                    crate::l10n_format::file_size(opts.tr, i.bytes).into()
                 } else {
                     slint::SharedString::default()
                 },
@@ -287,7 +293,12 @@ pub fn chat_messages_to_slint(
             mentions_self,
             reply_to_id: d.reply_to.clone().unwrap_or_default().into(),
             reply_to_name: d.reply_to_name.clone().unwrap_or_default().into(),
-            reply_preview_text: d.reply_preview.clone().unwrap_or_default().into(),
+            reply_preview_text: match &d.reply_preview {
+                None => slint::SharedString::default(),
+                Some(ReplyPreview::Deleted) => opts.tr.get_chat_message_deleted(),
+                Some(ReplyPreview::Gif) => opts.tr.get_chat_reply_gif(),
+                Some(ReplyPreview::Text(t)) => t.as_str().into(),
+            },
             is_edited: d.is_edited,
             is_deleted: d.is_deleted,
         });

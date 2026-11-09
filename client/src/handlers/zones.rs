@@ -264,13 +264,12 @@ fn card_art(c: &FeedCardData) -> Image {
     }
 }
 
-fn names_line(names: &[String]) -> String {
-    match names {
-        [] => String::new(),
-        [a] => a.clone(),
-        [a, b] => format!("{a} and {b}"),
-        [a, b, c] => format!("{a}, {b} and {c}"),
-        [a, b, rest @ ..] => format!("{a}, {b} and {} more", rest.len()),
+/// "Elin", "Elin and Noah", "Elin, Noah and Saga", "Elin, Noah and 2 more".
+fn names_line(tr: &crate::Tr<'_>, names: &[String]) -> String {
+    if names.len() <= 3 {
+        crate::l10n_format::list_and(tr, names)
+    } else {
+        crate::l10n_format::list_and_more(tr, &names[..2], names.len() - 2)
     }
 }
 
@@ -388,8 +387,19 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
         Some(r) => {
             z.recap_card = r.clone();
             week_numbers(&tr, &mut z, r);
+            if let Some(e) = &zs.board.recap {
+                let data = super::clip::normalized_entry_data(&e.data);
+                z.past_label = crate::l10n_format::week_label_upper(
+                    &tr,
+                    data.get("week_number")
+                        .and_then(|v| v.as_i64())
+                        .unwrap_or(0),
+                    super::clip::recap_week_start_ms(&data),
+                )
+                .into();
+            }
         }
-        None => z.week_big = minutes_stat(&tr, 0, "HANGOUT"),
+        None => z.week_big = minutes_stat(&tr, 0, &tr.get_stat_label_hangout()),
     }
     match &zs.board.today {
         Some(e) => {
@@ -399,11 +409,11 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                 .get("member_ids")
                 .and_then(|v| v.as_array())
                 .map_or(0, |a| a.len() as i64);
-            z.today_big = minutes_stat(&tr, n("total_min"), "HANGOUT");
+            z.today_big = minutes_stat(&tr, n("total_min"), &tr.get_stat_label_hangout());
             z.today_stats = model(vec![
-                count_stat(n("clip_count"), "CLIPS"),
-                count_stat(n("session_count"), "SESSIONS"),
-                count_stat(on, "ON"),
+                count_stat(n("clip_count"), &tr.get_stat_label_clips()),
+                count_stat(n("session_count"), &tr.get_stat_label_sessions()),
+                count_stat(on, &tr.get_stat_label_on()),
             ]);
             let day = card(e);
             z.today_has_top = !day.game_name.is_empty();
@@ -415,35 +425,28 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
         }
         None => {
             z.today_empty = true;
-            z.today_big = minutes_stat(&tr, 0, "HANGOUT");
+            z.today_big = minutes_stat(&tr, 0, &tr.get_stat_label_hangout());
         }
     }
     if z.board == "quiet" {
-        z.quiet_line = "No crew time last week.".into();
+        z.quiet_line = tr.get_zones_quiet_line();
         if !zs.board.players_last_week.is_empty() {
             z.quiet_sub =
-                format!("{} still played.", names_line(&zs.board.players_last_week)).into();
+                tr.invoke_zones_still_played(names_line(&tr, &zs.board.players_last_week).into());
         }
     }
-    if let Some(d) = &h2h_data {
-        board_belts(ctx, &mut z, d, &viewer, &you, &members);
-    }
+    let first_belt = h2h_data
+        .as_ref()
+        .and_then(|d| board_belts(ctx, &mut z, d, &viewer, &you, &members));
     if z.board == "past" && zs.board.last_activity_ms > 0 {
         let last = zs.board.last_activity_ms;
-        let mut line = format!(
-            "Nothing new since {}.",
-            crate::l10n_format::date_label(&tr, last)
-        );
-        if let Some(t) = z.titles.row_data(0) {
-            if !t.belt.sealed {
-                line.push_str(&format!(
-                    " {} holds {}.",
-                    t.person.name,
-                    title_case(&t.title)
-                ));
+        let date = crate::l10n_format::date_label(&tr, last);
+        z.dormant_line = match first_belt {
+            Some((holder, title)) => {
+                tr.invoke_zones_nothing_new_holds(date.into(), holder.into(), title.into())
             }
-        }
-        z.dormant_line = line.into();
+            None => tr.invoke_zones_nothing_new(date.into()),
+        };
         let days = crate::l10n_format::days_between(last, now_ms);
         z.dormant_age = crate::l10n_format::weeks_ago(&tr, (days / 7).max(2)).into();
     }
@@ -470,14 +473,18 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
             .map(|m| super::clip::live_person(ctx, m)),
     );
     z.members = model(first_five);
-    people_joined(&mut z, &super::clip::join_cards(ctx, &zs.people.joined));
+    people_joined(
+        &tr,
+        &mut z,
+        &super::clip::join_cards(ctx, &zs.people.joined),
+    );
     let last_call = zs
         .sessions
         .iter()
         .filter(|e| e.data.get("channel_id").is_some() || e.data.get("channel_name").is_some())
         .map(|e| e.ts)
         .max()
-        .map(|t| format!("Last call {}", crate::l10n_format::date_label(&tr, t)))
+        .map(|t| crate::l10n_format::date_label(&tr, t))
         .unwrap_or_default();
     people_voice(ctx, &mut z, &last_call);
     z.people = z.open_seats > 0 || z.joined.row_count() > 0 || !z.voice.is_empty();
@@ -499,6 +506,25 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
             }
         };
         if z.board == "solo" {
+            // The hours in lower case: the row of the payload of each tile.
+            let hours = |name: &str| -> String {
+                let row = zs
+                    .installed
+                    .iter()
+                    .find(|r| r.get("game_name").and_then(|v| v.as_str()) == Some(name));
+                let field = |k: &str| {
+                    row.and_then(|r| r.get(k))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                };
+                let minutes = row
+                    .and_then(|r| r.get("minutes"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                let launcher =
+                    crate::recent_games::launcher_of(field("game_id"), field("launcher"));
+                crate::recent_games::hours_label_lower(&tr, minutes, &launcher)
+            };
             z.solo_games = model(
                 tiles
                     .iter()
@@ -506,7 +532,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                     .map(|t| BoardGame {
                         name: t.game_name.clone(),
                         art: art(t),
-                        count: t.hours.to_lowercase().into(),
+                        count: hours(t.game_name.as_str()).into(),
                     })
                     .collect(),
             );
@@ -547,6 +573,12 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                     } else {
                         crate::l10n_format::week_of(&tr, w.week_start).into()
                     },
+                    label_upper: crate::l10n_format::week_label_upper(
+                        &tr,
+                        w.week_number.into(),
+                        w.week_start,
+                    )
+                    .into(),
                     age: crate::l10n_format::recap_age(&tr, w.week_start, now_ms).into(),
                     locked: w.locked,
                     ..Default::default()
@@ -559,7 +591,8 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                             .take(TEASERS)
                             .map(|t| LockedTeaser {
                                 person: person(&t.actor_id, &t.actor_name),
-                                kind: t.kind.to_uppercase().into(),
+                                // The id: the tile writes it (`LockedTeaserTile`).
+                                kind: t.kind.as_str().into(),
                                 duration: teaser_length(&tr, &t.kind, t.duration_seconds).into(),
                                 code: crate::sealed::cells_path(&crate::sealed::belt_cells(
                                     crate::sealed::recap_seed(t.ts),
@@ -581,7 +614,7 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                     } else {
                         h.big = count_stat(
                             i64::from(w.clip_count + w.stream_count),
-                            "CLIPS AND STREAMS",
+                            &tr.get_stat_label_clips_and_streams(),
                         );
                     }
                     h.clips = model(w.items.iter().map(card).collect());
@@ -597,12 +630,20 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
 /// The numbers of a recap week: hangout, clips, longest, games, top game,
 /// most active, most clipped and the games played.
 fn week_numbers(tr: &crate::Tr<'_>, z: &mut ZonesData, r: &FeedCardData) {
-    z.week_big = minutes_stat(tr, i64::from(r.recap_hangout_min), "HANGOUT");
+    z.week_big = minutes_stat(
+        tr,
+        i64::from(r.recap_hangout_min),
+        &tr.get_stat_label_hangout(),
+    );
     let games = rows(&r.recap_games);
     z.week_stats = model(vec![
-        count_stat(i64::from(r.recap_clips), "CLIPS"),
-        minutes_stat(tr, i64::from(r.recap_longest_min), "LONGEST"),
-        count_stat(games.len() as i64, "GAMES"),
+        count_stat(i64::from(r.recap_clips), &tr.get_stat_label_clips()),
+        minutes_stat(
+            tr,
+            i64::from(r.recap_longest_min),
+            &tr.get_stat_label_longest(),
+        ),
+        count_stat(games.len() as i64, &tr.get_stat_label_games()),
     ]);
     z.week_has_top = !r.game_name.is_empty();
     z.week_top = BoardGame {
@@ -632,7 +673,6 @@ fn week_numbers(tr: &crate::Tr<'_>, z: &mut ZonesData, r: &FeedCardData) {
             .collect(),
     );
     z.games_more = games.len().saturating_sub(3) as i32;
-    z.past_label = r.recap_week.to_uppercase().into();
     z.past_age = r.age_label.clone();
 }
 
@@ -659,20 +699,6 @@ fn teaser_length(tr: &crate::Tr<'_>, kind: &str, seconds: f64) -> String {
     } else {
         crate::l10n_format::duration_clock(tr, secs)
     }
-}
-
-/// "NIGHT OWL" as "Night Owl".
-fn title_case(s: &str) -> String {
-    s.split(' ')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                Some(f) => f.to_uppercase().collect::<String>() + &c.as_str().to_lowercase(),
-                None => String::new(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 /// Wire the zone feed's history paging. The callback holds the window weakly,
@@ -726,6 +752,8 @@ pub(crate) fn append_history(ctx: &AppContext, response: mello_core::crew_events
 }
 
 /// The belts of the board: the crew's titles, a moved or sealed belt first.
+/// Returns the holder and the title of the first belt when it is open, for
+/// the line of a dormant feed.
 fn board_belts(
     ctx: &AppContext,
     z: &mut ZonesData,
@@ -733,11 +761,12 @@ fn board_belts(
     viewer: &crate::head2head::Person,
     you: &H2hPerson,
     members: &[crate::head2head::Person],
-) {
+) -> Option<(String, String)> {
+    let tr = ctx.app.global::<crate::Tr>();
     let person = |id: &str| -> H2hPerson {
         if id == viewer.id {
             let mut p = you.clone();
-            p.name = "You".into();
+            p.name = tr.get_you();
             return p;
         }
         if let Some(m) = rows(&d.members).into_iter().find(|m| m.id == id) {
@@ -747,7 +776,7 @@ fn board_belts(
             Some(m) => super::clip::live_person(ctx, m),
             None => H2hPerson {
                 id: id.into(),
-                name: "Crew mate".into(),
+                name: tr.get_crew_mate(),
                 ..Default::default()
             },
         }
@@ -756,15 +785,23 @@ fn board_belts(
     titles.sort_by_key(|t| !(t.belt.sealed || t.moved_recent));
     z.title_count = titles.len() as i32;
     if titles.len() > BOARD_BELTS {
-        z.more_label = format!("+{} MORE", titles.len() - BOARD_BELTS).into();
+        z.more_label = tr.invoke_zones_more_upper((titles.len() - BOARD_BELTS) as i32);
     }
+    let first = titles.first().filter(|t| !t.belt.sealed).map(|t| {
+        (
+            person(t.holder_id.as_str()).name.to_string(),
+            t.title.to_string(),
+        )
+    });
     z.titles = model(
         titles
             .iter()
             .take(BOARD_BELTS)
             .map(|t| BoardTitle {
                 person: person(t.holder_id.as_str()),
-                title: t.title.to_uppercase().into(),
+                title: crate::head2head::title_name_upper(&tr, &t.id)
+                    .unwrap_or_else(|| t.title.to_uppercase())
+                    .into(),
                 icon: t.icon.clone(),
                 value: t.value.clone(),
                 unit: t.unit.clone(),
@@ -774,20 +811,20 @@ fn board_belts(
             })
             .collect(),
     );
+    first
 }
 
 /// Who joined in the last 24 hours, from the joined cards.
-fn people_joined(z: &mut ZonesData, joined: &[FeedCardData]) {
+fn people_joined(tr: &crate::Tr<'_>, z: &mut ZonesData, joined: &[FeedCardData]) {
     if !joined.is_empty() {
         let names: Vec<String> = joined.iter().map(|c| c.actor_name.to_string()).collect();
-        z.joined_line = format!("{} joined", names_line(&names)).into();
+        z.joined_line = tr.invoke_joined(names_line(tr, &names).into());
         let first = &joined[0];
-        z.joined_sub = [first.subtitle.to_string(), first.timestamp.to_string()]
-            .into_iter()
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join(", ")
-            .into();
+        z.joined_sub = match (first.subtitle.is_empty(), first.timestamp.is_empty()) {
+            (false, false) => tr.invoke_comma_pair(first.subtitle.clone(), first.timestamp.clone()),
+            (false, true) => first.subtitle.clone(),
+            (true, _) => first.timestamp.clone(),
+        };
         z.joined = model(
             joined
                 .iter()
@@ -811,8 +848,10 @@ fn people_joined(z: &mut ZonesData, joined: &[FeedCardData]) {
 }
 
 /// The voice part of People: a call in the default channel, or the empty
-/// channel on a quiet feed. `last_call` is "Last call 6 November" or empty.
+/// channel on a quiet feed. `last_call` is the date of the last call ("6
+/// November") or empty.
 fn people_voice(ctx: &AppContext, z: &mut ZonesData, last_call: &str) {
+    let tr = ctx.app.global::<crate::Tr>();
     let channels = rows(&ctx.app.get_voice_channels());
     if let Some(ch) = channels.iter().find(|c| c.is_default) {
         z.channel = ch.name.clone();
@@ -820,7 +859,7 @@ fn people_voice(ctx: &AppContext, z: &mut ZonesData, last_call: &str) {
         if ch.member_count > 0 {
             let people = rows(&ch.members);
             z.voice = "call".into();
-            z.voice_line = format!("{} in the call", ch.member_count).into();
+            z.voice_line = tr.invoke_zones_in_call(ch.member_count);
             z.voice_more = (people.len().saturating_sub(VOICE_PEOPLE)) as i32;
             z.voice_people = model(
                 people
@@ -840,9 +879,9 @@ fn people_voice(ctx: &AppContext, z: &mut ZonesData, last_call: &str) {
             let last = last_call;
             z.voice = "idle".into();
             z.voice_line = if last.is_empty() {
-                "Empty".into()
+                tr.get_zones_voice_empty()
             } else {
-                format!("Empty. {last}").into()
+                tr.invoke_zones_voice_empty_last_call(last.into())
             };
         }
     }
@@ -883,7 +922,8 @@ mod tests {
 
     #[test]
     fn names_line_counts_the_rest() {
-        let n = |v: &[&str]| names_line(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        let tr = crate::l10n_format::test_tr();
+        let n = |v: &[&str]| names_line(tr, &v.iter().map(|s| s.to_string()).collect::<Vec<_>>());
         assert_eq!(n(&["Elin"]), "Elin");
         assert_eq!(n(&["Elin", "Noah", "Saga"]), "Elin, Noah and Saga");
         assert_eq!(n(&["A", "B", "C", "D"]), "A, B and 2 more");

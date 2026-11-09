@@ -18,6 +18,8 @@ export component SessionPreviewCard inherits Rectangle {
     in property <int> peak-viewers;
     in property <int> clip-count;
     in property <string> time-since-ended;
+    /// `time-since-ended` in upper case. Rust builds it.
+    in property <string> time-since-ended-upper;
     in property <bool> is-hero;
     in property <bool> was-seen: false;
 
@@ -291,7 +293,7 @@ export component SessionPreviewCard inherits Rectangle {
 
                     Text {
                         height: 14px;
-                        text: root.time-since-ended.to-uppercase();
+                        text: root.time-since-ended-upper;
                         font-family: Theme.font-label;
                         font-weight: Theme.weight-label;
                         font-size: 9.5px;

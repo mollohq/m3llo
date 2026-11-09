@@ -384,7 +384,7 @@ impl GameStateManager {
                 (Vec::new(), None)
             }
             TelemetryEvent::SetupRequired { game_id, hint } => {
-                log::info!("[game-state] telemetry setup required for {game_id}: {hint}");
+                log::info!("[game-state] telemetry setup required for {game_id}: {hint:?}");
                 (vec![Event::TelemetrySetupHint { game_id, hint }], None)
             }
         }

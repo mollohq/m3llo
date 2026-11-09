@@ -13,7 +13,7 @@ use crate::{
     RecapGameRow, RecapHeldTitle, RecapLbRow, RecapPerson, RecentGameTile,
 };
 
-fn normalized_entry_data(raw: &serde_json::Value) -> serde_json::Value {
+pub(super) fn normalized_entry_data(raw: &serde_json::Value) -> serde_json::Value {
     if raw.is_object() {
         return raw.clone();
     }
@@ -55,13 +55,13 @@ fn derive_backend_type(feed_type: &str, data: &serde_json::Value) -> &'static st
     }
 }
 
-fn extract_actor(data: &serde_json::Value, backend_type: &str) -> String {
+fn extract_actor(tr: &crate::Tr<'_>, data: &serde_json::Value, backend_type: &str) -> String {
     match backend_type {
         "stream_session" => data
             .get("streamer_name")
             .and_then(|v| v.as_str())
-            .unwrap_or("someone")
-            .to_string(),
+            .map(String::from)
+            .unwrap_or_else(|| tr.get_someone().into()),
         "weekly_recap" => data
             .get("most_active")
             .or_else(|| data.get("mvp"))
@@ -95,54 +95,46 @@ fn extract_title(
     backend_type: &str,
     actor: &str,
 ) -> String {
+    let names_of = |key: &str| -> String {
+        let names: Vec<String> = data
+            .get(key)
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect()
+            })
+            .unwrap_or_default();
+        crate::l10n_format::list_comma(tr, &names)
+    };
     match backend_type {
-        "clip" => format!(
-            "{} clipped that",
-            if actor.is_empty() { "someone" } else { actor }
-        ),
-        "voice_session" => {
-            let ch = data
-                .get("channel_name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("voice");
-            let names = data
-                .get("participant_names")
-                .and_then(|v| v.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default();
-            if names.is_empty() {
-                format!("Voice session in {}", ch)
+        "clip" => {
+            if actor.is_empty() {
+                tr.get_feed_someone_clipped().into()
             } else {
-                format!("{} in {}", names, ch)
+                tr.invoke_feed_clipped(actor.into()).into()
             }
         }
-        "stream_session" => {
-            let title = data
-                .get("title")
+        "voice_session" => {
+            let ch: slint::SharedString = data
+                .get("channel_name")
                 .and_then(|v| v.as_str())
-                .unwrap_or("a stream");
-            format!("{} streamed {}", actor, title)
+                .map(slint::SharedString::from)
+                .unwrap_or_else(|| tr.get_voice_channel_fallback());
+            let names = names_of("participant_names");
+            if names.is_empty() {
+                tr.invoke_feed_voice_session_in(ch).into()
+            } else {
+                tr.invoke_feed_names_in_channel(names.into(), ch).into()
+            }
         }
+        "stream_session" => match data.get("title").and_then(|v| v.as_str()) {
+            Some(title) => tr.invoke_feed_streamed(actor.into(), title.into()).into(),
+            None => tr.invoke_feed_streamed_a_stream(actor.into()).into(),
+        },
         "game_session" => {
-            let game = data
-                .get("game_name")
-                .and_then(|v| v.as_str())
-                .unwrap_or("a game");
-            let names = data
-                .get("player_names")
-                .and_then(|v| v.as_array())
-                .map(|a| {
-                    a.iter()
-                        .filter_map(|v| v.as_str())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default();
+            let game = data.get("game_name").and_then(|v| v.as_str());
+            let names = names_of("player_names");
             // Telemetry record/streak (spec 18), appended when present.
             let wins = data.get("wins").and_then(|v| v.as_u64()).unwrap_or(0);
             let losses = data.get("losses").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -150,22 +142,33 @@ fn extract_title(
                 .get("streak_after")
                 .and_then(|v| v.as_i64())
                 .unwrap_or(0);
-            let record = if wins > 0 || losses > 0 {
-                let streak_txt = if streak >= 2 {
-                    format!(", {}-win streak", streak)
+            let played: String = match (names.is_empty(), game) {
+                (true, Some(g)) => tr.invoke_feed_played(g.into()),
+                (true, None) => tr.get_feed_played_a_game(),
+                (false, Some(g)) => tr.invoke_feed_names_played(names.into(), g.into()),
+                (false, None) => tr.invoke_feed_names_played_a_game(names.into()),
+            }
+            .into();
+            if wins > 0 || losses > 0 {
+                let record: String = tr.invoke_record_dash_w_l(wins as i32, losses as i32).into();
+                let record: String = if streak >= 2 {
+                    tr.invoke_feed_record_streak(
+                        record.into(),
+                        tr.invoke_feed_win_streak(streak as i32),
+                    )
+                    .into()
                 } else if streak <= -2 {
-                    format!(", {}-loss skid", -streak)
+                    tr.invoke_feed_record_streak(
+                        record.into(),
+                        tr.invoke_feed_loss_skid((-streak) as i32),
+                    )
+                    .into()
                 } else {
-                    String::new()
+                    record
                 };
-                format!(" · {}W\u{2013}{}L{}", wins, losses, streak_txt)
+                crate::l10n_format::dot_pair(tr, &played, &record)
             } else {
-                String::new()
-            };
-            if names.is_empty() {
-                format!("Played {}{}", game, record)
-            } else {
-                format!("{} played {}{}", names, game, record)
+                played
             }
         }
         "weekly_recap" => {
@@ -189,7 +192,7 @@ fn extract_title(
 /// The start of the recap week. `week_start_ms` is the server's name for it;
 /// recaps stored before it have `week_start`, and the oldest only `week_end`.
 /// 0 when none is there.
-fn recap_week_start_ms(data: &serde_json::Value) -> i64 {
+pub(super) fn recap_week_start_ms(data: &serde_json::Value) -> i64 {
     let num = |k: &str| data.get(k).and_then(|v| v.as_i64()).filter(|&n| n > 0);
     num("week_start_ms")
         .or_else(|| num("week_start"))
@@ -209,7 +212,7 @@ fn recap_lead_minutes(data: &serde_json::Value) -> f64 {
     }
 }
 
-fn extract_subtitle(data: &serde_json::Value, backend_type: &str) -> String {
+fn extract_subtitle(tr: &crate::Tr<'_>, data: &serde_json::Value, backend_type: &str) -> String {
     match backend_type {
         "weekly_recap" => {
             // Empty when no clips, so the recap card hides the "Clips" row. Also
@@ -222,15 +225,17 @@ fn extract_subtitle(data: &serde_json::Value, backend_type: &str) -> String {
             }
         }
         "clip" => {
-            let clip_type = data
-                .get("clip_type")
-                .and_then(|v| v.as_str())
-                .unwrap_or("voice");
+            // The kind of the clip in words. An unknown kind is data.
+            let clip_type: String = match data.get("clip_type").and_then(|v| v.as_str()) {
+                None | Some("voice") => tr.get_clip_kind_voice().into(),
+                Some("game") => tr.get_clip_kind_game().into(),
+                Some(other) => other.to_string(),
+            };
             let game = data.get("game").and_then(|v| v.as_str()).unwrap_or("");
             if game.is_empty() {
-                clip_type.to_string()
+                clip_type
             } else {
-                format!("{} · {}", clip_type, game)
+                crate::l10n_format::dot_pair(tr, &clip_type, game)
             }
         }
         _ => String::new(),
@@ -306,9 +311,9 @@ pub(super) fn head2head_chase(
             .iter()
             .find(|m| m.id == id)
             .cloned()
-            .unwrap_or_else(|| Person::unknown(id))
+            .unwrap_or_else(|| Person::unknown(&ctx.app.global::<crate::Tr>(), id))
     };
-    head2head::chase::chase(&data, &viewer, &roster)
+    head2head::chase::chase(&ctx.app.global::<crate::Tr>(), &data, &viewer, &roster)
 }
 
 /// Every pair of the viewer for the Head2head tab of the You view.
@@ -326,9 +331,15 @@ pub(super) fn head2head_view_pairs(
             .iter()
             .find(|m| m.id == id)
             .cloned()
-            .unwrap_or_else(|| Person::unknown(id))
+            .unwrap_or_else(|| Person::unknown(&ctx.app.global::<crate::Tr>(), id))
     };
-    head2head::view_pairs(&data, &viewer, &roster, head2head::now_ms())
+    head2head::view_pairs(
+        &ctx.app.global::<crate::Tr>(),
+        &data,
+        &viewer,
+        &roster,
+        head2head::now_ms(),
+    )
 }
 
 pub(super) fn head2head_zone(
@@ -345,7 +356,7 @@ pub(super) fn head2head_zone(
             .iter()
             .find(|m| m.id == id)
             .cloned()
-            .unwrap_or_else(|| Person::unknown(id))
+            .unwrap_or_else(|| Person::unknown(&ctx.app.global::<crate::Tr>(), id))
     };
     let now_ms = head2head::now_ms();
     // Unread rule: a move after the viewer's previous open of this feed.
@@ -364,7 +375,15 @@ pub(super) fn head2head_zone(
         ctx.app.get_active_crew_id().as_str(),
     );
     let is_open = |k: &str| opened.contains(k);
-    let model = head2head::build_rows_sealed(&data, &viewer, &roster, now_ms, seen_ms, &is_open)?;
+    let model = head2head::build_rows_sealed(
+        &ctx.app.global::<crate::Tr>(),
+        &data,
+        &viewer,
+        &roster,
+        now_ms,
+        seen_ms,
+        &is_open,
+    )?;
     // The own chips of a new crew are sealed for 7 days from the first time
     // they show (the day 0 reveal).
     if model.chips.iter().any(|c| c.own.is_some()) {
@@ -381,7 +400,7 @@ pub(super) fn head2head_zone(
     let cache = ctx.avatar_cache.borrow();
     let avatar = |id: &str| cache.get(id).cloned();
     let crew = with_seal(ctx, |seal| {
-        head2head::to_slint_sealed(&model, &avatar, seal)
+        head2head::to_slint_sealed(&ctx.app.global::<crate::Tr>(), &model, &avatar, seal)
     });
     let tr = ctx.app.global::<crate::Tr>();
     let belt = head2head::belt_hero_data(&tr, &model, now_ms, &avatar).map(|hero| FeedCardData {
@@ -440,7 +459,7 @@ pub(super) fn join_cards(
         FeedCardData {
             id: format!("joined-{}", r.user_id).into(),
             card_type: "joined".into(),
-            title: format!("{} joined", r.name).into(),
+            title: crate::joined_line::joined_title(&ctx.app.global::<crate::Tr>(), &r.name).into(),
             subtitle: r.invited.into(),
             timestamp: r.when.into(),
             actor_name: r.name.into(),
@@ -504,13 +523,11 @@ pub(super) fn live_person(ctx: &AppContext, person: &Person) -> crate::H2hPerson
 }
 
 /// "Bob", "Bob and Jonas", "Bob, Jonas and Sara", "Bob, Jonas, Sara +2".
-fn names_line(names: &[String]) -> String {
-    match names {
-        [] => String::new(),
-        [a] => a.clone(),
-        [a, b] => format!("{a} and {b}"),
-        [a, b, c] => format!("{a}, {b} and {c}"),
-        [a, b, c, rest @ ..] => format!("{a}, {b}, {c} +{}", rest.len()),
+fn names_line(tr: &crate::Tr<'_>, names: &[String]) -> String {
+    if names.len() <= 3 {
+        crate::l10n_format::list_and(tr, names)
+    } else {
+        crate::l10n_format::list_plus(tr, &names[..3], names.len() - 3)
     }
 }
 
@@ -541,7 +558,7 @@ pub(crate) fn live_session_cards(ctx: &AppContext) -> Vec<FeedCardData> {
                             .iter()
                             .find(|m| m.id == *id)
                             .cloned()
-                            .unwrap_or_else(|| Person::unknown(id))
+                            .unwrap_or_else(|| Person::unknown(&ctx.app.global::<crate::Tr>(), id))
                     }
                 })
                 .collect();
@@ -596,7 +613,7 @@ pub(crate) fn live_session_cards(ctx: &AppContext) -> Vec<FeedCardData> {
                         min,
                     )
                     .into(),
-                    names_line: names_line(&names).into(),
+                    names_line: names_line(&ctx.app.global::<crate::Tr>(), &names).into(),
                     member_names: Rc::new(VecModel::from(
                         names
                             .iter()
@@ -741,6 +758,7 @@ fn resolve_avatar(ctx: &AppContext, user_id: &str) -> (slint::Image, bool) {
 
 /// Build the recap "this week in games" leaderboard rows from `game_records`.
 fn extract_recap_leaderboard(ctx: &AppContext, data: &serde_json::Value) -> Vec<RecapLbRow> {
+    let tr = ctx.app.global::<crate::Tr>();
     let arr = match data.get("game_records").and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return Vec::new(),
@@ -761,7 +779,7 @@ fn extract_recap_leaderboard(ctx: &AppContext, data: &serde_json::Value) -> Vec<
             RecapLbRow {
                 initials: make_initials(&name).into(),
                 name: name.into(),
-                record: format!("{}W {}L", wins, losses).into(),
+                record: tr.invoke_record_w_l(wins as i32, losses as i32),
                 color_index: (i % 5) as i32,
                 avatar,
                 has_avatar,
@@ -778,6 +796,7 @@ fn extract_recap_belts_moved(
     data: &serde_json::Value,
     seal: &Seal,
 ) -> Vec<RecapBeltMovedRow> {
+    let tr = ctx.app.global::<crate::Tr>();
     let arr = match data.get("belts_moved").and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return Vec::new(),
@@ -788,8 +807,9 @@ fn extract_recap_belts_moved(
     arr.iter()
         .map(|v| {
             let title_id = str_of(v, "title_id");
-            let (title, icon) = head2head::belt_look(&title_id);
+            let (title, icon) = head2head::belt_look(&tr, &title_id);
             let (value, unit) = head2head::value_text(
+                &tr,
                 v.get("value").unwrap_or(&serde_json::Value::Null),
                 &str_of(v, "unit"),
             );
@@ -804,6 +824,7 @@ fn extract_recap_belts_moved(
                 let moved_ms = v.get("moved_at_ms").and_then(|n| n.as_i64()).unwrap_or(0);
                 let value = v.get("value").unwrap_or(&serde_json::Value::Null);
                 sealed::reveal_of(
+                    &tr,
                     &sealed::Move {
                         title_id: &title_id,
                         moved_ms,
@@ -819,7 +840,8 @@ fn extract_recap_belts_moved(
             RecapBeltMovedRow {
                 belt,
                 title: title.into(),
-                stat_line: sealed::stat_line(&title_id).into(),
+                title_upper: head2head::any_title_name_upper(&tr, &title_id).into(),
+                stat_line: sealed::stat_line(&tr, &title_id),
                 icon,
                 value: value.into(),
                 unit: unit.into(),
@@ -846,6 +868,7 @@ fn extract_recap_belts_moved(
 /// `leaderboard` (the same entries as `belts_held`). A member with no titles
 /// has no row.
 fn extract_recap_belts_held(ctx: &AppContext, data: &serde_json::Value) -> Vec<RecapBeltHeldRow> {
+    let tr = ctx.app.global::<crate::Tr>();
     let arr = match data
         .get("leaderboard")
         .or_else(|| data.get("belts_held"))
@@ -875,7 +898,7 @@ fn extract_recap_belts_held(ctx: &AppContext, data: &serde_json::Value) -> Vec<R
                     ids.iter()
                         .filter_map(|i| i.as_str())
                         .map(|id| {
-                            let (title, icon) = head2head::belt_look(id);
+                            let (title, icon) = head2head::belt_look(&tr, id);
                             RecapHeldTitle {
                                 title: title.into(),
                                 icon,
@@ -1092,21 +1115,12 @@ fn extract_recap_clip(ctx: &AppContext, data: &serde_json::Value) -> RecapClip {
         when: when.into(),
         waveform: ModelRc::new(VecModel::from(waveform)),
         people: ModelRc::new(VecModel::from(people)),
-        names: join_names(&names).into(),
-    }
-}
-
-/// "Bob", "Bob and Max", "Bob, Max and Sara".
-fn join_names(names: &[String]) -> String {
-    match names.len() {
-        0 => String::new(),
-        1 => names[0].clone(),
-        n => format!("{} and {}", names[..n - 1].join(", "), names[n - 1]),
+        names: crate::l10n_format::list_and(&ctx.app.global::<crate::Tr>(), &names).into(),
     }
 }
 
 /// Compact "this week in games" summary, e.g. "312 matches · CS2, Rocket League".
-fn games_summary(data: &serde_json::Value) -> String {
+fn games_summary(tr: &crate::Tr<'_>, data: &serde_json::Value) -> String {
     let arr = match data.get("games_played").and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return String::new(),
@@ -1123,10 +1137,12 @@ fn games_summary(data: &serde_json::Value) -> String {
         .take(3)
         .filter_map(|v| v.get("game").and_then(|g| g.as_str()).map(String::from))
         .collect();
+    let total = total.clamp(0, i64::from(i32::MAX)) as i32;
     if games.is_empty() {
-        format!("{} matches", total)
+        tr.invoke_matches(total).into()
     } else {
-        format!("{} matches · {}", total, games.join(", "))
+        tr.invoke_matches_in_games(total, crate::l10n_format::list_comma(tr, &games).into())
+            .into()
     }
 }
 
@@ -1328,7 +1344,7 @@ fn game_session_duration_display(tr: &crate::Tr<'_>, duration_min: i64, active_m
         return body;
     }
     if use_active {
-        format!("~{body}")
+        crate::l10n_format::approx(tr, &body)
     } else {
         body
     }
@@ -1347,10 +1363,16 @@ fn game_session_duration_stat(
     if min <= 0 {
         return (String::new(), String::new(), String::new());
     }
-    let lead = if approx { "~" } else { "" };
+    let value = |n: i64| {
+        if approx {
+            crate::l10n_format::approx(tr, &n.to_string())
+        } else {
+            n.to_string()
+        }
+    };
     if min < 60 {
         (
-            format!("{lead}{min}"),
+            value(min),
             tr.get_unit_minutes_short().into(),
             String::new(),
         )
@@ -1359,11 +1381,7 @@ fn game_session_duration_stat(
             0 => String::new(),
             m => format!("{m:02}"),
         };
-        (
-            format!("{lead}{}", min / 60),
-            tr.get_unit_hours().into(),
-            tail,
-        )
+        (value(min / 60), tr.get_unit_hours().into(), tail)
     }
 }
 
@@ -1506,9 +1524,9 @@ pub(super) fn build_feed_card(
         .unwrap_or_default();
     let has_snapshots = !snapshot_urls.is_empty();
 
-    let actor = extract_actor(&data, backend_type);
+    let actor = extract_actor(&tr, &data, backend_type);
     let title = extract_title(&tr, &data, backend_type, &actor);
-    let subtitle = extract_subtitle(&data, backend_type);
+    let subtitle = extract_subtitle(&tr, &data, backend_type);
 
     let duration_secs = data
         .get("duration_seconds")
@@ -1635,6 +1653,7 @@ pub(super) fn build_feed_card(
         .unwrap_or_default()
         .as_secs() as i64;
     let timestamp = crate::l10n_format::feed_card_age(&tr, now_secs - ts_secs, ts_secs);
+    let timestamp_upper = crate::l10n_format::feed_card_age_upper(&tr, now_secs - ts_secs, ts_secs);
 
     // Rich game-session card fields (spec 19 B2). Retype game sessions so the
     // feed dispatches them to the rich GameSessionCard instead of SessionCard.
@@ -1667,25 +1686,26 @@ pub(super) fn build_feed_card(
             .and_then(|v| v.as_i64())
             .unwrap_or(0);
         let matches = w + l + d;
-        let record = if matches > 0 {
+        let record: String = if matches > 0 {
             if d > 0 {
-                format!("{}W\u{2013}{}L\u{2013}{}D", w, l, d)
+                tr.invoke_record_dash_w_l_d(w as i32, l as i32, d as i32)
+                    .into()
             } else {
-                format!("{}W\u{2013}{}L", w, l)
+                tr.invoke_record_dash_w_l(w as i32, l as i32).into()
             }
         } else {
             String::new()
         };
-        let streak_text = if streak > 0 {
-            format!("W{streak}")
+        let streak_text: String = if streak > 0 {
+            tr.invoke_streak_wins(streak as i32).into()
         } else if streak < 0 {
-            format!("L{}", -streak)
+            tr.invoke_streak_losses((-streak) as i32).into()
         } else {
             "—".to_string()
         };
         let decided = w + l;
         let winrate = if decided > 0 {
-            format!("{}%", (w * 100) / decided)
+            crate::l10n_format::percent(&tr, (w * 100) / decided)
         } else {
             "—".to_string()
         };
@@ -1768,14 +1788,10 @@ pub(super) fn build_feed_card(
                 .collect()
         })
         .unwrap_or_default();
-    let participants_line = match participant_names.len() {
-        0 => String::new(),
-        1 | 2 => participant_names.join(", "),
-        n => format!(
-            "{} +{}",
-            participant_names[..2].join(", "),
-            n.saturating_sub(2)
-        ),
+    let participants_line = if participant_names.len() <= 2 {
+        crate::l10n_format::list_comma(&tr, &participant_names)
+    } else {
+        crate::l10n_format::list_plus(&tr, &participant_names[..2], participant_names.len() - 2)
     };
     let participant_ids: Vec<String> = data
         .get("participant_ids")
@@ -1814,7 +1830,7 @@ pub(super) fn build_feed_card(
         recap_belts_moved.truncate(2);
     }
     let recap_belts_held = extract_recap_belts_held(ctx, &data);
-    let recap_games_summary = games_summary(&data);
+    let recap_games_summary = games_summary(&tr, &data);
     let is_weekly_recap = backend_type == "weekly_recap";
     let recap_active = if is_weekly_recap {
         extract_recap_active(ctx, &data)
@@ -1856,6 +1872,7 @@ pub(super) fn build_feed_card(
         title: title.into(),
         subtitle: subtitle.into(),
         timestamp: timestamp.into(),
+        timestamp_upper: timestamp_upper.into(),
         duration: duration_str.into(),
         duration_min,
         actor_name: actor.clone().into(),
@@ -2054,10 +2071,11 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 title: "".into(),
                 subtitle: "".into(),
                 timestamp: tr.get_just_now(),
+                timestamp_upper: tr.get_just_now_upper(),
                 duration: dur_str.into(),
                 duration_ms: (duration_seconds * 1000.0).round() as i32,
-                actor_name: "You".into(),
-                actor_initials: "Y".into(),
+                actor_name: tr.get_you(),
+                actor_initials: tr.get_you_initial(),
                 game_name: "".into(),
                 participant_count: 1,
                 clip_count: 0,

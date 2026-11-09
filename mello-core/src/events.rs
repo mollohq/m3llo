@@ -769,7 +769,7 @@ pub enum Event {
     /// A chat image did not reach the bucket. The chip shows the reason.
     ChatImageUploadFailed {
         attachment_id: String,
-        reason: String,
+        reason: crate::chat::ImageUploadError,
     },
     /// Clip MP4 uploaded to cloud storage.
     ClipUploaded {
@@ -849,7 +849,7 @@ pub enum Event {
     /// Dota 2's launch option). Shown as a hint in the "now playing" card.
     TelemetrySetupHint {
         game_id: String,
-        hint: String,
+        hint: crate::telemetry::SetupHint,
     },
     /// A match resolved mid-session (from a telemetry adapter, e.g. CS2 GSI).
     /// Live signal for HUD / future auto-clip hooks.

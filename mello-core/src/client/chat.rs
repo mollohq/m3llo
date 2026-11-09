@@ -37,7 +37,7 @@ impl super::Client {
 
     /// Ask the server for a slot on the chat bucket, PUT the bytes there, and
     /// tell the UI the image is ready to send. Every failure reaches the UI
-    /// as `ChatImageUploadFailed` with one sentence.
+    /// as `ChatImageUploadFailed` with a typed reason.
     pub(super) async fn handle_upload_chat_image(
         &self,
         attachment_id: String,
@@ -46,15 +46,15 @@ impl super::Client {
         height: u32,
         bytes: Vec<u8>,
     ) {
-        let fail = |reason: &str| {
-            log::warn!("[chat] image {} upload failed: {}", attachment_id, reason);
+        let fail = |reason: crate::chat::ImageUploadError| {
+            log::warn!("[chat] image {} upload failed: {:?}", attachment_id, reason);
             let _ = self.event_tx.send(Event::ChatImageUploadFailed {
                 attachment_id: attachment_id.clone(),
-                reason: reason.to_string(),
+                reason,
             });
         };
         let Some(crew_id) = self.nakama.active_crew_id().map(str::to_string) else {
-            fail("No crew is open.");
+            fail(crate::chat::ImageUploadError::NoCrew);
             return;
         };
         let req = crate::crew_events::ChatUploadURLRequest {
@@ -66,12 +66,12 @@ impl super::Client {
             Ok(r) => r,
             Err(e) => {
                 log::warn!("[chat] chat_upload_url failed: {}", e);
-                fail("The server did not give an upload slot.");
+                fail(crate::chat::ImageUploadError::NoSlot);
                 return;
             }
         };
         if slot.upload_url.is_empty() || slot.media_url.is_empty() {
-            fail("Image upload is off on this server.");
+            fail(crate::chat::ImageUploadError::Off);
             return;
         }
         let http = reqwest::Client::new();
@@ -85,12 +85,12 @@ impl super::Client {
             Ok(resp) if resp.status().is_success() => {}
             Ok(resp) => {
                 log::warn!("[chat] image PUT answered HTTP {}", resp.status());
-                fail("The upload was refused.");
+                fail(crate::chat::ImageUploadError::Refused);
                 return;
             }
             Err(e) => {
                 log::warn!("[chat] image PUT failed: {}", e);
-                fail("The upload did not complete.");
+                fail(crate::chat::ImageUploadError::Incomplete);
                 return;
             }
         }

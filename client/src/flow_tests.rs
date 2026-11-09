@@ -1635,7 +1635,7 @@ fn a_failed_upload_keeps_its_reason_and_text_still_sends() {
     let _ = h.commands();
     h.emit(Event::ChatImageUploadFailed {
         attachment_id: id,
-        reason: "The upload was refused.".into(),
+        reason: mello_core::chat::ImageUploadError::Refused,
     });
     let chip = h.app().get_chat_attachments().row_data(0).expect("chip");
     assert_eq!(chip.state, "failed");

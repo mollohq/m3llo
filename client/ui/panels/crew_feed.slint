@@ -603,7 +603,7 @@ component RecapMoved inherits Rectangle {
                                 compact: true;
                                 dense: true;
                                 hue: H2hHue.of(b.holder-hue);
-                                icon: b.icon; title: b.title; value: b.value; unit: b.unit;
+                                icon: b.icon; title: b.title; title-upper: b.title-upper; value: b.value; unit: b.unit;
                                 tip: SealedUi.hides(b.belt) ? "" : b.stat-line;
                             }
                         }
@@ -1737,6 +1737,7 @@ component FeedSlot inherits Rectangle {
         peak-viewers: card.participant-count;
         clip-count: card.clip-count;
         time-since-ended: card.timestamp;
+        time-since-ended-upper: card.timestamp-upper;
         is-hero: card.is-hero;
         was-seen: card.was-seen;
         snapshot-loading: card.snapshot-loading;
@@ -1900,7 +1901,7 @@ component HistoryRow inherits Rectangle {
         if !root.week.locked: FeedBoard {
             width: root.cw;
             mode: "past";
-            past-label: root.week.label.to-uppercase();
+            past-label: root.week.label-upper;
             past-age: root.week.age;
             big: root.week.big;
             stats: root.week.stats;

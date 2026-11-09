@@ -35,13 +35,54 @@ pub struct PreparedImage {
     pub thumb: (Vec<u8>, u32, u32),
 }
 
-/// Why an image could not be prepared. One sentence, shown on the chip.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PrepareError(pub String);
+/// Why an image could not be prepared. The chip shows it as one sentence
+/// ([`AttachmentError::text`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PrepareError {
+    /// The file is over `MAX_SOURCE_BYTES`.
+    SourceTooBig,
+    /// The file is not an image.
+    NotAnImage,
+    /// The GIF is over `MAX_BYTES`.
+    GifTooBig,
+    /// The GIF does not decode.
+    GifUnreadable,
+    /// The image does not decode.
+    Unreadable,
+    /// The image does not encode.
+    Unencodable,
+    /// The image is over `MAX_BYTES` after the resize.
+    TooBigAfterResize,
+}
 
-impl std::fmt::Display for PrepareError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
+/// Why a chip failed: before the upload, or during it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AttachmentError {
+    Prepare(PrepareError),
+    Upload(mello_core::chat::ImageUploadError),
+}
+
+impl AttachmentError {
+    /// The sentence on the chip.
+    pub fn text(self, tr: &crate::Tr<'_>) -> String {
+        use mello_core::chat::ImageUploadError as U;
+        match self {
+            Self::Prepare(PrepareError::SourceTooBig) => tr.get_image_error_source_too_big(),
+            Self::Prepare(PrepareError::NotAnImage) => tr.get_image_error_not_an_image(),
+            Self::Prepare(PrepareError::GifTooBig) => tr.get_image_error_gif_too_big(),
+            Self::Prepare(PrepareError::GifUnreadable) => tr.get_image_error_gif_unreadable(),
+            Self::Prepare(PrepareError::Unreadable) => tr.get_image_error_unreadable(),
+            Self::Prepare(PrepareError::Unencodable) => tr.get_image_error_unencodable(),
+            Self::Prepare(PrepareError::TooBigAfterResize) => {
+                tr.get_image_error_too_big_after_resize()
+            }
+            Self::Upload(U::NoCrew) => tr.get_image_upload_no_crew(),
+            Self::Upload(U::NoSlot) => tr.get_image_upload_no_slot(),
+            Self::Upload(U::Off) => tr.get_image_upload_off(),
+            Self::Upload(U::Refused) => tr.get_image_upload_refused(),
+            Self::Upload(U::Incomplete) => tr.get_image_upload_incomplete(),
+        }
+        .into()
     }
 }
 
@@ -50,17 +91,16 @@ impl std::fmt::Display for PrepareError {
 /// transparency stays PNG; everything else becomes JPEG.
 pub fn prepare_image(source: &[u8]) -> Result<PreparedImage, PrepareError> {
     if source.len() > MAX_SOURCE_BYTES {
-        return Err(PrepareError("That file is over 64 MB.".into()));
+        return Err(PrepareError::SourceTooBig);
     }
-    let format = image::guess_format(source)
-        .map_err(|_| PrepareError("That file is not an image.".into()))?;
+    let format = image::guess_format(source).map_err(|_| PrepareError::NotAnImage)?;
 
     if format == image::ImageFormat::Gif {
         if source.len() > MAX_BYTES {
-            return Err(PrepareError("That GIF is over 8 MB.".into()));
+            return Err(PrepareError::GifTooBig);
         }
         let first = image::load_from_memory_with_format(source, format)
-            .map_err(|_| PrepareError("That GIF cannot be read.".into()))?;
+            .map_err(|_| PrepareError::GifUnreadable)?;
         let (width, height) = (first.width(), first.height());
         return Ok(PreparedImage {
             bytes: source.to_vec(),
@@ -73,14 +113,14 @@ pub fn prepare_image(source: &[u8]) -> Result<PreparedImage, PrepareError> {
 
     let mut decoder = image::ImageReader::new(Cursor::new(source))
         .with_guessed_format()
-        .map_err(|_| PrepareError("That file is not an image.".into()))?
+        .map_err(|_| PrepareError::NotAnImage)?
         .into_decoder()
-        .map_err(|_| PrepareError("That image cannot be read.".into()))?;
+        .map_err(|_| PrepareError::Unreadable)?;
     let orientation = decoder
         .orientation()
         .unwrap_or(image::metadata::Orientation::NoTransforms);
-    let mut img = image::DynamicImage::from_decoder(decoder)
-        .map_err(|_| PrepareError("That image cannot be read.".into()))?;
+    let mut img =
+        image::DynamicImage::from_decoder(decoder).map_err(|_| PrepareError::Unreadable)?;
     img.apply_orientation(orientation);
 
     if img.width().max(img.height()) > MAX_SIDE {
@@ -93,18 +133,18 @@ pub fn prepare_image(source: &[u8]) -> Result<PreparedImage, PrepareError> {
     let (bytes, mime) = if keep_png {
         let mut out = Cursor::new(Vec::new());
         img.write_to(&mut out, image::ImageFormat::Png)
-            .map_err(|_| PrepareError("That image cannot be encoded.".into()))?;
+            .map_err(|_| PrepareError::Unencodable)?;
         (out.into_inner(), "image/png")
     } else {
         let rgb = img.to_rgb8();
         let mut out = Vec::new();
         let mut enc = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, JPEG_QUALITY);
         enc.encode_image(&rgb)
-            .map_err(|_| PrepareError("That image cannot be encoded.".into()))?;
+            .map_err(|_| PrepareError::Unencodable)?;
         (out, "image/jpeg")
     };
     if bytes.len() > MAX_BYTES {
-        return Err(PrepareError("That image is over 8 MB after resize.".into()));
+        return Err(PrepareError::TooBigAfterResize);
     }
     Ok(PreparedImage {
         bytes,
@@ -138,22 +178,13 @@ fn thumbnail(img: &image::DynamicImage) -> (Vec<u8>, u32, u32) {
     (t.into_raw(), w, h)
 }
 
-/// A readable size: "860 KB", "1.2 MB".
-pub fn size_label(bytes: u64) -> String {
-    if bytes >= 1 << 20 {
-        format!("{:.1} MB", bytes as f64 / (1 << 20) as f64)
-    } else {
-        format!("{} KB", bytes.div_ceil(1024).max(1))
-    }
-}
-
 /// Where a pending chip is in its life.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum AttachmentState {
     Preparing,
     Uploading,
     Ready(mello_core::chat::ImageData),
-    Failed(String),
+    Failed(AttachmentError),
 }
 
 /// One chip in the composer. The thumbnail is raw RGBA so the state can
@@ -168,12 +199,12 @@ pub struct Attachment {
 
 impl Attachment {
     /// The word the chip shows under the thumbnail.
-    pub fn label(&self) -> String {
+    pub fn label(&self, tr: &crate::Tr<'_>) -> String {
         match &self.state {
-            AttachmentState::Preparing => "preparing".into(),
-            AttachmentState::Uploading => "uploading".into(),
-            AttachmentState::Ready(_) => size_label(self.bytes),
-            AttachmentState::Failed(reason) => reason.clone(),
+            AttachmentState::Preparing => tr.get_attachment_preparing().into(),
+            AttachmentState::Uploading => tr.get_attachment_uploading().into(),
+            AttachmentState::Ready(_) => crate::l10n_format::file_size(tr, self.bytes),
+            AttachmentState::Failed(reason) => reason.text(tr),
         }
     }
 
@@ -281,14 +312,29 @@ mod tests {
     #[test]
     fn not_an_image_is_one_sentence() {
         let err = prepare_image(b"hello, not an image").expect_err("refused");
-        assert_eq!(err.0, "That file is not an image.");
+        assert_eq!(err, PrepareError::NotAnImage);
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(
+            AttachmentError::Prepare(err).text(tr),
+            "That file is not an image."
+        );
+        assert_eq!(
+            AttachmentError::Upload(mello_core::chat::ImageUploadError::Refused).text(tr),
+            "The upload was refused."
+        );
     }
 
+    /// Under the pseudo language the chip text changes.
+    #[cfg(debug_assertions)]
     #[test]
-    fn size_labels_read_like_a_file_browser() {
-        assert_eq!(size_label(880_640), "860 KB");
-        assert_eq!(size_label(1_258_291), "1.2 MB");
-        assert_eq!(size_label(10), "1 KB");
+    fn the_chip_text_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = AttachmentError::Prepare(PrepareError::GifTooBig).text(tr);
+        crate::locale::select_source_language();
+        assert_eq!(text, pseudo("That GIF is over 8 MB."));
+        assert_ne!(text, "That GIF is over 8 MB.");
     }
 
     #[test]
@@ -309,7 +355,9 @@ mod tests {
         assert_eq!(
             ready_images(&[
                 a(AttachmentState::Ready(img.clone())),
-                a(AttachmentState::Failed("no".into()))
+                a(AttachmentState::Failed(AttachmentError::Upload(
+                    mello_core::chat::ImageUploadError::Refused
+                )))
             ]),
             Some(vec![img.clone()])
         );

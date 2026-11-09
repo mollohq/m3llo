@@ -29,7 +29,7 @@ pub(crate) fn open(ctx: &AppContext, card: &FeedCardData) {
     ui.set_ended(false);
     if ctx.app.get_is_watching() {
         ui.set_buffering(false);
-        ui.set_error("Stop watching the stream to play a clip".into());
+        ui.set_error(ctx.app.global::<crate::Tr>().get_clip_player_watching());
         ui.set_open(true);
         return;
     }

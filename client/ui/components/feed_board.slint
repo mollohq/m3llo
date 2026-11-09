@@ -476,7 +476,7 @@ export component FeedBoard inherits BoardShell {
                         x: 0px; y: (parent.height - self.height) / 2;
                         width: parent.width;
                         hue: H2hHue.of(t.hue-index);
-                        icon: t.icon; title: t.title; value: t.value; unit: t.unit;
+                        icon: t.icon; title: t.title; title-upper: t.title-upper; value: t.value; unit: t.unit;
                         tip: t.stat-line;
                     }
                 }
@@ -1209,7 +1209,7 @@ export component StageOwnBelts inherits BoardShell {
                     x: 0px; y: (parent.height - self.height) / 2;
                     width: parent.width;
                     hue: H2hHue.of(t.hue-index);
-                    icon: t.icon; title: t.title; value: t.value; unit: t.unit;
+                    icon: t.icon; title: t.title; title-upper: t.title-upper; value: t.value; unit: t.unit;
                     tip: t.stat-line;
                 }
             }
@@ -1238,6 +1238,8 @@ export struct LockedTeaser {
 /// it is m3llo+. `locked`: the week shows sealed, with teasers.
 export struct HistoryWeek {
     label: string,
+    /// The label in upper case, for the board of the week. Built in Rust.
+    label-upper: string,
     age: string,
     locked: bool,
     seal: RecapSeal,
@@ -1257,7 +1259,11 @@ export component LockedTeaserTile inherits BoardShell {
     callback clicked();
     corner: "tr";
     accessible-role: button;
-    accessible-label: @tr("Locked {}, m3llo+", root.item.kind.to-lowercase());
+    // `kind` is the id from the server: "clip", "stream", or another kind,
+    // which shows as it is.
+    accessible-label: root.item.kind == "clip" ? @tr("Locked clip, m3llo+")
+        : root.item.kind == "stream" ? @tr("Locked stream, m3llo+")
+        : @tr("Locked {}, m3llo+", root.item.kind);
 
     Rectangle {
         x: 18px; y: 18px;
@@ -1299,7 +1305,12 @@ export component LockedTeaserTile inherits BoardShell {
             horizontal-stretch: 1;
             alignment: center;
             Text { text: root.item.person.name; overflow: elide; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 12.5px; color: Theme.text-primary; }
-            Kicker { text: root.item.kind + "  " + root.item.duration; font-size: 8.5px; letter-spacing: Theme.track-label; }
+            Kicker {
+                text: (root.item.kind == "clip" ? @tr("CLIP") : root.item.kind == "stream" ? @tr("STREAM") : root.item.kind.to-uppercase())
+                    + "  " + root.item.duration;
+                font-size: 8.5px;
+                letter-spacing: Theme.track-label;
+            }
         }
     }
     TouchArea { mouse-cursor: pointer; clicked => { root.clicked(); } }

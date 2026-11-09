@@ -257,6 +257,38 @@ pub fn week_of(tr: &Tr<'_>, week_start_ms: i64) -> String {
     tr.invoke_week_of(date.into()).into()
 }
 
+/// The label of a recap week in upper case: "WEEK 4" when the server
+/// numbered it, else "WEEK OF 6 OCT" from its start. Empty without either.
+pub fn week_label_upper(tr: &Tr<'_>, number: i64, week_start_ms: i64) -> String {
+    if number > 0 {
+        return tr.invoke_week_number_upper(number as i32).into();
+    }
+    if week_start_ms <= 0 {
+        return String::new();
+    }
+    let d = civil_day(week_start_ms);
+    let date = tr.invoke_date_day_month(d.day as i32, month_short_upper_name(tr, d.month));
+    tr.invoke_week_of_upper(date).into()
+}
+
+/// The short name of a month in upper case, 1 is January.
+pub fn month_short_upper_name(tr: &Tr<'_>, month: u32) -> slint::SharedString {
+    match month {
+        1 => tr.get_month_short_upper_january(),
+        2 => tr.get_month_short_upper_february(),
+        3 => tr.get_month_short_upper_march(),
+        4 => tr.get_month_short_upper_april(),
+        5 => tr.get_month_short_upper_may(),
+        6 => tr.get_month_short_upper_june(),
+        7 => tr.get_month_short_upper_july(),
+        8 => tr.get_month_short_upper_august(),
+        9 => tr.get_month_short_upper_september(),
+        10 => tr.get_month_short_upper_october(),
+        11 => tr.get_month_short_upper_november(),
+        _ => tr.get_month_short_upper_december(),
+    }
+}
+
 /// The title of a numbered recap: "Week 4".
 pub fn week_number(tr: &Tr<'_>, n: i64) -> String {
     tr.invoke_week_number(n as i32).into()
@@ -337,6 +369,47 @@ pub fn feed_card_age(tr: &Tr<'_>, ago_secs: i64, ts_secs: i64) -> String {
     } else {
         tr.invoke_days_ago_short((ago_secs / 86_400) as i32).into()
     }
+}
+
+/// [`feed_card_age`] in upper case, for the session preview card: "JUST
+/// NOW", "5M AGO", "YESTERDAY", "MONDAY".
+pub fn feed_card_age_upper(tr: &Tr<'_>, ago_secs: i64, ts_secs: i64) -> String {
+    if ago_secs < 60 {
+        tr.get_just_now_upper().into()
+    } else if ago_secs < 3600 {
+        tr.invoke_minutes_ago_short_upper((ago_secs / 60) as i32)
+            .into()
+    } else if ago_secs < 43_200 {
+        tr.invoke_hours_ago_short_upper((ago_secs / 3600) as i32)
+            .into()
+    } else if ago_secs < 86_400 {
+        tr.get_yesterday_upper().into()
+    } else if ago_secs < 172_800 {
+        tr.invoke_days_ago_upper(2).into()
+    } else if ago_secs < 604_800 {
+        match (ago_secs / 86_400) % 7 {
+            0 => tr.get_today_upper().into(),
+            1 => tr.get_yesterday_upper().into(),
+            _ => weekday_name_upper(tr, civil_day(ts_secs * 1000).weekday),
+        }
+    } else {
+        tr.invoke_days_ago_short_upper((ago_secs / 86_400) as i32)
+            .into()
+    }
+}
+
+/// The name of a day of the week in upper case, 0 is Sunday.
+pub fn weekday_name_upper(tr: &Tr<'_>, weekday: u32) -> String {
+    match weekday % 7 {
+        0 => tr.get_weekday_upper_sunday(),
+        1 => tr.get_weekday_upper_monday(),
+        2 => tr.get_weekday_upper_tuesday(),
+        3 => tr.get_weekday_upper_wednesday(),
+        4 => tr.get_weekday_upper_thursday(),
+        5 => tr.get_weekday_upper_friday(),
+        _ => tr.get_weekday_upper_saturday(),
+    }
+    .into()
 }
 
 // --- Times ---
@@ -493,6 +566,18 @@ pub fn hours_upper(tr: &Tr<'_>, minutes: i64) -> String {
     tr.invoke_duration_hours_upper(value.into()).into()
 }
 
+/// Hours, lower case: "4,167 h" from 100 hours up, one decimal below
+/// ("12.6 h"). The lower-case form of [`hours_upper`].
+pub fn hours_lower(tr: &Tr<'_>, minutes: i64) -> String {
+    let hours = minutes as f64 / 60.0;
+    let value = if hours >= 100.0 {
+        grouped(tr, hours.round() as i64)
+    } else {
+        format!("{:.1}", hours.max(0.1))
+    };
+    tr.invoke_duration_hours(value.into()).into()
+}
+
 /// Play time in a caption: "45 min" under an hour, "4.5 h" or "4 h" under
 /// ten hours, then whole hours ("4,167 h"). Empty for no minutes.
 pub fn play_time(tr: &Tr<'_>, minutes: i64) -> String {
@@ -527,6 +612,16 @@ pub fn since(tr: &Tr<'_>, minutes: i64) -> String {
     .into()
 }
 
+/// The size of a file, as a file browser writes it: "860 KB", "1.2 MB".
+pub fn file_size(tr: &Tr<'_>, bytes: u64) -> String {
+    if bytes >= 1 << 20 {
+        tr.invoke_size_mb(format!("{:.1}", bytes as f64 / (1 << 20) as f64).into())
+    } else {
+        tr.invoke_size_kb(bytes.div_ceil(1024).max(1) as i32)
+    }
+    .into()
+}
+
 // --- Numbers ---
 
 /// `n` with `separator` between the groups of three digits.
@@ -549,6 +644,73 @@ pub fn group_digits(n: i64, separator: &str) -> String {
 /// English.
 pub fn grouped(tr: &Tr<'_>, n: i64) -> String {
     group_digits(n, &tr.get_digit_group_separator())
+}
+
+/// A time in milliseconds. The value is a number formatted by the caller,
+/// with a sign or a decimal: "118 ms", "+8 ms", "2.1 ms".
+pub fn milliseconds(tr: &Tr<'_>, value: &str) -> String {
+    tr.invoke_duration_ms(value.into()).into()
+}
+
+/// A percent: "62%".
+pub fn percent(tr: &Tr<'_>, n: i64) -> String {
+    tr.invoke_percent(n as i32).into()
+}
+
+/// A value that is not exact: "~1h 5m".
+pub fn approx(tr: &Tr<'_>, value: &str) -> String {
+    tr.invoke_approx(value.into()).into()
+}
+
+// --- Lists ---
+
+/// Items with commas: "Bob, Max, Sara".
+pub fn list_comma(tr: &Tr<'_>, items: &[String]) -> String {
+    let mut iter = items.iter();
+    let Some(first) = iter.next() else {
+        return String::new();
+    };
+    iter.fold(first.clone(), |acc, item| {
+        tr.invoke_list_comma(acc.into(), item.as_str().into())
+            .into()
+    })
+}
+
+/// Items with commas and "and" before the last: "Bob", "Bob and Max",
+/// "Bob, Max and Sara".
+pub fn list_and(tr: &Tr<'_>, items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => tr
+            .invoke_list_and(list_comma(tr, rest).into(), last.as_str().into())
+            .into(),
+    }
+}
+
+/// The first items with commas and the count of the others: "Bob, Max,
+/// Sara +2". With no others, the items only.
+pub fn list_plus(tr: &Tr<'_>, shown: &[String], others: usize) -> String {
+    let list = list_comma(tr, shown);
+    if others == 0 {
+        return list;
+    }
+    tr.invoke_list_plus(list.into(), others as i32).into()
+}
+
+/// The first items with commas and the count of the others in words: "Bob,
+/// Max and 3 more". With no others, [`list_and`].
+pub fn list_and_more(tr: &Tr<'_>, shown: &[String], others: usize) -> String {
+    if others == 0 {
+        return list_and(tr, shown);
+    }
+    tr.invoke_list_and_more(list_comma(tr, shown).into(), others as i32)
+        .into()
+}
+
+/// Two parts of one line with a middle dot: "4W–2L · 3-win streak".
+pub fn dot_pair(tr: &Tr<'_>, first: &str, second: &str) -> String {
+    tr.invoke_dot_pair(first.into(), second.into()).into()
 }
 
 #[cfg(test)]
@@ -604,6 +766,9 @@ mod tests {
             assert_eq!(week_of(tr, MON_5_OCT + DAY), "Week of 6 Oct");
             assert_eq!(week_of(tr, 0), "");
             assert_eq!(week_number(tr, 4), "Week 4");
+            assert_eq!(week_label_upper(tr, 4, MON_5_OCT), "WEEK 4");
+            assert_eq!(week_label_upper(tr, 0, MON_5_OCT + DAY), "WEEK OF 6 OCT");
+            assert_eq!(week_label_upper(tr, 0, 0), "");
         });
     }
 
@@ -637,6 +802,13 @@ mod tests {
             assert_eq!(feed_card_age(tr, 100_000, ts), "2 days ago");
             assert_eq!(feed_card_age(tr, 3 * 86_400, ts), "Monday");
             assert_eq!(feed_card_age(tr, 9 * 86_400, ts), "9d ago");
+            for ago in [30, 300, 7_200, 50_000, 100_000, 3 * 86_400, 9 * 86_400] {
+                assert_eq!(
+                    feed_card_age_upper(tr, ago, ts),
+                    feed_card_age(tr, ago, ts).to_uppercase(),
+                    "{ago}"
+                );
+            }
         });
     }
 
@@ -765,6 +937,42 @@ mod tests {
     }
 
     #[test]
+    fn lists_read_as_today() {
+        with_tr(|tr| {
+            let s = |v: &[&str]| v.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+            assert_eq!(list_and(tr, &s(&[])), "");
+            assert_eq!(list_and(tr, &s(&["Bob"])), "Bob");
+            assert_eq!(list_and(tr, &s(&["Bob", "Max"])), "Bob and Max");
+            assert_eq!(
+                list_and(tr, &s(&["Bob", "Max", "Sara"])),
+                "Bob, Max and Sara"
+            );
+            assert_eq!(
+                list_comma(tr, &s(&["Bob", "Max", "Sara"])),
+                "Bob, Max, Sara"
+            );
+            assert_eq!(list_plus(tr, &s(&["Bob", "Max"]), 3), "Bob, Max +3");
+            assert_eq!(list_plus(tr, &s(&["Bob", "Max"]), 0), "Bob, Max");
+            assert_eq!(
+                list_and_more(tr, &s(&["Bob", "Max"]), 3),
+                "Bob, Max and 3 more"
+            );
+            assert_eq!(dot_pair(tr, "a", "b"), "a · b");
+            assert_eq!(percent(tr, 62), "62%");
+            assert_eq!(approx(tr, "1h"), "~1h");
+        });
+    }
+
+    #[test]
+    fn file_sizes_read_like_a_file_browser() {
+        with_tr(|tr| {
+            assert_eq!(file_size(tr, 880_640), "860 KB");
+            assert_eq!(file_size(tr, 1_258_291), "1.2 MB");
+            assert_eq!(file_size(tr, 10), "1 KB");
+        });
+    }
+
+    #[test]
     fn numbers_get_the_group_separator() {
         assert_eq!(group_digits(4201, ","), "4,201");
         assert_eq!(group_digits(1_234_567, " "), "1 234 567");
@@ -807,6 +1015,13 @@ mod tests {
             assert_eq!(
                 chat_day(tr, Some(&DayLabel::Weekday(day(2026, 11, 1, 0)))),
                 format!("{} 1 {}", pseudo("Sunday"), pseudo("Nov"))
+            );
+            let names: Vec<String> = ["Bob", "Max", "Sara"].map(String::from).to_vec();
+            assert_eq!(
+                list_and(tr, &names),
+                pseudo("{0} and {1}")
+                    .replace("{0}", "Bob, Max")
+                    .replace("{1}", "Sara")
             );
             // A pattern and the separator have no letter: no change.
             assert_eq!(grouped(tr, 4201), "4,201");

@@ -157,7 +157,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 return;
             }
 
-            let failure = SignInFailure::from_reason(&reason);
+            let failure = {
+                use slint::ComponentHandle as _;
+                SignInFailure::from_reason(&ctx.app.global::<crate::Tr>(), &reason)
+            };
             ctx.app.set_login_error(failure.message.into());
             ctx.app.set_login_account_missing(failure.account_missing);
         }
@@ -211,14 +214,14 @@ pub(crate) struct SignInFailure {
 }
 
 impl SignInFailure {
-    pub(crate) fn from_reason(reason: &str) -> Self {
+    pub(crate) fn from_reason(tr: &crate::Tr<'_>, reason: &str) -> Self {
         let lower = reason.to_ascii_lowercase();
         let (message, account_missing) = if lower.contains("account not found") {
-            ("No account found.", true)
+            (tr.get_sign_in_no_account(), true)
         } else if lower.contains("invalid credentials") {
-            ("Wrong email or password.", false)
+            (tr.get_sign_in_wrong_password(), false)
         } else if lower.starts_with("authentication failed") {
-            ("Sign-in failed. Try again.", false)
+            (tr.get_sign_in_failed(), false)
         } else {
             // Messages the client composes itself, for example
             // "Discord sign-in failed: …", are already written for the user.
@@ -267,22 +270,25 @@ fn dispatch_pending_deep_link(ctx: &AppContext) {
 #[cfg(test)]
 mod tests {
     use super::SignInFailure;
+    use crate::l10n_format::test_tr;
 
     /// #67: the raw server text for an unknown account never reaches the user.
     #[test]
     fn an_unknown_account_reads_as_a_plain_message_with_a_way_forward() {
-        let f = SignInFailure::from_reason("Authentication failed: User account not found.");
+        let f =
+            SignInFailure::from_reason(test_tr(), "Authentication failed: User account not found.");
         assert_eq!(f.message, "No account found.");
         assert!(f.account_missing);
     }
 
     #[test]
     fn other_server_answers_read_as_plain_messages() {
-        let f = SignInFailure::from_reason("Authentication failed: Invalid credentials.");
+        let f =
+            SignInFailure::from_reason(test_tr(), "Authentication failed: Invalid credentials.");
         assert_eq!(f.message, "Wrong email or password.");
         assert!(!f.account_missing);
 
-        let f = SignInFailure::from_reason("Authentication failed: something new");
+        let f = SignInFailure::from_reason(test_tr(), "Authentication failed: something new");
         assert_eq!(f.message, "Sign-in failed. Try again.");
         assert!(!f.account_missing);
     }
@@ -290,7 +296,7 @@ mod tests {
     #[test]
     fn client_messages_pass_through() {
         let reason = "Discord sign-in failed: Timeout waiting for authentication";
-        let f = SignInFailure::from_reason(reason);
+        let f = SignInFailure::from_reason(test_tr(), reason);
         assert_eq!(f.message, reason);
         assert!(!f.account_missing);
     }

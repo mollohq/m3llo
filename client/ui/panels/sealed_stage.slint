@@ -834,7 +834,7 @@ export component SealedStage inherits Rectangle {
         alignment: start;
         opacity: Ease.span(root.t, 1500ms, 1800ms);
         ZoneButton {
-            label: SealedUi.quest.action1-label.to-uppercase();
+            label: SealedUi.quest.action1-label-upper;
             a11y-label: SealedUi.quest.action1-label;
             tone: "line";
             clicked => {
@@ -843,7 +843,7 @@ export component SealedStage inherits Rectangle {
             }
         }
         if SealedUi.quest.action2 != "": ZoneButton {
-            label: SealedUi.quest.action2-label.to-uppercase();
+            label: SealedUi.quest.action2-label-upper;
             a11y-label: SealedUi.quest.action2-label;
             tone: "line";
             clicked => {

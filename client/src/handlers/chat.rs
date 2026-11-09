@@ -457,15 +457,16 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.gif_popover_anim.stop_and_clear();
             ctx.app
                 .set_gif_results(Rc::new(slint::VecModel::<GifItemData>::default()).into());
+            let tr = ctx.app.global::<crate::Tr>();
             let text = match error {
-                GifError::NoKey => "GIFs are off in this build.",
-                GifError::Unauthorized => "The GIF service refused this build's key.",
-                GifError::RateLimited => "Too many GIF searches right now. Try again in a minute.",
+                GifError::NoKey => tr.get_gif_error_no_key(),
+                GifError::Unauthorized => tr.get_gif_error_unauthorized(),
+                GifError::RateLimited => tr.get_gif_error_rate_limited(),
                 GifError::Status(_) | GifError::Network(_) | GifError::Parse(_) => {
-                    "The GIF service did not answer. Your messages still send."
+                    tr.get_gif_error_no_answer()
                 }
             };
-            ctx.app.set_gif_error(text.into());
+            ctx.app.set_gif_error(text);
         }
         Event::ChatImageUploaded {
             attachment_id,
@@ -485,7 +486,9 @@ pub fn handle(ctx: &AppContext, event: Event) {
             set_attachment_state(
                 ctx,
                 &attachment_id,
-                crate::chat_images::AttachmentState::Failed(reason),
+                crate::chat_images::AttachmentState::Failed(
+                    crate::chat_images::AttachmentError::Upload(reason),
+                ),
             );
         }
         Event::MessagePreviewUpdated { crew_id, messages } => {

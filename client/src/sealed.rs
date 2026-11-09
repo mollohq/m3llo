@@ -176,23 +176,23 @@ pub fn recap_field(levels: &[i32]) -> (String, String) {
 }
 
 /// The sentence under the value of a title: the Stat column of
-/// `HEAD2HEAD.md` section 2.
-pub fn stat_line(title_id: &str) -> &'static str {
+/// `HEAD2HEAD.md` section 2. Empty for an id this client does not know.
+pub fn stat_line(tr: &crate::Tr<'_>, title_id: &str) -> slint::SharedString {
     match title_id {
-        "the_carry" => "Most hours in the top shared game.",
-        "locked_in" => "Most game hours in the last 7 days.",
-        "has_a_life" => "Fewest game hours in the last 7 days.",
-        "night_owl" => "Latest local time of a last session.",
-        "the_collector" => "Most installed games.",
-        "sampler" => "Most different games in the last 14 days.",
-        "one_trick" => "Highest share of play time in one game.",
-        "mouth" => "Most voice minutes in the last 14 days.",
-        "marathon" => "Longest single game session.",
-        "last_one_up" => "Latest session end in the last 14 days.",
-        "clipper" => "Most clips posted.",
-        "rage_quit" => "Most sessions of 2 to 10 minutes in 14 days.",
-        "winner" => "Most win moments in the last 14 days.",
-        _ => "",
+        "the_carry" => tr.get_stat_the_carry(),
+        "locked_in" => tr.get_stat_locked_in(),
+        "has_a_life" => tr.get_stat_has_a_life(),
+        "night_owl" => tr.get_stat_night_owl(),
+        "the_collector" => tr.get_stat_the_collector(),
+        "sampler" => tr.get_stat_sampler(),
+        "one_trick" => tr.get_stat_one_trick(),
+        "mouth" => tr.get_stat_mouth(),
+        "marathon" => tr.get_stat_marathon(),
+        "last_one_up" => tr.get_stat_last_one_up(),
+        "clipper" => tr.get_stat_clipper(),
+        "rage_quit" => tr.get_stat_rage_quit(),
+        "winner" => tr.get_stat_winner(),
+        _ => slint::SharedString::new(),
     }
 }
 
@@ -323,6 +323,7 @@ pub struct Move<'a> {
 /// The moved belt of the UI. An opened belt has the same data, so the centre
 /// view and a replay need nothing more.
 pub fn reveal_of(
+    tr: &crate::Tr<'_>,
     m: &Move,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
     seal: &Seal,
@@ -330,7 +331,7 @@ pub fn reveal_of(
     let key = belt_key(m.title_id, m.moved_ms);
     let seed = belt_seed(m.title_id, m.moved_ms);
     let cells = belt_cells(seed);
-    let (title, icon) = head2head::belt_look(m.title_id);
+    let (title, icon) = head2head::belt_look(tr, m.title_id);
     let (kind, amount, decimals) = count_of(m.value, m.unit);
     // A clock has no unit. Minutes show as hours and minutes.
     let unit = if kind == 0 { m.unit } else { "" };
@@ -355,7 +356,7 @@ pub fn reveal_of(
         amount,
         decimals,
         unit: unit.into(),
-        stat: stat_line(m.title_id).into(),
+        stat: stat_line(tr, m.title_id),
         holder: person(m.holder),
         prev: person(m.prev),
         own: false,
@@ -377,6 +378,7 @@ pub struct OwnValue<'a> {
 /// moved, in the viewer's own hue. The face has the viewer and "You", and no
 /// previous holder.
 pub fn own_reveal(
+    tr: &crate::Tr<'_>,
     o: &OwnValue,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
     seal: &Seal,
@@ -384,7 +386,7 @@ pub fn own_reveal(
     let key = own_key(o.title_id, seal.crew_id);
     let seed = own_seed(o.title_id, seal.crew_id);
     let cells = belt_cells(seed);
-    let (title, icon) = head2head::belt_look(o.title_id);
+    let (title, icon) = head2head::belt_look(tr, o.title_id);
     let (kind, amount, decimals) = count_of(o.value, o.unit);
     let unit = if kind == 0 { o.shown_unit } else { "" };
     BeltReveal {
@@ -400,10 +402,10 @@ pub fn own_reveal(
         amount,
         decimals,
         unit: unit.into(),
-        stat: stat_line(o.title_id).into(),
+        stat: stat_line(tr, o.title_id),
         holder: H2hPerson {
             id: o.viewer.id.as_str().into(),
-            name: "You".into(),
+            name: tr.get_you(),
             initials: o.viewer.initials.as_str().into(),
             hue_index: o.viewer.hue,
             avatar: avatar(&o.viewer.id).unwrap_or_default(),
@@ -539,9 +541,12 @@ mod tests {
             "rage_quit",
             "winner",
         ] {
-            assert!(!stat_line(id).is_empty(), "{id}");
+            assert!(
+                !stat_line(crate::l10n_format::test_tr(), id).is_empty(),
+                "{id}"
+            );
         }
-        assert_eq!(stat_line("nope"), "");
+        assert_eq!(stat_line(crate::l10n_format::test_tr(), "nope"), "");
     }
 
     #[test]

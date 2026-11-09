@@ -98,7 +98,10 @@ impl GameTelemetryAdapter for Dota2GsiAdapter {
         if !super::steam::any_localconfig_contains(LAUNCH_OPTION) {
             let _ = tx.send(TelemetryEvent::SetupRequired {
                 game_id: GAME_ID.to_string(),
-                hint: format!("Add {LAUNCH_OPTION} to Dota 2's Steam launch options to track wins"),
+                hint: super::SetupHint::SteamLaunchOption {
+                    option: LAUNCH_OPTION.to_string(),
+                    game: "Dota 2".to_string(),
+                },
             });
         }
         #[cfg(not(windows))]

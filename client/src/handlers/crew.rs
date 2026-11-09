@@ -3,7 +3,7 @@ use std::rc::Rc;
 use base64::Engine as _;
 use mello_core::crew::InviteError;
 use mello_core::{Command, Event};
-use slint::Model;
+use slint::{ComponentHandle as _, Model};
 
 use crate::app_context::AppContext;
 use crate::converters::{apply_unread_to_crews, bento_bases, update_active_crew_card};
@@ -473,9 +473,11 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 crate::onboarding_invite::resolve_failed(ctx, error);
                 return;
             }
-            ctx.app.set_join_crew_error(
-                invite_resolve_error_message(error, InviteSource::Link).into(),
-            );
+            ctx.app.set_join_crew_error(invite_resolve_error_message(
+                &ctx.app.global::<crate::Tr>(),
+                error,
+                InviteSource::Link,
+            ));
             ctx.app.set_join_crew_loading(false);
             ctx.app.set_join_crew_modal_open(true);
         }
@@ -492,14 +494,18 @@ pub fn handle(ctx: &AppContext, event: Event) {
             // link) and the code field in Discover. The open modal wins.
             if ctx.app.get_join_crew_modal_open() {
                 log::warn!("[invite] join failed, shown in the join modal: {:?}", error);
-                ctx.app.set_join_crew_join_error(
-                    invite_join_error_message(error, InviteSource::Link).into(),
-                );
+                ctx.app.set_join_crew_join_error(invite_join_error_message(
+                    &ctx.app.global::<crate::Tr>(),
+                    error,
+                    InviteSource::Link,
+                ));
             } else {
                 log::warn!("[invite] join failed, shown in Discover: {:?}", error);
-                ctx.app.set_discover_invite_error(
-                    invite_join_error_message(error, InviteSource::TypedCode).into(),
-                );
+                ctx.app.set_discover_invite_error(invite_join_error_message(
+                    &ctx.app.global::<crate::Tr>(),
+                    error,
+                    InviteSource::TypedCode,
+                ));
             }
         }
         Event::InviteCodeCreated { code } => {
@@ -599,25 +605,30 @@ pub(crate) enum InviteSource {
 
 /// The text shown when `join_by_invite_code` fails. Only `InvalidCode` blames
 /// the invite: a server failure is not a bad code.
-pub(crate) fn invite_join_error_message(error: InviteError, source: InviteSource) -> &'static str {
+pub(crate) fn invite_join_error_message(
+    tr: &crate::Tr<'_>,
+    error: InviteError,
+    source: InviteSource,
+) -> slint::SharedString {
     match (error, source) {
-        (InviteError::InvalidCode, InviteSource::Link) => "This invite link is no longer valid.",
-        (InviteError::InvalidCode, InviteSource::TypedCode) => "This invite code is not valid.",
-        (InviteError::CrewFull, _) => "This crew is full.",
-        (InviteError::NotAllowed, _) => "You cannot join this crew.",
-        (InviteError::Failed, _) => "Could not join the crew. Try again.",
+        (InviteError::InvalidCode, InviteSource::Link) => tr.get_invite_link_invalid(),
+        (InviteError::InvalidCode, InviteSource::TypedCode) => tr.get_invite_code_invalid(),
+        (InviteError::CrewFull, _) => tr.get_invite_crew_full(),
+        (InviteError::NotAllowed, _) => tr.get_invite_not_allowed(),
+        (InviteError::Failed, _) => tr.get_invite_join_failed(),
     }
 }
 
 /// The text shown when `resolve_crew_invite` fails. A user who typed the
 /// code did not follow a link, so the text names the code.
 pub(crate) fn invite_resolve_error_message(
+    tr: &crate::Tr<'_>,
     error: InviteError,
     source: InviteSource,
-) -> &'static str {
+) -> slint::SharedString {
     match (error, source) {
-        (InviteError::InvalidCode, InviteSource::Link) => "This invite link is no longer valid.",
-        (InviteError::InvalidCode, InviteSource::TypedCode) => "This invite code is not valid.",
-        _ => "Could not load this invite. Try again.",
+        (InviteError::InvalidCode, InviteSource::Link) => tr.get_invite_link_invalid(),
+        (InviteError::InvalidCode, InviteSource::TypedCode) => tr.get_invite_code_invalid(),
+        _ => tr.get_invite_load_failed(),
     }
 }

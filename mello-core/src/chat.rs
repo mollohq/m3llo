@@ -32,6 +32,23 @@ pub struct ImageData {
     pub mime: String,
 }
 
+/// Why a chat image did not reach the bucket. The client writes it in the
+/// UI language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImageUploadError {
+    /// No crew is open.
+    NoCrew,
+    /// The server did not give an upload slot.
+    NoSlot,
+    /// The server has no bucket for chat images.
+    Off,
+    /// The bucket refused the upload.
+    Refused,
+    /// The upload did not complete.
+    Incomplete,
+}
+
 /// The most images one message carries.
 pub const MAX_IMAGES_PER_MESSAGE: usize = 4;
 
@@ -616,10 +633,22 @@ pub struct DisplayMessage {
     pub images: Vec<ImageData>,
     pub reply_to: Option<String>,
     pub reply_to_name: Option<String>,
-    pub reply_preview: Option<String>,
+    pub reply_preview: Option<ReplyPreview>,
     /// The separator above this message when it starts a new local day.
     /// `None` otherwise, or when the time does not parse.
     pub day_label: Option<DayLabel>,
+}
+
+/// The quote of the replied-to message above a reply. The client writes
+/// `Deleted` and `Gif` in the UI language.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReplyPreview {
+    /// The replied-to message is deleted.
+    Deleted,
+    /// The replied-to message is a GIF with no text.
+    Gif,
+    /// The start of the text of the replied-to message.
+    Text(String),
 }
 
 /// A calendar day in local time. The client writes it in the UI language.
@@ -930,7 +959,7 @@ fn truncate_preview(text: &str, max: usize) -> String {
 fn resolve_reply(
     reply_to: &Option<String>,
     messages: &[ChatMessage],
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<ReplyPreview>) {
     let Some(id) = reply_to else {
         return (None, None);
     };
@@ -938,11 +967,11 @@ fn resolve_reply(
         return (None, None);
     };
     let preview = if orig.is_deleted {
-        "[message deleted]".to_string()
+        ReplyPreview::Deleted
     } else if orig.gif.is_some() && orig.content.is_empty() {
-        "GIF".to_string()
+        ReplyPreview::Gif
     } else {
-        truncate_preview(&orig.display_body, 100)
+        ReplyPreview::Text(truncate_preview(&orig.display_body, 100))
     };
     (Some(orig.sender_name.clone()), Some(preview))
 }
@@ -1007,13 +1036,15 @@ pub fn prepare_messages_for_display(messages: &[ChatMessage]) -> Vec<DisplayMess
             sender_id: msg.sender_id.clone(),
             sender_name: msg.sender_name.clone(),
             sender_initials: sender_initials(&msg.sender_name),
+            // A deleted message has no body. The client shows its notice
+            // from `is_deleted`.
             content: if msg.is_deleted {
-                "[message deleted]".to_string()
+                String::new()
             } else {
                 msg.content.clone()
             },
             display_body: if msg.is_deleted {
-                "[message deleted]".to_string()
+                String::new()
             } else {
                 msg.display_body.clone()
             },
@@ -1472,7 +1503,23 @@ mod tests {
         let mut reply = msg("2", "u2", "bob", "2026-03-08T12:01:00Z", "yes");
         reply.reply_to = Some("1".into());
         let display = prepare_messages_for_display(&[orig, reply]);
-        assert_eq!(display[1].reply_preview.as_deref(), Some("hi @Bob"));
+        assert_eq!(
+            display[1].reply_preview,
+            Some(ReplyPreview::Text("hi @Bob".into()))
+        );
+    }
+
+    /// The core gives no text for a deleted message: the client writes it.
+    #[test]
+    fn a_deleted_message_has_no_body_and_a_typed_reply_preview() {
+        let mut orig = msg("1", "u1", "alice", "2026-03-08T12:00:00Z", "hi");
+        orig.is_deleted = true;
+        let mut reply = msg("2", "u2", "bob", "2026-03-08T12:01:00Z", "yes");
+        reply.reply_to = Some("1".into());
+        let display = prepare_messages_for_display(&[orig, reply]);
+        assert_eq!(display[0].display_body, "");
+        assert_eq!(display[0].content, "");
+        assert_eq!(display[1].reply_preview, Some(ReplyPreview::Deleted));
     }
 
     #[test]

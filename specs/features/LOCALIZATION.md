@@ -126,6 +126,12 @@ Kicker { text: @tr("ADDED BY {}", e.added-by.to-uppercase()); }
 A control often has an upper-case label and a sentence-case
 `accessible-label` (`"SAVE"` and `"Save"`). These are two messages.
 
+When Rust sets a message that Slint shows in upper case, Rust sets the
+upper-case form too, from a second `Tr` member (`quest-action-upload` and
+`quest-action-upload-upper`). The struct has a field for it
+(`title-upper`, `label-upper`, `timestamp-upper`), and the `.slint` file shows
+that field with no `to-uppercase()`.
+
 ## 7. The lint and its list
 
 `client/src/i18n_lint.rs` reads each `.slint` file under `client/ui` and
@@ -298,12 +304,18 @@ another file. Add a function to the module, and call it.
 | Relative time | `days_ago` ("3 days ago", a plural), `recap_age`, `short_age` ("5m ago"), `feed_card_age`, `chat_time`. |
 | Time of day | `time_of_day`: 12 h or 24 h from `clock_form()`. The AM and PM markers come from `Tr`. |
 | Durations | `duration_hm_short` ("1h 23m"), `duration_h_mm` ("6 h 40"), `duration_clock` ("0:45"), `since`. The unit letters have the context `unit`. |
-| Numbers | `grouped`: the group separator is the message `digit-group-separator` (context `format`). |
+| Numbers | `grouped`: the group separator is the message `digit-group-separator` (context `format`). `percent`, `approx` ("~1h 5m"), `file_size` ("860 KB"), `milliseconds` ("118 ms"). |
+| Lists | `list_and` ("Bob, Max and Sara"), `list_comma`, `list_plus` ("Bob, Max +3"), `list_and_more` ("Bob, Max and 3 more"), `dot_pair` ("4W–2L · 3-win streak"). A list is never joined with `join(", ")` for the UI. |
+| Upper case | `week_label_upper`, `feed_card_age_upper`, `weekday_name_upper`, `month_short_upper_name`. |
 
 Decisions:
 
-- `mello-core` returns values (`chat::DayLabel`, `chat::MessageTime`). The
-  client makes the text.
+- `mello-core` returns values (`chat::DayLabel`, `chat::MessageTime`,
+  `chat::ReplyPreview`, `chat::ImageUploadError`,
+  `telemetry::SetupHint`). The client makes the text.
+- Two more contexts: `list` (the comma between the items of a list, which
+  differs from the comma between two parts of a caption) and `streak` ("W4",
+  which is not the short week "W45").
 - The clock form comes from the OS setting of the user, not from the UI
   language. Windows reads the short time format (`LOCALE_SSHORTTIME`). macOS
   and Linux use 24 h. The value is read one time per run.

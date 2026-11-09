@@ -14,6 +14,7 @@ use super::{
     any_display_rank, any_title_name, grouped, higher_wins, magnitude, value_text, Person,
     WireFeed, WireTitle,
 };
+use crate::Tr;
 
 /// A bar to take a belt from its holder, or to hold a belt against the
 /// runner-up.
@@ -88,7 +89,12 @@ impl Chase {
 }
 
 /// Build the chase from the zone data. `None` when the data does not parse.
-pub fn chase(data: &Value, viewer: &Person, roster: &dyn Fn(&str) -> Person) -> Option<Chase> {
+pub fn chase(
+    tr: &Tr<'_>,
+    data: &Value,
+    viewer: &Person,
+    roster: &dyn Fn(&str) -> Person,
+) -> Option<Chase> {
     let wire: WireFeed = serde_json::from_value(data.clone()).ok()?;
     let contested: Vec<&WireTitle> = wire
         .titles
@@ -110,6 +116,7 @@ pub fn chase(data: &Value, viewer: &Person, roster: &dyn Fn(&str) -> Person) -> 
         .filter_map(|t| {
             let own = wire.own_values.iter().find(|o| o.title_id == t.title_id)?;
             Some(bar(
+                tr,
                 Kind::Take,
                 t,
                 &own.value,
@@ -141,7 +148,7 @@ pub fn chase(data: &Value, viewer: &Person, roster: &dyn Fn(&str) -> Person) -> 
                         best
                     }
                 })?;
-            Some(bar(Kind::Hold, t, &t.value, value, roster(who)))
+            Some(bar(tr, Kind::Hold, t, &t.value, value, roster(who)))
         })
         .collect();
 
@@ -184,19 +191,19 @@ fn sort(bars: &mut [Bar]) {
     });
 }
 
-fn bar(kind: Kind, t: &WireTitle, you: &Value, other: &Value, who: Person) -> Bar {
+fn bar(tr: &Tr<'_>, kind: Kind, t: &WireTitle, you: &Value, other: &Value, who: Person) -> Bar {
     let (a, b) = (magnitude(you), magnitude(other));
     let top = a.max(b);
     let gap = if top > 0.0 { (a - b).abs() / top } else { 0.0 };
-    let (you_value, unit) = value_text(you, &t.unit);
-    let (other_value, _) = value_text(other, &t.unit);
+    let (you_value, unit) = value_text(tr, you, &t.unit);
+    let (other_value, _) = value_text(tr, other, &t.unit);
     // A clock title sends "HH:MM"; magnitude counts its minutes from 18:00.
     let clock = matches!(you, Value::String(_));
-    let (delta, delta_unit) = delta_text(kind, &t.unit, clock, (a - b).abs());
+    let (delta, delta_unit) = delta_text(tr, kind, &t.unit, clock, (a - b).abs());
     Bar {
         kind,
         title_id: t.title_id.clone(),
-        title: any_title_name(&t.title_id),
+        title: any_title_name(tr, &t.title_id),
         other: who,
         you_value,
         other_value,
@@ -209,19 +216,27 @@ fn bar(kind: Kind, t: &WireTitle, you: &Value, other: &Value, who: Person) -> Ba
 
 /// The gap as signed text. Minus is behind (a take), plus is a lead (a hold).
 /// A gap that shows as zero reads "±0", as a tie does: the holder keeps it.
-fn delta_text(kind: Kind, unit: &str, clock: bool, diff: f64) -> (String, String) {
+/// A unit that this code picks comes from `Tr`; another unit is the server's.
+fn delta_text(tr: &Tr<'_>, kind: Kind, unit: &str, clock: bool, diff: f64) -> (String, String) {
     let (number, unit) = if clock {
-        clock_minutes(diff)
+        clock_minutes(tr, diff)
     } else if unit == "h" && diff < 1.0 {
-        (grouped((diff * 60.0).round() as i64), "min".to_string())
+        (
+            grouped(tr, (diff * 60.0).round() as i64),
+            tr.get_unit_minutes().into(),
+        )
     } else if unit == "h" {
-        value_text(&json!(diff), "h")
+        (
+            value_text(tr, &json!(diff), "h").0,
+            tr.get_unit_hours().into(),
+        )
     } else if unit == "min" || unit == "%" {
-        (grouped(diff.round() as i64), unit.to_string())
+        (grouped(tr, diff.round() as i64), unit.to_string())
     } else {
-        (grouped(diff.round() as i64), String::new())
+        (grouped(tr, diff.round() as i64), String::new())
     };
-    if number.chars().all(|c| matches!(c, '0' | '.' | ',')) {
+    // Zero in any form: no digit other than 0, whatever the separators.
+    if !number.chars().any(|c| c.is_ascii_digit() && c != '0') {
         return ("\u{b1}0".to_string(), String::new());
     }
     let sign = match kind {
@@ -232,17 +247,24 @@ fn delta_text(kind: Kind, unit: &str, clock: bool, diff: f64) -> (String, String
 }
 
 /// A clock gap: minutes up to an hour, then hours.
-fn clock_minutes(minutes: f64) -> (String, String) {
+fn clock_minutes(tr: &Tr<'_>, minutes: f64) -> (String, String) {
     if minutes.round() >= 60.0 {
-        value_text(&json!(minutes / 60.0), "h")
+        (
+            value_text(tr, &json!(minutes / 60.0), "h").0,
+            tr.get_unit_hours().into(),
+        )
     } else {
-        (grouped(minutes.round() as i64), "min".to_string())
+        (
+            grouped(tr, minutes.round() as i64),
+            tr.get_unit_minutes().into(),
+        )
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::l10n_format::test_tr;
 
     fn me() -> Person {
         Person::new("me", "Bob")
@@ -253,7 +275,7 @@ mod tests {
             "me" => me(),
             "u2" => Person::new("u2", "Ebba"),
             "u3" => Person::new("u3", "Axel"),
-            other => Person::unknown(other),
+            other => Person::unknown(test_tr(), other),
         }
     }
 
@@ -280,7 +302,7 @@ mod tests {
     }
 
     fn run(data: Value) -> Chase {
-        chase(&data, &me(), &roster).expect("the zone data parses")
+        chase(test_tr(), &data, &me(), &roster).expect("the zone data parses")
     }
 
     fn strip_ids(c: &Chase) -> Vec<(Kind, &str)> {
@@ -574,7 +596,7 @@ mod tests {
 
     #[test]
     fn deltas_read_like_the_mockup() {
-        let d = |k, unit, clock, diff| delta_text(k, unit, clock, diff);
+        let d = |k, unit, clock, diff| delta_text(test_tr(), k, unit, clock, diff);
         assert_eq!(
             d(Kind::Take, "h", false, 1.3),
             ("\u{2212}1.3".into(), "h".into())

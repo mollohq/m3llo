@@ -2,7 +2,7 @@ use std::rc::Rc;
 
 use mello_core::sounds::Sound;
 use mello_core::{Command, Event, VoiceMode};
-use slint::Model;
+use slint::{ComponentHandle as _, Model};
 
 use crate::app_context::AppContext;
 use crate::converters::{
@@ -240,7 +240,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             drop(s);
 
             ctx.app.set_audio_device_warning(
-                "Your saved audio device was not found. Switched to system default — you can change it in Settings.".into(),
+                ctx.app.global::<crate::Tr>().get_audio_device_fallback(),
             );
         }
         Event::AudioDevicesListed { capture, playback } => {

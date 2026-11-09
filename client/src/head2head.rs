@@ -2,15 +2,15 @@
 //! `features/HEAD2HEAD.md`.
 //!
 //! The payload names members by user id only. Names and hues come from the
-//! roster the caller passes in, so the code here has no window and tests
-//! need none.
+//! roster the caller passes in. The words come from the `Tr` that the caller
+//! passes in, so a test uses the English `Tr` of a test window.
 
 use serde::Deserialize;
 use serde_json::Value;
 
 use crate::converters::{avatar_color_index, make_initials};
 use crate::sealed::Seal;
-use crate::{H2hPairRow, H2hPerson, Head2headData, TitleHeld};
+use crate::{H2hPairRow, H2hPerson, Head2headData, TitleHeld, Tr};
 
 pub mod chase;
 
@@ -26,10 +26,10 @@ const DAY_MS: i64 = 86_400_000;
 /// crew_feed_zones.go: zonesBeltHeroDays).
 const NEWS_DAYS: i64 = 14;
 
-/// How a title looks: the one place for names and icons.
+/// How a title looks: the one place for icons. The names are in `Tr`
+/// ([`title_name`]).
 struct TitleLook {
     id: &'static str,
-    name: &'static str,
     icon_svg: &'static [u8],
 }
 
@@ -37,37 +37,30 @@ struct TitleLook {
 const TITLES: [TitleLook; 7] = [
     TitleLook {
         id: "the_carry",
-        name: "The Carry",
         icon_svg: include_bytes!("../ui/icons/h2h-carry.svg"),
     },
     TitleLook {
         id: "night_owl",
-        name: "Night Owl",
         icon_svg: include_bytes!("../ui/icons/h2h-night-owl.svg"),
     },
     TitleLook {
         id: "the_collector",
-        name: "The Collector",
         icon_svg: include_bytes!("../ui/icons/h2h-collector.svg"),
     },
     TitleLook {
         id: "locked_in",
-        name: "Locked In",
         icon_svg: include_bytes!("../ui/icons/h2h-locked-in.svg"),
     },
     TitleLook {
         id: "has_a_life",
-        name: "Has a Life",
         icon_svg: include_bytes!("../ui/icons/h2h-has-a-life.svg"),
     },
     TitleLook {
         id: "sampler",
-        name: "Sampler",
         icon_svg: include_bytes!("../ui/icons/h2h-sampler.svg"),
     },
     TitleLook {
         id: "one_trick",
-        name: "One Trick",
         icon_svg: include_bytes!("../ui/icons/h2h-one-trick.svg"),
     },
 ];
@@ -76,44 +69,98 @@ fn look(id: &str) -> Option<&'static TitleLook> {
     TITLES.iter().find(|t| t.id == id)
 }
 
-/// Display name of a title id, `None` for an id this client does not know.
-pub fn title_name(id: &str) -> Option<&'static str> {
-    look(id).map(|t| t.name)
+/// Display name of a card title, `None` for an id that is not a card title.
+pub fn title_name(tr: &Tr<'_>, id: &str) -> Option<String> {
+    let name = match id {
+        "the_carry" => tr.get_title_the_carry(),
+        "night_owl" => tr.get_title_night_owl(),
+        "the_collector" => tr.get_title_the_collector(),
+        "locked_in" => tr.get_title_locked_in(),
+        "has_a_life" => tr.get_title_has_a_life(),
+        "sampler" => tr.get_title_sampler(),
+        "one_trick" => tr.get_title_one_trick(),
+        _ => return None,
+    };
+    Some(name.into())
+}
+
+/// Display name of a card title in upper case, for the board. `None` for an
+/// id that is not a card title.
+pub fn title_name_upper(tr: &Tr<'_>, id: &str) -> Option<String> {
+    let name = match id {
+        "the_carry" => tr.get_title_the_carry_upper(),
+        "night_owl" => tr.get_title_night_owl_upper(),
+        "the_collector" => tr.get_title_the_collector_upper(),
+        "locked_in" => tr.get_title_locked_in_upper(),
+        "has_a_life" => tr.get_title_has_a_life_upper(),
+        "sampler" => tr.get_title_sampler_upper(),
+        "one_trick" => tr.get_title_one_trick_upper(),
+        _ => return None,
+    };
+    Some(name.into())
+}
+
+/// The name of any title in upper case: a card title, a session title, or a
+/// name made from an id this client does not know.
+pub(crate) fn any_title_name_upper(tr: &Tr<'_>, id: &str) -> String {
+    if let Some(name) = title_name_upper(tr, id) {
+        return name;
+    }
+    let name = match id {
+        "mouth" => tr.get_title_mouth_upper(),
+        "marathon" => tr.get_title_marathon_upper(),
+        "last_one_up" => tr.get_title_last_one_up_upper(),
+        "clipper" => tr.get_title_clipper_upper(),
+        "rage_quit" => tr.get_title_rage_quit_upper(),
+        "winner" => tr.get_title_winner_upper(),
+        // A name made from the id: data, not a message.
+        _ => return any_title_name(tr, id).to_uppercase(),
+    };
+    name.into()
 }
 
 /// Session titles are not on the feed card, only in the recap. They share one
 /// belt icon until each gets its own.
-const SESSION_TITLE_NAMES: [(&str, &str); 6] = [
-    ("mouth", "Mouth"),
-    ("marathon", "Marathon"),
-    ("last_one_up", "Last One Up"),
-    ("clipper", "Clipper"),
-    ("rage_quit", "Rage Quit"),
-    ("winner", "Winner"),
+const SESSION_TITLES: [&str; 6] = [
+    "mouth",
+    "marathon",
+    "last_one_up",
+    "clipper",
+    "rage_quit",
+    "winner",
 ];
+
+/// Display name of a session title, `None` for another id.
+fn session_title_name(tr: &Tr<'_>, id: &str) -> Option<String> {
+    let name = match id {
+        "mouth" => tr.get_title_mouth(),
+        "marathon" => tr.get_title_marathon(),
+        "last_one_up" => tr.get_title_last_one_up(),
+        "clipper" => tr.get_title_clipper(),
+        "rage_quit" => tr.get_title_rage_quit(),
+        "winner" => tr.get_title_winner(),
+        _ => return None,
+    };
+    Some(name.into())
+}
 
 /// Name and icon of a title in the recap. A card title uses its own icon. A
 /// session title, or an id this client does not know, uses the belt icon and
 /// a name made from the id.
-pub fn belt_look(id: &str) -> (String, slint::Image) {
+pub fn belt_look(tr: &Tr<'_>, id: &str) -> (String, slint::Image) {
     if look(id).is_some() {
-        return (any_title_name(id), icon_of(id));
+        return (any_title_name(tr, id), icon_of(id));
     }
     let icon = slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg"))
         .unwrap_or_default();
-    (any_title_name(id), icon)
+    (any_title_name(tr, id), icon)
 }
 
 /// The name of any title: a card title, a session title, or a name made from
 /// an id this client does not know.
-pub(crate) fn any_title_name(id: &str) -> String {
-    if let Some(t) = look(id) {
-        return t.name.to_string();
-    }
-    SESSION_TITLE_NAMES
-        .iter()
-        .find(|(i, _)| *i == id)
-        .map(|(_, n)| n.to_string())
+pub(crate) fn any_title_name(tr: &Tr<'_>, id: &str) -> String {
+    title_name(tr, id)
+        .or_else(|| session_title_name(tr, id))
         .unwrap_or_else(|| {
             id.split('_')
                 .filter(|w| !w.is_empty())
@@ -138,9 +185,9 @@ fn any_display_rank(id: &str) -> usize {
     if let Some(i) = TITLES.iter().position(|t| t.id == id) {
         return i;
     }
-    SESSION_TITLE_NAMES
+    SESSION_TITLES
         .iter()
-        .position(|(i, _)| *i == id)
+        .position(|i| *i == id)
         .map(|i| TITLES.len() + i)
         .unwrap_or(usize::MAX)
 }
@@ -250,10 +297,10 @@ impl Person {
     }
 
     /// A user the roster does not know, for example one who left the crew.
-    pub fn unknown(id: &str) -> Self {
+    pub fn unknown(tr: &Tr<'_>, id: &str) -> Self {
         Person {
             id: id.to_string(),
-            name: "Crew mate".to_string(),
+            name: tr.get_crew_mate().into(),
             initials: "?".to_string(),
             hue: avatar_color_index(id),
         }
@@ -360,19 +407,25 @@ impl BeltMove {
     }
 
     /// "Sara took Night Owl from Bob".
-    pub fn headline(&self) -> String {
-        format!(
-            "{} took {} from {}",
-            self.holder.name, self.title, self.prev.name
+    pub fn headline(&self, tr: &Tr<'_>) -> String {
+        tr.invoke_belt_took(
+            self.holder.name.as_str().into(),
+            self.title.as_str().into(),
+            self.prev.name.as_str().into(),
         )
+        .into()
     }
 
     /// "03:40 beats 03:14." Empty when a value is not known.
-    pub fn detail(&self) -> String {
+    pub fn detail(&self, tr: &Tr<'_>) -> String {
         if self.holder_value.is_empty() || self.prev_value.is_empty() {
             String::new()
         } else {
-            format!("{} beats {}.", self.holder_value, self.prev_value)
+            tr.invoke_belt_beats(
+                self.holder_value.as_str().into(),
+                self.prev_value.as_str().into(),
+            )
+            .into()
         }
     }
 }
@@ -399,26 +452,15 @@ pub struct Model {
     pub belt: Option<BeltMove>,
 }
 
-/// A number with thousands separators: 4167 -> "4,167".
-pub(crate) fn grouped(n: i64) -> String {
-    let digits = n.abs().to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    if n < 0 {
-        format!("-{out}")
-    } else {
-        out
-    }
+/// A number with the group separator of the UI language: 4167 -> "4,167".
+pub(crate) fn grouped(tr: &Tr<'_>, n: i64) -> String {
+    crate::l10n_format::grouped(tr, n)
 }
 
 /// The number and the small unit of a title: hours from 100 up are whole
-/// ("4,167 h"), below that they keep one decimal ("4.6 h").
-pub(crate) fn value_text(value: &Value, unit: &str) -> (String, String) {
+/// ("4,167 h"), below that they keep one decimal ("4.6 h"). The unit is the
+/// one the server sends.
+pub(crate) fn value_text(tr: &Tr<'_>, value: &Value, unit: &str) -> (String, String) {
     match value {
         Value::String(s) => (s.clone(), String::new()),
         Value::Number(n) => {
@@ -426,7 +468,7 @@ pub(crate) fn value_text(value: &Value, unit: &str) -> (String, String) {
             let text = if unit == "h" && f.abs() < 100.0 {
                 format!("{f:.1}")
             } else {
-                grouped(f.round() as i64)
+                grouped(tr, f.round() as i64)
             };
             (text, unit.to_string())
         }
@@ -451,18 +493,16 @@ fn magnitude(v: &Value) -> f64 {
 
 /// A chip for one of the viewer's own values: the viewer's hue, no holder, no
 /// held days. Locked In reads "h this week" as in the mockup.
-fn own_chip(o: &WireOwnValue, viewer: &Person) -> Chip {
-    let (_, unit) = value_text(&o.value, &o.unit);
+fn own_chip(tr: &Tr<'_>, o: &WireOwnValue, viewer: &Person) -> Chip {
+    let (_, unit) = value_text(tr, &o.value, &o.unit);
     let unit = if o.title_id == "locked_in" && unit == "h" {
-        "h this week".to_string()
+        tr.get_unit_hours_this_week().into()
     } else {
         unit
     };
     Chip {
         id: o.title_id.clone(),
-        name: title_name(&o.title_id)
-            .map(str::to_string)
-            .unwrap_or_else(|| o.title_id.clone()),
+        name: title_name(tr, &o.title_id).unwrap_or_else(|| o.title_id.clone()),
         value: o.display.clone(),
         unit,
         holder_id: String::new(),
@@ -477,13 +517,17 @@ fn own_chip(o: &WireOwnValue, viewer: &Person) -> Chip {
     }
 }
 
-fn chip_of(t: &WireTitle, roster: &dyn Fn(&str) -> Person, now_ms: i64, moved: bool) -> Chip {
-    let (value, unit) = value_text(&t.value, &t.unit);
+fn chip_of(
+    tr: &Tr<'_>,
+    t: &WireTitle,
+    roster: &dyn Fn(&str) -> Person,
+    now_ms: i64,
+    moved: bool,
+) -> Chip {
+    let (value, unit) = value_text(tr, &t.value, &t.unit);
     Chip {
         id: t.title_id.clone(),
-        name: title_name(&t.title_id)
-            .map(str::to_string)
-            .unwrap_or_else(|| t.title_id.clone()),
+        name: title_name(tr, &t.title_id).unwrap_or_else(|| t.title_id.clone()),
         value,
         unit,
         holder_id: t.holder_user_id.clone(),
@@ -536,7 +580,9 @@ fn higher_wins(id: &str) -> bool {
 /// Variety: a title in `used`, already the chip of a row above, is skipped
 /// when the pair has another deciding title. When every deciding title of the
 /// pair is used, the largest gap wins as before.
+#[allow(clippy::too_many_arguments)]
 fn deciding_chip(
+    tr: &Tr<'_>,
     pair: &WirePair,
     titles: &[&WireTitle],
     viewer: &str,
@@ -599,6 +645,7 @@ fn deciding_chip(
         (pair.b.as_str(), &v.b_value)
     };
     let mut chip = chip_of(
+        tr,
         &WireTitle {
             value: value.clone(),
             holder_user_id: holder.to_string(),
@@ -617,18 +664,19 @@ fn deciding_chip(
 }
 
 /// A held value as text: "03:40", "4,201 h".
-fn value_line(v: &Value, unit: &str) -> String {
-    let (text, unit) = value_text(v, unit);
+fn value_line(tr: &Tr<'_>, v: &Value, unit: &str) -> String {
+    let (text, unit) = value_text(tr, v, unit);
     if unit.is_empty() || text.is_empty() {
         text
     } else {
-        format!("{text} {unit}")
+        tr.invoke_value_unit(text.into(), unit.into()).into()
     }
 }
 
 /// The newest title that changed hands, of any age, when the viewer held it
 /// before or holds it now. A move between two other members has no hero.
 fn belt_move(
+    tr: &Tr<'_>,
     wire: &WireFeed,
     viewer: &Person,
     roster: &dyn Fn(&str) -> Person,
@@ -661,17 +709,17 @@ fn belt_move(
         .and_then(|p| p.values.iter().find(|v| v.title_id == t.title_id))
         .map(|v| {
             (
-                value_line(&v.a_value, &t.unit),
-                value_line(&v.b_value, &t.unit),
+                value_line(tr, &v.a_value, &t.unit),
+                value_line(tr, &v.b_value, &t.unit),
             )
         })
         .unwrap_or_default();
     let prev_value = if viewer_holds { other_v } else { viewer_v };
     Some(BeltMove {
         title_id: t.title_id.clone(),
-        title: title_name(&t.title_id).unwrap_or_default().to_string(),
+        title: title_name(tr, &t.title_id).unwrap_or_default(),
         holder: roster(&t.holder_user_id),
-        holder_value: value_line(&t.value, &t.unit),
+        holder_value: value_line(tr, &t.value, &t.unit),
         prev: roster(&t.previous_holder_user_id),
         prev_value,
         moved_ms: t.moved_at_ms,
@@ -728,12 +776,21 @@ pub fn build_seen(
     now_ms: i64,
     seen_ms: i64,
 ) -> Option<Model> {
-    build_rows_sealed(data, viewer, roster, now_ms, seen_ms, &|_| false)
+    build_rows_sealed(
+        crate::l10n_format::test_tr(),
+        data,
+        viewer,
+        roster,
+        now_ms,
+        seen_ms,
+        &|_| false,
+    )
 }
 
 /// `build_seen` that knows which belts the user opened (`opened` takes the
 /// key of a move). An opened belt does not mark its pair row unread.
 pub fn build_rows_sealed(
+    tr: &Tr<'_>,
     data: &Value,
     viewer: &Person,
     roster: &dyn Fn(&str) -> Person,
@@ -759,7 +816,7 @@ pub fn build_rows_sealed(
             let unread = t.moved_at_ms > seen_ms
                 && now_ms - t.moved_at_ms < DAY_MS
                 && !opened(&crate::sealed::belt_key(&t.title_id, t.moved_at_ms));
-            chip_of(t, roster, now_ms, unread)
+            chip_of(tr, t, roster, now_ms, unread)
         })
         .collect();
 
@@ -807,7 +864,7 @@ pub fn build_rows_sealed(
         other: None,
         left_score: 0,
         right_score: 0,
-        belt: belt_move(&wire, viewer, roster),
+        belt: belt_move(tr, &wire, viewer, roster),
     };
 
     if wire.member_count < 2 {
@@ -823,7 +880,7 @@ pub fn build_rows_sealed(
         model.chips = own
             .iter()
             .take(CHIPS)
-            .map(|o| own_chip(o, viewer))
+            .map(|o| own_chip(tr, o, viewer))
             .collect();
         return Some(model);
     }
@@ -851,7 +908,7 @@ pub fn build_rows_sealed(
             model.other = Some(roster(&other_id));
             model.left_score = pair.a_count;
             model.right_score = pair.b_count;
-            let moved_chip = chip_of(moved, roster, now_ms, true);
+            let moved_chip = chip_of(tr, moved, roster, now_ms, true);
             let mut chips = vec![moved_chip];
             chips.extend(
                 model
@@ -878,6 +935,7 @@ pub fn build_rows_sealed(
     let mut used: Vec<String> = Vec::new();
     for (mut row, wire_pair) in pairs {
         let picked = deciding_chip(
+            tr,
             wire_pair,
             &known,
             &viewer.id,
@@ -914,6 +972,7 @@ pub struct ViewPair {
 /// (YOU-STRIP.md section 3). The deciding title follows the rule of the
 /// pair rows on the board, over every contested title, session titles too.
 pub fn view_pairs(
+    tr: &Tr<'_>,
     data: &Value,
     viewer: &Person,
     roster: &dyn Fn(&str) -> Person,
@@ -938,7 +997,7 @@ pub fn view_pairs(
     pairs
         .into_iter()
         .map(|p| {
-            let picked = deciding_chip(p, &contested, &viewer.id, roster, now_ms, None, &used);
+            let picked = deciding_chip(tr, p, &contested, &viewer.id, roster, now_ms, None, &used);
             let decides = picked.as_ref().is_some_and(|(_, d)| *d);
             let title_id = picked.map(|(c, _)| c.id).unwrap_or_default();
             if decides {
@@ -951,10 +1010,10 @@ pub fn view_pairs(
                 .unwrap_or_default();
             let values = p.values.iter().find(|v| v.title_id == title_id);
             let (you_value, unit) = values
-                .map(|v| value_text(&v.a_value, &unit))
+                .map(|v| value_text(tr, &v.a_value, &unit))
                 .unwrap_or_default();
             let other_value = values
-                .map(|v| value_text(&v.b_value, &unit).0)
+                .map(|v| value_text(tr, &v.b_value, &unit).0)
                 .unwrap_or_default();
             ViewPair {
                 opponent: roster(&p.b),
@@ -973,18 +1032,26 @@ pub fn view_pairs(
 
 /// The icon of any title: its own for a card title, the belt for the rest.
 pub fn any_icon(id: &str) -> slint::Image {
-    belt_look(id).1
+    if look(id).is_some() {
+        return icon_of(id);
+    }
+    slint::Image::load_from_svg_data(include_bytes!("../ui/icons/h2h-belt.svg")).unwrap_or_default()
 }
 
 /// One row of the Head2head tab. `other` is the member as the UI draws them.
-pub fn view_pair_data(p: &ViewPair, other: H2hPerson) -> crate::YouPairRow {
+pub fn view_pair_data(tr: &Tr<'_>, p: &ViewPair, other: H2hPerson) -> crate::YouPairRow {
     let has_title = !p.title_id.is_empty();
     crate::YouPairRow {
         other,
         you_count: p.you_count,
         them_count: p.them_count,
         title: if has_title {
-            any_title_name(&p.title_id).into()
+            any_title_name(tr, &p.title_id).into()
+        } else {
+            Default::default()
+        },
+        title_upper: if has_title {
+            any_title_name_upper(tr, &p.title_id).into()
         } else {
             Default::default()
         },
@@ -993,7 +1060,7 @@ pub fn view_pair_data(p: &ViewPair, other: H2hPerson) -> crate::YouPairRow {
         } else {
             Default::default()
         },
-        stat_line: crate::sealed::stat_line(&p.title_id).into(),
+        stat_line: crate::sealed::stat_line(tr, &p.title_id),
         you_value: p.you_value.as_str().into(),
         other_value: p.other_value.as_str().into(),
         unit: p.unit.as_str().into(),
@@ -1001,13 +1068,14 @@ pub fn view_pair_data(p: &ViewPair, other: H2hPerson) -> crate::YouPairRow {
 }
 
 /// One bar of the You strip. `other` is the member as the UI draws them.
-pub fn chase_bar_data(b: &chase::Bar, other: H2hPerson) -> crate::ChaseBarData {
+pub fn chase_bar_data(tr: &Tr<'_>, b: &chase::Bar, other: H2hPerson) -> crate::ChaseBarData {
     crate::ChaseBarData {
         take: b.kind == chase::Kind::Take,
         title_id: b.title_id.as_str().into(),
         title: b.title.as_str().into(),
+        title_upper: any_title_name_upper(tr, &b.title_id).into(),
         icon: any_icon(&b.title_id),
-        stat_line: crate::sealed::stat_line(&b.title_id).into(),
+        stat_line: crate::sealed::stat_line(tr, &b.title_id),
         other,
         you_value: b.you_value.as_str().into(),
         other_value: b.other_value.as_str().into(),
@@ -1039,15 +1107,16 @@ fn icon_of(id: &str) -> slint::Image {
 
 /// The small label under a chip: "held 9 days", "held 1 day", and nothing
 /// under one day.
-pub fn held_label(days: i32) -> String {
-    match days {
-        d if d < 1 => String::new(),
-        1 => "held 1 day".to_string(),
-        d => format!("held {d} days"),
+pub fn held_label(tr: &Tr<'_>, days: i32) -> String {
+    if days < 1 {
+        String::new()
+    } else {
+        tr.invoke_held_days(days).into()
     }
 }
 
 fn title_held(
+    tr: &Tr<'_>,
     c: &Chip,
     viewer: &Person,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
@@ -1059,6 +1128,7 @@ fn title_held(
             .as_ref()
             .map(|o| {
                 crate::sealed::own_reveal(
+                    tr,
                     &crate::sealed::OwnValue {
                         title_id: &c.id,
                         viewer,
@@ -1073,6 +1143,7 @@ fn title_held(
             .or_else(|| {
                 c.moved.as_ref().map(|m| {
                     crate::sealed::reveal_of(
+                        tr,
                         &crate::sealed::Move {
                             title_id: &m.title_id,
                             moved_ms: m.moved_ms,
@@ -1090,13 +1161,14 @@ fn title_held(
         id: c.id.as_str().into(),
         icon: icon_of(&c.id),
         title: c.name.as_str().into(),
+        title_upper: any_title_name_upper(tr, &c.id).into(),
         value: c.value.as_str().into(),
         unit: c.unit.as_str().into(),
         hue_index: c.holder_hue,
         holder_id: c.holder_id.as_str().into(),
         held_days: c.held_days,
-        held_label: held_label(c.held_days).as_str().into(),
-        stat_line: crate::sealed::stat_line(&c.id).into(),
+        held_label: held_label(tr, c.held_days).as_str().into(),
+        stat_line: crate::sealed::stat_line(tr, &c.id),
         moved_recent: c.moved_recent,
     }
 }
@@ -1108,12 +1180,13 @@ fn model_of<T: Clone + 'static>(items: Vec<T>) -> slint::ModelRc<T> {
 /// The UI struct of the head2head card, with nothing sealed.
 #[cfg(test)]
 pub fn to_slint(m: &Model, avatar: &dyn Fn(&str) -> Option<slint::Image>) -> Head2headData {
-    to_slint_sealed(m, avatar, &Seal::off())
+    to_slint_sealed(crate::l10n_format::test_tr(), m, avatar, &Seal::off())
 }
 
 /// The UI struct of the head2head card. A chip of a belt that moved and is not
 /// opened is sealed (`seal`).
 pub fn to_slint_sealed(
+    tr: &Tr<'_>,
     m: &Model,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
     seal: &Seal,
@@ -1142,7 +1215,7 @@ pub fn to_slint_sealed(
             chip: p
                 .deciding
                 .as_ref()
-                .map(|c| title_held(c, &m.viewer, avatar, seal))
+                .map(|c| title_held(tr, c, &m.viewer, avatar, seal))
                 .unwrap_or_default(),
         })
         .collect();
@@ -1159,13 +1232,13 @@ pub fn to_slint_sealed(
         titles: model_of(
             m.titles
                 .iter()
-                .map(|c| title_held(c, &m.viewer, avatar, seal))
+                .map(|c| title_held(tr, c, &m.viewer, avatar, seal))
                 .collect(),
         ),
         chips: model_of(
             m.chips
                 .iter()
-                .map(|c| title_held(c, &m.viewer, avatar, seal))
+                .map(|c| title_held(tr, c, &m.viewer, avatar, seal))
                 .collect(),
         ),
         pairs: model_of(pairs),
@@ -1197,7 +1270,7 @@ pub fn to_slint_sealed(
 
 /// The UI struct of the belt hero (frame E), or `None` without a move.
 pub fn belt_hero_data(
-    tr: &crate::Tr<'_>,
+    tr: &Tr<'_>,
     m: &Model,
     now_ms: i64,
     avatar: &dyn Fn(&str) -> Option<slint::Image>,
@@ -1217,6 +1290,7 @@ pub fn belt_hero_data(
         belt: crate::BeltHeroData {
             title_id: b.title_id.as_str().into(),
             title: b.title.as_str().into(),
+            title_upper: any_title_name_upper(tr, &b.title_id).into(),
             icon: icon_of(&b.title_id),
             hue_index: b.holder.hue,
             prev: person(&b.prev),
@@ -1224,8 +1298,8 @@ pub fn belt_hero_data(
             holder: person(&b.holder),
             holder_value: b.holder_value.as_str().into(),
             age: crate::l10n_format::days_ago(tr, b.moved_ms, now_ms).into(),
-            headline: b.headline().into(),
-            detail: b.detail().into(),
+            headline: b.headline(tr).into(),
+            detail: b.detail(tr).into(),
         },
         ..Default::default()
     })
@@ -1234,7 +1308,41 @@ pub fn belt_hero_data(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::l10n_format::test_tr;
     use serde_json::json;
+
+    // The functions under test, with the English `Tr` of a test window.
+    fn view_pairs(
+        data: &Value,
+        viewer: &Person,
+        roster: &dyn Fn(&str) -> Person,
+        now_ms: i64,
+    ) -> Vec<ViewPair> {
+        super::view_pairs(test_tr(), data, viewer, roster, now_ms)
+    }
+    fn held_label(days: i32) -> String {
+        super::held_label(test_tr(), days)
+    }
+    fn value_text(value: &Value, unit: &str) -> (String, String) {
+        super::value_text(test_tr(), value, unit)
+    }
+    fn to_slint_sealed(
+        m: &Model,
+        avatar: &dyn Fn(&str) -> Option<slint::Image>,
+        seal: &Seal,
+    ) -> Head2headData {
+        super::to_slint_sealed(test_tr(), m, avatar, seal)
+    }
+    fn build_rows_sealed(
+        data: &Value,
+        viewer: &Person,
+        roster: &dyn Fn(&str) -> Person,
+        now_ms: i64,
+        seen_ms: i64,
+        opened: &dyn Fn(&str) -> bool,
+    ) -> Option<Model> {
+        super::build_rows_sealed(test_tr(), data, viewer, roster, now_ms, seen_ms, opened)
+    }
 
     const NOW: i64 = 1_760_000_000_000;
 
@@ -1247,7 +1355,7 @@ mod tests {
             "me" => me(),
             "u2" => Person::new("u2", "Jonas"),
             "u3" => Person::new("u3", "Max"),
-            other => Person::unknown(other),
+            other => Person::unknown(test_tr(), other),
         }
     }
 
@@ -1349,7 +1457,11 @@ mod tests {
 
     #[test]
     fn title_display_map_covers_the_seven_titles() {
-        let rows: Vec<_> = TITLES.iter().map(|t| (t.id, t.name)).collect();
+        let rows: Vec<_> = TITLES
+            .iter()
+            .map(|t| (t.id, title_name(test_tr(), t.id).expect("a name")))
+            .collect::<Vec<_>>();
+        let rows: Vec<(&str, &str)> = rows.iter().map(|(i, n)| (*i, n.as_str())).collect();
         assert_eq!(
             rows,
             vec![
@@ -1369,6 +1481,25 @@ mod tests {
                 t.id
             );
         }
+    }
+
+    /// Under the pseudo language the title names and the held label change,
+    /// and the label keeps its number.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn the_head2head_text_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        // The window of `test_tr` must exist before a language is selected.
+        let tr = test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let name = any_title_name(tr, "night_owl");
+        let held = held_label(9);
+        let upper = any_title_name_upper(tr, "night_owl");
+        crate::locale::select_source_language();
+        assert_eq!(name, pseudo("Night Owl"));
+        assert_eq!(upper, pseudo("NIGHT OWL"));
+        assert_eq!(held, pseudo("held {n} days").replace("{n}", "9"));
+        assert_ne!(held, "held 9 days");
     }
 
     #[test]
@@ -1893,8 +2024,8 @@ mod tests {
         let m = build(&data, &me(), &roster, NOW).expect("model");
         assert_eq!(m.placement, Placement::Pairs, "the pairs card stays wide");
         let b = m.belt.expect("a belt");
-        assert_eq!(b.headline(), "Jonas took Night Owl from Bob");
-        assert_eq!(b.detail(), "03:40 beats 03:14.");
+        assert_eq!(b.headline(test_tr()), "Jonas took Night Owl from Bob");
+        assert_eq!(b.detail(test_tr()), "03:40 beats 03:14.");
         assert_eq!(b.moved_ms, NOW - 2 * DAY_MS);
         assert!(b.is_news(NOW));
         assert!(!b.is_news(NOW + 13 * DAY_MS), "two weeks on it is not news");
@@ -2005,8 +2136,8 @@ mod tests {
             .expect("model")
             .belt
             .expect("a belt");
-        assert_eq!(b.headline(), "Bob took The Carry from Jonas");
-        assert_eq!(b.detail(), "");
+        assert_eq!(b.headline(test_tr()), "Bob took The Carry from Jonas");
+        assert_eq!(b.detail(test_tr()), "");
         assert_eq!(b.holder_value, "4,201");
     }
 }

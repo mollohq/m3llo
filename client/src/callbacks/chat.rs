@@ -313,7 +313,8 @@ pub fn wire(ctx: &AppContext) {
                     said.push(user_id.to_string());
                     s.save();
                 }
-                let (content, mention) = crate::say_hi::greeting(user_id, &name);
+                let (content, mention) =
+                    crate::say_hi::greeting(&app.global::<crate::Tr>(), user_id, &name);
                 log::info!("[feed] said hi to {user_id} in crew {crew_id}");
                 let _ = cmd.send(Command::SendMessage {
                     content,
@@ -569,14 +570,14 @@ use crate::chat_images::{
 };
 
 /// The chip rows for the window, from the composer state.
-fn attachment_rows(composer: &Attachments) -> Vec<crate::AttachmentData> {
+fn attachment_rows(tr: &crate::Tr<'_>, composer: &Attachments) -> Vec<crate::AttachmentData> {
     lock(composer)
         .attachments
         .iter()
         .map(|a| crate::AttachmentData {
             id: a.id.clone().into(),
             state: a.state_name().into(),
-            label: a.label().into(),
+            label: a.label(tr).into(),
             thumb: a
                 .thumb
                 .as_ref()
@@ -595,7 +596,8 @@ fn attachment_rows(composer: &Attachments) -> Vec<crate::AttachmentData> {
 
 fn push_attachment_rows(app_weak: &slint::Weak<crate::MainWindow>, composer: &Attachments) {
     if let Some(app) = app_weak.upgrade() {
-        app.set_chat_attachments(Rc::new(slint::VecModel::from(attachment_rows(composer))).into());
+        let rows = attachment_rows(&app.global::<crate::Tr>(), composer);
+        app.set_chat_attachments(Rc::new(slint::VecModel::from(rows)).into());
     }
 }
 
@@ -702,7 +704,10 @@ impl AttachmentRefresh {
                     a.bytes = p.bytes.len() as u64;
                     a.state = AttachmentState::Uploading;
                 }
-                Err(e) => a.state = AttachmentState::Failed(e.0.clone()),
+                Err(e) => {
+                    a.state =
+                        AttachmentState::Failed(crate::chat_images::AttachmentError::Prepare(*e))
+                }
             }
         }
         if let Ok(p) = result {
@@ -798,11 +803,12 @@ fn wire_attachments(ctx: &AppContext) {
                 .iter()
                 .position(|i| i.url == url.as_str())
                 .unwrap_or(0);
+            let tr = app.global::<crate::Tr>();
             let rows: Vec<crate::ViewerImageData> = images
                 .iter()
                 .map(|i| {
                     let size = if i.bytes > 0 {
-                        format!(" · {}", crate::chat_images::size_label(i.bytes))
+                        format!(" · {}", crate::l10n_format::file_size(&tr, i.bytes))
                     } else {
                         String::new()
                     };

@@ -97,10 +97,16 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_bar_state(0);
         }
         Event::TelemetrySetupHint { game_id, hint } => {
-            log::info!("[ui] telemetry setup hint for {}: {}", game_id, hint);
+            log::info!("[ui] telemetry setup hint for {}: {:?}", game_id, hint);
             // Shown under the game name in the "now playing" card.
             if ctx.app.get_bar_state() == 1 {
-                ctx.app.set_telemetry_hint(hint.into());
+                let tr = ctx.app.global::<crate::Tr>();
+                let text = match hint {
+                    mello_core::telemetry::SetupHint::SteamLaunchOption { option, game } => {
+                        tr.invoke_telemetry_launch_option(option.into(), game.into())
+                    }
+                };
+                ctx.app.set_telemetry_hint(text);
             }
         }
         Event::MatchEnded {
@@ -157,7 +163,13 @@ pub fn handle(ctx: &AppContext, event: Event) {
             streak_after,
             ..
         } => {
-            let summary = format_session_summary(wins, losses, draws, streak_after);
+            let summary = format_session_summary(
+                &ctx.app.global::<crate::Tr>(),
+                wins,
+                losses,
+                draws,
+                streak_after,
+            );
             log::info!("[ui] session summary: {}", summary);
             // Pre-fill the visible post-game card with the auto-detected record
             // so the user can confirm/share instead of cold-tapping win/loss.
@@ -223,25 +235,29 @@ fn start_post_game_timeout(ctx: &AppContext) {
 }
 
 /// Build the pre-filled post-game record line, e.g. "5W–3L · 2-win streak".
-fn format_session_summary(wins: u32, losses: u32, draws: u32, streak_after: i32) -> String {
-    let record = if wins + losses == 0 && draws > 0 {
+fn format_session_summary(
+    tr: &crate::Tr<'_>,
+    wins: u32,
+    losses: u32,
+    draws: u32,
+    streak_after: i32,
+) -> String {
+    let (w, l, d) = (wins as i32, losses as i32, draws as i32);
+    let record: String = if wins + losses == 0 && draws > 0 {
         // A draw-only night (e.g. a 15-15 Premier).
-        if draws == 1 {
-            "1 draw".to_string()
-        } else {
-            format!("{} draws", draws)
-        }
+        tr.invoke_draws(d)
     } else if draws > 0 {
-        format!("{}W\u{2013}{}L\u{2013}{}D", wins, losses, draws)
+        tr.invoke_record_dash_w_l_d(w, l, d)
     } else {
-        format!("{}W\u{2013}{}L", wins, losses)
-    };
+        tr.invoke_record_dash_w_l(w, l)
+    }
+    .into();
     let streak = match streak_after.cmp(&0) {
-        std::cmp::Ordering::Greater => format!(" · {}-win streak", streak_after),
-        std::cmp::Ordering::Less => format!(" · {}-loss streak", streak_after.abs()),
-        std::cmp::Ordering::Equal => String::new(),
+        std::cmp::Ordering::Greater => tr.invoke_feed_win_streak(streak_after),
+        std::cmp::Ordering::Less => tr.invoke_loss_streak(streak_after.abs()),
+        std::cmp::Ordering::Equal => return record,
     };
-    format!("{}{}", record, streak)
+    crate::l10n_format::dot_pair(tr, &record, &streak)
 }
 
 pub(crate) fn parse_hex_color(hex: &str) -> u32 {

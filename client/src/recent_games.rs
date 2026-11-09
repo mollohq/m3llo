@@ -19,6 +19,15 @@ pub fn hours_label(tr: &Tr<'_>, minutes: i64, launcher: &str) -> String {
     l10n_format::hours_upper(tr, minutes)
 }
 
+/// [`hours_label`] in lower case, for the solo board: "4,167 h", or the
+/// launcher ("steam") when the server has no minutes.
+pub fn hours_label_lower(tr: &Tr<'_>, minutes: i64, launcher: &str) -> String {
+    if minutes <= 0 {
+        return launcher.trim().to_lowercase();
+    }
+    l10n_format::hours_lower(tr, minutes)
+}
+
 /// When a game was last played, as the poster grid writes it under the name
 /// (frames C and D): "Today", "Yesterday", "3 days ago", "Last week",
 /// "3 weeks ago". Days are UTC days, as the feed timestamps are. Empty when the
