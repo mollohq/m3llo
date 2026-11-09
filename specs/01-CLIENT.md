@@ -254,6 +254,27 @@ for protocol tokens, hex, file extensions and key names.
 
 SVG icons from mockups are extracted into `client/ui/icons/` as `.svg` files and referenced via `Image { source: @image-url("../icons/foo.svg"); colorize: Theme.accent; }`.
 
+### 5.1 CJK Text
+
+The bundled fonts have no Chinese, Japanese or Korean glyphs. CJK glyphs come from the OS fonts.
+
+- **No CJK font is bundled.** A CJK font is 10 to 20 MB per region. The install limit is 100 MB. Slint's Skia renderer copies each font that it draws into the heap (`specs/21-PERF-PLAN.md`, the emoji font). A bundled CJK font adds its size to the heap again.
+- **The fallback lists.** `client/src/cjk_fonts.rs` sets an ordered list of OS families for the scripts `Hani`, `Hira`, `Kana` and `Hang` in Slint's shared fontique collection. Without it, fontique asks the OS for one family per script. A character that this family does not have is not drawn.
+- **Per character.** Parley tries the families of the list in order for each cluster. A character that the first family does not have comes from the next family.
+- **The order rule.** It follows the UI language:
+
+  | UI language | Han order |
+  |---|---|
+  | `ja*` | Japanese, Simplified, Traditional, Korean |
+  | `zh-TW`, `zh-HK`, `zh-MO`, `zh-Hant*` | Traditional, Simplified, Japanese, Korean |
+  | All other languages | Simplified, Japanese, Traditional, Korean |
+
+  Hiragana and Katakana: Japanese, then Simplified. Hangul: Korean. The candidate families per OS are in `cjk_fonts.rs`. A family is in a list only when the OS has it. When the OS answer for a script is not a candidate, it stays last in the list.
+- **When.** `configure_slint_platform` calls `cjk_fonts::apply` with the OS UI language, after it sets the Slint platform and before the first window. A second `apply` changes text that is laid out after it. Text that is laid out already keeps its fonts until its next layout.
+- **The HUD overlay.** Its DirectWrite text formats use the OS UI language as their locale, so DirectWrite picks the regional glyph shapes.
+- **Feature flag.** The fontique access uses the Slint feature `unstable-fontique-011`. Its API can change in a Slint minor release. Check `cjk_fonts.rs` at each Slint upgrade.
+- **Open.** On macOS and Linux, the Skia renderer copies each font file that it draws into the heap. A CJK font file is 10 to 60 MB. This cost is not measured yet. The `skia-software` fallback on Windows has the same copy. The `d2d` renderer gives DirectWrite the memory-mapped file of fontique with an owner, so DirectWrite makes no copy (`renderer-d2d/src/fonts.rs`).
+
 ---
 
 ## 6. Onboarding Flow
