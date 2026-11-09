@@ -623,18 +623,13 @@ pub struct DisplayMessage {
 
 const GROUP_GAP_SECS: i64 = 300; // 5 minutes
 
-/// Compute 2-letter initials from a display name.
-/// Matches the existing `make_initials` logic in client/src/main.rs.
-pub fn make_initials(name: &str) -> String {
-    let parts: Vec<&str> = name.split_whitespace().collect();
-    match parts.len() {
-        0 => "?".into(),
-        1 => parts[0].chars().take(2).collect::<String>().to_uppercase(),
-        _ => {
-            let first = parts[0].chars().next().unwrap_or('?');
-            let last = parts[parts.len() - 1].chars().next().unwrap_or('?');
-            format!("{}{}", first, last).to_uppercase()
-        }
+/// The initials of a sender (`crate::names::initials`), "?" for an empty name.
+fn sender_initials(name: &str) -> String {
+    let initials = crate::names::initials(name);
+    if initials.is_empty() {
+        "?".into()
+    } else {
+        initials
     }
 }
 
@@ -948,7 +943,7 @@ pub fn prepare_messages_for_display(messages: &[ChatMessage]) -> Vec<DisplayMess
             message_id: msg.message_id.clone(),
             sender_id: msg.sender_id.clone(),
             sender_name: msg.sender_name.clone(),
-            sender_initials: make_initials(&msg.sender_name),
+            sender_initials: sender_initials(&msg.sender_name),
             content: if msg.is_deleted {
                 "[message deleted]".to_string()
             } else {
@@ -1218,23 +1213,17 @@ mod tests {
     }
 
     #[test]
-    fn initials_from_two_words() {
-        assert_eq!(make_initials("Alice Baker"), "AB");
+    fn sender_initials_use_the_names_rule() {
+        assert_eq!(sender_initials("Alice Baker"), "AB");
+        assert_eq!(sender_initials("k0ji_tech"), "K0");
+        assert_eq!(sender_initials("タナカ ユウ"), "タユ");
+        assert_eq!(sender_initials("🇸🇪 Nils"), "🇸🇪N");
     }
 
     #[test]
-    fn initials_from_single_word() {
-        assert_eq!(make_initials("alice"), "AL");
-    }
-
-    #[test]
-    fn initials_from_username_single_word() {
-        assert_eq!(make_initials("k0ji_tech"), "K0");
-    }
-
-    #[test]
-    fn initials_empty() {
-        assert_eq!(make_initials(""), "?");
+    fn sender_initials_empty() {
+        assert_eq!(sender_initials(""), "?");
+        assert_eq!(sender_initials("   "), "?");
     }
 
     fn names(pairs: &[(&str, &str)]) -> std::collections::HashMap<String, String> {

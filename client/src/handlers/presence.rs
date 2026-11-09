@@ -509,14 +509,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
                         if c.id == state.crew_id.as_str() {
                             ctx.app.set_crew_settings_avatar(c.avatar.clone());
                             ctx.app.set_crew_settings_has_avatar(c.has_avatar);
-                            let initials: String = c
-                                .name
-                                .chars()
-                                .filter(|c| c.is_alphanumeric())
-                                .take(2)
-                                .collect::<String>()
-                                .to_uppercase();
-                            ctx.app.set_crew_settings_initials(initials.into());
+                            ctx.app
+                                .set_crew_settings_initials(make_initials(&c.name).into());
                             break;
                         }
                     }

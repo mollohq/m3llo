@@ -29,6 +29,7 @@ mod kwin_windows;
 pub mod library;
 pub mod library_report;
 pub mod nakama;
+pub mod names;
 pub mod oauth;
 pub mod pending_session_ends;
 pub mod presence;

@@ -45,6 +45,9 @@ async-trait = "0.1"
 # flate2; the client uses directories).
 flate2 = "1"
 directories = "5"
+# Grapheme clusters for initials (names.rs). In Cargo.lock already through
+# other crates.
+unicode-segmentation = "1.12.0"
 
 # OAuth
 tiny_http = "0.12"
