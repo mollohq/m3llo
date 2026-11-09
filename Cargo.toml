@@ -57,7 +57,12 @@ i-slint-backend-winit = { path = "third_party/i-slint-backend-winit" }
 lto = "thin"
 codegen-units = 1
 strip = "symbols"
-panic = "unwind"
+# A panic ends the process. The panic hook (client/src/lib.rs) writes the
+# PANIC line to the log first. With "unwind", the cleanup code and tables for
+# every function that can panic were 13.5 MB of the 75 MB Windows client
+# (linker map, 2026-11-09), and a panic in a background task left the window
+# open with the task dead. Tests ignore this setting and still unwind.
+panic = "abort"
 # Size trial: optimize Rust for size. Hot DSP loops live in C++ and native
 # libs, so impact should be UI/cold paths only. Validate with perf-harness.
 opt-level = "z"

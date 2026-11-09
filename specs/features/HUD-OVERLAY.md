@@ -210,7 +210,7 @@ The HUD must have zero measurable impact on game frame rate or input latency.
 
 | Failure | Behaviour |
 |---|---|
-| Overlay thread panics | Main client continues running; the next state that shows the HUD starts a new overlay thread |
+| Overlay thread panics | A release build closes the client: the release profile has `panic = "abort"` (root `Cargo.toml`), and the panic hook writes the `PANIC` line to the log first. A debug build continues; the next state that shows the HUD starts a new overlay thread |
 | Avatar bitmap missing or corrupt | Render initials fallback: rounded rect with state-colored background, initials centered |
 | Direct2D/DComp device lost | Overlay thread exits; the next state that shows the HUD starts a new one |
 
