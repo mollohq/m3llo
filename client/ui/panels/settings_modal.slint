@@ -11,7 +11,7 @@ export component DeviceDropdown inherits Rectangle {
     in property <string> label;
     in property <[AudioDeviceData]> devices: [];
     in property <string> selected-id: "";
-    in-out property <string> selected-name: "System Default";
+    in-out property <string> selected-name: @tr("System Default");
     callback device-selected(string);
 
     height: 48px;
@@ -101,7 +101,7 @@ export component DeviceDropdown inherits Rectangle {
                         if dev.is-default: Text {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
-                            text: "default";
+                            text: @tr("default");
                             font-size: Theme.font-xs;
                             font-family: Theme.font-label;
                             color: Theme.text-tertiary;
@@ -498,7 +498,7 @@ component SensitivitySlider inherits Rectangle {
         HorizontalLayout {
             Text {
                 font-family: Theme.font-display;
-                text: "Activation Sensitivity";
+                text: @tr("Activation Sensitivity");
                 font-size: 13px;
                 font-weight: Theme.weight-display;
                 color: Theme.text-primary;
@@ -513,14 +513,14 @@ component SensitivitySlider inherits Rectangle {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "Automatically determine input sensitivity";
+                    text: @tr("Automatically determine input sensitivity");
                     font-size: 11px;
                     color: Theme.text-secondary;
                     vertical-alignment: center;
                 }
 
                 SmallToggle {
-                    label: "Automatically determine input sensitivity";
+                    label: @tr("Automatically determine input sensitivity");
                     checked <=> root.auto;
                     toggled(v) => { root.auto-changed(v); }
                 }
@@ -591,7 +591,7 @@ component SensitivitySlider inherits Rectangle {
                 Text {
                     letter-spacing: Theme.track-label;
                     font-weight: Theme.weight-label;
-                    text: Math.round(value) + "dB";
+                    text: @tr("{}dB", Math.round(value));
                     font-family: Theme.font-label;
                     font-size: 10px;
                     color: Theme.text-primary;
@@ -602,7 +602,7 @@ component SensitivitySlider inherits Rectangle {
 
             sens-ta := TouchArea {
                 accessible-role: slider;
-                accessible-label: "Sensitivity";
+                accessible-label: @tr("Sensitivity");
                 accessible-enabled: !root.auto;
                 enabled: !root.auto;
                 moved => {
@@ -622,7 +622,7 @@ component SensitivitySlider inherits Rectangle {
             Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: "-100dB";
+                text: @tr("{}dB", -100);
                 font-family: Theme.font-label;
                 font-size: 11px;
                 color: Theme.text-tertiary;
@@ -631,7 +631,7 @@ component SensitivitySlider inherits Rectangle {
             Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: "0dB";
+                text: @tr("{}dB", 0);
                 font-family: Theme.font-label;
                 font-size: 11px;
                 color: Theme.text-tertiary;
@@ -674,28 +674,28 @@ component GeneralTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "STARTUP & WINDOW"; }
+        SectionHeader { title: @tr("STARTUP & WINDOW"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Launch on system startup";
-                description: "Automatically start the application when you log in to your computer.";
+                title: @tr("Launch on system startup");
+                description: @tr("Automatically start the application when you log in to your computer.");
                 checked <=> root.start-on-boot;
                 toggled(v) => { setting-changed-start-on-boot(v); }
             }
 
             ToggleRow {
-                title: "Start minimized";
-                description: "Launch directly into the system tray without opening the main window.";
+                title: @tr("Start minimized");
+                description: @tr("Launch directly into the system tray without opening the main window.");
                 checked <=> root.start-minimized;
                 toggled(v) => { setting-changed-start-minimized(v); }
             }
 
             ToggleRow {
-                title: "Quit to system tray";
-                description: "Keep the application running in the background when closing the window.";
+                title: @tr("Quit to system tray");
+                description: @tr("Keep the application running in the background when closing the window.");
                 checked <=> root.close-to-tray;
                 toggled(v) => { setting-changed-close-to-tray(v); }
             }
@@ -706,21 +706,21 @@ component GeneralTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "CONNECTION & PRESENCE"; }
+        SectionHeader { title: @tr("CONNECTION & PRESENCE"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Auto-connect to last session";
-                description: "Skip the discovery screen and immediately join your previous active session.";
+                title: @tr("Auto-connect to last session");
+                description: @tr("Skip the discovery screen and immediately join your previous active session.");
                 checked <=> root.auto-connect;
                 toggled(v) => { setting-changed-auto-connect(v); }
             }
 
             ToggleRow {
-                title: "Minimize on session join";
-                description: "Automatically hide the main interface once a secure connection is established.";
+                title: @tr("Minimize on session join");
+                description: @tr("Automatically hide the main interface once a secure connection is established.");
                 checked <=> root.minimize-on-join;
                 toggled(v) => { setting-changed-minimize-on-join(v); }
             }
@@ -731,14 +731,14 @@ component GeneralTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "APPEARANCE"; }
+        SectionHeader { title: @tr("APPEARANCE"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Hardware Acceleration";
-                description: "Use GPU for rendering UI elements. Disabling this may resolve visual glitches.";
+                title: @tr("Hardware Acceleration");
+                description: @tr("Use GPU for rendering UI elements. Disabling this may resolve visual glitches.");
                 checked <=> root.hw-acceleration;
                 toggled(v) => { setting-changed-hw-acceleration(v); }
             }
@@ -749,21 +749,21 @@ component GeneralTab inherits VerticalLayout {
     if root.hud-available : VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "HUD"; }
+        SectionHeader { title: @tr("HUD"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Enable HUD";
-                description: "Show the overlay when the main window is not focused.";
+                title: @tr("Enable HUD");
+                description: @tr("Show the overlay when the main window is not focused.");
                 checked <=> root.hud-enabled;
                 toggled(v) => { setting-changed-hud-enabled(v); }
             }
 
             ToggleRow {
-                title: "Clip toast notifications";
-                description: "Show a brief notification in the overlay when someone clips a moment.";
+                title: @tr("Clip toast notifications");
+                description: @tr("Show a brief notification in the overlay when someone clips a moment.");
                 checked <=> root.hud-clip-toasts;
                 toggled(v) => { setting-changed-hud-clip-toasts(v); }
                 opacity: root.hud-enabled ? 1.0 : 0.4;
@@ -792,7 +792,7 @@ component GeneralTab inherits VerticalLayout {
                 padding: 24px;
 
                 VolumeSlider {
-                    label: "Overlay Opacity";
+                    label: @tr("Overlay Opacity");
                     icon-source: @image-url("../icons/monitor.svg");
                     value <=> root.hud-overlay-opacity;
                     changed(v) => { setting-changed-hud-overlay-opacity(v); }
@@ -818,8 +818,8 @@ component AudioTab inherits VerticalLayout {
     in property <[AudioDeviceData]> playback-devices: [];
     in property <string> selected-capture-id: "";
     in property <string> selected-playback-id: "";
-    in-out property <string> selected-capture-name: "System Default";
-    in-out property <string> selected-playback-name: "System Default";
+    in-out property <string> selected-capture-name: @tr("System Default");
+    in-out property <string> selected-playback-name: @tr("System Default");
 
     // Volume
     in-out property <float> input-volume: 0.7;
@@ -833,7 +833,7 @@ component AudioTab inherits VerticalLayout {
 
     // Voice activity
     in-out property <bool> ptt-mode: false;  // false = voice activity, true = push to talk
-    in property <string> ptt-key-label: "Unassigned";
+    in property <string> ptt-key-label: "Unassigned"; // i18n: none (a value that the code compares)
     in-out property <float> vad-threshold: -40.0;
     in-out property <bool> vad-auto: true;
     in-out property <bool> ptt-binding: false;  // true = listening for next keypress
@@ -864,7 +864,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "HARDWARE INTERFACES"; }
+        SectionHeader { title: @tr("HARDWARE INTERFACES"); }
 
         HorizontalLayout {
             spacing: 32px;
@@ -874,7 +874,7 @@ component AudioTab inherits VerticalLayout {
                 spacing: 10px;
 
                 Text {
-                    text: "INPUT DEVICE";
+                    text: @tr("INPUT DEVICE");
                     font-family: Theme.font-label;
                     font-size: 12px;
                     font-weight: Theme.weight-label;
@@ -884,7 +884,7 @@ component AudioTab inherits VerticalLayout {
                 }
 
                 DeviceDropdown {
-                    label: "INPUT DEVICE";
+                    label: @tr("INPUT DEVICE");
                     devices: root.capture-devices;
                     selected-id: root.selected-capture-id;
                     selected-name <=> root.selected-capture-name;
@@ -897,7 +897,7 @@ component AudioTab inherits VerticalLayout {
                 spacing: 10px;
 
                 Text {
-                    text: "OUTPUT DEVICE";
+                    text: @tr("OUTPUT DEVICE");
                     font-family: Theme.font-label;
                     font-size: 12px;
                     font-weight: Theme.weight-label;
@@ -907,7 +907,7 @@ component AudioTab inherits VerticalLayout {
                 }
 
                 DeviceDropdown {
-                    label: "OUTPUT DEVICE";
+                    label: @tr("OUTPUT DEVICE");
                     devices: root.playback-devices;
                     selected-id: root.selected-playback-id;
                     selected-name <=> root.selected-playback-name;
@@ -921,7 +921,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "AUDIO LEVELS"; }
+        SectionHeader { title: @tr("AUDIO LEVELS"); }
 
         Rectangle {
             background: transparent;
@@ -945,7 +945,7 @@ component AudioTab inherits VerticalLayout {
                 spacing: 32px;
 
                 VolumeSlider {
-                    label: "Input Volume";
+                    label: @tr("Input Volume");
                     icon-source: @image-url("../icons/mic.svg");
                     value <=> root.input-volume;
                     changed(v) => { input-volume-changed(v); }
@@ -959,7 +959,7 @@ component AudioTab inherits VerticalLayout {
                 }
 
                 VolumeSlider {
-                    label: "Output Volume";
+                    label: @tr("Output Volume");
                     icon-source: @image-url("../icons/volume.svg");
                     value <=> root.output-volume;
                     changed(v) => { output-volume-changed(v); }
@@ -972,7 +972,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "NOTIFICATION SOUNDS"; }
+        SectionHeader { title: @tr("NOTIFICATION SOUNDS"); }
 
         Rectangle {
             background: transparent;
@@ -995,7 +995,7 @@ component AudioTab inherits VerticalLayout {
                 padding: 24px;
 
                 VolumeSlider {
-                    label: "Sound Volume";
+                    label: @tr("Sound Volume");
                     icon-source: @image-url("../icons/speaker.svg");
                     value <=> root.sounds.volume;
                     changed(v) => { root.sounds-changed(root.sounds); }
@@ -1007,32 +1007,32 @@ component AudioTab inherits VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Voice";
-                description: "Joins and leaves, mute, deafen, and a lost connection.";
+                title: @tr("Voice");
+                description: @tr("Joins and leaves, mute, deafen, and a lost connection.");
                 checked <=> root.sounds.voice;
                 toggled(v) => { root.sounds-changed(root.sounds); }
             }
             ToggleRow {
-                title: "Streams";
-                description: "A crew member goes live, you go live, a stream you watch ends.";
+                title: @tr("Streams");
+                description: @tr("A crew member goes live, you go live, a stream you watch ends.");
                 checked <=> root.sounds.streams;
                 toggled(v) => { root.sounds-changed(root.sounds); }
             }
             ToggleRow {
-                title: "Chat";
-                description: "New messages and mentions while m3llo is in the background.";
+                title: @tr("Chat");
+                description: @tr("New messages and mentions while m3llo is in the background.");
                 checked <=> root.sounds.chat;
                 toggled(v) => { root.sounds-changed(root.sounds); }
             }
             ToggleRow {
-                title: "Clips";
-                description: "Your clip is saved, someone in the crew clips.";
+                title: @tr("Clips");
+                description: @tr("Your clip is saved, someone in the crew clips.");
                 checked <=> root.sounds.clips;
                 toggled(v) => { root.sounds-changed(root.sounds); }
             }
             ToggleRow {
-                title: "Crew";
-                description: "A new member joins the crew.";
+                title: @tr("Crew");
+                description: @tr("A new member joins the crew.");
                 checked <=> root.sounds.crew;
                 toggled(v) => { root.sounds-changed(root.sounds); }
             }
@@ -1043,7 +1043,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "SIGNAL PROCESSING"; }
+        SectionHeader { title: @tr("SIGNAL PROCESSING"); }
 
         HorizontalLayout {
             spacing: 24px;
@@ -1054,8 +1054,8 @@ component AudioTab inherits VerticalLayout {
                 // content column splits into 266 + 24 + 266.
                 width: 266px;
                 height: 128px;
-                title: "Noise Suppression";
-                description: "Filter out background hum and typing.";
+                title: @tr("Noise Suppression");
+                description: @tr("Filter out background hum and typing.");
                 checked <=> root.noise-suppression;
                 toggled(v) => { noise-suppression-toggled(v); }
             }
@@ -1065,8 +1065,8 @@ component AudioTab inherits VerticalLayout {
                 // content column splits into 266 + 24 + 266.
                 width: 266px;
                 height: 128px;
-                title: "Echo Cancellation";
-                description: "Prevent audio feedback loop from speakers.";
+                title: @tr("Echo Cancellation");
+                description: @tr("Prevent audio feedback loop from speakers.");
                 checked <=> root.echo-cancellation;
                 toggled(v) => { echo-cancellation-toggled(v); }
             }
@@ -1080,8 +1080,8 @@ component AudioTab inherits VerticalLayout {
                 // content column splits into 266 + 24 + 266.
                 width: 266px;
                 height: 128px;
-                title: "Auto Gain";
-                description: "Even out microphone volume. Off if voices clip.";
+                title: @tr("Auto Gain");
+                description: @tr("Even out microphone volume. Off if voices clip.");
                 checked <=> root.agc;
                 toggled(v) => { agc-toggled(v); }
             }
@@ -1091,8 +1091,8 @@ component AudioTab inherits VerticalLayout {
                 // content column splits into 266 + 24 + 266.
                 width: 266px;
                 height: 128px;
-                title: "Echo Suppression";
-                description: "Extra cleanup for leftover echo. Experimental.";
+                title: @tr("Echo Suppression");
+                description: @tr("Extra cleanup for leftover echo. Experimental.");
                 checked <=> root.echo-suppression;
                 toggled(v) => { echo-suppression-toggled(v); }
             }
@@ -1103,7 +1103,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "VOICE ACTIVITY"; }
+        SectionHeader { title: @tr("VOICE ACTIVITY"); }
 
         Rectangle {
             background: transparent;
@@ -1137,7 +1137,7 @@ component AudioTab inherits VerticalLayout {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Input Mode";
+                            text: @tr("Input Mode");
                             font-size: 13px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -1162,7 +1162,7 @@ component AudioTab inherits VerticalLayout {
 
                                     Text {
                                         font-family: Theme.font-display;
-                                        text: "Voice Activity";
+                                        text: @tr("Voice Activity");
                                         font-size: 13px;
                                         font-weight: Theme.weight-display;
                                         color: !root.ptt-mode ? Theme.text-primary : Theme.text-secondary;
@@ -1172,7 +1172,7 @@ component AudioTab inherits VerticalLayout {
 
                                     TouchArea {
                                         accessible-role: button;
-                                        accessible-label: "Voice Activity";
+                                        accessible-label: @tr("Voice Activity");
                                         clicked => {
                                             if root.ptt-mode {
                                                 root.ptt-mode = false;
@@ -1191,7 +1191,7 @@ component AudioTab inherits VerticalLayout {
 
                                     Text {
                                         font-family: Theme.font-display;
-                                        text: "Push to Talk";
+                                        text: @tr("Push to Talk");
                                         font-size: 13px;
                                         font-weight: Theme.weight-display;
                                         color: root.ptt-mode ? Theme.text-primary : Theme.text-secondary;
@@ -1201,7 +1201,7 @@ component AudioTab inherits VerticalLayout {
 
                                     TouchArea {
                                         accessible-role: button;
-                                        accessible-label: "Push to Talk";
+                                        accessible-label: @tr("Push to Talk");
                                         clicked => {
                                             if !root.ptt-mode {
                                                 root.ptt-mode = true;
@@ -1222,7 +1222,7 @@ component AudioTab inherits VerticalLayout {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Push-to-talk Key";
+                            text: @tr("Push-to-talk Key");
                             font-size: 13px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -1243,9 +1243,9 @@ component AudioTab inherits VerticalLayout {
                                 Text {
                                     letter-spacing: Theme.track-label;
                                     font-weight: Theme.weight-label;
-                                    text: root.ptt-binding ? "Press any key…"
+                                    text: root.ptt-binding ? @tr("Press any key…")
                                         : root.ptt-key-label != "" && root.ptt-key-label != "Unassigned" ? root.ptt-key-label
-                                        : "Click to bind...";
+                                        : @tr("Click to bind...");
                                     font-family: Theme.font-label;
                                     font-size: 14px;
                                     color: root.ptt-binding ? Theme.accent
@@ -1294,7 +1294,7 @@ component AudioTab inherits VerticalLayout {
 
                             ptt-bind-hover := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Push-to-talk Key";
+                                accessible-label: @tr("Push-to-talk Key");
                                 clicked => {
                                     if root.ptt-mode && !root.ptt-binding {
                                         root.ptt-binding = true;
@@ -1328,7 +1328,7 @@ component AudioTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "MIC TEST"; }
+        SectionHeader { title: @tr("MIC TEST"); }
 
         HorizontalLayout {
             spacing: 16px;
@@ -1358,7 +1358,7 @@ component AudioTab inherits VerticalLayout {
 
                 Text {
                     letter-spacing: Theme.track-label;
-                    text: root.mic-testing ? "Stop Testing" : "Start Test";
+                    text: root.mic-testing ? @tr("Stop Testing") : @tr("Start Test");
                     font-family: Theme.font-label;
                     font-size: Theme.font-md;
                     font-weight: Theme.weight-label;
@@ -1369,7 +1369,7 @@ component AudioTab inherits VerticalLayout {
 
                 test-hover := TouchArea {
                     accessible-role: button;
-                    accessible-label: root.mic-testing ? "Stop Testing" : "Start Test";
+                    accessible-label: root.mic-testing ? @tr("Stop Testing") : @tr("Start Test");
                     clicked => { mic-test-toggled(); }
                 }
             }
@@ -1383,7 +1383,7 @@ component AudioTab inherits VerticalLayout {
         if root.mic-testing: Text {
             font-weight: Theme.weight-sentence;
             font-family: Theme.font-body;
-            text: "Playing back your beautiful voice";
+            text: @tr("Playing back your beautiful voice");
             font-size: 11px;
             color: Theme.text-secondary;
         }
@@ -1394,14 +1394,14 @@ component AudioTab inherits VerticalLayout {
     if root.show-openh264: VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "VIDEO"; }
+        SectionHeader { title: @tr("VIDEO"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Software Video Decoder";
-                description: "Plays streams when the GPU cannot decode them. Applies at the next start. OpenH264 Video Codec provided by Cisco Systems, Inc.";
+                title: @tr("Software Video Decoder");
+                description: @tr("Plays streams when the GPU cannot decode them. Applies at the next start. OpenH264 Video Codec provided by Cisco Systems, Inc.");
                 checked <=> root.openh264-enabled;
                 toggled(v) => { setting-changed-openh264-enabled(v); }
             }
@@ -1442,7 +1442,7 @@ component ProfileAvatarSlot inherits Rectangle {
 
         use-ta := TouchArea {
             accessible-role: button;
-            accessible-label: "Use";
+            accessible-label: @tr("Use");
             clicked => { root.use-clicked(); }
         }
 
@@ -1461,7 +1461,7 @@ component ProfileAvatarSlot inherits Rectangle {
             }
 
             Text {
-                text: "Use";
+                text: @tr("Use");
                 font-family: Theme.font-label;
                 font-size: 11px;
                 font-weight: 700;
@@ -1561,7 +1561,7 @@ component ProfileTab inherits VerticalLayout {
 
                 change-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: avatar-grid-expanded ? "Hide" : "Change";
+                    accessible-label: avatar-grid-expanded ? @tr("Hide") : @tr("Change");
                     clicked => {
                         avatar-grid-expanded = !avatar-grid-expanded;
                         if avatar-grid-expanded {
@@ -1572,7 +1572,7 @@ component ProfileTab inherits VerticalLayout {
 
                 Text {
                     font-weight: Theme.weight-label;
-                    text: avatar-grid-expanded ? "Hide" : "Change";
+                    text: avatar-grid-expanded ? @tr("Hide") : @tr("Change");
                     font-family: Theme.font-label;
                     font-size: 11px;
                     letter-spacing: 0.5px;
@@ -1589,10 +1589,10 @@ component ProfileTab inherits VerticalLayout {
             spacing: 8px;
             horizontal-stretch: 1;
 
-            SectionHeader { title: "DISPLAY NAME"; }
+            SectionHeader { title: @tr("DISPLAY NAME"); }
 
             nick-input := MelloInputField {
-                label: "DISPLAY NAME";
+                label: @tr("DISPLAY NAME");
                 text <=> profile-nickname-value;
                 accepted => {
                     profile-nickname-accepted(profile-nickname-value);
@@ -1601,7 +1601,7 @@ component ProfileTab inherits VerticalLayout {
 
             Text {
                 font-weight: Theme.weight-label;
-                text: "Press Enter to save";
+                text: @tr("Press Enter to save");
                 font-family: Theme.font-label;
                 font-size: 10px;
                 color: Theme.text-tertiary;
@@ -1699,7 +1699,7 @@ component ProfileTab inherits VerticalLayout {
 
                 upload-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Upload avatar";
+                    accessible-label: @tr("Upload avatar");
                     clicked => { profile-upload-clicked(); }
                 }
 
@@ -1729,7 +1729,7 @@ component ProfileTab inherits VerticalLayout {
                         alignment: center;
                         Text {
                             font-weight: Theme.weight-label;
-                            text: "Upload";
+                            text: @tr("Upload");
                             font-family: Theme.font-label;
                             font-size: 10px;
                             letter-spacing: 0.8px;
@@ -1747,7 +1747,7 @@ component ProfileTab inherits VerticalLayout {
 
                     upload-use-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Use";
+                        accessible-label: @tr("Use");
                         clicked => { profile-use-avatar(7); }
                     }
 
@@ -1766,7 +1766,7 @@ component ProfileTab inherits VerticalLayout {
                         }
 
                         Text {
-                            text: "Use";
+                            text: @tr("Use");
                             font-family: Theme.font-label;
                             font-size: 11px;
                             font-weight: 700;
@@ -1799,7 +1799,7 @@ component ProfileTab inherits VerticalLayout {
 
                 reroll-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Reroll all";
+                    accessible-label: @tr("Reroll all");
                     clicked => { profile-reroll(); }
                 }
 
@@ -1823,7 +1823,7 @@ component ProfileTab inherits VerticalLayout {
                         Text {
                             letter-spacing: Theme.track-label;
                             font-weight: Theme.weight-label;
-                            text: "Reroll all";
+                            text: @tr("Reroll all");
                             font-family: Theme.font-label;
                             font-size: 12px;
                             color: Theme.text-secondary;
@@ -1903,7 +1903,7 @@ component GameIntegrationRow inherits Rectangle {
                     y: (parent.height - self.height) / 2;
 
                     status-text := Text {
-                        text: game.install-status == "found" ? "FOUND" : "NOT FOUND";
+                        text: game.install-status == "found" ? @tr("FOUND") : @tr("NOT FOUND");
                         font-family: Theme.font-label;
                         font-size: 9px;
                         font-weight: 600;
@@ -1975,7 +1975,7 @@ component InstalledGameRow inherits Rectangle {
 
         Text {
             font-family: Theme.font-label;
-            text: game.locked ? "HIDDEN IN STEAM" : "HIDDEN FROM CREW";
+            text: game.locked ? @tr("HIDDEN IN STEAM") : @tr("HIDDEN FROM CREW");
             font-size: 10px;
             font-weight: Theme.weight-label;
             letter-spacing: Theme.track-label;
@@ -1985,7 +1985,7 @@ component InstalledGameRow inherits Rectangle {
 
         if !game.locked: SettingsToggle {
             checked: game.hidden;
-            label: "Hidden from crew: \{game.name}";
+            label: @tr("Hidden from crew: {}", game.name);
             toggled(v) => { root.toggled(v); }
         }
     }
@@ -2014,9 +2014,9 @@ component GamesTab inherits VerticalLayout {
     in-out property <bool> game-clips-enabled: true;
     in property <[AudioDeviceData]> game-clip-qualities: [];
     in property <string> game-clip-quality: "720p60";
-    in-out property <string> game-clip-quality-name: "720p, 60 fps";
+    in-out property <string> game-clip-quality-name: "720p, 60 fps"; // i18n: none (mock default)
     // The clip key (CLIPS.md 3.1), as Keybinds shows it.
-    in property <string> clip-key-label: "F8";
+    in property <string> clip-key-label: "F8"; // i18n: none (key name)
     // macOS: no Screen Recording permission. The row asks for it.
     in property <bool> game-clips-need-permission: false;
     callback game-clips-toggled(bool);
@@ -2027,11 +2027,11 @@ component GamesTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "ACTIVITY SHARING"; }
+        SectionHeader { title: @tr("ACTIVITY SHARING"); }
 
         ToggleRow {
-            title: "Show crew what I play";
-            description: "Let crewmates see your installed games, what game you're in, and your play sessions in the crew feed.";
+            title: @tr("Show crew what I play");
+            description: @tr("Let crewmates see your installed games, what game you're in, and your play sessions in the crew feed.");
             checked <=> root.share-game-activity;
             toggled(v) => { root.share-game-activity-toggled(v); }
         }
@@ -2041,16 +2041,16 @@ component GamesTab inherits VerticalLayout {
     if root.game-clips-available: VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "GAME CLIPS"; }
+        SectionHeader { title: @tr("GAME CLIPS"); }
 
         VerticalLayout {
             spacing: 8px;
 
             ToggleRow {
-                title: "Game clips";
+                title: @tr("Game clips");
                 description: root.clip-key-label != ""
-                    ? "While you are in voice, m3llo keeps the last 30 seconds of the game you play. Press " + root.clip-key-label + " to save them as a clip."
-                    : "While you are in voice, m3llo keeps the last 30 seconds of the game you play. Set a key in Keybinds to save them as a clip.";
+                    ? @tr("While you are in voice, m3llo keeps the last 30 seconds of the game you play. Press {} to save them as a clip.", root.clip-key-label)
+                    : @tr("While you are in voice, m3llo keeps the last 30 seconds of the game you play. Set a key in Keybinds to save them as a clip.");
                 checked <=> root.game-clips-enabled;
                 toggled(v) => { root.game-clips-toggled(v); }
             }
@@ -2070,7 +2070,7 @@ component GamesTab inherits VerticalLayout {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Screen Recording";
+                            text: @tr("Screen Recording");
                             font-size: 15px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -2080,7 +2080,7 @@ component GamesTab inherits VerticalLayout {
                         Text {
                             font-weight: Theme.weight-display;
                             font-family: Theme.font-display;
-                            text: "macOS lets m3llo keep your game only with Screen Recording on. Turn on m3llo in System Settings, Privacy and Security, Screen and System Audio Recording.";
+                            text: @tr("macOS lets m3llo keep your game only with Screen Recording on. Turn on m3llo in System Settings, Privacy and Security, Screen and System Audio Recording.");
                             font-size: 13px;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
@@ -2112,7 +2112,7 @@ component GamesTab inherits VerticalLayout {
                             }
 
                             permission-btn-text := Text {
-                                text: "ALLOW";
+                                text: @tr("ALLOW");
                                 font-family: Theme.font-label;
                                 font-size: 11px;
                                 font-weight: 700;
@@ -2124,7 +2124,7 @@ component GamesTab inherits VerticalLayout {
 
                             permission-btn-ta := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "ALLOW";
+                                accessible-label: @tr("ALLOW");
                                 mouse-cursor: pointer;
                                 clicked => { root.game-clips-permission-clicked(); }
                             }
@@ -2150,7 +2150,7 @@ component GamesTab inherits VerticalLayout {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "Clip quality";
+                            text: @tr("Clip quality");
                             font-size: 15px;
                             font-weight: Theme.weight-display;
                             color: Theme.text-primary;
@@ -2160,7 +2160,7 @@ component GamesTab inherits VerticalLayout {
                         Text {
                             font-weight: Theme.weight-display;
                             font-family: Theme.font-display;
-                            text: "A higher quality makes a bigger clip. At 720p, 60 fps a clip is about 20 MB.";
+                            text: @tr("A higher quality makes a bigger clip. At 720p, 60 fps a clip is about 20 MB.");
                             font-size: 13px;
                             color: Theme.text-secondary;
                             wrap: word-wrap;
@@ -2172,7 +2172,7 @@ component GamesTab inherits VerticalLayout {
                         alignment: center;
 
                         DeviceDropdown {
-                            label: "Clip quality";
+                            label: @tr("Clip quality");
                             devices: root.game-clip-qualities;
                             selected-id: root.game-clip-quality;
                             selected-name <=> root.game-clip-quality-name;
@@ -2188,12 +2188,12 @@ component GamesTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "GAME INTEGRATIONS"; }
+        SectionHeader { title: @tr("GAME INTEGRATIONS"); }
 
         Text {
             font-weight: Theme.weight-display;
             font-family: Theme.font-display;
-            text: "m3llo captures match results for these games while you play. Some games need a small config file in their game folder. Turning a game off skips any setup and stops capture for it.";
+            text: @tr("m3llo captures match results for these games while you play. Some games need a small config file in their game folder. Turning a game off skips any setup and stops capture for it.");
             font-size: 13px;
             color: Theme.text-secondary;
             wrap: word-wrap;
@@ -2213,12 +2213,12 @@ component GamesTab inherits VerticalLayout {
     if installed-games.length > 0: VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "HIDDEN FROM CREW"; }
+        SectionHeader { title: @tr("HIDDEN FROM CREW"); }
 
         Text {
             font-weight: Theme.weight-display;
             font-family: Theme.font-display;
-            text: "Games you hide stay off the crew feed. A game hidden in Steam stays hidden here.";
+            text: @tr("Games you hide stay off the crew feed. A game hidden in Steam stays hidden here.");
             font-size: 13px;
             color: Theme.text-secondary;
             wrap: word-wrap;
@@ -2238,7 +2238,7 @@ component GamesTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "CONNECTED ACCOUNTS"; }
+        SectionHeader { title: @tr("CONNECTED ACCOUNTS"); }
 
         Rectangle {
             height: riot-row-layout.preferred-height;
@@ -2257,7 +2257,7 @@ component GamesTab inherits VerticalLayout {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "Riot Games";
+                        text: "Riot Games"; // i18n: none (brand name)
                         font-size: 15px;
                         font-weight: Theme.weight-display;
                         color: Theme.text-primary;
@@ -2268,8 +2268,8 @@ component GamesTab inherits VerticalLayout {
                         font-weight: Theme.weight-display;
                         font-family: Theme.font-display;
                         text: riot-linked
-                            ? "Linked as \{riot-id}. Match results for League of Legends and TFT are verified against Riot's official data."
-                            : "Link your Riot ID to get server-verified match results for League of Legends and TFT. We only read your match history. Nothing is posted to your account.";
+                            ? @tr("Linked as {}. Match results for League of Legends and TFT are verified against Riot's official data.", riot-id)
+                            : @tr("Link your Riot ID to get server-verified match results for League of Legends and TFT. We only read your match history. Nothing is posted to your account.");
                         font-size: 13px;
                         color: Theme.text-secondary;
                         wrap: word-wrap;
@@ -2278,7 +2278,7 @@ component GamesTab inherits VerticalLayout {
                     if !riot-available && !riot-linked: Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Temporarily unavailable.";
+                        text: @tr("Temporarily unavailable.");
                         font-size: 12px;
                         color: Theme.text-tertiary;
                     }
@@ -2310,7 +2310,7 @@ component GamesTab inherits VerticalLayout {
                         opacity: (riot-available || riot-linked) ? 1.0 : 0.5;
 
                         riot-btn-text := Text {
-                            text: riot-linked ? "DISCONNECT" : "CONNECT";
+                            text: riot-linked ? @tr("DISCONNECT") : @tr("CONNECT");
                             font-family: Theme.font-label;
                             font-size: 11px;
                             font-weight: 700;
@@ -2322,7 +2322,7 @@ component GamesTab inherits VerticalLayout {
 
                         riot-btn-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: riot-linked ? "DISCONNECT" : "CONNECT";
+                            accessible-label: riot-linked ? @tr("DISCONNECT") : @tr("CONNECT");
                             mouse-cursor: pointer;
                             accessible-enabled: riot-available || riot-linked;
                             enabled: riot-available || riot-linked;
@@ -2406,7 +2406,7 @@ component NoticesView inherits Rectangle {
                         background: back-ta.has-hover ? Theme.surface-hover : transparent;
 
                         Text {
-                            text: "BACK";
+                            text: @tr("BACK");
                             font-family: Theme.font-label;
                             font-size: 12px;
                             font-weight: Theme.weight-label;
@@ -2418,7 +2418,7 @@ component NoticesView inherits Rectangle {
 
                         back-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Back to About";
+                            accessible-label: @tr("Back to About");
                             clicked => { root.back-clicked(); }
                         }
                     }
@@ -2426,7 +2426,7 @@ component NoticesView inherits Rectangle {
 
                 Text {
                     horizontal-stretch: 1;
-                    text: "THIRD-PARTY NOTICES";
+                    text: @tr("THIRD-PARTY NOTICES");
                     font-family: Theme.font-label;
                     font-size: 11px;
                     font-weight: Theme.weight-label;
@@ -2541,7 +2541,7 @@ component AboutLink inherits Rectangle {
 
     link-ta := TouchArea {
         accessible-role: button;
-        accessible-label: root.label != "" ? root.label : "\{root.name} website";
+        accessible-label: root.label != "" ? root.label : @tr("{} website", root.name);
         mouse-cursor: pointer;
         clicked => { root.clicked(root.url); }
     }
@@ -2612,7 +2612,7 @@ component TesterTile inherits Rectangle {
             // a screen reader: the control names the person and the place.
             tester-ta := TouchArea {
                 accessible-role: button;
-                accessible-label: "\{root.tester.name} on Steam";
+                accessible-label: @tr("{} on Steam", root.tester.name);
                 mouse-cursor: pointer;
                 clicked => { root.clicked(); }
             }
@@ -2652,7 +2652,7 @@ component AboutTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "M3LLO"; }
+        SectionHeader { title: "M3LLO"; } // i18n: none (brand name)
 
         // The wordmark. The 3 is the red of the mark.
         HorizontalLayout {
@@ -2682,17 +2682,17 @@ component AboutTab inherits VerticalLayout {
 
         VerticalLayout {
             spacing: 4px;
-            AboutRow { label: "VERSION"; value: root.version; }
-            AboutRow { label: "BUILD"; value: root.commit; }
-            AboutRow { label: "BUILT"; value: root.built; }
-            AboutRow { label: "COPYRIGHT"; value: "© 2026 Mollo Tech AB, Göteborg, Sweden"; }
+            AboutRow { label: @tr("VERSION"); value: root.version; }
+            AboutRow { label: @tr("BUILD"); value: root.commit; }
+            AboutRow { label: @tr("BUILT"); value: root.built; }
+            AboutRow { label: @tr("COPYRIGHT"); value: @tr("© 2026 Mollo Tech AB, Göteborg, Sweden"); }
             Rectangle {
                 height: 24px;
                 HorizontalLayout {
                     spacing: 16px;
                     Text {
                         width: 96px;
-                        text: "CREATED BY";
+                        text: @tr("CREATED BY");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         font-weight: Theme.weight-label;
@@ -2701,9 +2701,9 @@ component AboutTab inherits VerticalLayout {
                         vertical-alignment: center;
                     }
                     AboutLink {
-                        name: "b0bben (bob@mollo.io)";
+                        name: "b0bben (bob@mollo.io)"; // i18n: none (a name and an address)
                         url: "mailto:bob@mollo.io";
-                        label: "Email b0bben";
+                        label: @tr("Email {}", "b0bben");
                         y: (parent.height - self.height) / 2;
                         clicked(url) => { root.link-clicked(url); }
                     }
@@ -2715,7 +2715,7 @@ component AboutTab inherits VerticalLayout {
 
     // THANKS: one centred sentence, no label and no rule.
     Text {
-        text: "m3llo runs on the work of many people and services.\nWe couldn't have done this without them.";
+        text: @tr("m3llo runs on the work of many people and services.\nWe couldn't have done this without them.");
         font-family: Theme.font-body;
         font-size: Theme.font-lg;
         font-weight: Theme.weight-sentence;
@@ -2728,7 +2728,7 @@ component AboutTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "THE OG CREW THAT HELPED SHAPE M3LLO"; }
+        SectionHeader { title: @tr("THE OG CREW THAT HELPED SHAPE M3LLO"); }
 
         HorizontalLayout {
             alignment: start;
@@ -2745,16 +2745,18 @@ component AboutTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "SERVICES WE USE"; }
+        SectionHeader { title: @tr("SERVICES WE USE"); }
 
         VerticalLayout {
             spacing: 6px;
         AboutLinks {
+            // i18n: none (names of services and products)
             links: [{ name: "Nakama (Heroic Labs)", url: "https://heroiclabs.com" }, { name: "IGDB", url: "https://www.igdb.com" }, { name: "DiceBear", url: "https://www.dicebear.com" }, { name: "Giphy", url: "https://giphy.com" }, { name: "Google STUN", url: "" }];
             clicked(url) => { root.link-clicked(url); }
         }
 
         AboutLinks {
+            // i18n: none (names of services and products)
             links: [{ name: "Steam", url: "https://store.steampowered.com" }, { name: "Epic Games", url: "https://store.epicgames.com" }, { name: "GOG", url: "https://www.gog.com" }, { name: "Riot Games", url: "https://developer.riotgames.com" }];
             clicked(url) => { root.link-clicked(url); }
         }
@@ -2765,28 +2767,31 @@ component AboutTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "OPEN SOURCE WE SHIP"; }
+        SectionHeader { title: @tr("OPEN SOURCE WE SHIP"); }
 
         VerticalLayout {
             spacing: 6px;
         AboutLinks {
+            // i18n: none (names of services and products)
             links: [{ name: "Slint", url: "https://slint.dev" }, { name: "Velopack", url: "https://velopack.io" }, { name: "RNNoise", url: "https://gitlab.xiph.org/xiph/rnnoise" }, { name: "WebRTC audio processing", url: "https://webrtc.org" }, { name: "ONNX Runtime", url: "https://onnxruntime.ai" }];
             clicked(url) => { root.link-clicked(url); }
         }
 
         AboutLinks {
+            // i18n: none (names of services and products)
             links: [{ name: "Silero VAD", url: "https://github.com/snakers4/silero-vad" }, { name: "OpenH264", url: "https://www.openh264.org" }, { name: "Opus", url: "https://opus-codec.org" }, { name: "OpenSSL", url: "https://www.openssl.org" }, { name: "libdatachannel", url: "https://github.com/paullouisageneau/libdatachannel" }];
             clicked(url) => { root.link-clicked(url); }
         }
 
         AboutLinks {
+            // i18n: none (names of services and products)
             links: [{ name: "Pion", url: "https://pion.ly" }, { name: "Twemoji", url: "https://twemoji.twitter.com" }, { name: "Oxanium", url: "https://fonts.google.com/specimen/Oxanium" }, { name: "Barlow", url: "https://fonts.google.com/specimen/Barlow" }];
             clicked(url) => { root.link-clicked(url); }
         }
         }
 
         AboutSentence {
-            text: "And the Rust crates listed in the third-party notices.";
+            text: @tr("And the Rust crates listed in the third-party notices.");
         }
 
         // Third-party notices (outlined: the white fill stays on Close)
@@ -2815,7 +2820,7 @@ component AboutTab inherits VerticalLayout {
                     }
 
                     Text {
-                        text: "Third-party notices";
+                        text: @tr("Third-party notices");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         font-weight: Theme.weight-label;
@@ -2827,7 +2832,7 @@ component AboutTab inherits VerticalLayout {
 
                     notices-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Third-party notices";
+                        accessible-label: @tr("Third-party notices");
                         clicked => { root.notices-clicked(); }
                     }
                 }
@@ -2839,33 +2844,37 @@ component AboutTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "CREDITS"; }
+        SectionHeader { title: @tr("CREDITS"); }
 
         VerticalLayout {
             spacing: 8px;
             HorizontalLayout {
                 alignment: start;
                 spacing: 4px;
-                AboutSentence { text: "Game data and artwork by"; }
+                AboutSentence { text: @tr("Game data and artwork by"); }
+                // i18n: none (brand name)
                 AboutLink { name: "IGDB"; url: "https://www.igdb.com"; clicked(url) => { root.link-clicked(url); } }
             }
             HorizontalLayout {
                 alignment: start;
                 spacing: 4px;
-                AboutSentence { text: "Made with"; }
+                AboutSentence { text: @tr("Made with"); }
+                // i18n: none (brand name)
                 AboutLink { name: "Slint"; url: "https://slint.dev"; clicked(url) => { root.link-clicked(url); } }
             }
             HorizontalLayout {
                 alignment: start;
                 spacing: 4px;
-                AboutSentence { text: "Emoji by"; }
+                AboutSentence { text: @tr("Emoji by"); }
+                // i18n: none (brand name)
                 AboutLink { name: "Twemoji"; url: "https://twemoji.twitter.com"; clicked(url) => { root.link-clicked(url); } }
-                AboutSentence { text: "(https://twemoji.twitter.com), CC BY 4.0"; }
+                AboutSentence { text: "(https://twemoji.twitter.com), CC BY 4.0"; } // i18n: none (a licence notice, the same in every language)
             }
             HorizontalLayout {
                 alignment: start;
                 spacing: 4px;
-                AboutSentence { text: "Sounds by"; }
+                AboutSentence { text: @tr("Sounds by"); }
+                // i18n: none (a person's name)
                 AboutLink { name: "Petter B."; url: "https://www.instagram.com/petterb"; clicked(url) => { root.link-clicked(url); } }
             }
         }
@@ -2880,7 +2889,7 @@ component KeybindRow inherits Rectangle {
     in property <string> description;
     /// The label of the key field. A row whose title does not name the key
     /// sets its own.
-    in property <string> control-label: root.title + " key";
+    in property <string> control-label: @tr("{} key", root.title);
     /// "F8", "Ctrl+F8", or "" when no key is bound.
     in property <string> key-label;
     /// The state under the field, for a key that another binding takes.
@@ -2944,9 +2953,9 @@ component KeybindRow inherits Rectangle {
                     Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
-                        text: root.binding ? "Press any key…"
+                        text: root.binding ? @tr("Press any key…")
                             : root.key-label != "" ? root.key-label
-                            : "Click to bind...";
+                            : @tr("Click to bind...");
                         font-family: Theme.font-label;
                         font-size: 14px;
                         color: root.binding ? Theme.accent
@@ -3024,11 +3033,11 @@ component KeybindsTab inherits VerticalLayout {
     padding-bottom: 80px;
     spacing: 48px;
 
-    in property <string> clip-key-label: "F8";
+    in property <string> clip-key-label: "F8"; // i18n: none (key name)
     in property <string> clip-key-warning: "";
     in-out property <bool> clip-binding: false;
     callback clip-key-captured(string, bool, bool, bool, bool);
-    in property <string> stream-key-label: "F9";
+    in property <string> stream-key-label: "F9"; // i18n: none (key name)
     in property <string> stream-key-warning: "";
     in-out property <bool> stream-binding: false;
     callback stream-key-captured(string, bool, bool, bool, bool);
@@ -3036,12 +3045,12 @@ component KeybindsTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "CLIPS"; }
+        SectionHeader { title: @tr("CLIPS"); }
 
         KeybindRow {
-            title: "Clip";
-            control-label: "Clip key";
-            description: "Saves the last 30 seconds: your game while it runs, otherwise the crew voice.";
+            title: @tr("Clip");
+            control-label: @tr("Clip key");
+            description: @tr("Saves the last 30 seconds: your game while it runs, otherwise the crew voice.");
             key-label: root.clip-key-label;
             warning: root.clip-key-warning;
             binding <=> root.clip-binding;
@@ -3052,12 +3061,12 @@ component KeybindsTab inherits VerticalLayout {
     VerticalLayout {
         spacing: 24px;
 
-        SectionHeader { title: "STREAMING"; }
+        SectionHeader { title: @tr("STREAMING"); }
 
         KeybindRow {
-            title: "Start / end stream";
-            control-label: "Stream key";
-            description: "Starts a stream of the game you play, or ends your stream. Some games use F9 to load a save.";
+            title: @tr("Start / end stream");
+            control-label: @tr("Stream key");
+            description: @tr("Starts a stream of the game you play, or ends your stream. Some games use F9 to load a save.");
             key-label: root.stream-key-label;
             warning: root.stream-key-warning;
             binding <=> root.stream-binding;
@@ -3072,8 +3081,8 @@ export component SettingsModal inherits Rectangle {
     in property <[AudioDeviceData]> playback-devices: [];
     in property <string> selected-capture-id: "";
     in property <string> selected-playback-id: "";
-    in-out property <string> selected-capture-name: "System Default";
-    in-out property <string> selected-playback-name: "System Default";
+    in-out property <string> selected-capture-name: @tr("System Default");
+    in-out property <string> selected-playback-name: @tr("System Default");
     in-out property <bool> mic-testing: false;
     in property <float> mic-level: 0.0;
 
@@ -3096,7 +3105,7 @@ export component SettingsModal inherits Rectangle {
     in-out property <bool> echo-suppression: false;
     in-out property <bool> agc: true;
     in-out property <bool> ptt-mode: false;
-    in property <string> ptt-key-label: "Unassigned";
+    in property <string> ptt-key-label: "Unassigned"; // i18n: none (a value that the code compares)
     in-out property <bool> ptt-binding: false;
     in-out property <float> vad-threshold: -40.0;
     in-out property <bool> vad-auto: true;
@@ -3161,7 +3170,7 @@ export component SettingsModal inherits Rectangle {
     in-out property <int> active-tab: 0;
 
     // Keybinds and the Game clips section: the clip key (CLIPS.md 3.1).
-    in property <string> clip-key-label: "F8";
+    in property <string> clip-key-label: "F8"; // i18n: none (key name)
     in property <string> clip-key-warning: "";
     in-out property <bool> clip-binding: false;
     callback clip-key-captured(string, bool, bool, bool, bool);
@@ -3173,8 +3182,8 @@ export component SettingsModal inherits Rectangle {
     in-out property <bool> game-clips-enabled: true;
     in property <[AudioDeviceData]> game-clip-qualities: [];
     in property <string> game-clip-quality: "720p60";
-    in-out property <string> game-clip-quality-name: "720p, 60 fps";
-    in property <string> stream-key-label: "F9";
+    in-out property <string> game-clip-quality-name: "720p, 60 fps"; // i18n: none (mock default)
+    in property <string> stream-key-label: "F9"; // i18n: none (key name)
     in property <string> stream-key-warning: "";
     in-out property <bool> stream-binding: false;
     callback stream-key-captured(string, bool, bool, bool, bool);
@@ -3323,7 +3332,7 @@ export component SettingsModal inherits Rectangle {
 
                 // Title
                 Text {
-                    text: "SYSTEM PARAMETERS";
+                    text: @tr("SYSTEM PARAMETERS");
                     font-family: Theme.font-label;
                     font-size: 13px;
                     font-weight: Theme.weight-label;
@@ -3352,7 +3361,7 @@ export component SettingsModal inherits Rectangle {
 
                     close-btn-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         clicked => { close-requested(); }
                     }
                 }
@@ -3415,7 +3424,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "PROFILE";
+                                    text: @tr("PROFILE");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3427,7 +3436,7 @@ export component SettingsModal inherits Rectangle {
 
                                 profile-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "PROFILE";
+                                    accessible-label: @tr("PROFILE");
                                     clicked => { active-tab = 0; }
                                 }
                             }
@@ -3462,7 +3471,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "GENERAL";
+                                    text: @tr("GENERAL");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3474,7 +3483,7 @@ export component SettingsModal inherits Rectangle {
 
                                 general-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "GENERAL";
+                                    accessible-label: @tr("GENERAL");
                                     clicked => { active-tab = 1; }
                                 }
                             }
@@ -3509,7 +3518,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "AUDIO & VIDEO";
+                                    text: @tr("AUDIO & VIDEO");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3521,7 +3530,7 @@ export component SettingsModal inherits Rectangle {
 
                                 audio-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "AUDIO & VIDEO";
+                                    accessible-label: @tr("AUDIO & VIDEO");
                                     clicked => { active-tab = 2; }
                                 }
                             }
@@ -3556,7 +3565,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "GAMES";
+                                    text: @tr("GAMES");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3568,7 +3577,7 @@ export component SettingsModal inherits Rectangle {
 
                                 games-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "GAMES";
+                                    accessible-label: @tr("GAMES");
                                     clicked => { active-tab = 3; }
                                 }
                             }
@@ -3603,7 +3612,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "ABOUT";
+                                    text: @tr("ABOUT");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3615,7 +3624,7 @@ export component SettingsModal inherits Rectangle {
 
                                 about-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "ABOUT";
+                                    accessible-label: @tr("ABOUT");
                                     clicked => {
                                         active-tab = 4;
                                         root.about-opened();
@@ -3656,7 +3665,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "KEYBINDS";
+                                    text: @tr("KEYBINDS");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3668,7 +3677,7 @@ export component SettingsModal inherits Rectangle {
 
                                 keybinds-ta := TouchArea {
                                     accessible-role: tab;
-                                    accessible-label: "KEYBINDS";
+                                    accessible-label: @tr("KEYBINDS");
                                     clicked => { active-tab = 5; }
                                 }
                             }
@@ -3689,7 +3698,7 @@ export component SettingsModal inherits Rectangle {
                                 }
 
                                 Text {
-                                    text: "SECURITY";
+                                    text: @tr("SECURITY");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -3712,7 +3721,7 @@ export component SettingsModal inherits Rectangle {
                             spacing: 4px;
 
                             Text {
-                                text: "BUILD VERSION";
+                                text: @tr("BUILD VERSION");
                                 font-family: Theme.font-label;
                                 font-size: 10px;
                                 font-weight: Theme.weight-label;
@@ -3943,7 +3952,7 @@ export component SettingsModal inherits Rectangle {
 
                     reset-text := Text {
                         font-weight: Theme.weight-label;
-                        text: "RESET TO DEFAULTS";
+                        text: @tr("RESET TO DEFAULTS");
                         font-family: Theme.font-label;
                         font-size: 12px;
                         letter-spacing: 1.2px;
@@ -3954,7 +3963,7 @@ export component SettingsModal inherits Rectangle {
 
                     reset-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "RESET TO DEFAULTS";
+                        accessible-label: @tr("RESET TO DEFAULTS");
                         clicked => { reset-defaults(); }
                     }
                 }
@@ -3967,7 +3976,7 @@ export component SettingsModal inherits Rectangle {
                     visible: root.show-saved;
                     x: parent.width - 32px - 120px - 16px - self.preferred-width;
                     y: (parent.height - self.preferred-height) / 2;
-                    text: "Saved";
+                    text: @tr("Saved");
                     font-family: Theme.font-label;
                     font-size: 12px;
                     color: Theme.text-tertiary;
@@ -3998,7 +4007,7 @@ export component SettingsModal inherits Rectangle {
                     border-color: Theme.graphic-light;
 
                     Text {
-                        text: "Close";
+                        text: @tr("Close");
                         font-family: Theme.font-label;
                         font-size: 13px;
                         font-weight: Theme.weight-label;
@@ -4010,7 +4019,7 @@ export component SettingsModal inherits Rectangle {
 
                     close-footer-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Close";
+                        accessible-label: @tr("Close");
                         clicked => { close-requested(); }
                     }
                 }

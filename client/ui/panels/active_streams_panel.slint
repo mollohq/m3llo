@@ -189,7 +189,7 @@ component StreamerLine inherits HorizontalLayout {
                 label: root.tag;
                 live: root.tag-live;
                 count: root.tag-count;
-                count-label: "WATCHING";
+                count-label: @tr("WATCHING");
             }
             if root.format != "": MediaChip {
                 Text {
@@ -298,7 +298,7 @@ component StreamStrip inherits Rectangle {
 
     strip-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "Watch " + root.card.streamer-name;
+        accessible-label: @tr("Watch {}", root.card.streamer-name);
         mouse-cursor: pointer;
         clicked => { root.watch-clicked(); }
     }
@@ -350,10 +350,10 @@ component LiveStripsCard inherits Rectangle {
     StreamTag {
         x: 18px;
         y: 14px;
-        label: "LIVE";
+        label: @tr("LIVE");
         live: true;
         count: root.cards.length;
-        count-label: "STREAMING";
+        count-label: @tr("STREAMING");
     }
 }
 
@@ -390,13 +390,13 @@ component StreamCard inherits Rectangle {
     /// game, one still loading, and one no method can see are three
     /// different sentences.
     property <string> pause-title:
-        stream-paused-reason == "waiting" ? card.streamer-name + " is getting the game ready" :
-        stream-paused-reason == "failed" ? card.streamer-name + "'s game isn't visible" :
-        card.streamer-name + " paused the stream";
+        stream-paused-reason == "waiting" ? @tr("{} is getting the game ready", card.streamer-name) :
+        stream-paused-reason == "failed" ? @tr("{}'s game isn't visible", card.streamer-name) :
+        @tr("{} paused the stream", card.streamer-name);
     property <string> pause-subtitle:
-        stream-paused-reason == "waiting" ? "Video starts when the game draws its first frame" :
-        stream-paused-reason == "failed" ? "The stream resumes when capture finds the game" :
-        "Video resumes when they're back in game";
+        stream-paused-reason == "waiting" ? @tr("Video starts when the game draws its first frame") :
+        stream-paused-reason == "failed" ? @tr("The stream resumes when capture finds the game") :
+        @tr("Video resumes when they're back in game");
     property <bool> show-live-frame: selected-card && is-watching && card.can-watch;
     property <bool> show-hosting-state: selected-card && is-hosting && !card.can-watch;
     property <bool> show-watch-cta: card.can-watch && !show-live-frame && !root.viewer-starting;
@@ -424,11 +424,11 @@ component StreamCard inherits Rectangle {
     property <bool> show-count: !is-notice && card.viewer-count > 0;
     /// The footer's state tag: the state words, else LIVE (YOU ARE LIVE on
     /// your own stream). The count rides the tag of a live stream.
-    property <string> tag-label: root.reconnecting ? "RECONNECTING"
-        : root.starting ? "STARTING"
-        : card.state == "failed" ? "NOT LIVE"
-        : card.state == "ended" ? "ENDED"
-        : "LIVE";
+    property <string> tag-label: root.reconnecting ? @tr("RECONNECTING")
+        : root.starting ? @tr("STARTING")
+        : card.state == "failed" ? @tr("NOT LIVE")
+        : card.state == "ended" ? @tr("ENDED")
+        : @tr("LIVE");
     /// Red is state: live, or the link is down right now.
     property <bool> tag-live: !root.is-notice && !root.starting;
     property <bool> count-shown: !root.is-notice && !root.starting && !root.reconnecting
@@ -550,7 +550,7 @@ component StreamCard inherits Rectangle {
                         spacing: 8px;
 
                         Text {
-                            text: "STARTING";
+                            text: @tr("STARTING");
                             font-family: Theme.font-label;
                             font-size: 14px;
                             font-weight: 700;
@@ -560,7 +560,7 @@ component StreamCard inherits Rectangle {
                         }
 
                         Text {
-                            text: "Connecting to " + root.card.streamer-name + "'s stream";
+                            text: @tr("Connecting to {}'s stream", root.card.streamer-name);
                             font-family: Theme.font-body;
                             font-weight: Theme.weight-sentence;
                             font-size: 12px;
@@ -576,7 +576,7 @@ component StreamCard inherits Rectangle {
                         spacing: 8px;
 
                         Text {
-                            text: "PLAYING IN A WINDOW";
+                            text: @tr("PLAYING IN A WINDOW");
                             font-family: Theme.font-label;
                             font-size: 14px;
                             font-weight: 700;
@@ -586,7 +586,7 @@ component StreamCard inherits Rectangle {
                         }
 
                         Text {
-                            text: root.card.streamer-name + "'s stream is in its own window";
+                            text: @tr("{}'s stream is in its own window", root.card.streamer-name);
                             font-family: Theme.font-body;
                             font-weight: Theme.weight-sentence;
                             font-size: 12px;
@@ -611,7 +611,7 @@ component StreamCard inherits Rectangle {
                                 }
 
                                 back-label := Text {
-                                    text: "Show it here";
+                                    text: @tr("Show it here");
                                     font-family: Theme.font-label;
                                     font-size: 11px;
                                     font-weight: Theme.weight-label;
@@ -623,7 +623,7 @@ component StreamCard inherits Rectangle {
 
                                 back-ta := TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "Show it here";
+                                    accessible-label: @tr("Show it here");
                                     mouse-cursor: pointer;
                                     clicked => {
                                         StreamCardUi.popout-requested(false);
@@ -714,11 +714,11 @@ component StreamCard inherits Rectangle {
 
                         if !show-watch-cta: Text {
                             text: root.is-notice ? root.card.title
-                                : root.viewer-starting ? "STARTING"
-                                : !show-hosting-state ? root.card.streamer-name + " IS LIVE"
-                                : root.starting ? "STARTING"
-                                : root.reconnecting ? "RECONNECTING"
-                                : "YOU ARE LIVE";
+                                : root.viewer-starting ? @tr("STARTING")
+                                : !show-hosting-state ? @tr("{} IS LIVE", root.card.streamer-name)
+                                : root.starting ? @tr("STARTING")
+                                : root.reconnecting ? @tr("RECONNECTING")
+                                : @tr("YOU ARE LIVE");
                             font-family: Theme.font-label;
                             font-size: 14px;
                             font-weight: 700;
@@ -733,9 +733,9 @@ component StreamCard inherits Rectangle {
                         if !show-watch-cta && !(show-hosting-state && !root.starting && !root.reconnecting): Text {
                             font-weight: Theme.weight-sentence;
                             font-family: Theme.font-body;
-                            text: root.viewer-starting ? "Connecting to " + root.card.streamer-name + "'s stream"
-                                : show-hosting-state && root.starting ? "Connecting to the stream server"
-                                : show-hosting-state && root.reconnecting ? "Viewers see your last frame"
+                            text: root.viewer-starting ? @tr("Connecting to {}'s stream", root.card.streamer-name)
+                                : show-hosting-state && root.starting ? @tr("Connecting to the stream server")
+                                : show-hosting-state && root.reconnecting ? @tr("Viewers see your last frame")
                                 : root.card.subtitle;
                             font-size: 12px;
                             color: Theme.text-secondary;
@@ -762,7 +762,7 @@ component StreamCard inherits Rectangle {
                                 }
 
                                 stop-text := Text {
-                                    text: "END STREAM";
+                                    text: @tr("END STREAM");
                                     font-family: Theme.font-label;
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
@@ -774,7 +774,7 @@ component StreamCard inherits Rectangle {
 
                                 stop-hover := TouchArea {
                                     accessible-role: button;
-                                    accessible-label: "END STREAM";
+                                    accessible-label: @tr("END STREAM");
                                     mouse-cursor: pointer;
                                     clicked => {
                                         root.stop-stream-clicked();
@@ -812,15 +812,15 @@ component StreamCard inherits Rectangle {
                     StreamTag {
                         x: 18px;
                         y: 14px;
-                        label: "LIVE";
+                        label: @tr("LIVE");
                         live: true;
                         count: root.show-count ? root.card.viewer-count : "";
-                        count-label: "WATCHING";
+                        count-label: @tr("WATCHING");
                     }
 
                     watch-click := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Watch " + root.card.streamer-name;
+                        accessible-label: @tr("Watch {}", root.card.streamer-name);
                         mouse-cursor: pointer;
                         clicked => {
                             root.watch-stream-clicked(
@@ -867,12 +867,12 @@ component StreamCard inherits Rectangle {
                     padding-right: 11px;
                     spacing: 8px;
 
-                    StreamStatCell { kicker: "DELAY"; value: StreamCardUi.stats.target-delay; }
-                    StreamStatCell { kicker: "JITTER"; value: StreamCardUi.stats.jitter; }
-                    StreamStatCell { kicker: "DECODE"; value: StreamCardUi.stats.decode; }
-                    StreamStatCell { kicker: "LATE"; value: StreamCardUi.stats.frames-late; }
-                    StreamStatCell { kicker: "AUDIO"; value: StreamCardUi.stats.audio-delay; }
-                    StreamStatCell { kicker: "A/V"; value: StreamCardUi.stats.av-offset; }
+                    StreamStatCell { kicker: @tr("DELAY"); value: StreamCardUi.stats.target-delay; }
+                    StreamStatCell { kicker: @tr("JITTER"); value: StreamCardUi.stats.jitter; }
+                    StreamStatCell { kicker: @tr("DECODE"); value: StreamCardUi.stats.decode; }
+                    StreamStatCell { kicker: @tr("LATE"); value: StreamCardUi.stats.frames-late; }
+                    StreamStatCell { kicker: @tr("AUDIO"); value: StreamCardUi.stats.audio-delay; }
+                    StreamStatCell { kicker: @tr("A/V"); value: StreamCardUi.stats.av-offset; }
                 }
             }
         }
@@ -920,7 +920,7 @@ component StreamCard inherits Rectangle {
                         tag-live: root.tag-live;
                         tag-count: root.tag-count;
                         game-suffix: root.count-shown && root.narrow-footer
-                            ? root.card.viewer-count + " watching" : "";
+                            ? @tr("{n} watching" | "{n} watching" % root.card.viewer-count) : "";
                         format: show-live-frame && !root.narrow-footer ? StreamCardUi.format-label : "";
                     }
                 }
@@ -945,7 +945,7 @@ component StreamCard inherits Rectangle {
                                 icon: StreamCardUi.muted || StreamCardUi.volume == 0
                                     ? @image-url("../icons/volume-x.svg")
                                     : @image-url("../icons/volume.svg");
-                                label: "Stream volume";
+                                label: @tr("Stream volume");
                                 on: StreamCardUi.popover == "volume";
                                 clicked => {
                                     StreamCardUi.anchor-right = self.absolute-position.x + self.width;
@@ -957,7 +957,7 @@ component StreamCard inherits Rectangle {
 
                             if show-live-frame || show-hosting-state: StreamIconButton {
                                 icon: @image-url("../icons/settings.svg");
-                                label: "Stream settings";
+                                label: @tr("Stream settings");
                                 on: StreamCardUi.popover == root.settings-popover;
                                 clicked => {
                                     StreamCardUi.anchor-right = self.absolute-position.x + self.width;
@@ -974,7 +974,7 @@ component StreamCard inherits Rectangle {
                                 icon: StreamCardUi.expanded
                                     ? @image-url("../icons/minimize.svg")
                                     : @image-url("../icons/maximize.svg");
-                                label: StreamCardUi.expanded ? "Exit expanded view" : "Expand";
+                                label: StreamCardUi.expanded ? @tr("Exit expanded view") : @tr("Expand");
                                 on: StreamCardUi.expanded;
                                 clicked => {
                                     StreamCardUi.popover = "";
@@ -985,7 +985,7 @@ component StreamCard inherits Rectangle {
                             // The stream in its own window, or back.
                             if show-live-frame && !show-paused: StreamIconButton {
                                 icon: @image-url("../icons/external-link.svg");
-                                label: StreamCardUi.popped-out ? "Close the stream window" : "Pop out";
+                                label: StreamCardUi.popped-out ? @tr("Close the stream window") : @tr("Pop out");
                                 on: StreamCardUi.popped-out;
                                 clicked => {
                                     StreamCardUi.popover = "";
@@ -1006,7 +1006,7 @@ component StreamCard inherits Rectangle {
                             }
 
                             leave-label := Text {
-                                text: "Leave";
+                                text: @tr("Leave");
                                 font-family: Theme.font-label;
                                 font-size: 11px;
                                 font-weight: Theme.weight-label;
@@ -1018,7 +1018,7 @@ component StreamCard inherits Rectangle {
 
                             leave-hover := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Leave";
+                                accessible-label: @tr("Leave");
                                 mouse-cursor: pointer;
                                 clicked => {
                                     root.stop-watching-clicked();
@@ -1243,7 +1243,7 @@ export component StreamVolumePopover inherits Rectangle {
                 }
 
                 Text {
-                    text: "Only you hear this change.";
+                    text: @tr("Only you hear this change.");
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
                     font-size: 11px;
@@ -1264,7 +1264,7 @@ export component StreamVolumePopover inherits Rectangle {
 
                 HorizontalLayout {
                     Text {
-                        text: "STREAM VOLUME";
+                        text: @tr("STREAM VOLUME");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -1282,7 +1282,7 @@ export component StreamVolumePopover inherits Rectangle {
                         background: root.muted ? transparent : Theme.accent-bg;
 
                         pct-text := Text {
-                            text: root.muted ? "MUTED" : root.volume + "%";
+                            text: root.muted ? @tr("MUTED") : root.volume + "%";
                             font-family: Theme.font-label;
                             font-size: 11px;
                             font-weight: Theme.weight-label;
@@ -1295,7 +1295,7 @@ export component StreamVolumePopover inherits Rectangle {
                 }
 
                 MemberVolumeSlider {
-                    label: "Stream volume for " + root.name;
+                    label: @tr("Stream volume for {}", root.name);
                     value: root.volume;
                     enabled: !root.muted;
                     changed(v) => { root.volume-changed(v); }
@@ -1337,7 +1337,7 @@ export component StreamVolumePopover inherits Rectangle {
                 // libmello applies the gain before the limiter of the voice
                 // mix, so loud game audio above 100 % can clip.
                 if root.boosted: Text {
-                    text: "Above 100% loud game audio can distort.";
+                    text: @tr("Above 100% loud game audio can distort.");
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
                     font-size: 11px;
@@ -1364,7 +1364,7 @@ export component StreamVolumePopover inherits Rectangle {
                     cross-axis-alignment: center;
 
                     Text {
-                        text: "Mute";
+                        text: @tr("Mute");
                         font-family: Theme.font-display;
                         font-size: 13px;
                         font-weight: Theme.weight-display;
@@ -1374,7 +1374,7 @@ export component StreamVolumePopover inherits Rectangle {
                     }
 
                     SmallToggle {
-                        label: "Mute the stream";
+                        label: @tr("Mute the stream");
                         checked: root.muted;
                         self-toggle: false;
                         toggled(v) => { root.mute-changed(v); }
@@ -1394,7 +1394,7 @@ export component StreamVolumePopover inherits Rectangle {
                 Text {
                     x: 14px;
                     height: parent.height;
-                    text: "RESET TO 100%";
+                    text: @tr("RESET TO 100%");
                     font-family: Theme.font-label;
                     font-size: 9.5px;
                     font-weight: Theme.weight-label;
@@ -1407,7 +1407,7 @@ export component StreamVolumePopover inherits Rectangle {
 
                 reset-ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Reset stream volume to 100%";
+                    accessible-label: @tr("Reset stream volume to 100%");
                     enabled: reset-row.can-reset;
                     accessible-enabled: reset-row.can-reset;
                     mouse-cursor: reset-row.can-reset ? pointer : default;
@@ -1503,7 +1503,7 @@ export component StreamSettingsPopover inherits Rectangle {
                 padding-bottom: 10px;
 
                 Text {
-                    text: root.hosting ? "YOUR STREAM" : "STREAM";
+                    text: root.hosting ? @tr("YOUR STREAM") : @tr("noun" => "STREAM");
                     font-family: Theme.font-label;
                     font-size: 9.5px;
                     font-weight: Theme.weight-label;
@@ -1536,7 +1536,7 @@ export component StreamSettingsPopover inherits Rectangle {
                         spacing: 1px;
 
                         Text {
-                            text: "Stats";
+                            text: @tr("Stats");
                             font-family: Theme.font-display;
                             font-size: 13px;
                             font-weight: Theme.weight-display;
@@ -1544,7 +1544,7 @@ export component StreamSettingsPopover inherits Rectangle {
                         }
 
                         Text {
-                            text: "Delay, jitter and sync on the card";
+                            text: @tr("Delay, jitter and sync on the card");
                             font-family: Theme.font-body;
                             font-weight: Theme.weight-sentence;
                             font-size: 11px;
@@ -1554,7 +1554,7 @@ export component StreamSettingsPopover inherits Rectangle {
                     }
 
                     SmallToggle {
-                        label: "Show stream stats";
+                        label: @tr("Show stream stats");
                         checked: root.stats-shown;
                         self-toggle: false;
                         toggled(v) => { root.stats-toggled(v); }
@@ -1571,8 +1571,8 @@ export component StreamSettingsPopover inherits Rectangle {
                 padding-bottom: 12px;
                 spacing: 10px;
 
-                StreamPopoverValue { kicker: "QUALITY"; value: root.host-quality; }
-                StreamPopoverValue { kicker: "SENDING"; value: root.host-sending; }
+                StreamPopoverValue { kicker: @tr("QUALITY"); value: root.host-quality; }
+                StreamPopoverValue { kicker: @tr("SENDING"); value: root.host-sending; }
             }
         }
     }

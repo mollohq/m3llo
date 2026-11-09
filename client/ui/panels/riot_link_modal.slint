@@ -61,7 +61,7 @@ export component RiotLinkModal inherits Rectangle {
 
             Text {
                 font-family: Theme.font-display;
-                text: "Connect your Riot account";
+                text: @tr("Connect your Riot account");
                 font-size: Theme.font-xl;
                 font-weight: Theme.weight-display-bold;
                 color: Theme.text-primary;
@@ -71,7 +71,7 @@ export component RiotLinkModal inherits Rectangle {
             Text {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
-                text: "Get server-verified results for League of Legends and TFT. m3llo only reads your recent match history from Riot's official API — it never touches your account. You can disconnect anytime in Settings, under Games.";
+                text: @tr("Get server-verified results for League of Legends and TFT. m3llo only reads your recent match history from Riot's official API — it never touches your account. You can disconnect anytime in Settings, under Games.");
                 font-size: Theme.font-md;
                 color: Theme.text-secondary;
                 wrap: word-wrap;
@@ -81,7 +81,7 @@ export component RiotLinkModal inherits Rectangle {
                 spacing: 8px;
 
                 Text {
-                    text: "RIOT ID";
+                    text: @tr("RIOT ID");
                     font-family: Theme.font-label;
                     font-size: 10px;
                     font-weight: 600;
@@ -90,8 +90,8 @@ export component RiotLinkModal inherits Rectangle {
                 }
 
                 riot-id-input := MelloInputField {
-                    label: "RIOT ID";
-                    placeholder: "GameName#TAG";
+                    label: @tr("RIOT ID");
+                    placeholder: @tr("GameName#TAG");
                     accepted => {
                         if self.text != "" && !busy {
                             link-requested(self.text, selected-region);
@@ -104,7 +104,7 @@ export component RiotLinkModal inherits Rectangle {
                 spacing: 8px;
 
                 Text {
-                    text: "REGION";
+                    text: @tr("REGION");
                     font-family: Theme.font-label;
                     font-size: 10px;
                     font-weight: 600;
@@ -183,7 +183,7 @@ export component RiotLinkModal inherits Rectangle {
 
                     cancel-text := Text {
                         font-family: Theme.font-display;
-                        text: "Not now";
+                        text: @tr("Not now");
                         font-size: Theme.font-md;
                         font-weight: Theme.weight-display;
                         color: Theme.text-secondary;
@@ -193,7 +193,7 @@ export component RiotLinkModal inherits Rectangle {
 
                     cancel-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Not now";
+                        accessible-label: @tr("Not now");
                         mouse-cursor: pointer;
                         clicked => { dismiss-requested(); }
                     }
@@ -214,7 +214,7 @@ export component RiotLinkModal inherits Rectangle {
 
                     connect-text := Text {
                         font-family: Theme.font-display;
-                        text: busy ? "Connecting…" : "Connect";
+                        text: busy ? @tr("Connecting…") : @tr("Connect");
                         font-size: Theme.font-md;
                         font-weight: Theme.weight-display;
                         color: Theme.on-confirm;
@@ -224,7 +224,7 @@ export component RiotLinkModal inherits Rectangle {
 
                     connect-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: busy ? "Connecting…" : "Connect";
+                        accessible-label: busy ? @tr("Connecting…") : @tr("Connect");
                         mouse-cursor: pointer;
                         accessible-enabled: !busy;
                         enabled: !busy;

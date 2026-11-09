@@ -31,7 +31,7 @@ export component JoinCrewModal inherits Rectangle {
     callback dismiss-requested();
 
     property <string> members-text: member-count <= 0 ? ""
-        : member-count == 1 ? "1 member" : member-count + " members";
+        : @tr("{n} member" | "{n} members" % member-count);
     /// "4 members · 7h hangout · 3 clips"
     property <string> sub-line: members-text
         + (members-text != "" && highlight != "" ? " · " : "")
@@ -138,7 +138,7 @@ export component JoinCrewModal inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "Dismiss";
+                        text: @tr("Dismiss");
                         font-size: Theme.font-md;
                         font-weight: Theme.weight-display;
                         color: Theme.text-primary;
@@ -148,7 +148,7 @@ export component JoinCrewModal inherits Rectangle {
 
                     dismiss-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Dismiss";
+                        accessible-label: @tr("Dismiss");
                         mouse-cursor: pointer;
                         clicked => { dismiss-requested(); }
                     }
@@ -176,7 +176,7 @@ export component JoinCrewModal inherits Rectangle {
 
                     inviter-text := Text {
                         font-family: Theme.font-body;
-                        text: root.inviter.name + " invited you";
+                        text: @tr("{} invited you", root.inviter.name);
                         font-size: Theme.font-lg;
                         font-weight: Theme.weight-sentence;
                         color: Theme.text-secondary;
@@ -247,7 +247,7 @@ export component JoinCrewModal inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: joining ? "Joining…" : "Join crew";
+                        text: joining ? @tr("Joining…") : @tr("Join crew");
                         font-size: Theme.font-lg;
                         font-weight: Theme.weight-display;
                         color: Theme.on-confirm;
@@ -257,7 +257,7 @@ export component JoinCrewModal inherits Rectangle {
 
                     join-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Join crew";
+                        accessible-label: @tr("Join crew");
                         accessible-enabled: !joining;
                         enabled: !joining;
                         mouse-cursor: joining ? default : pointer;
@@ -269,14 +269,14 @@ export component JoinCrewModal inherits Rectangle {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "Not now";
+                    text: @tr("Not now");
                     font-size: Theme.font-md;
                     color: Theme.text-secondary;
                     horizontal-alignment: center;
 
                     not-now-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Not now";
+                        accessible-label: @tr("Not now");
                         mouse-cursor: pointer;
                         clicked => { dismiss-requested(); }
                     }

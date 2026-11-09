@@ -29,16 +29,18 @@ export global BannerPicker {
 }
 
 component Tab inherits Rectangle {
+    // The text that the tab shows. Write it in upper case.
     in property <string> label;
+    in property <string> a11y-label;
     in property <bool> active;
     callback clicked();
     height: 30px;
     width: t.preferred-width;
     accessible-role: tab;
-    accessible-label: root.label;
+    accessible-label: root.a11y-label;
     t := Text {
         y: (30px - self.height) / 2;
-        text: root.label.to-uppercase();
+        text: root.label;
         font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 10px;
         letter-spacing: Theme.track-kicker;
         color: root.active ? Theme.text-primary : Theme.text-dim;
@@ -151,12 +153,12 @@ export component CrewBannerModal inherits Rectangle {
                 padding: 22px;
                 spacing: 14px;
 
-                Kicker { text: "CREW BANNER"; }
+                Kicker { text: @tr("CREW BANNER"); }
                 HorizontalLayout {
                     spacing: 18px;
                     alignment: start;
-                    Tab { label: "Game art"; active: root.tab == 0; clicked => { root.tab = 0; } }
-                    Tab { label: "Your image"; active: root.tab == 1; clicked => { root.tab = 1; } }
+                    Tab { label: @tr("GAME ART"); a11y-label: @tr("Game art"); active: root.tab == 0; clicked => { root.tab = 0; } }
+                    Tab { label: @tr("YOUR IMAGE"); a11y-label: @tr("Your image"); active: root.tab == 1; clicked => { root.tab = 1; } }
                 }
                 Rectangle { height: 1px; background: Theme.card-border; }
 
@@ -175,13 +177,13 @@ export component CrewBannerModal inherits Rectangle {
                         if root.shown.length == 0: Text {
                             width: parent.width; height: parent.height;
                             vertical-alignment: center;
-                            text: root.query != "" ? "No game by that name" : "No games yet";
+                            text: root.query != "" ? @tr("No game by that name") : @tr("No games yet");
                             font-family: Theme.font-body; font-size: 13px; color: Theme.text-dim;
                         }
                     }
                     MelloInputField {
-                        label: "Search a game";
-                        placeholder: "Search a game";
+                        label: @tr("Search a game");
+                        placeholder: @tr("Search a game");
                         text <=> root.query;
                         field-height: 36px;
                         edited => { root.search(self.text); }
@@ -199,7 +201,7 @@ export component CrewBannerModal inherits Rectangle {
                         if !root.has-image: Kicker {
                             width: parent.width; height: parent.height;
                             horizontal-alignment: center; vertical-alignment: center;
-                            text: "JPEG OR PNG"; color: Theme.text-tertiary;
+                            text: @tr("JPEG OR PNG"); color: Theme.text-tertiary;
                         }
                     }
                     HorizontalLayout {
@@ -212,8 +214,8 @@ export component CrewBannerModal inherits Rectangle {
                             font-family: Theme.font-body; font-size: 12px; color: Theme.text-dim; overflow: elide;
                         }
                         ZoneButton {
-                            label: root.has-image ? "REPLACE" : "CHOOSE IMAGE";
-                            a11y-label: root.has-image ? "Replace" : "Choose image";
+                            label: root.has-image ? @tr("REPLACE") : @tr("CHOOSE IMAGE");
+                            a11y-label: root.has-image ? @tr("Replace") : @tr("Choose image");
                             tone: "line";
                             clicked => { root.choose-image(); }
                         }
@@ -230,7 +232,7 @@ export component CrewBannerModal inherits Rectangle {
                     spacing: 10px;
                     alignment: end;
                     ZoneButton {
-                        label: "CANCEL"; a11y-label: "Cancel"; tone: "line";
+                        label: @tr("CANCEL"); a11y-label: @tr("Cancel"); tone: "line";
                         clicked => { root.close-requested(); }
                     }
                     Rectangle {
@@ -238,11 +240,11 @@ export component CrewBannerModal inherits Rectangle {
                         height: 36px;
                         opacity: root.can-save ? 1 : 0.4;
                         accessible-role: button;
-                        accessible-label: "Save";
+                        accessible-label: @tr("Save");
                         accessible-enabled: root.can-save;
                         CutButton { width: parent.width; height: parent.height; fill-color: Theme.confirm; }
                         save-text := Text {
-                            text: root.busy ? "SAVING" : "SAVE";
+                            text: root.busy ? @tr("SAVING") : @tr("SAVE");
                             font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 10px;
                             letter-spacing: Theme.track-kicker; color: Theme.on-confirm;
                         }

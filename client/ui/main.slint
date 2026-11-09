@@ -319,8 +319,8 @@ export component MainWindow inherits Window {
     in property <[AudioDeviceData]> playback-devices: [];
     in-out property <string> selected-capture-id: "";
     in-out property <string> selected-playback-id: "";
-    in-out property <string> selected-capture-name: "System Default";
-    in-out property <string> selected-playback-name: "System Default";
+    in-out property <string> selected-capture-name: @tr("System Default");
+    in-out property <string> selected-playback-name: @tr("System Default");
     in-out property <bool> mic-testing: false;
     in-out property <float> mic-level: 0.0;
     // General settings
@@ -341,6 +341,7 @@ export component MainWindow inherits Window {
     in-out property <bool> settings-echo-suppression: false;
     in-out property <bool> settings-agc: true;
     in-out property <bool> settings-ptt-mode: false;
+    // i18n: none (a value that settings_modal and Rust compare)
     in property <string> settings-ptt-key-label: "Unassigned";
     in-out property <bool> settings-ptt-binding: false;
     /// The clip key as the clip button, Keybinds and the Game clips section
@@ -1468,7 +1469,7 @@ export component MainWindow inherits Window {
                 spacing: 16px;
 
                 Text {
-                    text: "Audio device not found";
+                    text: @tr("Audio device not found");
                     color: Theme.text-primary;
                     font-family: Theme.font-sans;
                     font-size: 16px;
@@ -1495,7 +1496,7 @@ export component MainWindow inherits Window {
                         animate background { duration: 150ms; }
 
                         adw-settings-text := Text {
-                            text: "Go to Settings";
+                            text: @tr("Go to Settings");
                             color: Theme.text-primary;
                             font-family: Theme.font-sans;
                             font-size: 13px;
@@ -1506,7 +1507,7 @@ export component MainWindow inherits Window {
 
                         adw-settings-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Go to Settings";
+                            accessible-label: @tr("Go to Settings");
                             mouse-cursor: pointer;
                             clicked => {
                                 root.audio-device-warning = "";
@@ -1523,7 +1524,7 @@ export component MainWindow inherits Window {
                         animate background { duration: 150ms; }
 
                         adw-ok-text := Text {
-                            text: "Continue";
+                            text: @tr("Continue");
                             color: Theme.on-action;
                             font-family: Theme.font-sans;
                             font-size: 13px;
@@ -1534,7 +1535,7 @@ export component MainWindow inherits Window {
 
                         adw-ok-ta := TouchArea {
                             accessible-role: button;
-                            accessible-label: "Continue";
+                            accessible-label: @tr("Continue");
                             mouse-cursor: pointer;
                             clicked => { root.audio-device-warning = ""; }
                         }

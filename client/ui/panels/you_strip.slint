@@ -57,7 +57,7 @@ component ChaseBar inherits Rectangle {
             cross-axis-alignment: center;
             height: 20px;
 
-            Kicker { text: root.bar.take ? "TAKE" : "HOLD"; }
+            Kicker { text: root.bar.take ? @tr("TAKE") : @tr("HOLD"); }
             Image {
                 source: root.bar.icon;
                 colorize: Theme.text-primary;
@@ -115,7 +115,7 @@ component ChaseBar inherits Rectangle {
             cross-axis-alignment: end;
 
             Text {
-                text: "You";
+                text: @tr("You");
                 font-family: Theme.font-body;
                 font-weight: Theme.weight-sentence;
                 font-size: 11px;
@@ -223,7 +223,7 @@ export component YouStrip inherits Rectangle {
 
         strip-ta := TouchArea {
             accessible-role: button;
-            accessible-label: "You";
+            accessible-label: @tr("You");
             mouse-cursor: pointer;
             clicked => { root.clicked(); }
         }
@@ -269,7 +269,7 @@ export component YouStrip inherits Rectangle {
                             height: 14px;
                         }
                     }
-                    if root.data.held-icons.length == 0: Kicker { text: "0 BELTS"; }
+                    if root.data.held-icons.length == 0: Kicker { text: @tr("{n} BELT" | "{n} BELTS" % 0); }
                 }
             }
 
@@ -321,11 +321,11 @@ export component YouStrip inherits Rectangle {
                     alignment: center;
                     StatValue {
                         value: root.data.week-value;
-                        unit: "h";
+                        unit: @tr("h");
                         value-size: 15px;
                         unit-size: 11px;
                     }
-                    Kicker { text: "THIS WEEK"; }
+                    Kicker { text: @tr("THIS WEEK"); }
                 }
             }
 

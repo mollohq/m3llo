@@ -73,7 +73,7 @@ export component InviteNameModal inherits Rectangle {
                 padding: 22px;
                 spacing: 12px;
 
-                Kicker { text: "INVITE LINK"; }
+                Kicker { text: @tr("INVITE LINK"); }
                 Text {
                     text: root.crew-name;
                     font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 20px;
@@ -89,7 +89,7 @@ export component InviteNameModal inherits Rectangle {
                     }
                     MelloInputField {
                         horizontal-stretch: 1;
-                        label: "Invite name";
+                        label: @tr("Invite name");
                         text <=> root.name;
                         field-height: 36px;
                         invalid: root.state == "taken" || root.state == "not_allowed";
@@ -98,10 +98,10 @@ export component InviteNameModal inherits Rectangle {
                     }
                 }
                 Text {
-                    text: root.state == "free" ? "Free"
-                        : root.state == "taken" ? "Taken"
-                        : root.state == "not_allowed" ? "3 to 24 letters, digits or dashes. Not in the shape of a code."
-                        : root.state == "checking" ? "Checking" : " ";
+                    text: root.state == "free" ? @tr("Free")
+                        : root.state == "taken" ? @tr("Taken")
+                        : root.state == "not_allowed" ? @tr("3 to 24 letters, digits or dashes. Not in the shape of a code.")
+                        : root.state == "checking" ? @tr("Checking") : " ";
                     font-family: Theme.font-body; font-weight: Theme.weight-sentence; font-size: 13px;
                     color: root.state == "taken" || root.state == "not_allowed" ? Theme.live : Theme.text-body;
                     wrap: word-wrap;
@@ -115,7 +115,7 @@ export component InviteNameModal inherits Rectangle {
                     spacing: 10px;
                     alignment: end;
                     ZoneButton {
-                        label: "CANCEL"; a11y-label: "Cancel"; tone: "line";
+                        label: @tr("CANCEL"); a11y-label: @tr("Cancel"); tone: "line";
                         clicked => { root.close-requested(); }
                     }
                     Rectangle {
@@ -123,11 +123,11 @@ export component InviteNameModal inherits Rectangle {
                         height: 36px;
                         opacity: root.can-save ? 1 : 0.4;
                         accessible-role: button;
-                        accessible-label: "Save";
+                        accessible-label: @tr("Save");
                         accessible-enabled: root.can-save;
                         CutButton { width: parent.width; height: parent.height; fill-color: Theme.confirm; }
                         save-text := Text {
-                            text: root.busy ? "SAVING" : "SAVE";
+                            text: root.busy ? @tr("SAVING") : @tr("SAVE");
                             font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 10px;
                             letter-spacing: Theme.track-kicker; color: Theme.on-confirm;
                         }

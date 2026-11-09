@@ -296,7 +296,7 @@ export component ControlBar inherits Rectangle {
 
                 avatar-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Account menu";
+                    accessible-label: @tr("Account menu");
                     mouse-cursor: pointer;
                     clicked => {
                         user-menu.show();
@@ -319,7 +319,7 @@ export component ControlBar inherits Rectangle {
                             padding: 8px;
                             spacing: 2px;
                             Text {
-                                text: "PRESENCE";
+                                text: @tr("PRESENCE");
                                 font-family: Theme.font-label;
                                 font-size: 9.5px;
                                 font-weight: Theme.weight-label;
@@ -331,7 +331,7 @@ export component ControlBar inherits Rectangle {
                             }
 
                             MenuItem {
-                                label: "Online";
+                                label: @tr("Online");
                                 has-dot: true;
                                 dot-color: Theme.action;
                                 checked: presence-status == 0;
@@ -342,7 +342,7 @@ export component ControlBar inherits Rectangle {
                             }
 
                             MenuItem {
-                                label: "Idle";
+                                label: @tr("Idle");
                                 has-dot: true;
                                 dot-color: Theme.text-secondary;
                                 checked: presence-status == 1;
@@ -353,7 +353,7 @@ export component ControlBar inherits Rectangle {
                             }
 
                             MenuItem {
-                                label: "Do Not Disturb";
+                                label: @tr("Do Not Disturb");
                                 has-dot: true;
                                 dot-color: Theme.live;
                                 checked: presence-status == 2;
@@ -364,7 +364,7 @@ export component ControlBar inherits Rectangle {
                             }
 
                             MenuItem {
-                                label: "Invisible";
+                                label: @tr("Invisible");
                                 has-dot: true;
                                 dot-color: Theme.graphic-med;
                                 checked: presence-status == 3;
@@ -377,7 +377,7 @@ export component ControlBar inherits Rectangle {
                             MenuSeparator { }
 
                             MenuItem {
-                                label: "Debug Audio";
+                                label: @tr("Debug Audio");
                                 clicked => {
                                     debug-toggled();
                                 }
@@ -386,7 +386,7 @@ export component ControlBar inherits Rectangle {
                             MenuSeparator { }
 
                             MenuItem {
-                                label: "Log Out";
+                                label: @tr("Log Out");
                                 destructive: true;
                                 clicked => {
                                     logout-clicked();
@@ -402,7 +402,7 @@ export component ControlBar inherits Rectangle {
                 alignment: center;
                 spacing: 2px;
                 Text {
-                    text: user-name != "" ? user-name : "Not connected";
+                    text: user-name != "" ? user-name : @tr("Not connected");
                     font-family: Theme.font-display;
                     font-weight: Theme.weight-display;
                     font-size: 13px;
@@ -433,7 +433,7 @@ export component ControlBar inherits Rectangle {
                     }
 
                     Text {
-                        text: voice-channel-name != "" ? voice-channel-name : "VOICE";
+                        text: voice-channel-name != "" ? voice-channel-name : @tr("VOICE");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -447,7 +447,7 @@ export component ControlBar inherits Rectangle {
             // --- mic + headset, then a divider, then leave ---
             if mic-permission-granted: IconButton {
                 icon: mic-muted ? @image-url("../icons/mic-off.svg") : @image-url("../icons/mic.svg");
-                label: mic-muted ? "Unmute" : "Mute";
+                label: mic-muted ? @tr("Unmute") : @tr("Mute");
                 on: in-voice && !mic-muted;
                 alert: in-voice && mic-muted;
                 clicked => {
@@ -456,7 +456,7 @@ export component ControlBar inherits Rectangle {
             }
             if mic-permission-granted: IconButton {
                 icon: deafened ? @image-url("../icons/headphone-off.svg") : @image-url("../icons/headphones.svg");
-                label: deafened ? "Undeafen" : "Deafen";
+                label: deafened ? @tr("Undeafen") : @tr("Deafen");
                 on: in-voice && !deafened;
                 alert: in-voice && deafened;
                 clicked => {
@@ -477,7 +477,7 @@ export component ControlBar inherits Rectangle {
             }
             if in-voice: IconButton {
                 icon: @image-url("../icons/phone-off.svg");
-                label: "Leave voice";
+                label: @tr("Leave voice");
                 danger: true;
                 clicked => {
                     voice-toggled();
@@ -541,7 +541,7 @@ export component ControlBar inherits Rectangle {
                             }
 
                             Text {
-                                text: "NOW PLAYING";
+                                text: @tr("NOW PLAYING");
                                 font-family: Theme.font-label;
                                 font-size: 8.5px;
                                 font-weight: Theme.weight-label;
@@ -600,7 +600,7 @@ export component ControlBar inherits Rectangle {
                     }
 
                     end-label := Text {
-                        text: "END STREAM";
+                        text: @tr("END STREAM");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         font-weight: Theme.weight-label;
@@ -612,7 +612,7 @@ export component ControlBar inherits Rectangle {
 
                     end-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "END STREAM";
+                        accessible-label: @tr("END STREAM");
                         mouse-cursor: pointer;
                         clicked => {
                             stop-stream-clicked();
@@ -637,7 +637,7 @@ export component ControlBar inherits Rectangle {
                     }
 
                     stream-label := Text {
-                        text: "STREAM";
+                        text: @tr("verb" => "STREAM");
                         font-family: Theme.font-label;
                         font-size: 10px;
                         font-weight: Theme.weight-label;
@@ -649,7 +649,7 @@ export component ControlBar inherits Rectangle {
 
                     stream-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "STREAM";
+                        accessible-label: @tr("verb" => "STREAM");
                         mouse-cursor: pointer;
                         clicked => {
                             // With a game detected, STREAM streams it: that
@@ -696,7 +696,7 @@ export component ControlBar inherits Rectangle {
 
                     caret-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Stream options";
+                        accessible-label: @tr("Stream options");
                         mouse-cursor: pointer;
                         clicked => {
                             go-live-clicked();
@@ -709,7 +709,7 @@ export component ControlBar inherits Rectangle {
                 if is-hosting && stream-host-paused: HorizontalLayout {
                     padding-left: 10px;
                     Text {
-                        text: "VIEWERS SEE PAUSED";
+                        text: @tr("VIEWERS SEE PAUSED");
                         font-family: Theme.font-label;
                         font-size: 9px;
                         font-weight: Theme.weight-label;
@@ -731,7 +731,7 @@ export component ControlBar inherits Rectangle {
             cross-axis-alignment: center;
 
             Text {
-                text: mic-permission-denied ? "Microphone access denied — enable it in System Settings" : "Microphone access is needed for voice chat";
+                text: mic-permission-denied ? @tr("Microphone access denied — enable it in System Settings") : @tr("Microphone access is needed for voice chat");
                 font-family: Theme.font-body;
                 font-weight: Theme.weight-sentence;
                 font-size: 12px;
@@ -755,7 +755,7 @@ export component ControlBar inherits Rectangle {
                     cross-axis-alignment: center;
                     spacing: 8px;
                     Text {
-                        text: mic-permission-denied ? "OPEN SETTINGS" : "ALLOW MICROPHONE";
+                        text: mic-permission-denied ? @tr("OPEN SETTINGS") : @tr("ALLOW MICROPHONE");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -767,7 +767,7 @@ export component ControlBar inherits Rectangle {
 
                 mic-btn-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: mic-permission-denied ? "OPEN SETTINGS" : "ALLOW MICROPHONE";
+                    accessible-label: mic-permission-denied ? @tr("OPEN SETTINGS") : @tr("ALLOW MICROPHONE");
                     mouse-cursor: pointer;
                     clicked => {
                         if (root.mic-permission-denied) {
@@ -799,7 +799,7 @@ export component ControlBar inherits Rectangle {
                 }
 
                 Text {
-                    text: game-summary != "" ? game-summary : "How'd it go?";
+                    text: game-summary != "" ? game-summary : @tr("How'd it go?");
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
                     font-size: 13px;
@@ -811,7 +811,7 @@ export component ControlBar inherits Rectangle {
                     spacing: 10px;
                     ReactionButton {
                         icon: @image-url("../icons/trophy.svg");
-                        label: "Win";
+                        label: @tr("Win");
                         icon-color: Theme.text-primary;
                         bg: Theme.raised;
                         border-clr: Theme.graphic-med;
@@ -822,7 +822,7 @@ export component ControlBar inherits Rectangle {
 
                     ReactionButton {
                         icon: @image-url("../icons/sad-face.svg");
-                        label: "Loss";
+                        label: @tr("Loss");
                         icon-color: Theme.text-secondary;
                         bg: Theme.raised;
                         border-clr: Theme.graphic-med;
@@ -833,7 +833,7 @@ export component ControlBar inherits Rectangle {
 
                     ReactionButton {
                         icon: @image-url("../icons/star.svg");
-                        label: "Highlight";
+                        label: @tr("Highlight");
                         icon-color: Theme.text-secondary;
                         bg: Theme.raised;
                         border-clr: Theme.graphic-med;
@@ -869,7 +869,7 @@ export component ControlBar inherits Rectangle {
                     }
 
                     riot-cta-label := Text {
-                        text: "GET VERIFIED STATS";
+                        text: @tr("GET VERIFIED STATS");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -881,7 +881,7 @@ export component ControlBar inherits Rectangle {
 
                     riot-cta-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "GET VERIFIED STATS";
+                        accessible-label: @tr("GET VERIFIED STATS");
                         mouse-cursor: pointer;
                         clicked => {
                             riot-cta-clicked();
@@ -903,7 +903,7 @@ export component ControlBar inherits Rectangle {
 
                     riot-cta-x-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Dismiss verified stats";
+                        accessible-label: @tr("Dismiss verified stats");
                         mouse-cursor: pointer;
                         clicked => {
                             riot-cta-dismissed();
@@ -939,7 +939,7 @@ export component ControlBar inherits Rectangle {
                         }
 
                         moment-input := MelloTextInput {
-                            accessible-label: "Moment";
+                            accessible-label: @tr("Moment");
                             font-family: Theme.font-body;
                             font-weight: Theme.weight-sentence;
                             font-size: 13px;
@@ -979,7 +979,7 @@ export component ControlBar inherits Rectangle {
 
                     send-ta := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Send";
+                        accessible-label: @tr("Send");
                         mouse-cursor: pointer;
                         clicked => {
                             if moment-input.text != "" {
@@ -1007,7 +1007,7 @@ export component ControlBar inherits Rectangle {
                 }
 
                 Text {
-                    text: "Moment shared with crew";
+                    text: @tr("Moment shared with crew");
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
                     font-size: 13px;
@@ -1055,7 +1055,7 @@ export component ControlBar inherits Rectangle {
                     }
 
                     Text {
-                        text: "CLIP 30S";
+                        text: @tr("CLIP 30S");
                         font-family: Theme.font-label;
                         font-size: 9.5px;
                         font-weight: Theme.weight-label;
@@ -1085,7 +1085,7 @@ export component ControlBar inherits Rectangle {
 
                 clip-hover := TouchArea {
                     accessible-role: button;
-                    accessible-label: "CLIP 30S";
+                    accessible-label: @tr("CLIP 30S");
                     mouse-cursor: pointer;
                     clicked => {
                         clip-captured();
@@ -1097,7 +1097,7 @@ export component ControlBar inherits Rectangle {
             // permission CTA lives in the centre slot, never here.
             IconButton {
                 icon: @image-url("../icons/settings.svg");
-                label: "Settings";
+                label: @tr("Settings");
                 clicked => {
                     settings-clicked();
                 }

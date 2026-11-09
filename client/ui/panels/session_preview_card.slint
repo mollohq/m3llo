@@ -51,13 +51,13 @@ export component SessionPreviewCard inherits Rectangle {
     property <int> duration-hours: duration-min / 60;
     property <int> duration-remaining-mins: Math.mod(duration-min, 60);
     property <string> duration-text: duration-hours > 0
-        ? duration-hours + "h " + duration-remaining-mins + "m"
-        : duration-min + "m";
+        ? @tr("{}h {}m", duration-hours, duration-remaining-mins)
+        : @tr("{}m", duration-min);
 
     // "1 h 12 min", as the hero chip reads (frame C).
     property <string> duration-hero-text: duration-hours > 0
-        ? duration-hours + " h " + (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins + " min"
-        : duration-min + " min";
+        ? @tr("{} h {} min", duration-hours, (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins)
+        : @tr("{} min", duration-min);
 
     property <int> seen-threshold: image-count * 7 / 10;
 
@@ -234,7 +234,7 @@ export component SessionPreviewCard inherits Rectangle {
                         }
 
                         clip-txt := Text {
-                            text: clip-count > 1 ? clip-count + " clips" : "1 clip";
+                            text: @tr("{n} clip" | "{n} clips" % clip-count);
                             font-size: is-hero ? 10px : 9px;
                             font-weight: 700;
                             color: Theme.on-media;
@@ -279,7 +279,7 @@ export component SessionPreviewCard inherits Rectangle {
                 if root.is-hero: StreamTag {
                     x: 18px;
                     y: 14px;
-                    label: "STREAM";
+                    label: @tr("noun" => "STREAM");
                 }
                 if root.is-hero && (!root.playing || root.finished || root.paused): VerticalLayout {
                     x: 18px;
@@ -340,7 +340,7 @@ export component SessionPreviewCard inherits Rectangle {
                                     overflow: elide;
                                 }
                                 if root.peak-viewers > 0: Text {
-                                    text: root.peak-viewers + " watched";
+                                    text: @tr("{n} watched" | "{n} watched" % root.peak-viewers);
                                     font-family: Theme.font-body;
                                     font-weight: Theme.weight-sentence;
                                     font-size: 13px;
@@ -402,7 +402,7 @@ export component SessionPreviewCard inherits Rectangle {
 
                         TouchArea {
                             accessible-role: button;
-                            accessible-label: root.paused ? "Play" : "Pause";
+                            accessible-label: root.paused ? @tr("Play") : @tr("Pause");
                             mouse-cursor: pointer;
                             clicked => { root.paused = !root.paused; }
                         }
@@ -516,7 +516,7 @@ export component SessionPreviewCard inherits Rectangle {
                 }
 
                 Text {
-                    text: "SESSION · " + root.duration-text;
+                    text: @tr("SESSION · {}", root.duration-text);
                     font-size: 10px;
                     font-weight: 700;
                     color: Theme.accent;

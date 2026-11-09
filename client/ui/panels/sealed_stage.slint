@@ -196,7 +196,7 @@ component BigBeltFace inherits Rectangle {
         spacing: 6px;
         alignment: start;
 
-        Label { text: root.belt.own ? "HEAD2HEAD  ·  YOUR TITLE" : "HEAD2HEAD  ·  BELT MOVED"; font-size: 13px; letter-spacing: 2.4px; }
+        Label { text: root.belt.own ? @tr("HEAD2HEAD  ·  YOUR TITLE") : @tr("HEAD2HEAD  ·  BELT MOVED"); font-size: 13px; letter-spacing: 2.4px; }
         Rectangle { height: 8px; }
 
         HorizontalLayout {
@@ -265,7 +265,7 @@ component BigBeltFace inherits Rectangle {
         }
 
         Text {
-            text: root.belt.own ? "You" : root.belt.holder.name;
+            text: root.belt.own ? @tr("You") : root.belt.holder.name;
             horizontal-alignment: center;
             font-family: Theme.font-display;
             font-weight: Theme.weight-display;
@@ -280,7 +280,7 @@ component BigBeltFace inherits Rectangle {
             spacing: 8px;
             opacity: root.line;
             Text {
-                text: "took it from";
+                text: @tr("took it from");
                 vertical-alignment: center;
                 font-family: Theme.font-body;
                 font-weight: Theme.weight-sentence;
@@ -448,7 +448,7 @@ component QuestFace inherits Rectangle {
         x: 26px; y: QuestCard.top(root.reveal);
         width: parent.width - 52px;
         horizontal-alignment: root.square ? center : left;
-        text: "UNLOCKED"; color: Theme.text-body;
+        text: @tr("UNLOCKED"); color: Theme.text-body;
     }
 
     // The gift, in a frame of the hue.
@@ -471,7 +471,7 @@ component QuestFace inherits Rectangle {
         if root.reveal.content == "art" && !root.reveal.gift-has-art: Kicker {
             width: parent.width; height: parent.height;
             horizontal-alignment: center; vertical-alignment: center;
-            text: "BANNER"; color: Theme.text-tertiary;
+            text: @tr("BANNER"); color: Theme.text-tertiary;
         }
         if root.reveal.content == "link": VerticalLayout {
             padding-left: 18px;
@@ -508,7 +508,7 @@ component QuestFace inherits Rectangle {
                 alignment: center;
                 Text { text: "m"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 40px; color: Theme.text-primary; }
                 Text { text: "3"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 40px; color: Theme.live; }
-                Text { text: "llo+"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 40px; color: Theme.text-primary; }
+                Text { text: "llo+"; font-family: Theme.font-display; font-weight: Theme.weight-display-bold; font-size: 40px; color: Theme.text-primary; } // i18n: none (the brand name m3llo+)
             }
             // The days stand out in red, as the 3 of the mark.
             Text {
@@ -540,7 +540,7 @@ component QuestFace inherits Rectangle {
 
     // Foot.
     Rectangle { x: 26px; y: 482px; width: parent.width - 52px; height: 1px; background: Theme.card-border; }
-    Kicker { x: 26px; y: 500px; text: "QUESTS"; }
+    Kicker { x: 26px; y: 500px; text: @tr("QUESTS"); }
     Text {
         x: parent.width - 26px - self.width; y: 496px;
         text: root.reveal.count;
@@ -638,7 +638,7 @@ export component SealedStage inherits Rectangle {
     // wheel, so the feed under it does not scroll.
     TouchArea {
         accessible-role: button;
-        accessible-label: "Close";
+        accessible-label: @tr("Close");
         scroll-event(e) => { accept }
         clicked => { SealedUi.close(); }
     }
@@ -770,7 +770,7 @@ export component SealedStage inherits Rectangle {
             width: parent.width;
             height: parent.height;
             seal: SealedUi.recap-card.recap-seal;
-            week: SealedUi.recap-card.recap-week != "" ? SealedUi.recap-card.recap-week : "This week";
+            week: SealedUi.recap-card.recap-week != "" ? SealedUi.recap-card.recap-week : @tr("This week");
             interactive: false;
             clear: root.antic;
         }
@@ -796,7 +796,7 @@ export component SealedStage inherits Rectangle {
 
     // The close hint, at rest. Not a control: the scrim above is the control.
     Text {
-        text: "CLICK ANYWHERE TO CLOSE";
+        text: @tr("CLICK ANYWHERE TO CLOSE");
         font-family: Theme.font-label;
         font-weight: Theme.weight-label;
         font-size: 11px;

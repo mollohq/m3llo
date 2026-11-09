@@ -355,6 +355,51 @@ mod tests {
             assert_eq!(p.get_plural().as_str(), pseudo("clips"));
         }
 
+        /// The converted panels are in the bundle: a sample of controls from
+        /// the onboarding, the control bar and the settings changes under
+        /// `qps`. The control bar button has a context (`verb`).
+        #[test]
+        fn the_converted_panels_show_the_pseudo_language() {
+            fn check(h: &Harness, english: &str) {
+                let n = h.controls_labelled(english).len();
+                assert!(n > 0, "English first: {english:?}");
+                select(PSEUDO).expect("select qps");
+                let label = pseudo(english);
+                assert!(!label.trim().is_empty());
+                assert_ne!(label, english);
+                assert!(h.controls_labelled(english).is_empty(), "{english:?}");
+                assert_eq!(h.controls_labelled(&label).len(), n, "{label:?}");
+                select(SOURCE_LANGUAGE).expect("select en");
+            }
+
+            let crews = vec![mello_core::crew::Crew {
+                id: "crew-0".into(),
+                name: "Night Stones".into(),
+                description: String::new(),
+                member_count: 3,
+                max_members: 10,
+                open: true,
+                avatar_url: None,
+            }];
+
+            let mut onboarding = Harness::new();
+            onboarding.emit(mello_core::Event::DiscoverCrewsLoaded {
+                crews: crews.clone(),
+                cursor: None,
+            });
+            check(&onboarding, "Create your own crew");
+
+            let mut app = banner();
+            app.emit(mello_core::Event::CrewsLoaded { crews });
+            crate::converters::set_active_crew(app.app(), "crew-0");
+            app.pump();
+            check(&app, "STREAM");
+
+            app.app().set_settings_open(true);
+            app.pump();
+            check(&app, "GAMES");
+        }
+
         /// A message that a catalog does not have shows the English text.
         #[test]
         fn a_missing_message_shows_english() {

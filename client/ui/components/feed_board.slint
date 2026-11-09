@@ -243,7 +243,7 @@ component SealedWeek inherits Rectangle {
     property <length> key-y: root.height * (8 + 15 * 12 + 2.5) / 248;
 
     accessible-role: button;
-    accessible-label: "Sealed recap, open it";
+    accessible-label: @tr("Sealed recap, open it");
 
     Path {
         x: 0px; y: 0px; width: parent.width; height: parent.height;
@@ -365,13 +365,13 @@ export component FeedBoard inherits BoardShell {
             HorizontalLayout {
                 spacing: 18px;
                 if root.mode == "tabs": BoardTab {
-                    label: "TODAY";
+                    label: @tr("TODAY");
                     active: root.active-tab == 0;
                     dim: root.today-empty;
                     clicked => { root.tab-clicked(0); }
                 }
                 if root.mode == "tabs": BoardTab {
-                    label: "WEEK";
+                    label: @tr("WEEK");
                     key: root.week-sealed;
                     active: root.active-tab == 1;
                     clicked => { root.tab-clicked(1); }
@@ -420,7 +420,7 @@ export component FeedBoard inherits BoardShell {
                         font-size: 12.5px;
                         color: Theme.text-primary;
                     }
-                    Kicker { text: "TOP GAME"; }
+                    Kicker { text: @tr("TOP GAME"); }
                 }
             }
         }
@@ -460,7 +460,7 @@ export component FeedBoard inherits BoardShell {
             spacing: 10px;
             vertical-stretch: 0;
             Rectangle { height: 1px; background: Theme.card-border; }
-            Kicker { text: "HEAD2HEAD"; height: 20px; vertical-alignment: center; }
+            Kicker { text: @tr("HEAD2HEAD"); height: 20px; vertical-alignment: center; }
             Rectangle {
                 height: Math.ceil(root.own-chips.length / 2) * 56px - 10px;
                 for t[i] in root.own-chips: BeltSlot {
@@ -482,7 +482,7 @@ export component FeedBoard inherits BoardShell {
                 }
             }
             Text {
-                text: "Go head2head with your crew";
+                text: @tr("Go head2head with your crew");
                 font-family: Theme.font-body;
                 font-weight: Theme.weight-sentence;
                 font-size: 13px;
@@ -493,13 +493,13 @@ export component FeedBoard inherits BoardShell {
         if root.week-extra: VerticalLayout {
             spacing: 2px;
             vertical-stretch: 0;
-            WeekPerson { label: "MOST ACTIVE"; person: root.most-active; value: root.most-active-value; unit: root.most-active-unit; tail: root.most-active-tail; }
-            WeekPerson { label: "MOST CLIPPED"; person: root.most-clipped; value: root.most-clipped-value; unit: "clips"; }
+            WeekPerson { label: @tr("MOST ACTIVE"); person: root.most-active; value: root.most-active-value; unit: root.most-active-unit; tail: root.most-active-tail; }
+            WeekPerson { label: @tr("MOST CLIPPED"); person: root.most-clipped; value: root.most-clipped-value; unit: @tr("clip" | "clips" % Math.round(root.most-clipped-value.to-float())); }
             HorizontalLayout {
                 height: 30px;
                 spacing: 6px;
                 cross-axis-alignment: center;
-                Kicker { text: "GAMES PLAYED"; width: 94px; }
+                Kicker { text: @tr("GAMES PLAYED"); width: 94px; }
                 for g in root.games-played: ArtTile { art: g; width: 30px; height: 15px; }
                 if root.games-more > 0: Text {
                     text: "+" + root.games-more;
@@ -551,7 +551,7 @@ export component FeedBoard inherits BoardShell {
             Rectangle { height: 1px; background: Theme.card-border; }
             HorizontalLayout {
                 height: 34px;
-                Kicker { text: "BELTS"; vertical-alignment: center; }
+                Kicker { text: @tr("BELTS"); vertical-alignment: center; }
                 Rectangle { horizontal-stretch: 1; }
                 Text {
                     text: root.title-count;
@@ -603,7 +603,7 @@ export component BoardHero inherits Rectangle {
         Image { source: root.footage; width: parent.width; height: parent.height; image-fit: cover; }
         FootageWash { width: parent.width; height: parent.height; }
 
-        StreamTag { x: 17px; y: 15px; live: root.live; label: root.live ? "LIVE" : "STREAM"; }
+        StreamTag { x: 17px; y: 15px; live: root.live; label: root.live ? @tr("LIVE") : @tr("noun" => "STREAM"); }
         PlayButton { x: (parent.width - self.width) / 2; y: parent.height * 0.46 - self.height / 2; }
 
         VerticalLayout {
@@ -666,7 +666,7 @@ export component MostInstalledCard inherits BoardShell {
         padding-left: 16px;
         padding-right: 16px;
         spacing: 6px;
-        CardLabel { text: "MOST INSTALLED"; height: 16px; vertical-alignment: center; }
+        CardLabel { text: @tr("MOST INSTALLED"); height: 16px; vertical-alignment: center; }
         for g[i] in root.games: Rectangle {
             height: 44px;
             Rectangle {
@@ -711,7 +711,7 @@ export component BoardDormantStrip inherits BoardShell {
         padding-right: 22px;
         spacing: 16px;
         cross-axis-alignment: center;
-        Kicker { text: "QUIET"; }
+        Kicker { text: @tr("QUIET"); }
         Text {
             horizontal-stretch: 1;
             text: root.line;
@@ -748,7 +748,7 @@ export component SessionsCard inherits BoardShell {
         HorizontalLayout {
             height: 16px;
             vertical-stretch: 0;
-            CardLabel { text: "GAME SESSIONS"; vertical-alignment: center; }
+            CardLabel { text: @tr("GAME SESSIONS"); vertical-alignment: center; }
             Rectangle { horizontal-stretch: 1; }
             Text {
                 text: root.count;
@@ -847,7 +847,7 @@ export component VoiceClipTile inherits Rectangle {
             width: 9px; height: 9px;
         }
         Text {
-            text: "VOICE";
+            text: @tr("VOICE");
             font-family: Theme.font-label;
             font-weight: Theme.weight-label;
             font-size: 9px;
@@ -920,7 +920,7 @@ export component VoiceClipTile inherits Rectangle {
     CutMask { width: parent.width; height: parent.height; n: Theme.notch; corner: "tr"; fill: Theme.bg-app; }
     TouchArea {
         accessible-role: button;
-        accessible-label: "Play the voice clip of " + root.item.person.name;
+        accessible-label: @tr("Play the voice clip of {}", root.item.person.name);
         mouse-cursor: pointer;
         clicked => { root.play(); }
     }
@@ -964,7 +964,7 @@ export component ClipRow inherits Rectangle {
                 width: 80px;
                 horizontal-stretch: 0;
                 accessible-role: button;
-                accessible-label: "Show all clips";
+                accessible-label: @tr("Show all clips");
                 BoardShell { width: parent.width; height: parent.height; corner: "tr"; }
                 VerticalLayout {
                     alignment: center;
@@ -977,7 +977,7 @@ export component ClipRow inherits Rectangle {
                         font-size: 16px;
                         color: Theme.text-primary;
                     }
-                    Kicker { text: "CLIPS"; horizontal-alignment: center; }
+                    Kicker { text: @tr("CLIPS"); horizontal-alignment: center; }
                 }
                 TouchArea { mouse-cursor: pointer; clicked => { root.show-all(); } }
             }
@@ -1084,8 +1084,8 @@ export component PeopleZone inherits BoardShell {
         }
         if root.seats: Rectangle { horizontal-stretch: 1; }
         if root.seats: InviteButton {
-            label-text: "Invite";
-            a11y-label: "Invite your crew";
+            label-text: @tr("INVITE");
+            a11y-label: @tr("Invite your crew");
             width: 112px;
             clicked => { root.invite(); }
         }
@@ -1116,8 +1116,8 @@ export component PeopleZone inherits BoardShell {
                 Text { text: root.joined-sub; overflow: elide; font-family: Theme.font-body; font-weight: Theme.weight-sentence; font-size: 12px; color: Theme.text-dim; }
             }
             if root.say-hi-card != "" && !root.said-hi: ZoneButton {
-                label: "SAY HI";
-                a11y-label: "Say hi to " + root.say-hi-name;
+                label: @tr("SAY HI");
+                a11y-label: @tr("Say hi to {}", root.say-hi-name);
                 tone: "line";
                 clicked => { ChatFocus.say-hi(root.say-hi-card); }
             }
@@ -1133,7 +1133,7 @@ export component PeopleZone inherits BoardShell {
                 spacing: 4px;
                 alignment: center;
                 horizontal-stretch: 0;
-                Kicker { text: "VOICE"; }
+                Kicker { text: @tr("VOICE"); }
                 Text { text: root.channel; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 15px; color: Theme.text-primary; }
                 Text { text: root.voice-line; font-family: Theme.font-body; font-weight: Theme.weight-sentence; font-size: 12px; color: Theme.text-dim; }
             }
@@ -1159,8 +1159,8 @@ export component PeopleZone inherits BoardShell {
                     color: Theme.text-dim;
                 }
             }
-            if root.voice == "idle": ZoneButton { label: "START VOICE"; a11y-label: "Start voice"; tone: "white"; clicked => { root.voice-clicked(); } }
-            if root.voice == "call": ZoneButton { label: "JOIN"; tone: "red"; clicked => { root.voice-clicked(); } }
+            if root.voice == "idle": ZoneButton { label: @tr("START VOICE"); a11y-label: @tr("Start voice"); tone: "white"; clicked => { root.voice-clicked(); } }
+            if root.voice == "call": ZoneButton { label: @tr("JOIN"); tone: "red"; clicked => { root.voice-clicked(); } }
         }
     }
 }
@@ -1179,7 +1179,7 @@ export component StageOwnBelts inherits BoardShell {
         padding: 22px;
         padding-top: 16px;
         spacing: 18px;
-        CardLabel { text: "HEAD2HEAD"; height: 16px; vertical-alignment: center; }
+        CardLabel { text: @tr("HEAD2HEAD"); height: 16px; vertical-alignment: center; }
         HorizontalLayout {
             spacing: 14px;
             alignment: start;
@@ -1215,7 +1215,7 @@ export component StageOwnBelts inherits BoardShell {
             }
         }
         Text {
-            text: "Go head2head with your crew";
+            text: @tr("Go head2head with your crew");
             font-family: Theme.font-body;
             font-weight: Theme.weight-sentence;
             font-size: 14px;
@@ -1257,7 +1257,7 @@ export component LockedTeaserTile inherits BoardShell {
     callback clicked();
     corner: "tr";
     accessible-role: button;
-    accessible-label: "Locked " + root.item.kind.to-lowercase() + ", m3llo+";
+    accessible-label: @tr("Locked {}, m3llo+", root.item.kind.to-lowercase());
 
     Rectangle {
         x: 18px; y: 18px;
@@ -1319,13 +1319,13 @@ export component PlusStrip inherits BoardShell {
             horizontal-stretch: 1;
             alignment: center;
             spacing: 4px;
-            Text { text: "Unlock your crew's full story"; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 16px; color: Theme.text-primary; }
+            Text { text: @tr("Unlock your crew's full story"); font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 16px; color: Theme.text-primary; }
             Text {
-                text: "Keep every clip and recap forever with m3llo+. " + root.weeks + (root.weeks == 1 ? " week" : " weeks") + " so far.";
+                text: @tr("Keep every clip and recap forever with m3llo+. {n} week so far." | "Keep every clip and recap forever with m3llo+. {n} weeks so far." % root.weeks);
                 font-family: Theme.font-body; font-weight: Theme.weight-sentence; font-size: 12px; color: Theme.text-dim;
             }
         }
-        ZoneButton { label: "M3LLO+"; tone: "line"; clicked => { root.clicked(); } }
+        ZoneButton { label: "M3LLO+"; tone: "line"; clicked => { root.clicked(); } } // i18n: none (the brand name m3llo+)
     }
 }
 
@@ -1453,16 +1453,16 @@ export component PlusSoonModal inherits Rectangle {
                 y: 24px;
                 width: parent.width - 48px;
                 spacing: 10px;
-                Kicker { text: "M3LLO+"; }
+                Kicker { text: "M3LLO+"; } // i18n: none (the brand name m3llo+)
                 Text {
-                    text: "Coming soon";
+                    text: @tr("Coming soon");
                     font-family: Theme.font-display;
                     font-weight: Theme.weight-display;
                     font-size: 22px;
                     color: Theme.text-primary;
                 }
                 Text {
-                    text: "Every clip and recap of your crew, kept forever.";
+                    text: @tr("Every clip and recap of your crew, kept forever.");
                     wrap: word-wrap;
                     font-family: Theme.font-body;
                     font-weight: Theme.weight-sentence;
@@ -1472,7 +1472,7 @@ export component PlusSoonModal inherits Rectangle {
                 HorizontalLayout {
                     padding-top: 8px;
                     alignment: end;
-                    ZoneButton { label: "CLOSE"; tone: "line"; clicked => { root.close-requested(); } }
+                    ZoneButton { label: @tr("CLOSE"); tone: "line"; clicked => { root.close-requested(); } }
                 }
             }
         }

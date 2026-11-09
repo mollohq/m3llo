@@ -89,7 +89,7 @@ component MessageMoreMenu inherits Rectangle {
 
     more-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "More actions";
+        accessible-label: @tr("More actions");
         width: parent.width;
         height: parent.height;
         mouse-cursor: pointer;
@@ -133,7 +133,7 @@ component MessageMoreMenu inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Edit";
+                        text: @tr("Edit");
                         font-size: Theme.font-sm;
                         color: Theme.text-secondary;
                         x: 8px;
@@ -142,7 +142,7 @@ component MessageMoreMenu inherits Rectangle {
 
                     menu-edit-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Edit";
+                        accessible-label: @tr("Edit");
                         accessible-action-default => { root.edit-requested(); }
                         clicked => { root.edit-requested(); }
                     }
@@ -156,7 +156,7 @@ component MessageMoreMenu inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Delete";
+                        text: @tr("Delete");
                         font-size: Theme.font-sm;
                         color: Theme.live;
                         x: 8px;
@@ -165,7 +165,7 @@ component MessageMoreMenu inherits Rectangle {
 
                     menu-del-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Delete";
+                        accessible-label: @tr("Delete");
                         accessible-action-default => { root.delete-requested(); }
                         clicked => { root.delete-requested(); }
                     }
@@ -179,7 +179,7 @@ component MessageMoreMenu inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Copy text";
+                        text: @tr("Copy text");
                         font-size: Theme.font-sm;
                         color: Theme.text-secondary;
                         x: 8px;
@@ -188,7 +188,7 @@ component MessageMoreMenu inherits Rectangle {
 
                     menu-copy-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Copy text";
+                        accessible-label: @tr("Copy text");
                         accessible-action-default => { root.copy-requested(); }
                         clicked => { root.copy-requested(); }
                     }
@@ -329,7 +329,7 @@ component ChatClipCard inherits Rectangle {
 
                 Text {
                     font-family: Theme.font-body;
-                    text: sender-name + " clipped that";
+                    text: @tr("{} clipped that", sender-name);
                     font-size: 12px;
                     font-weight: 500;
                     color: Theme.text-primary;
@@ -340,7 +340,7 @@ component ChatClipCard inherits Rectangle {
             Text {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
-                text: "Voice · " + clip-duration + " · Play";
+                text: @tr("Voice · {} · Play", clip-duration);
                 font-size: 11px;
                 color: Theme.text-secondary;
             }
@@ -349,7 +349,7 @@ component ChatClipCard inherits Rectangle {
 
     clip-touch := TouchArea {
         accessible-role: button;
-        accessible-label: "Play clip";
+        accessible-label: @tr("Play clip");
         mouse-cursor: pointer;
         clicked => { play-clicked(); }
     }
@@ -393,7 +393,7 @@ component GifPopover inherits Rectangle {
             border-color: Theme.graphic-light;
 
             gif-search := MelloTextInput {
-                accessible-label: "Search GIFs";
+                accessible-label: @tr("Search GIFs");
                 x: 10px;
                 width: parent.width - 20px;
                 height: parent.height;
@@ -410,7 +410,7 @@ component GifPopover inherits Rectangle {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
                 x: 10px;
-                text: "Search GIFs";
+                text: @tr("Search GIFs");
                 font-size: Theme.font-md;
                 color: Theme.text-tertiary;
                 vertical-alignment: center;
@@ -453,7 +453,7 @@ component GifPopover inherits Rectangle {
 
                     gif-retry := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Try again";
+                        accessible-label: @tr("Try again");
                         mouse-cursor: pointer;
                         clicked => { root.search(gif-search.text); }
                     }
@@ -462,7 +462,7 @@ component GifPopover inherits Rectangle {
                         font-family: Theme.font-label;
                         font-weight: Theme.weight-label;
                         letter-spacing: Theme.track-label;
-                        text: "TRY AGAIN";
+                        text: @tr("TRY AGAIN");
                         font-size: Theme.font-xs;
                         color: Theme.text-primary;
                         horizontal-alignment: center;
@@ -504,7 +504,7 @@ component GifPopover inherits Rectangle {
 
                             gif-cell-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "GIF";
+                                accessible-label: @tr("GIF");
                                 clicked => {
                                     if gif-index < gifs.length {
                                         root.gif-selected(
@@ -526,7 +526,7 @@ component GifPopover inherits Rectangle {
         Text {
             font-weight: Theme.weight-sentence;
             font-family: Theme.font-body;
-            text: "Powered by GIPHY";
+            text: @tr("Powered by GIPHY");
             font-size: Theme.font-xs;
             color: Theme.text-tertiary;
             horizontal-alignment: center;
@@ -700,7 +700,7 @@ export component ChatPanel inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "Crew chat";
+                        text: @tr("Crew chat");
                         font-size: 15px;
                         font-weight: Theme.weight-display;
                         color: Theme.text-primary;
@@ -717,9 +717,7 @@ export component ChatPanel inherits Rectangle {
                         msg-badge-text := Text {
                             font-weight: Theme.weight-sentence;
                             font-family: Theme.font-body;
-                            text: root.messages-this-week == 1
-                                ? "1 message this week"
-                                : root.messages-this-week + " messages this week";
+                            text: @tr("{n} message this week" | "{n} messages this week" % root.messages-this-week);
                             font-size: 11px;
                             color: Theme.text-sub;
                             horizontal-alignment: center;
@@ -870,7 +868,7 @@ export component ChatPanel inherits Rectangle {
 
                         Text {
                             font-family: Theme.font-display;
-                            text: "New messages";
+                            text: @tr("New messages");
                             font-size: Theme.font-xs;
                             font-weight: Theme.weight-display;
                             color: Theme.accent;
@@ -1016,7 +1014,7 @@ export component ChatPanel inherits Rectangle {
 
                                         Text {
                                             font-family: Theme.font-display;
-                                            text: "Replying to " + msg.reply-to-name;
+                                            text: @tr("Replying to {}", msg.reply-to-name);
                                             font-size: Theme.font-xs;
                                             font-weight: Theme.weight-display;
                                             color: Theme.accent;
@@ -1076,7 +1074,7 @@ export component ChatPanel inherits Rectangle {
                                 if msg.is-edited: Text {
                                     font-weight: Theme.weight-sentence;
                                     font-family: Theme.font-body;
-                                    text: "(edited)";
+                                    text: @tr("(edited)");
                                     font-size: Theme.font-xs;
                                     color: Theme.text-tertiary;
                                     vertical-alignment: bottom;
@@ -1086,7 +1084,7 @@ export component ChatPanel inherits Rectangle {
                             if msg.is-deleted: Text {
                                 font-weight: Theme.weight-sentence;
                                 font-family: Theme.font-body;
-                                text: "[message deleted]";
+                                text: @tr("[message deleted]");
                                 font-size: Theme.font-md;
                                 color: Theme.text-tertiary;
                                 font-italic: true;
@@ -1099,7 +1097,7 @@ export component ChatPanel inherits Rectangle {
                             // never fires. The link pills sit in their own row below.
                             body-hover := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Message actions";
+                                accessible-label: @tr("Message actions");
                                 width: parent.width;
                                 height: parent.height;
                                 clicked => {
@@ -1168,7 +1166,7 @@ export component ChatPanel inherits Rectangle {
 
                                         react-touch := TouchArea {
                                             accessible-role: button;
-                                            accessible-label: "React";
+                                            accessible-label: @tr("React");
                                             enabled: body-hovered;
                                             accessible-enabled: body-hovered;
                                             mouse-cursor: pointer;
@@ -1193,7 +1191,7 @@ export component ChatPanel inherits Rectangle {
 
                                         reply-touch := TouchArea {
                                             accessible-role: button;
-                                            accessible-label: "Reply";
+                                            accessible-label: @tr("Reply");
                                             enabled: body-hovered;
                                             accessible-enabled: body-hovered;
                                             clicked => {
@@ -1273,7 +1271,7 @@ export component ChatPanel inherits Rectangle {
                                     if !img.has-image: Text {
                                         font-weight: Theme.weight-sentence;
                                         font-family: Theme.font-body;
-                                        text: img.failed ? "Image not available" : "Loading image…";
+                                        text: img.failed ? @tr("Image not available") : @tr("Loading image…");
                                         font-size: Theme.font-xs;
                                         color: Theme.text-tertiary;
                                         horizontal-alignment: center;
@@ -1314,7 +1312,7 @@ export component ChatPanel inherits Rectangle {
 
                                     image-touch := TouchArea {
                                         accessible-role: button;
-                                        accessible-label: "Open image";
+                                        accessible-label: @tr("Open image");
                                         enabled: img.has-image;
                                         accessible-enabled: img.has-image;
                                         mouse-cursor: img.has-image ? pointer : default;
@@ -1348,7 +1346,7 @@ export component ChatPanel inherits Rectangle {
                                 if !msg.has-gif-image: Text {
                                     font-weight: Theme.weight-sentence;
                                     font-family: Theme.font-body;
-                                    text: msg.gif-failed ? "GIF not available" : "Loading GIF…";
+                                    text: msg.gif-failed ? @tr("GIF not available") : @tr("Loading GIF…");
                                     font-size: Theme.font-xs;
                                     color: Theme.text-tertiary;
                                     horizontal-alignment: center;
@@ -1435,7 +1433,7 @@ export component ChatPanel inherits Rectangle {
                             }
                             reaction-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "React " + r.emoji;
+                                accessible-label: @tr("React {}", r.emoji);
                                 mouse-cursor: pointer;
                                 clicked => { root.react(msg.message-id, r.emoji); }
                             }
@@ -1461,7 +1459,7 @@ export component ChatPanel inherits Rectangle {
                             }
                             add-reaction-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Add reaction";
+                                accessible-label: @tr("Add reaction");
                                 mouse-cursor: pointer;
                                 clicked => { root.pick-reaction-for(msg.message-id); }
                             }
@@ -1482,7 +1480,7 @@ export component ChatPanel inherits Rectangle {
             Text {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
-                text: "Loading...";
+                text: @tr("Loading...");
                 font-size: Theme.font-sm;
                 color: Theme.text-tertiary;
                 horizontal-alignment: center;
@@ -1494,7 +1492,7 @@ export component ChatPanel inherits Rectangle {
         if messages.length == 0 && !root.loading-history: Text {
             font-weight: Theme.weight-sentence;
             font-family: Theme.font-body;
-            text: "No messages yet";
+            text: @tr("No messages yet");
             font-size: Theme.font-md;
             color: Theme.text-tertiary;
             horizontal-alignment: center;
@@ -1521,7 +1519,7 @@ export component ChatPanel inherits Rectangle {
 
             new-msg-touch := TouchArea {
                 accessible-role: button;
-                accessible-label: "New messages";
+                accessible-label: @tr("New messages");
                 clicked => {
                     root.scroll-to-bottom-request = true;
                 }
@@ -1534,7 +1532,7 @@ export component ChatPanel inherits Rectangle {
 
                 Text {
                     font-family: Theme.font-display;
-                    text: "New messages";
+                    text: @tr("New messages");
                     font-size: Theme.font-sm;
                     font-weight: Theme.weight-display;
                     color: Theme.on-live;
@@ -1621,7 +1619,7 @@ export component ChatPanel inherits Rectangle {
             Text {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
-                text: "Replying to " + root.reply-to-name;
+                text: @tr("Replying to {}", root.reply-to-name);
                 font-size: Theme.font-sm;
                 color: Theme.accent;
                 vertical-alignment: center;
@@ -1646,7 +1644,7 @@ export component ChatPanel inherits Rectangle {
 
                 close-reply-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Cancel reply";
+                    accessible-label: @tr("Cancel reply");
                     clicked => {
                         root.reply-mode = false;
                         root.reply-to-id = "";
@@ -1666,7 +1664,7 @@ export component ChatPanel inherits Rectangle {
             Text {
                 font-weight: Theme.weight-sentence;
                 font-family: Theme.font-body;
-                text: "Editing message";
+                text: @tr("Editing message");
                 font-size: Theme.font-sm;
                 color: Theme.accent;
                 vertical-alignment: center;
@@ -1691,7 +1689,7 @@ export component ChatPanel inherits Rectangle {
 
                 close-edit-touch := TouchArea {
                     accessible-role: button;
-                    accessible-label: "Cancel edit";
+                    accessible-label: @tr("Cancel edit");
                     clicked => {
                         root.edit-mode = false;
                         root.edit-message-id = "";
@@ -1715,7 +1713,7 @@ export component ChatPanel inherits Rectangle {
                 Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "Delete this message?";
+                    text: @tr("Delete this message?");
                     font-size: Theme.font-sm;
                     color: Theme.text-secondary;
                     vertical-alignment: center;
@@ -1731,7 +1729,7 @@ export component ChatPanel inherits Rectangle {
                     Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
-                        text: "Cancel";
+                        text: @tr("Cancel");
                         font-size: Theme.font-xs;
                         color: Theme.text-tertiary;
                         horizontal-alignment: center;
@@ -1740,7 +1738,7 @@ export component ChatPanel inherits Rectangle {
 
                     del-cancel-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Cancel";
+                        accessible-label: @tr("Cancel");
                         clicked => { root.delete-confirm-message-id = ""; }
                     }
                 }
@@ -1753,7 +1751,7 @@ export component ChatPanel inherits Rectangle {
 
                     Text {
                         font-family: Theme.font-display;
-                        text: "Delete";
+                        text: @tr("Delete");
                         font-size: Theme.font-xs;
                         font-weight: Theme.weight-display;
                         color: white;
@@ -1763,7 +1761,7 @@ export component ChatPanel inherits Rectangle {
 
                     del-ok-touch := TouchArea {
                         accessible-role: button;
-                        accessible-label: "Delete";
+                        accessible-label: @tr("Delete");
                         clicked => {
                             root.delete-message(root.delete-confirm-message-id);
                             root.delete-confirm-message-id = "";
@@ -1860,7 +1858,7 @@ export component ChatPanel inherits Rectangle {
                     border-color: emoji-search-input.has-focus ? Theme.graphic-med : Theme.graphic-light;
 
                     emoji-search-input := MelloTextInput {
-                        accessible-label: "Search emoji";
+                        accessible-label: @tr("Search emoji");
                         x: 10px;
                         width: parent.width - 20px;
                         height: parent.height;
@@ -1885,7 +1883,7 @@ export component ChatPanel inherits Rectangle {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
                         x: 10px;
-                        text: "Search emoji";
+                        text: @tr("Search emoji");
                         font-size: Theme.font-md;
                         color: Theme.text-tertiary;
                         vertical-alignment: center;
@@ -1957,7 +1955,7 @@ export component ChatPanel inherits Rectangle {
                             }
                             add-touch := TouchArea {
                                 accessible-role: button;
-                                accessible-label: "Add emoji";
+                                accessible-label: @tr("Add emoji");
                                 clicked => {
                                     root.emoji-popover-open = false;
                                     CrewEmojiUi.add-requested();
@@ -1974,7 +1972,7 @@ export component ChatPanel inherits Rectangle {
                         font-family: Theme.font-label;
                         font-weight: Theme.weight-label;
                         letter-spacing: Theme.track-label;
-                        text: "RECENT";
+                        text: @tr("RECENT");
                         font-size: 9px;
                         color: Theme.text-tertiary;
                         height: 14px;
@@ -2047,7 +2045,7 @@ export component ChatPanel inherits Rectangle {
                 if root.emoji-rows.length == 0 && emoji-search-input.text != "": Text {
                     font-weight: Theme.weight-sentence;
                     font-family: Theme.font-body;
-                    text: "No emoji called that";
+                    text: @tr("No emoji called that");
                     font-size: Theme.font-md;
                     color: Theme.text-tertiary;
                     horizontal-alignment: center;
@@ -2179,7 +2177,7 @@ export component ChatPanel inherits Rectangle {
                     }
                     TouchArea {
                         accessible-role: button;
-                        accessible-label: "Remove image";
+                        accessible-label: @tr("Remove image");
                         mouse-cursor: pointer;
                         clicked => { root.attachment-removed(a.id); }
                     }
@@ -2195,13 +2193,13 @@ export component ChatPanel inherits Rectangle {
 
             PillButton {
                 icon: @image-url("../icons/paperclip.svg");
-                label: "Attach";
+                label: @tr("Attach");
                 clicked => { root.attach-clicked(); }
             }
 
             PillButton {
                 icon: @image-url("../icons/gif.svg");
-                label: "GIF";
+                label: @tr("GIF");
                 active: root.gif-popover-open;
                 clicked => {
                     root.gif-popover-open = !root.gif-popover-open;
@@ -2213,7 +2211,7 @@ export component ChatPanel inherits Rectangle {
 
             PillButton {
                 icon: @image-url("../icons/smile.svg");
-                label: "Emoji";
+                label: @tr("Emoji");
                 active: root.emoji-popover-open;
                 clicked => {
                     root.emoji-target-message = "";
@@ -2241,6 +2239,7 @@ export component ChatPanel inherits Rectangle {
                 running: root.pending-newline;
                 triggered => {
                     root.pending-newline = false;
+                    // i18n: none (a newline character)
                     root.chat-input-text += "\n";
                     chat-input.set-selection-offsets(
                         root.chat-input-text.character-count,
@@ -2250,7 +2249,7 @@ export component ChatPanel inherits Rectangle {
             }
 
             chat-input := MelloTextInput {
-                accessible-label: "Message crewmates";
+                accessible-label: @tr("Message crewmates");
                 changed has-focus => { ChatFocus.input-focused = self.has-focus; }
                 text <=> root.chat-input-text;
                 x: 18px;
@@ -2306,7 +2305,7 @@ export component ChatPanel inherits Rectangle {
                 y: root.composer-multiline ? 10px : (parent.height - self.height) / 2;
                 color: Theme.text-tertiary;
                 font-size: Theme.font-md;
-                text: "Message crewmates...";
+                text: @tr("Message crewmates...");
             }
 
             // Send: red when there is something to send (it commits), graphite
@@ -2336,7 +2335,7 @@ export component ChatPanel inherits Rectangle {
                 }
                 TouchArea {
                     accessible-role: button;
-                    accessible-label: "Send";
+                    accessible-label: @tr("Send");
                     enabled: send-btn.armed;
                     accessible-enabled: send-btn.armed;
                     mouse-cursor: send-btn.armed ? pointer : default;
