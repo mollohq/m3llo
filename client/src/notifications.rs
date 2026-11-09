@@ -20,25 +20,24 @@ fn notification() -> Notification {
 ///
 /// A seam (`AppContext::tray_notice`): the test harness sets none, so a test
 /// never posts a real notification.
-pub type ShowNotice = Box<dyn Fn() -> bool>;
+/// It takes the title and the body.
+pub type ShowNotice = Box<dyn Fn(&str, &str) -> bool>;
 
-pub const TRAY_NOTICE_TITLE: &str = "m3llo is still running";
-
-#[cfg(target_os = "macos")]
-pub const TRAY_NOTICE_BODY: &str =
-    "It stays in the menu bar to keep collecting your gaming stats. Quit it from the menu bar icon.";
-#[cfg(not(target_os = "macos"))]
-pub const TRAY_NOTICE_BODY: &str =
-    "It stays in the tray to keep collecting your gaming stats. Right-click the tray icon to quit.";
+/// The title and the body of the tray notice, in the UI language. Read
+/// them on the UI thread.
+pub fn tray_notice_text(tr: &crate::Tr<'_>) -> (String, String) {
+    let title = tr.invoke_notice_tray_title(crate::APP_NAME.into());
+    #[cfg(target_os = "macos")]
+    let body = tr.get_notice_tray_body_macos();
+    #[cfg(not(target_os = "macos"))]
+    let body = tr.get_notice_tray_body();
+    (title.into(), body.into())
+}
 
 /// Tell the user that the closed window went to the tray, and that m3llo
 /// did not quit. Users who did not know this thought the app was closed.
-pub fn notify_closed_to_tray() -> bool {
-    match notification()
-        .summary(TRAY_NOTICE_TITLE)
-        .body(TRAY_NOTICE_BODY)
-        .show()
-    {
+pub fn notify_closed_to_tray(title: &str, body: &str) -> bool {
+    match notification().summary(title).body(body).show() {
         Ok(_) => true,
         Err(e) => {
             log::warn!("[close] tray notice not shown: {e}");
@@ -51,24 +50,15 @@ pub fn notify_closed_to_tray() -> bool {
 ///
 /// A seam (`AppContext::stream_key_notice`): the test harness sets none, so
 /// a test never posts a real notification.
-pub type ShowText = Box<dyn Fn(&str)>;
-
-/// The stream key started a stream, and the stream is live.
-pub const STREAM_KEY_LIVE: &str = "You are live";
-/// The stream key ended the stream.
-pub const STREAM_KEY_ENDED: &str = "Stream ended";
-/// The stream that the stream key started did not start.
-pub const STREAM_KEY_FAILED: &str = "Stream failed";
-/// The stream key found no active crew.
-pub const STREAM_KEY_NO_CREW: &str = "Pick a crew to stream to";
-/// The stream key found no detected game.
-pub const STREAM_KEY_NO_GAME: &str = "No game to stream";
+/// It takes the title and the text.
+pub type ShowText = Box<dyn Fn(&str, &str)>;
 
 /// The result of a press of the stream key (spec 12 section 11). The user
 /// plays in fullscreen and does not see the app, so the OS tells them.
-pub fn notify_stream_key(text: &str) {
+/// `title` and `text` come from `Tr`.
+pub fn notify_stream_key(title: &str, text: &str) {
     if let Err(e) = notification()
-        .summary("Stream")
+        .summary(title)
         .body(text)
         .timeout(notify_rust::Timeout::Milliseconds(4000))
         .show()
@@ -77,29 +67,31 @@ pub fn notify_stream_key(text: &str) {
     }
 }
 
-pub fn notify_member_joined(name: &str) {
+/// A member joined voice while the window is hidden.
+pub fn notify_member_joined(tr: &crate::Tr<'_>, name: &str) {
     notification()
-        .summary("Crew")
-        .body(&format!("{} jumped in", name))
+        .summary(&tr.get_notice_crew_title())
+        .body(&tr.invoke_notice_member_joined(name.into()))
         .timeout(notify_rust::Timeout::Milliseconds(4000))
         .show()
         .ok();
 }
 
-pub fn notify_message(crew: &str, sender: &str, preview: &str) {
+/// A chat message while the window is hidden.
+pub fn notify_message(tr: &crate::Tr<'_>, crew: &str, sender: &str, preview: &str) {
     notification()
         .summary(crew)
-        .body(&format!("{}: {}", sender, preview))
+        .body(&tr.invoke_notice_message(sender.into(), preview.into()))
         .timeout(notify_rust::Timeout::Milliseconds(4000))
         .show()
         .ok();
 }
 
 #[allow(dead_code)]
-pub fn notify_invite(inviter: &str, crew: &str) {
+pub fn notify_invite(tr: &crate::Tr<'_>, inviter: &str, crew: &str) {
     notification()
-        .summary(&format!("{} invite", crate::APP_NAME))
-        .body(&format!("{} invited you to {}", inviter, crew))
+        .summary(&tr.invoke_notice_invite_title(crate::APP_NAME.into()))
+        .body(&tr.invoke_notice_invite_body(inviter.into(), crew.into()))
         .timeout(notify_rust::Timeout::Milliseconds(0)) // persistent
         .show()
         .ok();

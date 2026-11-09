@@ -1272,7 +1272,7 @@ impl Client {
                 self.handle_seek_game_clip(position_ms);
             }
             Command::CloseGameClip => {
-                self.close_game_clip("");
+                self.close_game_clip(crate::events::ClipPlayClose::Closed);
             }
             Command::ShareGameClip {
                 crew_id,

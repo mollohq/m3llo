@@ -121,13 +121,23 @@ pub(crate) fn handle(ctx: &AppContext, event: Event) {
             }
         }
         Event::GameClipPlaybackClosed { reason } => {
+            use mello_core::events::ClipPlayClose;
             close_presenter(ctx);
-            if reason.is_empty() {
-                ui.set_open(false);
-            } else {
-                log::info!("UI: the game clip closed: {reason}");
-                ui.set_buffering(false);
-                ui.set_error(reason.into());
+            let tr = ctx.app.global::<crate::Tr>();
+            let text = match reason {
+                ClipPlayClose::Closed => None,
+                ClipPlayClose::StreamWatched => Some(tr.get_clip_player_watching()),
+                ClipPlayClose::EngineNotRunning => Some(tr.get_clip_player_engine_off()),
+                ClipPlayClose::LoadFailed => Some(tr.get_clip_player_load_failed()),
+                ClipPlayClose::PlayFailed => Some(tr.get_clip_player_play_failed()),
+            };
+            match text {
+                None => ui.set_open(false),
+                Some(text) => {
+                    log::info!("UI: the game clip closed: {}", reason.as_str());
+                    ui.set_buffering(false);
+                    ui.set_error(text);
+                }
             }
         }
         _ => {}

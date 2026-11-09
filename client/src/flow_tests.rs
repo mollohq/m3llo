@@ -364,7 +364,7 @@ fn retrying_finalize_reuses_the_same_device_id() {
     assert!(!first[0].is_empty(), "device id must not be empty");
 
     h.emit(Event::OnboardingFailed {
-        reason: "Connection failed: timed out".into(),
+        reason: mello_core::events::AuthFailure::Server("Connection failed: timed out".into()),
         join_error: None,
     });
 
@@ -407,7 +407,7 @@ fn the_finalize_guard_releases_after_a_failure() {
     assert_eq!(finalize_device_ids(&h.commands()).len(), 1);
 
     h.emit(Event::OnboardingFailed {
-        reason: "Failed to create crew".into(),
+        reason: mello_core::events::AuthFailure::Server("Failed to create crew".into()),
         join_error: None,
     });
 
@@ -448,7 +448,7 @@ fn retrying_finalize_after_failure_preserves_the_crew_avatar() {
 
     // Any of the seven steps failing lands here.
     h.emit(Event::OnboardingFailed {
-        reason: "Connection failed: timed out".into(),
+        reason: mello_core::events::AuthFailure::Server("Connection failed: timed out".into()),
         join_error: None,
     });
 
@@ -577,7 +577,7 @@ fn empty_login_failure_reason_means_restore_failed() {
     h.app().set_onboarding_step(4);
 
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
 
     assert_eq!(
@@ -594,7 +594,9 @@ fn real_login_failure_surfaces_an_error_and_stays_put() {
     h.app().set_onboarding_step(4);
 
     h.emit(Event::LoginFailed {
-        reason: "Authentication failed: Invalid credentials.".into(),
+        reason: mello_core::events::AuthFailure::Server(
+            "Authentication failed: Invalid credentials.".into(),
+        ),
     });
 
     assert_eq!(
@@ -3173,7 +3175,7 @@ fn retrying_finalize_with_an_invite_keeps_the_device_id_and_the_code() {
     finalize(&h);
     let first = h.commands();
     h.emit(Event::OnboardingFailed {
-        reason: "Connection failed: timed out".into(),
+        reason: mello_core::events::AuthFailure::Server("Connection failed: timed out".into()),
         join_error: None,
     });
     finalize(&h);
@@ -4449,7 +4451,9 @@ fn social_signin_keeps_the_panel_open_until_it_ends() {
     assert!(!h.app().get_login_account_missing());
 
     h.emit(Event::LoginFailed {
-        reason: "Authentication failed: User account not found.".into(),
+        reason: mello_core::events::AuthFailure::Server(
+            "Authentication failed: User account not found.".into(),
+        ),
     });
     assert!(h.app().get_show_sign_in(), "the failure shows on the panel");
     assert_eq!(visible_screens(&h), vec![Screen::SignIn]);
@@ -4504,7 +4508,7 @@ fn failed_social_link_clears_the_spinner_and_shows_why() {
     h.app().set_login_loading(true);
 
     h.emit(Event::SocialLinkFailed {
-        reason: "provider rejected the token".into(),
+        reason: mello_core::events::AuthFailure::Server("provider rejected the token".into()),
     });
 
     assert!(
@@ -4523,7 +4527,7 @@ fn failed_email_link_shows_why() {
     let mut h = Harness::new();
 
     h.emit(Event::EmailLinkFailed {
-        reason: "that email is already in use".into(),
+        reason: mello_core::events::AuthFailure::Server("that email is already in use".into()),
     });
 
     assert_eq!(
@@ -4584,7 +4588,7 @@ fn session_restore_failure_ends_somewhere_usable() {
 
     h.emit(Event::Restoring);
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
 
     assert!(!h.app().get_logged_in());
@@ -4611,7 +4615,7 @@ fn failed_restore_stops_the_spinner() {
     assert!(h.app().get_login_loading());
 
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
 
     assert!(
@@ -4726,7 +4730,9 @@ fn an_unknown_account_gets_a_plain_message_and_a_way_back_to_step_one() {
     h.app()
         .invoke_login("nobody@example.test".into(), "whatever".into());
     h.emit(Event::LoginFailed {
-        reason: "Authentication failed: User account not found.".into(),
+        reason: mello_core::events::AuthFailure::Server(
+            "Authentication failed: User account not found.".into(),
+        ),
     });
 
     assert_eq!(h.app().get_login_error().as_str(), "No account found.");
@@ -4753,7 +4759,9 @@ fn leaving_the_sign_in_panel_clears_its_error() {
     resume(h.ctx(), OnboardingState::PickCrew);
     h.click_label(HAVE_ACCOUNT);
     h.emit(Event::LoginFailed {
-        reason: "Authentication failed: Invalid credentials.".into(),
+        reason: mello_core::events::AuthFailure::Server(
+            "Authentication failed: Invalid credentials.".into(),
+        ),
     });
     assert_eq!(
         h.app().get_login_error().as_str(),
@@ -4776,7 +4784,7 @@ fn a_lost_session_with_a_device_account_opens_the_app() {
     let _ = h.commands();
 
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
     let cmds = h.commands();
     assert!(
@@ -4814,7 +4822,7 @@ fn a_lost_session_with_a_new_device_account_goes_to_step_one() {
     resume(h.ctx(), OnboardingState::Done);
 
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
     h.emit(Event::DeviceAuthed {
         user: sample_user(),
@@ -4839,10 +4847,10 @@ fn a_lost_session_whose_device_auth_fails_goes_to_step_one() {
     resume(h.ctx(), OnboardingState::Done);
 
     h.emit(Event::LoginFailed {
-        reason: String::new(),
+        reason: mello_core::events::AuthFailure::NoSession,
     });
     h.emit(Event::LoginFailed {
-        reason: "HTTP error: connection refused".into(),
+        reason: mello_core::events::AuthFailure::Server("HTTP error: connection refused".into()),
     });
 
     assert_eq!(h.app().get_onboarding_step(), 1);
@@ -5614,7 +5622,7 @@ fn count_tray_notices(
 ) -> std::rc::Rc<std::cell::Cell<u32>> {
     let attempts = std::rc::Rc::new(std::cell::Cell::new(0));
     let seen = attempts.clone();
-    *h.ctx().tray_notice.borrow_mut() = Some(Box::new(move || {
+    *h.ctx().tray_notice.borrow_mut() = Some(Box::new(move |_: &str, _: &str| {
         let n = seen.get();
         seen.set(n + 1);
         accepted(n)
@@ -7109,6 +7117,7 @@ fn game_source(pid: u32, exe: &str, igdb_id: u32) -> mello_core::events::Capture
         name: exe.into(),
         mode: "process".into(),
         monitor_index: None,
+        primary: false,
         hwnd: None,
         pid: Some(pid),
         exe: exe.into(),
@@ -7208,7 +7217,7 @@ fn the_quick_stream_path_without_the_picker_sends_the_detected_game() {
 fn record_stream_key_notices(h: &Harness) -> std::rc::Rc<std::cell::RefCell<Vec<String>>> {
     let notices = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
     let sink = notices.clone();
-    *h.ctx().stream_key_notice.borrow_mut() = Some(Box::new(move |text: &str| {
+    *h.ctx().stream_key_notice.borrow_mut() = Some(Box::new(move |_title: &str, text: &str| {
         sink.borrow_mut().push(text.to_string());
     }));
     notices
@@ -7401,7 +7410,7 @@ fn the_stream_key_start_is_told_when_live_or_failed() {
     });
     h.emit(Event::StreamFailed {
         role: mello_core::events::StreamRole::Host,
-        reason: "no encoder".into(),
+        reason: mello_core::events::StreamFailure::NoHardwareEncoder,
     });
     assert_eq!(
         *notices.borrow(),
@@ -9331,7 +9340,7 @@ fn a_failed_start_leaves_a_card_that_names_the_cause() {
     });
     h.emit(Event::StreamFailed {
         role: mello_core::events::StreamRole::Host,
-        reason: "Could not reach the stream server.".into(),
+        reason: mello_core::events::StreamFailure::StreamServerUnreachable,
     });
     assert!(!h.app().get_is_hosting());
     assert_eq!(
@@ -9822,7 +9831,9 @@ fn pop_out_opens_a_window_and_close_pause_end_and_leave_bring_it_back() {
     h.click_label("Pop out");
     h.emit(Event::StreamFailed {
         role: mello_core::events::StreamRole::Viewer,
-        reason: "The stream server closed the session.".into(),
+        reason: mello_core::events::StreamFailure::Detail(
+            "The stream server closed the session.".into(),
+        ),
     });
     assert!(!card_ui(&h).get_popped_out(), "a failure brings it back");
 

@@ -833,7 +833,8 @@ component AudioTab inherits VerticalLayout {
 
     // Voice activity
     in-out property <bool> ptt-mode: false;  // false = voice activity, true = push to talk
-    in property <string> ptt-key-label: "Unassigned"; // i18n: none (a value that the code compares)
+    // The push-to-talk key, or "" with no key.
+    in property <string> ptt-key-label: "";
     in-out property <float> vad-threshold: -40.0;
     in-out property <bool> vad-auto: true;
     in-out property <bool> ptt-binding: false;  // true = listening for next keypress
@@ -1244,12 +1245,12 @@ component AudioTab inherits VerticalLayout {
                                     letter-spacing: Theme.track-label;
                                     font-weight: Theme.weight-label;
                                     text: root.ptt-binding ? @tr("Press any key…")
-                                        : root.ptt-key-label != "" && root.ptt-key-label != "Unassigned" ? root.ptt-key-label
+                                        : root.ptt-key-label != "" ? root.ptt-key-label
                                         : @tr("Click to bind...");
                                     font-family: Theme.font-label;
                                     font-size: 14px;
                                     color: root.ptt-binding ? Theme.accent
-                                        : root.ptt-key-label != "" && root.ptt-key-label != "Unassigned" ? Theme.text-primary
+                                        : root.ptt-key-label != "" ? Theme.text-primary
                                         : Theme.text-tertiary;
                                     horizontal-stretch: 1;
                                     vertical-alignment: center;
@@ -2858,6 +2859,9 @@ component AboutTab inherits VerticalLayout {
             HorizontalLayout {
                 alignment: start;
                 spacing: 4px;
+                // A link cannot sit inside one message, so each credit row is
+                // one sentence in parts. The extractor keeps the last line:
+                // i18n: one sentence in parts: Made with [link: Slint]
                 AboutSentence { text: @tr("Made with"); }
                 // i18n: none (brand name)
                 AboutLink { name: "Slint"; url: "https://slint.dev"; clicked(url) => { root.link-clicked(url); } }
@@ -3105,7 +3109,8 @@ export component SettingsModal inherits Rectangle {
     in-out property <bool> echo-suppression: false;
     in-out property <bool> agc: true;
     in-out property <bool> ptt-mode: false;
-    in property <string> ptt-key-label: "Unassigned"; // i18n: none (a value that the code compares)
+    // The push-to-talk key, or "" with no key.
+    in property <string> ptt-key-label: "";
     in-out property <bool> ptt-binding: false;
     in-out property <float> vad-threshold: -40.0;
     in-out property <bool> vad-auto: true;

@@ -73,7 +73,8 @@ msgstr ""
 msgid "BELTS"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#. The badge of a live stream.
+#: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"
 msgstr ""
 
@@ -483,7 +484,7 @@ msgstr ""
 msgid "Above 100% loud game audio can distort."
 msgstr ""
 
-#: client/ui/panels/active_streams_panel.slint
+#: client/ui/panels/active_streams_panel.slint client/ui/tr.slint
 msgid "Mute"
 msgstr ""
 
@@ -751,15 +752,15 @@ msgstr ""
 msgid "Not connected"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Unmute"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Undeafen"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Deafen"
 msgstr ""
 
@@ -1812,6 +1813,26 @@ msgid "Link account"
 msgstr ""
 
 #: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "americas"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "europe"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "asia"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "sea"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
 msgid "Connect your Riot account"
 msgstr ""
 
@@ -1855,6 +1876,7 @@ msgstr ""
 msgid "You"
 msgstr ""
 
+#. i18n: one sentence in parts: [holder name] took it from [avatar] [name]
 #: client/ui/panels/sealed_stage.slint
 msgid "took it from"
 msgstr ""
@@ -2066,7 +2088,8 @@ msgstr ""
 msgid "Your clip is saved, someone in the crew clips."
 msgstr ""
 
-#: client/ui/panels/settings_modal.slint
+#. The title of a notification about a member of the crew.
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Crew"
 msgstr ""
 
@@ -2384,6 +2407,7 @@ msgstr ""
 msgid "Game data and artwork by"
 msgstr ""
 
+#. i18n: one sentence in parts: Made with [link: Slint]
 #: client/ui/panels/settings_modal.slint
 msgid "Made with"
 msgstr ""
@@ -4054,6 +4078,331 @@ msgstr ""
 
 #: client/ui/tr.slint
 msgid "L{} worst"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Push-to-talk uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clip uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Stream key uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0}p, {1} fps"
+msgstr ""
+
+#. The name of the file type filter in a dialog that picks an image.
+#: client/ui/tr.slint
+msgid "Images"
+msgstr ""
+
+#. {0} is the width, {1} is the height.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}×{1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You cancelled the {} sign-in."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} sign-in failed: {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in failed unexpectedly"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} login not configured"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in isn't available here"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in returned no token"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "WebSocket failed: {}"
+msgstr ""
+
+#. Onboarding: the account was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create your account. Check your connection and try again."
+msgstr ""
+
+#. Onboarding: the app did not connect.
+#: client/ui/tr.slint
+msgid "Couldn't connect. Check your connection and try again."
+msgstr ""
+
+#. Onboarding: the new crew was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create the crew. Try again."
+msgstr ""
+
+#. Onboarding: the chosen crew was not joined, and why.
+#: client/ui/tr.slint
+msgid "That crew is full. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That crew no longer exists. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You can't join that crew. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Couldn't join the crew. Check your connection and try again."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Server requires protocol {0} but client speaks {1}. Please update m3llo."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid ""
+"Client requires server protocol {0} but server speaks {1}. Server needs "
+"updating."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You are not signed in."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Streaming is not available on the server right now."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The server did not answer the stream start."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The server did not accept the stream."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Could not reach the stream server."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid ""
+"Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was "
+"found on this machine."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The media engine is not running."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The stream has no session to join."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The video decoder did not start."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The stream is not available."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Display {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Display {} (Primary)"
+msgstr ""
+
+#. The server did not answer a gift change.
+#: client/ui/tr.slint
+msgid "The server did not answer."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The media engine is not running"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The clip does not load"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The clip does not play"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Open {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Leave Voice"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Quit {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "About {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Check for Updates…"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Preferences…"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Hide {}"
+msgstr ""
+
+#. The names of the menus.
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Edit"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "View"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Help"
+msgstr ""
+
+#. The items of the Edit menu.
+#: client/ui/tr.slint
+msgid "Undo"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Redo"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Cut"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Copy"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Paste"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Select All"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Find…"
+msgstr ""
+
+#. The items of the View menu.
+#: client/ui/tr.slint
+msgid "Toggle Mute"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Toggle Deafen"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} on GitHub"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} is still running"
+msgstr ""
+
+#. Windows and Linux: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the tray to keep collecting your gaming stats. Right-click the "
+"tray icon to quit."
+msgstr ""
+
+#. macOS: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the menu bar to keep collecting your gaming stats. Quit it from "
+"the menu bar icon."
+msgstr ""
+
+#. The title of a notification about the stream key.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "Stream"
+msgstr ""
+
+#. The stream key started a stream, and the stream is live.
+#: client/ui/tr.slint
+msgid "You are live"
+msgstr ""
+
+#. The stream key ended the stream.
+#: client/ui/tr.slint
+msgid "Stream ended"
+msgstr ""
+
+#. The stream that the stream key started did not start.
+#: client/ui/tr.slint
+msgid "Stream failed"
+msgstr ""
+
+#. The stream key found no active crew.
+#: client/ui/tr.slint
+msgid "Pick a crew to stream to"
+msgstr ""
+
+#. The stream key found no detected game.
+#: client/ui/tr.slint
+msgid "No game to stream"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} jumped in"
+msgstr ""
+
+#. {0} is the sender, {1} is the message.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}: {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} invite"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} invited you to {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Push to talk"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clip the last moments of voice"
 msgstr ""
 
 #: hud/ui/mini_player.slint

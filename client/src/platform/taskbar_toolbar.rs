@@ -23,8 +23,19 @@ pub enum ThumbAction {
 
 static THUMB_TX: OnceLock<mpsc::Sender<ThumbAction>> = OnceLock::new();
 
+/// The tooltips of the thumbnail buttons, read from `Tr` in `try_init`.
+#[derive(Default)]
+struct Tips {
+    mute: String,
+    unmute: String,
+    deafen: String,
+    undeafen: String,
+    leave: String,
+}
+
 pub struct TaskbarToolbar {
     taskbar: ITaskbarList3,
+    tips: Tips,
     hwnd: HWND,
     action_rx: mpsc::Receiver<ThumbAction>,
     initialized: bool,
@@ -54,6 +65,7 @@ impl TaskbarToolbar {
 
         Ok(Self {
             taskbar,
+            tips: Tips::default(),
             hwnd: HWND::default(),
             action_rx: rx,
             initialized: false,
@@ -74,6 +86,17 @@ impl TaskbarToolbar {
             return false;
         };
         self.hwnd = hwnd;
+        {
+            use slint::ComponentHandle as _;
+            let tr = app.global::<crate::Tr>();
+            self.tips = Tips {
+                mute: tr.get_tray_mute().into(),
+                unmute: tr.get_taskbar_unmute().into(),
+                deafen: tr.get_taskbar_deafen().into(),
+                undeafen: tr.get_taskbar_undeafen().into(),
+                leave: tr.get_tray_leave_voice().into(),
+            };
+        }
 
         unsafe {
             let _ = SetWindowSubclass(hwnd, Some(subclass_proc), 1, 0);
@@ -103,9 +126,9 @@ impl TaskbarToolbar {
             },
         ];
 
-        set_tip(&mut buttons[0].szTip, "Mute");
-        set_tip(&mut buttons[1].szTip, "Deafen");
-        set_tip(&mut buttons[2].szTip, "Leave Voice");
+        set_tip(&mut buttons[0].szTip, &self.tips.mute);
+        set_tip(&mut buttons[1].szTip, &self.tips.deafen);
+        set_tip(&mut buttons[2].szTip, &self.tips.leave);
 
         match unsafe { self.taskbar.ThumbBarAddButtons(hwnd, &buttons) } {
             Ok(()) => {
@@ -163,12 +186,20 @@ impl TaskbarToolbar {
             },
         ];
 
-        set_tip(&mut buttons[0].szTip, if muted { "Unmute" } else { "Mute" });
+        let tips = &self.tips;
+        set_tip(
+            &mut buttons[0].szTip,
+            if muted { &tips.unmute } else { &tips.mute },
+        );
         set_tip(
             &mut buttons[1].szTip,
-            if deafened { "Undeafen" } else { "Deafen" },
+            if deafened {
+                &tips.undeafen
+            } else {
+                &tips.deafen
+            },
         );
-        set_tip(&mut buttons[2].szTip, "Leave Voice");
+        set_tip(&mut buttons[2].szTip, &tips.leave);
 
         unsafe {
             if let Err(e) = self.taskbar.ThumbBarUpdateButtons(self.hwnd, &buttons) {

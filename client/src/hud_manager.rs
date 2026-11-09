@@ -79,6 +79,10 @@ pub struct HudChatMessage {
 pub struct HudStreamCard {
     pub streamer: String,
     pub title: String,
+    /// The text of the live badge, in the UI language of the client. Empty
+    /// from an older client.
+    #[serde(default)]
+    pub live_label: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

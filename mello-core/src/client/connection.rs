@@ -124,7 +124,8 @@ impl super::Client {
                         );
                         log::warn!("{}", msg);
                         let _ = self.event_tx.send(Event::ProtocolMismatch {
-                            message: msg,
+                            required: min_client,
+                            actual: crate::PROTOCOL_VERSION,
                             client_outdated: true,
                         });
                     }
@@ -139,7 +140,8 @@ impl super::Client {
                         );
                         log::warn!("{}", msg);
                         let _ = self.event_tx.send(Event::ProtocolMismatch {
-                            message: msg,
+                            required: crate::MIN_SERVER_PROTOCOL,
+                            actual: server_proto,
                             client_outdated: false,
                         });
                     }

@@ -50,12 +50,139 @@ impl ChatMessage {
     }
 }
 
+/// Why a sign-in, a link or the end of onboarding failed. The client writes
+/// the sentence in the UI language. Server text is data: the client shows it
+/// as it is, or maps a known answer to a message.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum AuthFailure {
+    /// The saved session did not restore, or there is none. The user did
+    /// not ask for a sign-in, so there is nothing to show.
+    NoSession,
+    /// The text of a server or network error.
+    Server(String),
+    /// The user cancelled the sign-in at the provider. The value is the
+    /// provider name ("Discord").
+    Cancelled(String),
+    /// The browser flow of a provider failed. The detail is the error text
+    /// of the flow.
+    ProviderFailed { provider: String, detail: String },
+    /// The browser flow of a provider stopped with no result.
+    Unexpected(String),
+    /// The build has no client id for the provider.
+    NotConfigured(String),
+    /// The provider has no sign-in on this platform.
+    NotAvailable(String),
+    /// The provider gave no token.
+    NoToken(String),
+    /// The realtime socket did not connect after the sign-in. The value is
+    /// the error text.
+    Socket(String),
+    /// Onboarding: the device account was not made.
+    AccountNotCreated,
+    /// Onboarding: the realtime socket did not connect.
+    NotConnected,
+    /// Onboarding: the new crew was not made.
+    CrewNotCreated,
+    /// Onboarding: the chosen crew was not joined.
+    CrewNotJoined(InviteError),
+}
+
+impl AuthFailure {
+    /// True for `NoSession`: the failure has nothing to show.
+    pub fn is_silent(&self) -> bool {
+        matches!(self, Self::NoSession)
+    }
+}
+
+/// Why a stream start or a watch failed. The client writes the sentence in
+/// the UI language.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum StreamFailure {
+    /// The user has no session.
+    NotSignedIn,
+    /// The server has no stream server now (`SFU_UNAVAILABLE`).
+    ServerUnavailable,
+    /// The server did not answer the stream start in time.
+    ServerNoAnswer,
+    /// The server refused the stream start.
+    ServerRefused,
+    /// The stream server did not answer.
+    StreamServerUnreachable,
+    /// The machine has no hardware video encoder.
+    NoHardwareEncoder,
+    /// The media engine of libmello is not running.
+    EngineNotRunning,
+    /// The stream has no session id.
+    NoSession,
+    /// The video decoder of the viewer did not start.
+    DecoderFailed,
+    /// The server refused the watch.
+    StreamUnavailable,
+    /// A native step failed. The value is the error text of that step, for
+    /// developers.
+    Detail(String),
+}
+
+/// Why a crew gift action failed. The client writes the sentence in the UI
+/// language.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", content = "value", rename_all = "snake_case")]
+pub enum GiftFailure {
+    /// The message of the server, as one sentence. Data.
+    Server(String),
+    /// The server did not answer.
+    NoAnswer,
+    /// The server has no bucket for the image.
+    UploadOff,
+    /// The bucket refused the upload.
+    UploadRefused,
+    /// The upload did not complete.
+    UploadIncomplete,
+}
+
+/// Why the game clip player closed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ClipPlayClose {
+    /// The user closed the player. Nothing to show.
+    #[default]
+    Closed,
+    /// A stream is watched: the player waits.
+    StreamWatched,
+    /// The media engine of libmello is not running.
+    EngineNotRunning,
+    /// The clip did not open.
+    LoadFailed,
+    /// The clip stopped with an error.
+    PlayFailed,
+}
+
+impl ClipPlayClose {
+    /// A short code for logs and the e2e event tail; empty for `Closed`.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Closed => "",
+            Self::StreamWatched => "stream_watched",
+            Self::EngineNotRunning => "engine_not_running",
+            Self::LoadFailed => "load_failed",
+            Self::PlayFailed => "play_failed",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CaptureSource {
     pub id: String,
+    /// The name of a game or a window. Empty for a monitor: the client
+    /// names a monitor from `monitor_index` and `primary`.
     pub name: String,
     pub mode: String,
     pub monitor_index: Option<u32>,
+    /// A monitor: true for the primary display.
+    #[serde(default)]
+    pub primary: bool,
     pub hwnd: Option<u64>,
     pub pid: Option<u32>,
     pub exe: String,
@@ -202,7 +329,7 @@ pub enum Event {
         user: User,
     },
     LoginFailed {
-        reason: String,
+        reason: AuthFailure,
     },
 
     DeviceAuthed {
@@ -226,11 +353,11 @@ pub enum Event {
     OnboardingReady {
         user: User,
     },
-    /// Finalize failed. `reason` is plain text for the user; the cause is in
-    /// the log. `join_error` is set when joining the chosen crew failed, so
-    /// the client can send the user back to pick another crew.
+    /// Finalize failed. The client writes the text from `reason`; the cause
+    /// is in the log. `join_error` is set when joining the chosen crew
+    /// failed, so the client can send the user back to pick another crew.
     OnboardingFailed {
-        reason: String,
+        reason: AuthFailure,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         join_error: Option<crate::crew::InviteError>,
     },
@@ -247,11 +374,11 @@ pub enum Event {
 
     EmailLinked,
     EmailLinkFailed {
-        reason: String,
+        reason: AuthFailure,
     },
     SocialLinked,
     SocialLinkFailed {
-        reason: String,
+        reason: AuthFailure,
     },
 
     CrewCreated {
@@ -749,11 +876,11 @@ pub enum Event {
         paused: bool,
         ended: bool,
     },
-    /// The player closed. `reason` says why a clip did not play; empty for a
-    /// close the user asked for.
+    /// The player closed. `reason` says why a clip did not play;
+    /// `ClipPlayClose::Closed` for a close the user asked for.
     GameClipPlaybackClosed {
         #[serde(default)]
-        reason: String,
+        reason: ClipPlayClose,
     },
     /// Clip metadata posted to backend.
     ClipPosted {
@@ -881,11 +1008,11 @@ pub enum Event {
         crew_id: String,
         gift: String,
     },
-    /// A gift action failed. `reason` is one sentence for the UI.
+    /// A gift action failed. The client writes the text from `reason`.
     CrewGiftFailed {
         crew_id: String,
         gift: String,
-        reason: String,
+        reason: GiftFailure,
     },
     /// The answer to `CheckInviteName`: "free", "taken" or "not_allowed".
     InviteNameChecked {
@@ -948,8 +1075,12 @@ pub enum Event {
     },
 
     /// Client-server protocol version mismatch.
+    /// The client writes the text from the numbers.
     ProtocolMismatch {
-        message: String,
+        /// The protocol version that the other side needs.
+        required: u32,
+        /// The protocol version that the other side gets.
+        actual: u32,
         /// true = client too old (needs update), false = server too old
         client_outdated: bool,
     },
@@ -1010,10 +1141,10 @@ pub enum Event {
         role: StreamRole,
     },
     /// A stream start or a watch failed before it ran. `reason` names the
-    /// cause for the user.
+    /// cause; the client writes the text.
     StreamFailed {
         role: StreamRole,
-        reason: String,
+        reason: StreamFailure,
     },
     // --- end stage 6 ---
 }

@@ -968,4 +968,239 @@ export global Tr {
     pure public function streak-worst(n: int) -> string {
         @tr("L{} worst", n)
     }
+
+    // --- Settings: Keybinds and Game clips (src/callbacks/settings.rs) ---
+
+    /// The key that the user pressed is the push-to-talk key already. {} is
+    /// the key ("F8").
+    pure public function key-taken-by-ptt(key: string) -> string {
+        @tr("Push-to-talk uses {}. Pick another key.", key)
+    }
+    /// The key that the user pressed is the clip key already. {} is the key.
+    pure public function key-taken-by-clip(key: string) -> string {
+        @tr("Clip uses {}. Pick another key.", key)
+    }
+    /// The key that the user pressed is the stream key already. {} is the key.
+    pure public function key-taken-by-stream-key(key: string) -> string {
+        @tr("Stream key uses {}. Pick another key.", key)
+    }
+    /// A quality of the game clips: {0} is the height of the picture in
+    /// pixels, {1} is the frames per second ("1080p, 60 fps").
+    pure public function game-clip-quality(height: int, fps: int) -> string {
+        @tr("{0}p, {1} fps", height, fps)
+    }
+
+    // --- File dialogs (src/callbacks/*.rs) ---
+
+    /// The name of the file type filter in a dialog that picks an image.
+    out property <string> file-filter-images: @tr("Images");
+
+    // --- The image viewer of the chat (src/callbacks/chat.rs) ---
+
+    /// The size of an image in pixels: {0} is the width, {1} is the height
+    /// ("1920×1080").
+    pure public function image-dimensions(width: int, height: int) -> string {
+        // {0} is the width, {1} is the height.
+        @tr("format" => "{0}×{1}", width, height)
+    }
+
+    // --- Sign in, links and onboarding: the failures that the core reports
+    //     (src/handlers/auth.rs) ---
+
+    /// The user cancelled the sign-in at the provider. {} is the provider
+    /// ("Discord").
+    pure public function auth-cancelled(provider: string) -> string {
+        @tr("You cancelled the {} sign-in.", provider)
+    }
+    /// The sign-in at a provider failed: {0} is the provider, {1} is the
+    /// error text of the sign-in flow (English).
+    pure public function auth-provider-failed(provider: string, detail: string) -> string {
+        @tr("{0} sign-in failed: {1}", provider, detail)
+    }
+    /// The sign-in at a provider stopped with no result. {} is the provider.
+    pure public function auth-unexpected(provider: string) -> string {
+        @tr("{} sign-in failed unexpectedly", provider)
+    }
+    /// This build has no sign-in for the provider. {} is the provider.
+    pure public function auth-not-configured(provider: string) -> string {
+        @tr("{} login not configured", provider)
+    }
+    /// The provider has no sign-in on this platform. {} is the provider
+    /// ("Apple").
+    pure public function auth-not-available(provider: string) -> string {
+        @tr("{} sign-in isn't available here", provider)
+    }
+    /// The provider gave no token. {} is the provider.
+    pure public function auth-no-token(provider: string) -> string {
+        @tr("{} sign-in returned no token", provider)
+    }
+    /// The realtime connection failed after the sign-in. {} is the error
+    /// text (English).
+    pure public function auth-socket-failed(detail: string) -> string {
+        @tr("WebSocket failed: {}", detail)
+    }
+    /// Onboarding: the account was not made.
+    out property <string> onboarding-account-failed: @tr("Couldn't create your account. Check your connection and try again.");
+    /// Onboarding: the app did not connect.
+    out property <string> onboarding-connect-failed: @tr("Couldn't connect. Check your connection and try again.");
+    /// Onboarding: the new crew was not made.
+    out property <string> onboarding-crew-create-failed: @tr("Couldn't create the crew. Try again.");
+    /// Onboarding: the chosen crew was not joined, and why.
+    out property <string> onboarding-crew-full: @tr("That crew is full. Pick another one.");
+    out property <string> onboarding-crew-gone: @tr("That crew no longer exists. Pick another one.");
+    out property <string> onboarding-crew-not-allowed: @tr("You can't join that crew. Pick another one.");
+    out property <string> onboarding-crew-join-failed: @tr("Couldn't join the crew. Check your connection and try again.");
+
+    // --- Protocol versions: the update banner (src/handlers/mod.rs) ---
+
+    /// The app is too old for the server: {0} is the protocol version that
+    /// the server needs, {1} is the version of the app.
+    pure public function protocol-client-outdated(required: int, actual: int) -> string {
+        @tr("Server requires protocol {0} but client speaks {1}. Please update m3llo.", required, actual)
+    }
+    /// The server is too old for the app: {0} is the protocol version that
+    /// the app needs, {1} is the version of the server.
+    pure public function protocol-server-outdated(required: int, actual: int) -> string {
+        @tr("Client requires server protocol {0} but server speaks {1}. Server needs updating.", required, actual)
+    }
+
+    // --- Streams: why a start or a watch failed, and the sources of the
+    //     stream picker (src/handlers/streaming.rs) ---
+
+    out property <string> stream-failed-not-signed-in: @tr("You are not signed in.");
+    out property <string> stream-failed-server-unavailable: @tr("Streaming is not available on the server right now.");
+    out property <string> stream-failed-server-no-answer: @tr("The server did not answer the stream start.");
+    out property <string> stream-failed-server-refused: @tr("The server did not accept the stream.");
+    out property <string> stream-failed-unreachable: @tr("Could not reach the stream server.");
+    out property <string> stream-failed-no-encoder: @tr("Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was found on this machine.");
+    out property <string> stream-failed-engine-off: @tr("The media engine is not running.");
+    out property <string> stream-failed-no-session: @tr("The stream has no session to join.");
+    out property <string> stream-failed-decoder: @tr("The video decoder did not start.");
+    out property <string> stream-failed-unavailable: @tr("The stream is not available.");
+    /// A monitor in the stream picker. {} is its number ("Display 2").
+    pure public function stream-source-display(n: int) -> string {
+        @tr("Display {}", n)
+    }
+    /// The primary monitor in the stream picker. {} is its number.
+    pure public function stream-source-display-primary(n: int) -> string {
+        @tr("Display {} (Primary)", n)
+    }
+
+    // --- Crew gifts: the pickers (src/callbacks/quests.rs) ---
+
+    /// The server did not answer a gift change.
+    out property <string> gift-no-answer: @tr("The server did not answer.");
+
+    // --- Game clips: the clip player (src/game_clip_player.rs) ---
+
+    out property <string> clip-player-engine-off: @tr("The media engine is not running");
+    out property <string> clip-player-load-failed: @tr("The clip does not load");
+    out property <string> clip-player-play-failed: @tr("The clip does not play");
+
+    // --- The tray menu (src/platform/mod.rs, src/platform/linux_tray.rs) ---
+
+    /// {} is the app name.
+    pure public function tray-open(app: string) -> string {
+        @tr("Open {}", app)
+    }
+    out property <string> tray-mute: @tr("Mute");
+    out property <string> tray-leave-voice: @tr("Leave Voice");
+    /// {} is the app name. The macOS app menu uses it too.
+    pure public function tray-quit(app: string) -> string {
+        @tr("Quit {}", app)
+    }
+
+    // --- Windows: the buttons under the taskbar thumbnail
+    //     (src/platform/taskbar_toolbar.rs). Mute and Leave Voice are the
+    //     tray members. ---
+
+    out property <string> taskbar-unmute: @tr("Unmute");
+    out property <string> taskbar-deafen: @tr("Deafen");
+    out property <string> taskbar-undeafen: @tr("Undeafen");
+
+    // --- The macOS menu bar (src/platform/macos.rs, src/edit_shortcuts.rs) ---
+
+    /// {} is the app name.
+    pure public function menu-about(app: string) -> string {
+        @tr("About {}", app)
+    }
+    out property <string> menu-check-updates: @tr("Check for Updates…");
+    out property <string> menu-preferences: @tr("Preferences…");
+    /// {} is the app name.
+    pure public function menu-hide(app: string) -> string {
+        @tr("Hide {}", app)
+    }
+    /// The names of the menus.
+    out property <string> menu-edit: @tr("menu" => "Edit");
+    out property <string> menu-view: @tr("menu" => "View");
+    out property <string> menu-help: @tr("menu" => "Help");
+    /// The items of the Edit menu.
+    out property <string> menu-undo: @tr("Undo");
+    out property <string> menu-redo: @tr("Redo");
+    out property <string> menu-cut: @tr("Cut");
+    out property <string> menu-copy: @tr("Copy");
+    out property <string> menu-paste: @tr("Paste");
+    out property <string> menu-select-all: @tr("Select All");
+    out property <string> menu-find: @tr("Find…");
+    /// The items of the View menu.
+    out property <string> menu-toggle-mute: @tr("Toggle Mute");
+    out property <string> menu-toggle-deafen: @tr("Toggle Deafen");
+    /// The item of the Help menu. {} is the app name.
+    pure public function menu-github(app: string) -> string {
+        @tr("{} on GitHub", app)
+    }
+
+    // --- OS notifications (src/notifications.rs, src/stream_key.rs) ---
+
+    /// The window closed to the tray. {} is the app name.
+    pure public function notice-tray-title(app: string) -> string {
+        @tr("{} is still running", app)
+    }
+    /// Windows and Linux: where the app is now.
+    out property <string> notice-tray-body: @tr("It stays in the tray to keep collecting your gaming stats. Right-click the tray icon to quit.");
+    /// macOS: where the app is now.
+    out property <string> notice-tray-body-macos: @tr("It stays in the menu bar to keep collecting your gaming stats. Quit it from the menu bar icon.");
+    /// The title of a notification about the stream key.
+    out property <string> notice-stream-title: @tr("noun" => "Stream");
+    /// The stream key started a stream, and the stream is live.
+    out property <string> notice-stream-live: @tr("You are live");
+    /// The stream key ended the stream.
+    out property <string> notice-stream-ended: @tr("Stream ended");
+    /// The stream that the stream key started did not start.
+    out property <string> notice-stream-failed: @tr("Stream failed");
+    /// The stream key found no active crew.
+    out property <string> notice-stream-no-crew: @tr("Pick a crew to stream to");
+    /// The stream key found no detected game.
+    out property <string> notice-stream-no-game: @tr("No game to stream");
+    /// The title of a notification about a member of the crew.
+    out property <string> notice-crew-title: @tr("Crew");
+    /// A member joined the voice channel. {} is the member.
+    pure public function notice-member-joined(name: string) -> string {
+        @tr("{} jumped in", name)
+    }
+    /// A chat message: {0} is the sender, {1} is the start of the message.
+    pure public function notice-message(sender: string, preview: string) -> string {
+        // {0} is the sender, {1} is the message.
+        @tr("format" => "{0}: {1}", sender, preview)
+    }
+    /// The title of an invite notification. {} is the app name.
+    pure public function notice-invite-title(app: string) -> string {
+        @tr("{} invite", app)
+    }
+    /// An invite: {0} is the person who invites, {1} is the crew.
+    pure public function notice-invite-body(inviter: string, crew: string) -> string {
+        @tr("{0} invited you to {1}", inviter, crew)
+    }
+
+    // --- Linux: the global shortcuts that the desktop shows
+    //     (src/platform/linux_shortcuts.rs) ---
+
+    out property <string> shortcut-push-to-talk: @tr("Push to talk");
+    out property <string> shortcut-clip: @tr("Clip the last moments of voice");
+
+    // --- The overlay over the game (src/hud_overlay/renderer.rs, the hud
+    //     process) ---
+
+    /// The badge of a live stream.
+    out property <string> hud-live: @tr("LIVE");
 }

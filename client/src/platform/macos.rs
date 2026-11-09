@@ -4,15 +4,17 @@ use crate::edit_shortcuts::{self, EDIT_ITEMS};
 use crate::APP_NAME;
 
 /// Build the macOS NSMenuBar. Must be called on the main thread before
-/// the Slint event loop starts.
-pub fn build_menu_bar() -> Menu {
+/// the Slint event loop starts, after the main window exists: the labels
+/// come from `tr`.
+pub fn build_menu_bar(tr: &crate::Tr<'_>) -> Menu {
+    let app = || slint::SharedString::from(APP_NAME);
     let menu = Menu::new();
 
     // -- Mello --
     let app_menu = Submenu::with_id("app", APP_NAME, true);
     app_menu
         .append(&PredefinedMenuItem::about(
-            Some(&format!("About {APP_NAME}")),
+            Some(tr.invoke_menu_about(app()).as_str()),
             None,
         ))
         .ok();
@@ -20,7 +22,7 @@ pub fn build_menu_bar() -> Menu {
     app_menu
         .append(&MenuItem::with_id(
             MenuId::new("check_updates"),
-            "Check for Updates…",
+            tr.get_menu_check_updates().as_str(),
             true,
             None,
         ))
@@ -29,7 +31,7 @@ pub fn build_menu_bar() -> Menu {
     app_menu
         .append(&MenuItem::with_id(
             MenuId::new("prefs"),
-            "Preferences…",
+            tr.get_menu_preferences().as_str(),
             true,
             Some("cmd+,".parse().unwrap()),
         ))
@@ -38,13 +40,17 @@ pub fn build_menu_bar() -> Menu {
     app_menu.append(&PredefinedMenuItem::services(None)).ok();
     app_menu.append(&PredefinedMenuItem::separator()).ok();
     app_menu
-        .append(&PredefinedMenuItem::hide(Some(&format!("Hide {APP_NAME}"))))
+        .append(&PredefinedMenuItem::hide(Some(
+            tr.invoke_menu_hide(app()).as_str(),
+        )))
         .ok();
     app_menu.append(&PredefinedMenuItem::hide_others(None)).ok();
     app_menu.append(&PredefinedMenuItem::show_all(None)).ok();
     app_menu.append(&PredefinedMenuItem::separator()).ok();
     app_menu
-        .append(&PredefinedMenuItem::quit(Some(&format!("Quit {APP_NAME}"))))
+        .append(&PredefinedMenuItem::quit(Some(
+            tr.invoke_tray_quit(app()).as_str(),
+        )))
         .ok();
     menu.append(&app_menu).ok();
 
@@ -55,12 +61,12 @@ pub fn build_menu_bar() -> Menu {
     // none of them. The menu would consume the shortcut and do nothing, and
     // the Slint `TextInput` would never get the key. Each item here forwards
     // its key press to the Slint window instead. See `edit_shortcuts`.
-    let edit_menu = Submenu::with_id("edit", "Edit", true);
+    let edit_menu = Submenu::with_id("edit", tr.get_menu_edit().as_str(), true);
     let append_edit_item = |item: &edit_shortcuts::EditItem| {
         edit_menu
             .append(&MenuItem::with_id(
                 MenuId::new(item.id),
-                item.title,
+                edit_shortcuts::edit_item_title(tr, item.id).as_str(),
                 true,
                 Some(item.accelerator.parse().unwrap()),
             ))
@@ -77,7 +83,7 @@ pub fn build_menu_bar() -> Menu {
     edit_menu
         .append(&MenuItem::with_id(
             MenuId::new("find"),
-            "Find…",
+            tr.get_menu_find().as_str(),
             true,
             Some("cmd+f".parse().unwrap()),
         ))
@@ -85,11 +91,11 @@ pub fn build_menu_bar() -> Menu {
     menu.append(&edit_menu).ok();
 
     // -- View --
-    let view_menu = Submenu::with_id("view", "View", true);
+    let view_menu = Submenu::with_id("view", tr.get_menu_view().as_str(), true);
     view_menu
         .append(&MenuItem::with_id(
             MenuId::new("mute"),
-            "Toggle Mute",
+            tr.get_menu_toggle_mute().as_str(),
             true,
             Some("cmd+ctrl+m".parse().unwrap()),
         ))
@@ -97,7 +103,7 @@ pub fn build_menu_bar() -> Menu {
     view_menu
         .append(&MenuItem::with_id(
             MenuId::new("deafen"),
-            "Toggle Deafen",
+            tr.get_menu_toggle_deafen().as_str(),
             true,
             Some("cmd+ctrl+d".parse().unwrap()),
         ))
@@ -105,11 +111,11 @@ pub fn build_menu_bar() -> Menu {
     menu.append(&view_menu).ok();
 
     // -- Help --
-    let help_menu = Submenu::with_id("help", "Help", true);
+    let help_menu = Submenu::with_id("help", tr.get_menu_help().as_str(), true);
     help_menu
         .append(&MenuItem::with_id(
             MenuId::new("github"),
-            format!("{APP_NAME} on GitHub"),
+            tr.invoke_menu_github(app()).as_str(),
             true,
             None,
         ))

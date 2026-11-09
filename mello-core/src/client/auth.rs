@@ -1,15 +1,18 @@
 use super::browser_flow::{Credential, FlowIntent, FlowOutcome, SocialProvider};
-use crate::events::Event;
+use crate::events::{AuthFailure, Event};
 use crate::oauth::OAuthError;
 use crate::presence::PresenceStatus;
 use crate::session;
 
-/// The reason the user reads when a browser flow ends without an identity.
-fn flow_failure_reason(provider: SocialProvider, error: &OAuthError) -> String {
-    let label = provider.label();
+/// Why a browser flow ended without an identity.
+fn flow_failure_reason(provider: SocialProvider, error: &OAuthError) -> AuthFailure {
+    let label = provider.label().to_string();
     match error {
-        OAuthError::Cancelled => format!("You cancelled the {} sign-in.", label),
-        other => format!("{} sign-in failed: {}", label, other),
+        OAuthError::Cancelled => AuthFailure::Cancelled(label),
+        other => AuthFailure::ProviderFailed {
+            provider: label,
+            detail: other.to_string(),
+        },
     }
 }
 
@@ -34,7 +37,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("Device auth failed: {}", e);
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -49,7 +52,7 @@ impl super::Client {
             None => {
                 log::info!("No stored session found");
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: String::new(),
+                    reason: AuthFailure::NoSession,
                 });
                 return;
             }
@@ -69,7 +72,7 @@ impl super::Client {
                     log::error!("WebSocket connect failed on restore: {}", e);
                     session::clear();
                     let _ = self.event_tx.send(Event::LoginFailed {
-                        reason: format!("WebSocket failed: {}", e),
+                        reason: AuthFailure::Socket(e.to_string()),
                     });
                     return;
                 }
@@ -82,7 +85,7 @@ impl super::Client {
                 log::warn!("Session restore failed ({}), clearing", e);
                 session::clear();
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: String::new(),
+                    reason: AuthFailure::NoSession,
                 });
             }
         }
@@ -108,7 +111,7 @@ impl super::Client {
                 if let Err(e) = self.nakama.connect_ws(self.event_tx.clone()).await {
                     log::error!("WebSocket connect failed: {}", e);
                     let _ = self.event_tx.send(Event::LoginFailed {
-                        reason: format!("WebSocket failed: {}", e),
+                        reason: AuthFailure::Socket(e.to_string()),
                     });
                     return;
                 }
@@ -120,7 +123,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("Login failed: {}", e);
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -217,7 +220,7 @@ impl super::Client {
         let label = provider.label();
         let Some(client_id) = provider.client_id(self.nakama.config()) else {
             log::warn!("[auth] {} client id not configured", label);
-            self.send_flow_failure(intent, format!("{} login not configured", label));
+            self.send_flow_failure(intent, AuthFailure::NotConfigured(label.to_string()));
             return;
         };
         self.browser_flows.start(provider, intent, move |cancel| {
@@ -256,7 +259,7 @@ impl super::Client {
             }
             Err(e) => {
                 log::error!("[auth] {} browser flow task panicked: {}", label, e);
-                self.send_flow_failure(intent, format!("{} sign-in failed unexpectedly", label));
+                self.send_flow_failure(intent, AuthFailure::Unexpected(label.to_string()));
                 return;
             }
         };
@@ -268,7 +271,7 @@ impl super::Client {
                     Ok(id_token) => id_token,
                     Err(e) => {
                         log::error!("[auth] Google token exchange failed: {}", e);
-                        self.send_flow_failure(intent, e.to_string());
+                        self.send_flow_failure(intent, AuthFailure::Server(e.to_string()));
                         return;
                     }
                 }
@@ -281,7 +284,7 @@ impl super::Client {
                 Ok(user) => self.on_social_login(user).await,
                 Err(e) => {
                     log::error!("[auth] Google Nakama auth failed: {}", e);
-                    self.send_flow_failure(intent, e.to_string());
+                    self.send_flow_failure(intent, AuthFailure::Server(e.to_string()));
                 }
             },
             (FlowIntent::SignIn, Some(custom_id)) => {
@@ -289,7 +292,7 @@ impl super::Client {
                     Ok(user) => self.on_social_login(user).await,
                     Err(e) => {
                         log::error!("[auth] {} Nakama auth failed: {}", label, e);
-                        self.send_flow_failure(intent, e.to_string());
+                        self.send_flow_failure(intent, AuthFailure::Server(e.to_string()));
                     }
                 }
             }
@@ -301,7 +304,7 @@ impl super::Client {
     }
 
     /// Report a failed sign-in or link to the screen that started it.
-    fn send_flow_failure(&self, intent: FlowIntent, reason: String) {
+    fn send_flow_failure(&self, intent: FlowIntent, reason: AuthFailure) {
         let event = match intent {
             FlowIntent::SignIn => Event::LoginFailed { reason },
             FlowIntent::Link => Event::SocialLinkFailed { reason },
@@ -316,7 +319,7 @@ impl super::Client {
         if identity_token.is_empty() {
             log::warn!("[auth] Apple auth: no identity token (unsupported on this platform)");
             let _ = self.event_tx.send(Event::LoginFailed {
-                reason: "Apple sign-in isn't available here".into(),
+                reason: AuthFailure::NotAvailable("Apple".into()),
             });
             return;
         }
@@ -326,7 +329,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] Apple Nakama auth failed: {}", e);
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -337,7 +340,7 @@ impl super::Client {
     pub(super) async fn handle_auth_google_token(&mut self, id_token: &str) {
         if id_token.is_empty() {
             let _ = self.event_tx.send(Event::LoginFailed {
-                reason: "Google sign-in returned no token".into(),
+                reason: AuthFailure::NoToken("Google".into()),
             });
             return;
         }
@@ -346,7 +349,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] Google Nakama auth failed: {}", e);
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -357,7 +360,7 @@ impl super::Client {
     pub(super) async fn handle_auth_custom_token(&mut self, token: &str, provider: &str) {
         if token.is_empty() {
             let _ = self.event_tx.send(Event::LoginFailed {
-                reason: format!("{} sign-in returned no token", provider),
+                reason: AuthFailure::NoToken(provider.to_string()),
             });
             return;
         }
@@ -366,7 +369,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] {} Nakama auth failed: {}", provider, e);
                 let _ = self.event_tx.send(Event::LoginFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -394,7 +397,7 @@ impl super::Client {
         if let Err(e) = self.nakama.connect_ws(self.event_tx.clone()).await {
             log::error!("WebSocket connect failed: {}", e);
             let _ = self.event_tx.send(Event::LoginFailed {
-                reason: format!("WebSocket failed: {}", e),
+                reason: AuthFailure::Socket(e.to_string()),
             });
             return;
         }
@@ -413,7 +416,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("Email link failed: {}", e);
                 let _ = self.event_tx.send(Event::EmailLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -435,7 +438,7 @@ impl super::Client {
                     Err(e2) => {
                         log::error!("[auth] Google authenticate fallback failed: {}", e2);
                         let _ = self.event_tx.send(Event::SocialLinkFailed {
-                            reason: e2.to_string(),
+                            reason: AuthFailure::Server(e2.to_string()),
                         });
                     }
                 }
@@ -443,7 +446,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] Google link failed: {}", e);
                 let _ = self.event_tx.send(Event::SocialLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -470,7 +473,7 @@ impl super::Client {
                     Err(e2) => {
                         log::error!("[auth] {} authenticate fallback failed: {}", label, e2);
                         let _ = self.event_tx.send(Event::SocialLinkFailed {
-                            reason: e2.to_string(),
+                            reason: AuthFailure::Server(e2.to_string()),
                         });
                     }
                 }
@@ -478,7 +481,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] {} link failed: {}", label, e);
                 let _ = self.event_tx.send(Event::SocialLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -491,7 +494,7 @@ impl super::Client {
         if identity_token.is_empty() {
             log::warn!("[auth] Apple link: no identity token (unsupported on this platform)");
             let _ = self.event_tx.send(Event::SocialLinkFailed {
-                reason: "Apple sign-in isn't available here".into(),
+                reason: AuthFailure::NotAvailable("Apple".into()),
             });
             return;
         }
@@ -508,7 +511,7 @@ impl super::Client {
                     Err(e2) => {
                         log::error!("[auth] Apple authenticate fallback failed: {}", e2);
                         let _ = self.event_tx.send(Event::SocialLinkFailed {
-                            reason: e2.to_string(),
+                            reason: AuthFailure::Server(e2.to_string()),
                         });
                     }
                 }
@@ -516,7 +519,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] Apple link failed: {}", e);
                 let _ = self.event_tx.send(Event::SocialLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -527,7 +530,7 @@ impl super::Client {
     pub(super) async fn handle_link_google_token(&mut self, id_token: &str) {
         if id_token.is_empty() {
             let _ = self.event_tx.send(Event::SocialLinkFailed {
-                reason: "Google sign-in returned no token".into(),
+                reason: AuthFailure::NoToken("Google".into()),
             });
             return;
         }
@@ -542,7 +545,7 @@ impl super::Client {
                     Ok(user) => self.on_social_login(user).await,
                     Err(e2) => {
                         let _ = self.event_tx.send(Event::SocialLinkFailed {
-                            reason: e2.to_string(),
+                            reason: AuthFailure::Server(e2.to_string()),
                         });
                     }
                 }
@@ -550,7 +553,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] Google link failed: {}", e);
                 let _ = self.event_tx.send(Event::SocialLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -561,7 +564,7 @@ impl super::Client {
     pub(super) async fn handle_link_custom_token(&mut self, token: &str, provider: &str) {
         if token.is_empty() {
             let _ = self.event_tx.send(Event::SocialLinkFailed {
-                reason: format!("{} sign-in returned no token", provider),
+                reason: AuthFailure::NoToken(provider.to_string()),
             });
             return;
         }
@@ -579,7 +582,7 @@ impl super::Client {
                     Ok(user) => self.on_social_login(user).await,
                     Err(e2) => {
                         let _ = self.event_tx.send(Event::SocialLinkFailed {
-                            reason: e2.to_string(),
+                            reason: AuthFailure::Server(e2.to_string()),
                         });
                     }
                 }
@@ -587,7 +590,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[auth] {} link failed: {}", provider, e);
                 let _ = self.event_tx.send(Event::SocialLinkFailed {
-                    reason: e.to_string(),
+                    reason: AuthFailure::Server(e.to_string()),
                 });
             }
         }
@@ -619,8 +622,7 @@ impl super::Client {
             Err(e) => {
                 log::error!("[onboarding] device auth failed: {}", e);
                 let _ = self.event_tx.send(Event::OnboardingFailed {
-                    reason: "Couldn't create your account. Check your connection and try again."
-                        .into(),
+                    reason: AuthFailure::AccountNotCreated,
                     join_error: None,
                 });
                 return;
@@ -635,7 +637,7 @@ impl super::Client {
         if let Err(e) = self.nakama.connect_ws(self.event_tx.clone()).await {
             log::error!("[onboarding] WebSocket connect failed: {}", e);
             let _ = self.event_tx.send(Event::OnboardingFailed {
-                reason: "Couldn't connect. Check your connection and try again.".into(),
+                reason: AuthFailure::NotConnected,
                 join_error: None,
             });
             return;
@@ -726,7 +728,7 @@ impl super::Client {
                     e
                 );
                 let _ = self.event_tx.send(Event::OnboardingFailed {
-                    reason: join_failure_reason(error).into(),
+                    reason: AuthFailure::CrewNotJoined(error),
                     join_error: Some(error),
                 });
                 return;
@@ -755,7 +757,7 @@ impl super::Client {
                 Err(e) => {
                     log::error!("[onboarding] failed to create crew: {}", e);
                     let _ = self.event_tx.send(Event::OnboardingFailed {
-                        reason: "Couldn't create the crew. Try again.".into(),
+                        reason: AuthFailure::CrewNotCreated,
                         join_error: None,
                     });
                     return;
@@ -781,52 +783,20 @@ impl super::Client {
     }
 }
 
-/// Plain text for a failed crew join during onboarding. Never the server text.
-fn join_failure_reason(error: crate::crew::InviteError) -> &'static str {
-    use crate::crew::InviteError;
-    match error {
-        InviteError::CrewFull => "That crew is full. Pick another one.",
-        InviteError::InvalidCode => "That crew no longer exists. Pick another one.",
-        InviteError::NotAllowed => "You can't join that crew. Pick another one.",
-        InviteError::Failed => "Couldn't join the crew. Check your connection and try again.",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn a_failed_onboarding_join_never_shows_server_text() {
-        use crate::crew::InviteError;
-        for error in [
-            InviteError::CrewFull,
-            InviteError::InvalidCode,
-            InviteError::NotAllowed,
-            InviteError::Failed,
-        ] {
-            let reason = join_failure_reason(error);
-            assert!(
-                !reason.contains('{') && !reason.contains("code"),
-                "{reason}"
-            );
-        }
-        assert_eq!(
-            join_failure_reason(InviteError::CrewFull),
-            "That crew is full. Pick another one."
-        );
-    }
 
     #[test]
     fn a_refusal_at_the_provider_reads_as_a_cancel() {
         // #87: not "Timeout waiting for authentication".
         assert_eq!(
             flow_failure_reason(SocialProvider::Discord, &OAuthError::Cancelled),
-            "You cancelled the Discord sign-in."
+            AuthFailure::Cancelled("Discord".into())
         );
         assert_eq!(
             flow_failure_reason(SocialProvider::Steam, &OAuthError::Cancelled),
-            "You cancelled the Steam sign-in."
+            AuthFailure::Cancelled("Steam".into())
         );
     }
 
@@ -834,14 +804,20 @@ mod tests {
     fn other_flow_failures_name_the_provider_and_the_cause() {
         assert_eq!(
             flow_failure_reason(SocialProvider::Twitch, &OAuthError::Timeout),
-            "Twitch sign-in failed: Timeout waiting for authentication"
+            AuthFailure::ProviderFailed {
+                provider: "Twitch".into(),
+                detail: "Timeout waiting for authentication".into()
+            }
         );
         assert_eq!(
             flow_failure_reason(
                 SocialProvider::Google,
                 &OAuthError::Provider("server_error".into())
             ),
-            "Google sign-in failed: The provider returned an error: server_error"
+            AuthFailure::ProviderFailed {
+                provider: "Google".into(),
+                detail: "The provider returned an error: server_error".into()
+            }
         );
     }
 }

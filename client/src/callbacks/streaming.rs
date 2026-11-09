@@ -146,7 +146,11 @@ pub fn wire(ctx: &AppContext) {
                 let id = source_id.to_string();
                 let crew_id = if let Some(app) = app_weak.upgrade() {
                     let source_title =
-                        resolve_stream_source_name(&app, &id, &mode).unwrap_or("STREAMING".into());
+                        resolve_stream_source_name(&app, &id, &mode).unwrap_or_else(|| {
+                            app.global::<crate::Tr>()
+                                .get_stream_label_streaming()
+                                .into()
+                        });
                     app.set_stream_label(source_title.into());
                     app.get_active_crew_id().to_string()
                 } else {
@@ -156,10 +160,11 @@ pub fn wire(ctx: &AppContext) {
                     return;
                 }
 
-                let stream_title = if let Some(app) = app_weak.upgrade() {
-                    app.get_stream_label().to_string()
-                } else {
-                    "STREAMING".to_string()
+                let Some(stream_title) = app_weak
+                    .upgrade()
+                    .map(|app| app.get_stream_label().to_string())
+                else {
+                    return;
                 };
 
                 let (monitor_index, hwnd, pid) = parse_capture_source_id(&id, &mode);

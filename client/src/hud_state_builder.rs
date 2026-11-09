@@ -148,10 +148,16 @@ fn build_voice(ctx: &AppContext) -> Option<HudVoice> {
 }
 
 fn build_stream_card(ctx: &AppContext) -> Option<HudStreamCard> {
+    use slint::ComponentHandle as _;
+    let live_label = ctx.app.global::<crate::Tr>().get_hud_live().to_string();
     if ctx.app.get_is_hosting() {
         let streamer = ctx.app.get_streamer_name().to_string();
         let title = ctx.app.get_stream_label().to_string();
-        return Some(HudStreamCard { streamer, title });
+        return Some(HudStreamCard {
+            streamer,
+            title,
+            live_label,
+        });
     }
 
     let streamer = ctx.app.get_active_streamer_name().to_string();
@@ -159,5 +165,9 @@ fn build_stream_card(ctx: &AppContext) -> Option<HudStreamCard> {
         return None;
     }
     let title = ctx.app.get_stream_label().to_string();
-    Some(HudStreamCard { streamer, title })
+    Some(HudStreamCard {
+        streamer,
+        title,
+        live_label,
+    })
 }

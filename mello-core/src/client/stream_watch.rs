@@ -29,7 +29,7 @@ use std::time::{Duration, Instant};
 
 use tokio::task::JoinHandle;
 
-use crate::events::{Event, StreamRole};
+use crate::events::{Event, StreamFailure, StreamRole};
 use crate::nakama::WatchStreamResponse;
 use crate::stream::config::Codec;
 use crate::stream::congestion::ViewerCongestionController;
@@ -177,14 +177,14 @@ impl super::Client {
             return;
         }
         // One native presenter: a watched stream closes a clip that plays.
-        self.close_game_clip("");
+        self.close_game_clip(crate::events::ClipPlayClose::Closed);
         let clicked_at = Instant::now();
         log::info!("Starting stream viewer for host {}", host_id);
         let ctx = self.voice.mello_ctx();
         if ctx.is_null() {
             let _ = self.event_tx.send(Event::StreamFailed {
                 role: StreamRole::Viewer,
-                reason: "The media engine is not running.".to_string(),
+                reason: StreamFailure::EngineNotRunning,
             });
             return;
         }
@@ -193,7 +193,7 @@ impl super::Client {
             log::error!("WatchStream for host {} has no session_id", host_id);
             let _ = self.event_tx.send(Event::StreamFailed {
                 role: StreamRole::Viewer,
-                reason: "The stream has no session to join.".to_string(),
+                reason: StreamFailure::NoSession,
             });
             return;
         }
@@ -206,7 +206,7 @@ impl super::Client {
                 log::error!("watch_stream RPC failed: {}", e);
                 let _ = self.event_tx.send(Event::StreamFailed {
                     role: StreamRole::Viewer,
-                    reason: "You are not signed in.".to_string(),
+                    reason: StreamFailure::NotSignedIn,
                 });
                 return;
             }
@@ -371,7 +371,7 @@ impl super::Client {
                         });
                         self.finish_watch_if_ready();
                     }
-                    Err(e) => self.fail_watch(&e, "The video decoder did not start."),
+                    Err(e) => self.fail_watch(&e, StreamFailure::DecoderFailed),
                 }
             }
             ViewerMsg::Sfu { generation, result } => {
@@ -396,9 +396,9 @@ impl super::Client {
                     }
                     Err(e) => {
                         let reason = if e.starts_with("watch_stream") {
-                            "The stream is not available."
+                            StreamFailure::StreamUnavailable
                         } else {
-                            "Could not reach the stream server."
+                            StreamFailure::StreamServerUnreachable
                         };
                         self.fail_watch(&e, reason);
                     }
@@ -428,7 +428,7 @@ impl super::Client {
     }
 
     /// End a watch in flight with `reason` for the user.
-    fn fail_watch(&mut self, detail: &str, reason: &str) {
+    fn fail_watch(&mut self, detail: &str, reason: StreamFailure) {
         let Some(join) = self.watch_join.take() else {
             return;
         };
@@ -441,7 +441,7 @@ impl super::Client {
         self.cancel_watch(join);
         let _ = self.event_tx.send(Event::StreamFailed {
             role: StreamRole::Viewer,
-            reason: reason.to_string(),
+            reason,
         });
         if shown {
             let _ = self.event_tx.send(Event::StreamWatchingStopped);

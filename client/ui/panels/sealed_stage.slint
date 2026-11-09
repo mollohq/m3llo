@@ -280,6 +280,9 @@ component BigBeltFace inherits Rectangle {
             spacing: 8px;
             opacity: root.line;
             Text {
+                // Slint cannot put an avatar inside one message, so the
+                // sentence is in parts. The extractor keeps the last line:
+                // i18n: one sentence in parts: [holder name] took it from [avatar] [name]
                 text: @tr("took it from");
                 vertical-alignment: center;
                 font-family: Theme.font-body;

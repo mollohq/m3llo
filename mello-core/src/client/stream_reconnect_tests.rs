@@ -510,7 +510,7 @@ async fn a_start_asks_for_the_advert_on_live_and_a_failed_rpc_names_the_cause() 
         matches!(
             failed,
             Event::StreamFailed { role: StreamRole::Host, ref reason }
-                if reason == "The server did not accept the stream."
+                if *reason == crate::events::StreamFailure::ServerRefused
         ),
         "{failed:?}"
     );

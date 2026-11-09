@@ -40,7 +40,7 @@ use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
 
-use crate::events::{Event, StreamRole};
+use crate::events::{Event, StreamFailure, StreamRole};
 use crate::stream::host::StartStreamResponse;
 use crate::stream::manager::StreamSession;
 use crate::stream::sink_sfu::SfuSink;
@@ -158,19 +158,19 @@ impl Drop for HostLinkState {
     }
 }
 
-/// The user-facing cause of a failed start step.
-pub(super) fn start_failure_reason(step: &str, detail: &str) -> String {
+/// The cause of a failed start step, for the user.
+pub(super) fn start_failure_reason(step: &str, detail: &str) -> StreamFailure {
     match step {
-        "rpc" if detail.contains("SFU_UNAVAILABLE") => {
-            "Streaming is not available on the server right now.".to_string()
+        "rpc" if detail.contains("SFU_UNAVAILABLE") => StreamFailure::ServerUnavailable,
+        "rpc" if detail.contains("took longer") => StreamFailure::ServerNoAnswer,
+        "rpc" => StreamFailure::ServerRefused,
+        "sfu" => StreamFailure::StreamServerUnreachable,
+        // The native step reports `StreamError::NoHardwareEncoder` as its
+        // text. Other native failures are text for developers.
+        _ if detail == crate::stream::error::StreamError::NoHardwareEncoder.to_string() => {
+            StreamFailure::NoHardwareEncoder
         }
-        "rpc" if detail.contains("took longer") => {
-            "The server did not answer the stream start.".to_string()
-        }
-        "rpc" => "The server did not accept the stream.".to_string(),
-        "sfu" => "Could not reach the stream server.".to_string(),
-        // The native step carries its own sentence (no encoder, capture).
-        _ => detail.to_string(),
+        _ => StreamFailure::Detail(detail.to_string()),
     }
 }
 
@@ -408,7 +408,7 @@ impl super::Client {
                 log::error!("Stream start rejected: {}", e);
                 let _ = self.event_tx.send(Event::StreamFailed {
                     role: StreamRole::Host,
-                    reason: e,
+                    reason: StreamFailure::Detail(e),
                 });
                 return;
             }
@@ -460,7 +460,7 @@ impl super::Client {
                 log::error!("start_stream RPC failed: {}", e);
                 let _ = self.event_tx.send(Event::StreamFailed {
                     role: StreamRole::Host,
-                    reason: "You are not signed in.".to_string(),
+                    reason: StreamFailure::NotSignedIn,
                 });
                 return;
             }
@@ -1127,6 +1127,7 @@ fn host_viewer_events(
 #[cfg(test)]
 mod tests {
     use super::start_failure_reason;
+    use crate::events::StreamFailure;
 
     #[test]
     fn a_failed_start_names_the_cause() {
@@ -1135,17 +1136,24 @@ mod tests {
                 "rpc",
                 r#"start_stream: {"error":"SFU_UNAVAILABLE","code":14}"#
             ),
-            "Streaming is not available on the server right now."
+            StreamFailure::ServerUnavailable
         );
         assert_eq!(
             start_failure_reason("rpc", "start_stream took longer than 10s"),
-            "The server did not answer the stream start."
+            StreamFailure::ServerNoAnswer
         );
         assert_eq!(
             start_failure_reason("sfu", "connect took longer than 5s"),
-            "Could not reach the stream server."
+            StreamFailure::StreamServerUnreachable
         );
-        let native = "Streaming requires a hardware encoder (NVIDIA, AMD, or Intel).";
-        assert_eq!(start_failure_reason("native", native), native);
+        let native = crate::stream::error::StreamError::NoHardwareEncoder.to_string();
+        assert_eq!(
+            start_failure_reason("native", &native),
+            StreamFailure::NoHardwareEncoder
+        );
+        assert_eq!(
+            start_failure_reason("native", "the capture start ended"),
+            StreamFailure::Detail("the capture start ended".into())
+        );
     }
 }

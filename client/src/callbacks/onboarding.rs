@@ -516,9 +516,10 @@ pub fn wire(ctx: &AppContext) {
             stop_ambient_shuffle(&timer_holder);
             let app_weak = app_weak.clone();
             let state = state.clone();
+            let filter = super::images_filter(&app_weak);
             rt_handle.spawn(async move {
                 let file = rfd::AsyncFileDialog::new()
-                    .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                    .add_filter(filter, &["png", "jpg", "jpeg", "webp"])
                     .pick_file()
                     .await;
                 let Some(file) = file else { return };

@@ -27,7 +27,14 @@ pub fn wire(ctx: &AppContext) {
             // once that it runs on in the tray. A notice the OS refused
             // shows on the next close.
             if !settings.borrow().tray_notice_shown {
-                let shown = tray_notice.borrow().as_ref().is_some_and(|show| show());
+                let shown = match (tray_notice.borrow().as_ref(), app_weak.upgrade()) {
+                    (Some(show), Some(app)) => {
+                        let (title, body) =
+                            crate::notifications::tray_notice_text(&app.global::<crate::Tr>());
+                        show(&title, &body)
+                    }
+                    _ => false,
+                };
                 if shown {
                     log::info!("[close] tray notice shown");
                     let mut s = settings.borrow_mut();

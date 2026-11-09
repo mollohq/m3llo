@@ -616,7 +616,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                             push_log(&window, &logs, msg);
                         }
                         Event::LoginFailed { reason } => {
-                            let msg = format!("login failed: {}", reason);
+                            let msg = format!("login failed: {:?}", reason);
                             window.set_status_text(msg.clone().into());
                             push_log(&window, &logs, msg);
                         }

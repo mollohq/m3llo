@@ -6,7 +6,6 @@
 
 use crate::app_context::AppContext;
 use crate::callbacks::game::{quick_start_stream, QuickStart};
-use crate::notifications;
 
 /// The stream start or stop that the stream key made, until core reports
 /// how it ended.
@@ -37,11 +36,11 @@ pub(crate) fn stream_key_pressed(ctx: &AppContext) {
         }
         QuickStart::NoCrew => {
             log::info!("[stream key] no start: no active crew");
-            notify(ctx, notifications::STREAM_KEY_NO_CREW);
+            notify(ctx, |tr| tr.get_notice_stream_no_crew());
         }
         QuickStart::NoGame => {
             log::info!("[stream key] no start: no detected game");
-            notify(ctx, notifications::STREAM_KEY_NO_GAME);
+            notify(ctx, |tr| tr.get_notice_stream_no_game());
         }
         QuickStart::AlreadyHosting => {
             log::info!("[stream key] press ignored: the user hosts a stream");
@@ -53,27 +52,31 @@ pub(crate) fn stream_key_pressed(ctx: &AppContext) {
 pub(crate) fn stream_started(ctx: &AppContext) {
     if ctx.stream_key_action.get() == Some(StreamKeyAction::Start) {
         ctx.stream_key_action.set(None);
-        notify(ctx, notifications::STREAM_KEY_LIVE);
+        notify(ctx, |tr| tr.get_notice_stream_live());
     }
 }
 
 /// `StreamEnded` for the host: a start or a stop of the stream key ended.
 pub(crate) fn stream_ended(ctx: &AppContext) {
     if ctx.stream_key_action.take().is_some() {
-        notify(ctx, notifications::STREAM_KEY_ENDED);
+        notify(ctx, |tr| tr.get_notice_stream_ended());
     }
 }
 
 /// `StreamFailed` for the host: a start of the stream key did not start.
 pub(crate) fn stream_failed(ctx: &AppContext) {
     if ctx.stream_key_action.take().is_some() {
-        notify(ctx, notifications::STREAM_KEY_FAILED);
+        notify(ctx, |tr| tr.get_notice_stream_failed());
     }
 }
 
-fn notify(ctx: &AppContext, text: &str) {
+/// Post a notice; `text` picks its message from `Tr`.
+fn notify(ctx: &AppContext, text: impl Fn(&crate::Tr<'_>) -> slint::SharedString) {
+    use slint::ComponentHandle as _;
+    let tr = ctx.app.global::<crate::Tr>();
+    let text = text(&tr);
     log::info!("[stream key] notice: {text}");
     if let Some(show) = ctx.stream_key_notice.borrow().as_ref() {
-        show(text);
+        show(&tr.get_notice_stream_title(), &text);
     }
 }

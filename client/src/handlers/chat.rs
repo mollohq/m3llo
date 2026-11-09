@@ -296,6 +296,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             if !ctx.app.window().is_visible() {
                 let crew_name = ctx.app.get_active_crew_id().to_string();
                 notifications::notify_message(
+                    &ctx.app.global::<crate::Tr>(),
                     &crew_name,
                     &message.sender_name,
                     &message.display_body,

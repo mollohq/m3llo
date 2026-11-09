@@ -61,6 +61,29 @@ pub struct StatusItem {
     stand_in: bool,
 }
 
+/// The labels of the tray menu, in the UI language. The tray is built
+/// after the main window, so the labels come from `Tr` on the UI thread
+/// (`TrayText::from_tr`). The Linux tray menu runs on its own thread and
+/// gets a copy.
+#[derive(Debug, Clone, Default)]
+pub struct TrayText {
+    pub open: String,
+    pub mute: String,
+    pub leave_voice: String,
+    pub quit: String,
+}
+
+impl TrayText {
+    pub fn from_tr(tr: &crate::Tr<'_>) -> Self {
+        Self {
+            open: tr.invoke_tray_open(crate::APP_NAME.into()).into(),
+            mute: tr.get_tray_mute().into(),
+            leave_voice: tr.get_tray_leave_voice().into(),
+            quit: tr.invoke_tray_quit(crate::APP_NAME.into()).into(),
+        }
+    }
+}
+
 impl StatusItem {
     /// A `StatusItem` with no native tray. Every method becomes a no-op.
     ///
@@ -83,8 +106,8 @@ impl StatusItem {
     /// Linux menu with GTK, which needs a GTK main loop the client does not
     /// run; its menu constructor panicked.
     #[cfg(target_os = "linux")]
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let linux = linux_tray::LinuxTray::spawn(VoiceState::Inactive)?;
+    pub fn new(text: &TrayText) -> Result<Self, Box<dyn std::error::Error>> {
+        let linux = linux_tray::LinuxTray::spawn(VoiceState::Inactive, text.clone())?;
         Ok(Self {
             linux: Some(linux),
             ..Self::disabled()
@@ -92,27 +115,28 @@ impl StatusItem {
     }
 
     #[cfg(not(target_os = "linux"))]
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(text: &TrayText) -> Result<Self, Box<dyn std::error::Error>> {
         let icon = Self::render_icon(VoiceState::Inactive);
 
         let menu = Menu::new();
         menu.append(&MenuItem::with_id(
             MenuId::new("tray_open"),
-            format!("Open {}", crate::APP_NAME),
+            &text.open,
             true,
             None,
         ))
         .ok();
         menu.append(&PredefinedMenuItem::separator()).ok();
         let mute_item =
-            CheckMenuItem::with_id(MenuId::new("tray_mute"), "Mute", false, false, None);
+            CheckMenuItem::with_id(MenuId::new("tray_mute"), &text.mute, false, false, None);
         menu.append(&mute_item).ok();
-        let leave_item = MenuItem::with_id(MenuId::new("tray_leave"), "Leave Voice", false, None);
+        let leave_item =
+            MenuItem::with_id(MenuId::new("tray_leave"), &text.leave_voice, false, None);
         menu.append(&leave_item).ok();
         menu.append(&PredefinedMenuItem::separator()).ok();
         menu.append(&MenuItem::with_id(
             MenuId::new("tray_quit"),
-            format!("Quit {}", crate::APP_NAME),
+            &text.quit,
             true,
             None,
         ))
@@ -388,13 +412,22 @@ mod tests {
         assert!(!StatusItem::disabled().is_present());
     }
 
+    #[test]
+    fn the_tray_text_reads_in_english() {
+        let text = TrayText::from_tr(crate::l10n_format::test_tr());
+        assert_eq!(text.open, "Open m3llo");
+        assert_eq!(text.mute, "Mute");
+        assert_eq!(text.leave_voice, "Leave Voice");
+        assert_eq!(text.quit, "Quit m3llo");
+    }
+
     /// Without a session bus or a StatusNotifierWatcher (CI, GNOME without
     /// the extension) the tray does not start and close must not hide the
     /// window. With a watcher, the started tray is on screen.
     #[cfg(target_os = "linux")]
     #[test]
     fn linux_tray_is_present_exactly_when_it_started() {
-        match StatusItem::new() {
+        match StatusItem::new(&TrayText::default()) {
             Ok(item) => assert!(item.is_present()),
             Err(_) => assert!(!StatusItem::disabled().is_present()),
         }

@@ -32,9 +32,14 @@ thread_local! {
     static TEST_CLOCK: std::cell::Cell<ClockForm> = const { std::cell::Cell::new(ClockForm::H24) };
 }
 
-/// The clock form of the user. The app reads the OS setting one time. A
-/// test gets 24 h, or the form that [`set_test_clock_form`] set on its
-/// thread, so no test depends on the setting of the PC.
+/// The environment variable that sets the clock form: `12` or `24`. The
+/// e2e driver sets `24`, so a journey reads the same on every PC.
+pub const CLOCK_ENV: &str = "MELLO_CLOCK";
+
+/// The clock form of the user. The app reads it one time: `MELLO_CLOCK`
+/// first, then the OS setting. A test gets 24 h, or the form that
+/// [`set_test_clock_form`] set on its thread, so no test depends on the
+/// setting of the PC.
 pub fn clock_form() -> ClockForm {
     #[cfg(test)]
     {
@@ -44,10 +49,28 @@ pub fn clock_form() -> ClockForm {
     {
         static OS: std::sync::OnceLock<ClockForm> = std::sync::OnceLock::new();
         *OS.get_or_init(|| {
-            let form = os_clock_form();
-            log::info!("[l10n] clock form {form:?}");
+            let env = std::env::var(CLOCK_ENV).ok();
+            let (form, source) = match clock_form_of_env(env.as_deref()) {
+                Some(form) => (form, CLOCK_ENV),
+                None => (os_clock_form(), "the OS"),
+            };
+            log::info!("[l10n] clock form {form:?} from {source}");
             form
         })
+    }
+}
+
+/// The clock form that a `MELLO_CLOCK` value names: `12` or `24`. Another
+/// value names none, and the OS setting decides.
+pub fn clock_form_of_env(value: Option<&str>) -> Option<ClockForm> {
+    match value.map(str::trim) {
+        Some("12") => Some(ClockForm::H12),
+        Some("24") => Some(ClockForm::H24),
+        Some(other) => {
+            log::warn!("[l10n] {CLOCK_ENV}={other:?} is not 12 or 24; the OS setting decides");
+            None
+        }
+        None => None,
     }
 }
 
@@ -842,6 +865,14 @@ mod tests {
         set_test_clock_form(ClockForm::H12);
         assert_eq!(clock_form(), ClockForm::H12);
         set_test_clock_form(ClockForm::H24);
+    }
+
+    #[test]
+    fn mello_clock_names_the_clock_form() {
+        assert_eq!(clock_form_of_env(Some("12")), Some(ClockForm::H12));
+        assert_eq!(clock_form_of_env(Some(" 24 ")), Some(ClockForm::H24));
+        assert_eq!(clock_form_of_env(Some("13")), None);
+        assert_eq!(clock_form_of_env(None), None);
     }
 
     #[test]

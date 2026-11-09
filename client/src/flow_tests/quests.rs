@@ -525,7 +525,7 @@ fn game_art_opens_the_picker_with_the_crews_games_and_save_sets_it() {
     h.emit(Event::CrewGiftFailed {
         crew_id: "crew-0".into(),
         gift: "banner".into(),
-        reason: "Only the owner sets the banner.".into(),
+        reason: mello_core::events::GiftFailure::Server("Only the owner sets the banner.".into()),
     });
     assert!(
         picker(&h).get_open() && !picker(&h).get_busy(),

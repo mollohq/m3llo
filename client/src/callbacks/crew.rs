@@ -34,9 +34,10 @@ pub fn wire(ctx: &AppContext) {
         ctx.app.on_new_crew_avatar_pick(move || {
             let app_weak = app_weak.clone();
             let avatar_b64 = avatar_b64.clone();
+            let filter = super::images_filter(&app_weak);
             rt_handle.spawn(async move {
                 let file = rfd::AsyncFileDialog::new()
-                    .add_filter("Images", &["jpg", "jpeg", "png", "gif"])
+                    .add_filter(filter, &["jpg", "jpeg", "png", "gif"])
                     .pick_file()
                     .await;
                 let Some(file) = file else { return };

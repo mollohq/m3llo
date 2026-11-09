@@ -92,6 +92,41 @@ Rules:
 Server text (an error reason, a protocol notice) is data. It is not
 translated in the client.
 
+`mello-core` does not make a user sentence. It sends a typed value, and the
+client writes the message from `Tr`:
+
+| Core value | Client function |
+|---|---|
+| `events::AuthFailure` (sign-in, link, onboarding) | `handlers::auth::auth_failure_text` |
+| `events::StreamFailure` (a stream start or a watch) | `handlers::streaming::stream_failure_text` |
+| `events::GiftFailure` (a crew gift) | `callbacks::gift_failure_text` |
+| `events::ClipPlayClose` (the game clip player) | `game_clip_player` |
+| `ProtocolMismatch { required, actual }` | `handlers::mod` |
+| `CaptureSource { primary, monitor_index }` (a monitor) | `handlers::streaming` ("Display 2") |
+
+A value that holds server text (`AuthFailure::Server`, `GiftFailure::Server`)
+or the error text of a native step (`StreamFailure::Detail`) shows that text
+as it is.
+
+### Text outside the Slint window
+
+The tray menu, the macOS menu bar, the taskbar buttons, OS notifications and
+the Linux shortcut descriptions are native text. Rust reads them from `Tr`
+on the UI thread, after the main window exists, and passes them in:
+
+| Text | Read in | Given to |
+|---|---|---|
+| Tray menu | `lib.rs` (`platform::TrayText::from_tr`) | `StatusItem::new`, the Linux tray thread |
+| macOS menu bar | `lib.rs` | `platform::macos::build_menu_bar(tr)`, `edit_shortcuts::edit_item_title` |
+| Taskbar buttons (Windows) | `TaskbarToolbar::try_init` | the button tooltips |
+| Notifications | the caller, on the UI thread | `notifications::*` |
+| Linux shortcut descriptions | `lib.rs` | `linux_shortcuts::set_descriptions`, before the portal thread starts |
+| HUD "LIVE" badge | `hud_state_builder` | `HudStreamCard::live_label` |
+
+The overlay in the client gives `locale::ui_language()` to DirectWrite. The
+`hud` process gets no language from the client: it uses the OS language and
+an English badge when the label is empty.
+
 ## 5. Plurals and contexts
 
 A plural is one message with the Slint plural form. `{n}` is the count:
@@ -107,6 +142,15 @@ two forms, and the catalog gives the rule (`Plural-Forms`).
 A context is written only when one English string has two meanings:
 `@tr("verb" => "Open")` and `@tr("state" => "Open")`. The context is in
 the `.pot` as `msgctxt`.
+
+Contexts in use: `verb`, `noun`, `state`, `unit`, `title`, `format`, `list`,
+`streak`, `short month`, `menu` (a menu name of the macOS menu bar, "Edit")
+and `Riot region` (the region ids of the Riot link, "europe").
+
+A sentence that Slint must show in parts (an avatar or a link in the
+middle) gets a note for the translator on the line above the `@tr()`. The
+extractor keeps the last comment line only:
+`// i18n: one sentence in parts: Made with [link: Slint]`.
 
 ## 6. Upper case
 
@@ -206,6 +250,9 @@ A string that stays in plain English under `qps` is not in `@tr()`, or the
 | Order | Source | Use |
 |---|---|---|
 | 1 | `MELLO_LANG` | Tests, the e2e driver, development |
+
+`MELLO_CLOCK` (`12` or `24`) sets the clock form in the same way, before
+the OS setting (section 13).
 | 2 | `Settings.language`, when not empty | The user's choice. Empty is "System". |
 | 3 | The OS language (`sys_locale`) | The default |
 
@@ -235,7 +282,8 @@ the OS language on each test thread by itself, so:
   language after they make the window. A test never calls
   `MainWindow::new()` directly.
 - The e2e driver (`tools/mello-driver/src/app.ts`) starts each app with
-  `MELLO_LANG=en`. A journey can set another language in its `env`.
+  `MELLO_LANG=en` and `MELLO_CLOCK=24`. A journey can set another value in
+  its `env`.
 
 ## 10. Add a language
 
@@ -319,6 +367,9 @@ Decisions:
 - The clock form comes from the OS setting of the user, not from the UI
   language. Windows reads the short time format (`LOCALE_SSHORTTIME`). macOS
   and Linux use 24 h. The value is read one time per run.
+- `MELLO_CLOCK=12` or `MELLO_CLOCK=24` comes before the OS setting. Another
+  value is ignored with a warning. The e2e driver sets `24`, so a journey
+  reads the same time on every PC.
 - A test gets 24 h. A test that needs 12 h calls `set_test_clock_form`. No
   test reads the OS setting.
 - Days are UTC days, except where a function takes a time zone offset or a

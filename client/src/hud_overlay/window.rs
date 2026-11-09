@@ -151,8 +151,7 @@ impl Win32OverlayWindow {
             d2d_dc.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             d2d_dc.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
 
-            let renderer =
-                D2DRenderer::new(d2d_factory.into(), &crate::cjk_fonts::os_ui_language())?;
+            let renderer = D2DRenderer::new(d2d_factory.into(), &crate::locale::ui_language())?;
 
             log::info!("[overlay] DComp pipeline initialized");
 

@@ -64,11 +64,11 @@ pub const COPY: &str = "edit.copy";
 pub const PASTE: &str = "edit.paste";
 pub const SELECT_ALL: &str = "edit.select_all";
 
-/// One Edit menu item: what the menu shows and the key it forwards.
+/// One Edit menu item: its id and the key it forwards. The menu reads its
+/// title from `Tr` ([`edit_item_title`]).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EditItem {
     pub id: &'static str,
-    pub title: &'static str,
     /// The key equivalent, in the muda accelerator syntax.
     pub accelerator: &'static str,
     /// The letter key that Slint's `TextInput` reads with the Command key.
@@ -81,14 +81,12 @@ pub struct EditItem {
 pub const EDIT_ITEMS: [EditItem; 6] = [
     EditItem {
         id: UNDO,
-        title: "Undo",
         accelerator: "cmd+z",
         letter: 'z',
         shift: false,
     },
     EditItem {
         id: REDO,
-        title: "Redo",
         accelerator: "cmd+shift+z",
         // With Shift held, winit reports the upper-case letter.
         letter: 'Z',
@@ -96,33 +94,42 @@ pub const EDIT_ITEMS: [EditItem; 6] = [
     },
     EditItem {
         id: CUT,
-        title: "Cut",
         accelerator: "cmd+x",
         letter: 'x',
         shift: false,
     },
     EditItem {
         id: COPY,
-        title: "Copy",
         accelerator: "cmd+c",
         letter: 'c',
         shift: false,
     },
     EditItem {
         id: PASTE,
-        title: "Paste",
         accelerator: "cmd+v",
         letter: 'v',
         shift: false,
     },
     EditItem {
         id: SELECT_ALL,
-        title: "Select All",
         accelerator: "cmd+a",
         letter: 'a',
         shift: false,
     },
 ];
+
+/// The title of an Edit menu item in the UI language.
+pub fn edit_item_title(tr: &crate::Tr<'_>, id: &str) -> SharedString {
+    match id {
+        UNDO => tr.get_menu_undo(),
+        REDO => tr.get_menu_redo(),
+        CUT => tr.get_menu_cut(),
+        COPY => tr.get_menu_copy(),
+        PASTE => tr.get_menu_paste(),
+        SELECT_ALL => tr.get_menu_select_all(),
+        _ => SharedString::new(),
+    }
+}
 
 /// One key event to send to the Slint window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -189,6 +196,34 @@ pub fn forward(window: &slint::Window, menu_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_edit_item_has_its_title() {
+        let tr = crate::l10n_format::test_tr();
+        let titles: Vec<String> = EDIT_ITEMS
+            .iter()
+            .map(|i| edit_item_title(tr, i.id).to_string())
+            .collect();
+        assert_eq!(
+            titles,
+            ["Undo", "Redo", "Cut", "Copy", "Paste", "Select All"]
+        );
+    }
+
+    /// Under the pseudo language the menu titles change.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn the_edit_titles_follow_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let paste = edit_item_title(tr, PASTE);
+        let tray = crate::platform::TrayText::from_tr(tr);
+        crate::locale::select_source_language();
+        assert_eq!(paste.as_str(), pseudo("Paste"));
+        assert_ne!(paste.as_str(), "Paste");
+        assert_eq!(tray.quit, pseudo("Quit {}").replace("{}", crate::APP_NAME));
+    }
 
     const CMD: char = '\u{11}'; // Key::Control: the Command key on macOS
     const SHIFT: char = '\u{10}'; // Key::Shift

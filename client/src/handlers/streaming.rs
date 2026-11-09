@@ -74,11 +74,12 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 games.len(),
                 windows.len()
             );
+            let tr = ctx.app.global::<crate::Tr>();
             let mon: Vec<CaptureSourceData> = monitors
                 .into_iter()
                 .map(|s| CaptureSourceData {
+                    name: capture_source_name(&tr, &s),
                     id: s.id.into(),
-                    name: s.name.into(),
                     mode: s.mode.into(),
                     pid: s.pid.unwrap_or(0) as i32,
                     exe: s.exe.into(),
@@ -475,7 +476,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_stream_host_state("starting".into());
             ctx.app.set_streamer_name(ctx.app.get_user_name());
             if ctx.app.get_stream_label().is_empty() {
-                ctx.app.set_stream_label("STREAMING".into());
+                ctx.app
+                    .set_stream_label(ctx.app.global::<crate::Tr>().get_stream_label_streaming());
             }
             sync_active_stream_cards(ctx);
         }
@@ -508,7 +510,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             sync_active_stream_cards(ctx);
         }
         Event::StreamFailed { role, reason } => {
-            log::error!("Stream failed ({:?}): {}", role, reason);
+            log::error!("Stream failed ({:?}): {:?}", role, reason);
             match role {
                 StreamRole::Host => {
                     end_hosted_card(ctx);
@@ -520,7 +522,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
                         .app
                         .global::<crate::Tr>()
                         .get_stream_notice_not_started();
-                    show_stream_notice(ctx, "failed", &title, &name, &reason);
+                    let text = stream_failure_text(&ctx.app.global::<crate::Tr>(), &reason);
+                    show_stream_notice(ctx, "failed", &title, &name, &text);
                     crate::stream_key::stream_failed(ctx);
                 }
                 StreamRole::Viewer => {
@@ -530,7 +533,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
                         .app
                         .global::<crate::Tr>()
                         .get_stream_notice_watch_failed();
-                    show_stream_notice(ctx, "failed", &title, &name, &reason);
+                    let text = stream_failure_text(&ctx.app.global::<crate::Tr>(), &reason);
+                    show_stream_notice(ctx, "failed", &title, &name, &text);
                 }
             }
         }
@@ -543,6 +547,47 @@ pub fn handle(ctx: &AppContext, event: Event) {
 
 /// How long a stream notice card stays.
 const STREAM_NOTICE_FOR: std::time::Duration = std::time::Duration::from_secs(8);
+
+/// The card copy for a `StreamFailed` reason. The detail of a native step
+/// is text for developers and stays as it is.
+pub(crate) fn stream_failure_text(
+    tr: &crate::Tr<'_>,
+    failure: &mello_core::events::StreamFailure,
+) -> slint::SharedString {
+    use mello_core::events::StreamFailure as F;
+    match failure {
+        F::NotSignedIn => tr.get_stream_failed_not_signed_in(),
+        F::ServerUnavailable => tr.get_stream_failed_server_unavailable(),
+        F::ServerNoAnswer => tr.get_stream_failed_server_no_answer(),
+        F::ServerRefused => tr.get_stream_failed_server_refused(),
+        F::StreamServerUnreachable => tr.get_stream_failed_unreachable(),
+        F::NoHardwareEncoder => tr.get_stream_failed_no_encoder(),
+        F::EngineNotRunning => tr.get_stream_failed_engine_off(),
+        F::NoSession => tr.get_stream_failed_no_session(),
+        F::DecoderFailed => tr.get_stream_failed_decoder(),
+        F::StreamUnavailable => tr.get_stream_failed_unavailable(),
+        F::Detail(text) => text.into(),
+    }
+}
+
+/// The name of a capture source in the stream picker. A monitor gets its
+/// name in the UI language; a game or a window keeps its own name.
+fn capture_source_name(
+    tr: &crate::Tr<'_>,
+    s: &mello_core::events::CaptureSource,
+) -> slint::SharedString {
+    match (s.mode.as_str(), s.monitor_index) {
+        ("monitor", Some(index)) if s.name.is_empty() => {
+            let n = index as i32 + 1;
+            if s.primary {
+                tr.invoke_stream_source_display_primary(n)
+            } else {
+                tr.invoke_stream_source_display(n)
+            }
+        }
+        _ => s.name.as_str().into(),
+    }
+}
 
 /// The card copy for a `StreamEnded` reason.
 fn ended_reason_text(tr: &crate::Tr<'_>, reason: &str) -> slint::SharedString {
@@ -839,6 +884,54 @@ pub fn sending_text(tr: &crate::Tr<'_>, out_kbps: f32) -> String {
 #[cfg(test)]
 mod stage9_tests {
     use super::*;
+
+    #[test]
+    fn a_stream_failure_reads_in_english_and_a_detail_stays() {
+        use mello_core::events::StreamFailure;
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(
+            stream_failure_text(tr, &StreamFailure::StreamServerUnreachable).as_str(),
+            "Could not reach the stream server."
+        );
+        assert_eq!(
+            stream_failure_text(tr, &StreamFailure::Detail("raw".into())).as_str(),
+            "raw"
+        );
+        let display = |index: u32, primary: bool| {
+            capture_source_name(
+                tr,
+                &mello_core::events::CaptureSource {
+                    id: format!("monitor-{index}"),
+                    name: String::new(),
+                    mode: "monitor".into(),
+                    monitor_index: Some(index),
+                    primary,
+                    hwnd: None,
+                    pid: None,
+                    exe: String::new(),
+                    igdb_id: 0,
+                    is_fullscreen: false,
+                    resolution: String::new(),
+                },
+            )
+        };
+        assert_eq!(display(0, true).as_str(), "Display 1 (Primary)");
+        assert_eq!(display(1, false).as_str(), "Display 2");
+    }
+
+    /// Under the pseudo language a failure that the client names changes.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn a_stream_failure_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        use mello_core::events::StreamFailure;
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = stream_failure_text(tr, &StreamFailure::NotSignedIn);
+        crate::locale::select_source_language();
+        assert_eq!(text.as_str(), pseudo("You are not signed in."));
+        assert_ne!(text.as_str(), "You are not signed in.");
+    }
 
     /// Under the pseudo language the copy of the stream card changes, and
     /// the units keep their numbers.
