@@ -210,6 +210,38 @@ It writes `third_party_notices.txt` into `OUT_DIR`. The client embeds it, and `c
 
 ---
 
+### 4.2 Names in any script
+
+A name can use any script and emoji. The server rules (clean rule, limits in
+characters, longer names that exist already) are in `04-BACKEND.md` §4.4.
+
+**Initials.** `mello_core::names::initials` is the one rule. The client and
+the core use it for people, crews, chat senders and the HUD.
+
+| Name | Initials |
+|---|---|
+| Two or more words (split on Unicode white space) | The first grapheme of the first word and the first grapheme of the last word: "Anna Maria Larsson" gives "AL" |
+| One word | Its first two graphemes: "小明" gives "小明", "alice" gives "AL" |
+| No words | "" from the function; each call site keeps its fallback ("?", or "??" in the HUD) |
+
+A grapheme is what a reader sees as one character. An emoji, also a flag, a
+skin-tone or a ZWJ sequence, is one grapheme: "🇸🇪 Nils" gives "🇸🇪N".
+Cased letters become upper case. CJK, Arabic and emoji stay as they are.
+
+**Game monogram.** `recent_games::monogram` takes graphemes that start with a
+letter or a digit. Other graphemes split words. Two words give the first
+grapheme of each, one word its first two graphemes: "Counter-Strike 2" gives
+"CS", "原神" gives "原神".
+
+**Limits in the client.** The client does not check the length of a crew
+name, a channel name, a display name or a chat message. The server checks
+them. The invite search of the new crew modal sends a query from 2 characters
+(`char`s), the minimum of `search_users`.
+
+**Matching.** Name matching (the mention picker, search) folds case with
+`to_lowercase()`, which works for every script. `to_ascii_lowercase` is only
+for protocol tokens, hex, file extensions and key names.
+
 ---
 
 ## 5. Theme System

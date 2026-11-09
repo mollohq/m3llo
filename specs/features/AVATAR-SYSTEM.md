@@ -273,7 +273,7 @@ For uploaded PNGs: the base64 data from Nakama Storage is decoded, the raw bytes
 
 ### 6.3 Fallback
 
-If a user has no avatar (empty `avatar_url`), render a colored rounded square with the first two characters of the nickname in uppercase, centered, Oxanium 500 weight. Color is derived from a hash of the user ID, mapped to one of 8 predefined colors:
+If a user has no avatar (empty `avatar_url`), render a colored rounded square with the initials of the nickname (the rule in `01-CLIENT.md` §4.2), centered, Oxanium 500 weight. Color is derived from a hash of the user ID, mapped to one of 8 predefined colors:
 
 | Index | Color |
 |---|---|

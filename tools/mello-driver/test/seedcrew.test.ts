@@ -9,7 +9,7 @@ import { test } from "node:test";
 import { parseSeedCrewArgs } from "../src/args.ts";
 import { ProductionGuardError } from "../src/guard.ts";
 import { nextIndex, seedCrewCommand } from "../src/seedcrew.ts";
-import { profilesFrom } from "../../../qa/journeys/lib/seed.ts";
+import { idPart, profilesFrom } from "../../../qa/journeys/lib/seed.ts";
 
 test("seed-crew: defaults are three members and no extras", () => {
   assert.deepEqual(parseSeedCrewArgs(["ABC123"]), { code: "ABC123", members: 3, belts: false, recap: false });
@@ -39,6 +39,17 @@ test("seed-crew: a rerun starts at the first name with no account, with new name
   const next = profilesFrom(start, 3, "r").map((p) => p.name);
   assert.deepEqual(next, names.slice(5, 8));
   assert.equal(new Set([...names.slice(0, 5), ...next]).size, 8);
+});
+
+test("seed-crew: names in several scripts give ASCII ids", () => {
+  assert.equal(idPart("Jonas"), "jonas");
+  assert.equal(idPart("小明"), "u5c0f-660e");
+  const names = profilesFrom(0, 100, "r").map((p) => p.name);
+  for (const n of ["小明", "タナカ", "Олена", "Jürgen", "José", "🔥Max🔥", "مريم", "Ostkatt"]) {
+    assert.ok(names.includes(n), n);
+  }
+  for (const n of names) assert.match(idPart(n), /^[a-z0-9-]+$/, n);
+  assert.equal(new Set(names.map(idPart)).size, names.length);
 });
 
 test("seed-crew: profilesFrom is a slice of the same sequence", () => {
