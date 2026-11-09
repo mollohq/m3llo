@@ -243,14 +243,16 @@ fn dispatch(ctx: &AppContext, event: Event) {
             connected,
             reconnecting,
         } => {
+            use slint::ComponentHandle as _;
+            let tr = ctx.app.global::<crate::Tr>();
             let msg = if reconnecting {
-                "Reconnecting…"
+                tr.get_reconnecting()
             } else if !connected {
-                "Connection lost"
+                tr.get_connection_lost()
             } else {
-                ""
+                slint::SharedString::new()
             };
-            ctx.app.set_connection_warning(msg.into());
+            ctx.app.set_connection_warning(msg);
         }
         Event::ProtocolMismatch { message, .. } => {
             ctx.app.set_protocol_warning(message.into());

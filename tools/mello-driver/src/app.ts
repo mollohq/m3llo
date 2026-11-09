@@ -601,6 +601,10 @@ export class App {
       // Its own art cache, so a run starts empty and never touches the user's.
       MELLO_ART_CACHE_DIR: join(this.dir, "art"),
       RUST_LOG: "info,mello=debug,mello_core=debug",
+      // The journeys find controls by their English labels. The source
+      // language, whatever the language of the OS or the developer's shell.
+      // A journey can set another one in its env (a layout run with "qps").
+      MELLO_LANG: "en",
       ...this.opts.env,
       // The e2e-mic seam (mello-core/src/client/mic_permission.rs). Last, so
       // the user's option decides, not the developer's shell or the run.

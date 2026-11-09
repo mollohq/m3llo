@@ -1,0 +1,43 @@
+# The .slint files that are not converted to @tr() yet, with their count of
+# untranslated strings (src/i18n_lint.rs, specs/features/LOCALIZATION.md).
+# The list can only shrink: convert a file, then delete its line.
+# Format: <count> <path>
+1 client/ui/components/avatar_card.slint
+3 client/ui/components/clip_wave.slint
+41 client/ui/components/feed_board.slint
+9 client/ui/components/feed_quests.slint
+5 client/ui/components/head2head.slint
+16 client/ui/components/quality_pills.slint
+8 client/ui/components/sealed.slint
+4 client/ui/components/stream_hero.slint
+8 client/ui/main.slint
+67 client/ui/panels/active_streams_panel.slint
+60 client/ui/panels/chat_panel.slint
+6 client/ui/panels/clip_player_view.slint
+41 client/ui/panels/control_bar.slint
+17 client/ui/panels/crew_banner_modal.slint
+47 client/ui/panels/crew_feed.slint
+25 client/ui/panels/crew_panel.slint
+51 client/ui/panels/crew_settings_modal.slint
+60 client/ui/panels/debug_panel.slint
+18 client/ui/panels/discover_panel.slint
+3 client/ui/panels/game_clip_card.slint
+12 client/ui/panels/image_viewer.slint
+11 client/ui/panels/invite_name_modal.slint
+6 client/ui/panels/invite_share_modal.slint
+10 client/ui/panels/invite_welcome.slint
+10 client/ui/panels/join_crew_modal.slint
+10 client/ui/panels/member_volume_popover.slint
+39 client/ui/panels/new_crew_modal.slint
+74 client/ui/panels/onboarding.slint
+12 client/ui/panels/riot_link_modal.slint
+11 client/ui/panels/sealed_stage.slint
+11 client/ui/panels/session_preview_card.slint
+226 client/ui/panels/settings_modal.slint
+17 client/ui/panels/sign_in.slint
+8 client/ui/panels/stream_source_menu.slint
+8 client/ui/panels/stream_source_picker.slint
+15 client/ui/panels/voice_channel_view.slint
+6 client/ui/panels/you_strip.slint
+56 client/ui/panels/you_view.slint
+4 hud/ui/mini_player.slint

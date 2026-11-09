@@ -1,0 +1,190 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mello-client VERSION\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "CREW EMOJI"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "SQUARE"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "REPLACE"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "CHOOSE IMAGE"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Replace"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Choose image"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Emoji name"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "All five slots are full."
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "CANCEL"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Cancel"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Save"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "SAVING"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "SAVE"
+msgstr ""
+
+#. The name is upper case in the design: to-uppercase() is on the name only.
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "ADDED BY {}"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "REMOVE"
+msgstr ""
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Remove :{}:"
+msgstr ""
+
+#: client/ui/panels/crew_feed.slint
+msgid "clip"
+msgid_plural "clips"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Updating m3llo"
+msgstr ""
+
+#. The update is downloading.
+#: client/ui/panels/force_update_dialog.slint client/ui/tr.slint
+msgid "Downloading"
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Your version can no longer connect to m3llo. Updating is required to "
+"continue."
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Couldn't download the update. You can keep using your current version for "
+"now."
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Quit"
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Start m3llo {}"
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Update failed"
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Required update"
+msgstr ""
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Try again"
+msgstr ""
+
+#: client/ui/panels/update_banner.slint
+msgid "Updating…"
+msgstr ""
+
+#: client/ui/panels/update_banner.slint
+msgid "New version available"
+msgstr ""
+
+#: client/ui/panels/update_banner.slint
+msgid "Downloading v{}"
+msgstr ""
+
+#: client/ui/panels/update_banner.slint
+msgid "v{}"
+msgstr ""
+
+#: client/ui/panels/update_banner.slint
+msgid "UPDATE"
+msgstr ""
+
+#. The download is complete and the update is checked.
+#: client/ui/tr.slint
+msgid "Verifying"
+msgstr ""
+
+#. The update is applied and the app restarts.
+#: client/ui/tr.slint
+msgid "Restarting"
+msgstr ""
+
+#. The updater could not start.
+#: client/ui/tr.slint
+msgid "Updater unavailable"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}%"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} / {} MB"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Reconnecting…"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Connection lost"
+msgstr ""
+
+#. The viewer, in the place of a name ("Added by You").
+#: client/ui/tr.slint
+msgid "You"
+msgstr ""
+
+#. The chosen file is not an image that the app can read.
+#: client/ui/tr.slint
+msgid "That file is not an image we can use."
+msgstr ""
+
+#. The emoji name does not obey the rule of the server.
+#: client/ui/tr.slint
+msgid "A name is 2 to 24 letters, digits or underscores."
+msgstr ""

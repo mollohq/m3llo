@@ -380,7 +380,7 @@ mod tests {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .expect("runtime");
-        let app = crate::MainWindow::new().expect("window");
+        let app = crate::testkit::new_main_window();
         let (cmd_tx, cmd_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let ctx = AppContext::for_test(app, cmd_tx, rt.handle().clone());

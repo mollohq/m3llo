@@ -545,7 +545,7 @@ fn choose_emoji_image(ctx: &AppContext, pending: &PendingJpeg) {
                     eu.set_has_image(true);
                     eu.set_error("".into());
                 }
-                None => eu.set_error("That file is not an image we can use.".into()),
+                None => eu.set_error(app.global::<crate::Tr>().get_image_unusable()),
             }
         });
     });
@@ -564,7 +564,7 @@ fn save_emoji(ctx: &AppContext, pending: &PendingJpeg) {
         return;
     }
     if !emoji_name_ok(&name) {
-        eu.set_error("A name is 2 to 24 letters, digits or underscores.".into());
+        eu.set_error(ctx.app.global::<crate::Tr>().get_emoji_name_rule());
         return;
     }
     let Some(png) = pending.lock().expect("emoji png lock").clone() else {

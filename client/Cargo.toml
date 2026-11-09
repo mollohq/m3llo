@@ -38,6 +38,9 @@ uuid = { version = "1", features = ["v4"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 paste = "1"
+# The OS language for the UI language (src/locale.rs). Slint uses the same
+# crate for its own choice, so it adds no package.
+sys-locale = "0.3"
 
 # Dev-only: embedded MCP server for AI-driven UI inspection (gated by the `mcp` feature).
 # Runtime is a no-op unless SLINT_MCP_PORT is set; never enabled in production builds.

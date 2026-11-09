@@ -40,8 +40,8 @@ export component UpdateToast inherits Rectangle {
 
             Text {
                 text: status-only ? status-text
-                    : downloading ? "Updating…"
-                    : "New version available";
+                    : downloading ? @tr("Updating…")
+                    : @tr("New version available");
                 color: Theme.text-primary;
                 font-family: Theme.font-sans;
                 font-size: 12px;
@@ -51,8 +51,8 @@ export component UpdateToast inherits Rectangle {
             if !status-only: Text {
                 letter-spacing: Theme.track-label;
                 font-weight: Theme.weight-label;
-                text: downloading ? "Downloading v" + version
-                    : "v" + version;
+                text: downloading ? @tr("Downloading v{}", version)
+                    : @tr("v{}", version);
                 color: Theme.text-secondary;
                 font-family: Theme.font-label;
                 font-size: Theme.font-xs;
@@ -90,7 +90,7 @@ export component UpdateToast inherits Rectangle {
                 animate background { duration: 150ms; }
 
                 btn-text := Text {
-                    text: "UPDATE";
+                    text: @tr("UPDATE");
                     color: Theme.on-confirm;
                     font-family: Theme.font-label;
                     font-size: Theme.font-xs;
@@ -102,7 +102,7 @@ export component UpdateToast inherits Rectangle {
 
                 ta := TouchArea {
                     accessible-role: button;
-                    accessible-label: "UPDATE";
+                    accessible-label: @tr("UPDATE");
                     mouse-cursor: pointer;
                     clicked => { root.update-clicked(); }
                 }

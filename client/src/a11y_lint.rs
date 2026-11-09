@@ -20,7 +20,9 @@
 //! Without it, a disabled control reports itself as enabled, to a screen
 //! reader and to the e2e driver (`Control.enabled`).
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
+
+use crate::slint_source::{mask, slint_files};
 
 /// A `TouchArea` that breaks the rule.
 #[derive(Debug, PartialEq)]
@@ -50,48 +52,6 @@ enum Kind {
     TextInput,
     /// A `MelloInputField` instance.
     InputField,
-}
-
-/// Replace the contents of string literals and comments with spaces, keeping
-/// offsets and newlines, so braces inside them do not count. `// a11y: none`
-/// markers are kept verbatim so the exemption survives.
-fn mask(src: &str) -> String {
-    let b = src.as_bytes();
-    let mut out = src.as_bytes().to_vec();
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b'"' {
-            i += 1;
-            while i < b.len() && b[i] != b'"' {
-                if b[i] == b'\\' {
-                    out[i] = b' ';
-                    i += 1;
-                }
-                if i < b.len() && b[i] != b'\n' {
-                    out[i] = b' ';
-                }
-                i += 1;
-            }
-            i += 1;
-        } else if b[i] == b'/' && b.get(i + 1) == Some(&b'/') {
-            let end = src[i..].find('\n').map_or(b.len(), |n| i + n);
-            if !src[i..end].contains("a11y: none") {
-                out[i..end].fill(b' ');
-            }
-            i = end;
-        } else if b[i] == b'/' && b.get(i + 1) == Some(&b'*') {
-            let end = src[i + 2..].find("*/").map_or(b.len(), |n| i + 2 + n + 2);
-            for c in &mut out[i..end] {
-                if *c != b'\n' {
-                    *c = b' ';
-                }
-            }
-            i = end;
-        } else {
-            i += 1;
-        }
-    }
-    String::from_utf8(out).expect("masking keeps UTF-8 boundaries")
 }
 
 /// The identifier just before `{`, skipping whitespace: `TouchArea` in
@@ -202,25 +162,11 @@ fn check_source(file: &str, src: &str) -> Vec<Violation> {
     out
 }
 
-fn slint_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            slint_files(&p, out);
-        } else if p.extension().is_some_and(|x| x == "slint") {
-            out.push(p);
-        }
-    }
-}
-
 #[test]
 fn every_touch_area_has_a_role_and_a_label() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("ui");
     let mut files = Vec::new();
-    slint_files(&root, &mut files);
+    slint_files(&root, &[], &mut files);
     files.sort();
     assert!(
         !files.is_empty(),

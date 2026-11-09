@@ -65,7 +65,7 @@ export component CrewEmojiModal inherits Rectangle {
                 padding: 22px;
                 spacing: 14px;
 
-                Kicker { text: "CREW EMOJI"; }
+                Kicker { text: @tr("CREW EMOJI"); }
 
                 if root.free > 0: HorizontalLayout {
                     spacing: 18px;
@@ -80,7 +80,7 @@ export component CrewEmojiModal inherits Rectangle {
                         if !root.has-image: Kicker {
                             width: parent.width; height: parent.height;
                             horizontal-alignment: center; vertical-alignment: center;
-                            text: "SQUARE"; color: Theme.text-tertiary;
+                            text: @tr("SQUARE"); color: Theme.text-tertiary;
                         }
                     }
                     VerticalLayout {
@@ -95,8 +95,8 @@ export component CrewEmojiModal inherits Rectangle {
                             Image { source: root.image; width: 22px; height: 22px; image-fit: cover; }
                         }
                         ZoneButton {
-                            label: root.has-image ? "REPLACE" : "CHOOSE IMAGE";
-                            a11y-label: root.has-image ? "Replace" : "Choose image";
+                            label: root.has-image ? @tr("REPLACE") : @tr("CHOOSE IMAGE");
+                            a11y-label: root.has-image ? @tr("Replace") : @tr("Choose image");
                             tone: "line";
                             clicked => { root.choose-image(); }
                         }
@@ -106,7 +106,7 @@ export component CrewEmojiModal inherits Rectangle {
                             Text { text: ":"; font-family: Theme.font-display; font-size: 16px; color: Theme.text-dim; }
                             MelloInputField {
                                 width: 210px;
-                                label: "Emoji name";
+                                label: @tr("Emoji name");
                                 text <=> root.name;
                                 field-height: 36px;
                                 accepted => { if root.can-save { root.save(); } }
@@ -116,7 +116,7 @@ export component CrewEmojiModal inherits Rectangle {
                     }
                 }
                 if root.free == 0: Text {
-                    text: "All five slots are full.";
+                    text: @tr("All five slots are full.");
                     font-family: Theme.font-body; font-size: 13px; color: Theme.text-body;
                 }
 
@@ -130,7 +130,7 @@ export component CrewEmojiModal inherits Rectangle {
                     spacing: 10px;
                     alignment: end;
                     ZoneButton {
-                        label: "CANCEL"; a11y-label: "Cancel"; tone: "line";
+                        label: @tr("CANCEL"); a11y-label: @tr("Cancel"); tone: "line";
                         clicked => { root.close-requested(); }
                     }
                     if root.free > 0: Rectangle {
@@ -138,11 +138,11 @@ export component CrewEmojiModal inherits Rectangle {
                         height: 36px;
                         opacity: root.can-save ? 1 : 0.4;
                         accessible-role: button;
-                        accessible-label: "Save";
+                        accessible-label: @tr("Save");
                         accessible-enabled: root.can-save;
                         CutButton { width: parent.width; height: parent.height; fill-color: Theme.confirm; }
                         save-text := Text {
-                            text: root.busy ? "SAVING" : "SAVE";
+                            text: root.busy ? @tr("SAVING") : @tr("SAVE");
                             font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 10px;
                             letter-spacing: Theme.track-kicker; color: Theme.on-confirm;
                         }
@@ -168,11 +168,12 @@ export component CrewEmojiModal inherits Rectangle {
                         horizontal-stretch: 1;
                         alignment: center;
                         Text { text: ":" + e.name + ":"; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 13px; color: Theme.text-primary; }
-                        Kicker { text: ("Added by " + e.added-by).to-uppercase(); }
+                        // The name is upper case in the design: to-uppercase() is on the name only.
+                        Kicker { text: @tr("ADDED BY {}", e.added-by.to-uppercase()); }
                     }
                     if e.can-remove: ZoneButton {
-                        label: "REMOVE";
-                        a11y-label: "Remove :" + e.name + ":";
+                        label: @tr("REMOVE");
+                        a11y-label: @tr("Remove :{}:", e.name);
                         tone: "line";
                         clicked => { root.remove(e.name); }
                     }

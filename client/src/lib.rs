@@ -1,11 +1,16 @@
 #[cfg(test)]
 mod a11y_lint;
+// The PO reader and the pseudo language of build.rs, for the tests.
 mod about;
 mod activity_report;
 mod app_context;
 mod autolaunch;
 mod avatar;
 mod build_info;
+#[cfg(test)]
+#[allow(dead_code)]
+#[path = "../build_l10n.rs"]
+mod build_l10n;
 pub(crate) mod callbacks;
 mod chat_images;
 mod chat_ui;
@@ -36,10 +41,13 @@ pub mod hud_manager;
 #[cfg(target_os = "windows")]
 mod hud_overlay;
 mod hud_state_builder;
+#[cfg(test)]
+mod i18n_lint;
 mod image_cache;
 mod ipc;
 mod joined_line;
 mod live_session;
+pub mod locale;
 mod member_audio;
 mod notifications;
 mod onboarding;
@@ -54,6 +62,8 @@ mod renderer_choice;
 mod say_hi;
 mod sealed;
 mod settings;
+#[cfg(test)]
+mod slint_source;
 mod snapshot_cache;
 mod snapshot_loader;
 mod sounds;
@@ -442,6 +452,8 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let app = MainWindow::new()?;
+    // After the first component: Slint knows the bundled languages from then.
+    locale::apply(&settings.borrow().language);
     about::show_build(&app);
     // m3llo+ has no purchase flow yet: the zone feed's locked weeks and strip
     // open the coming soon modal and record the intent.
@@ -823,7 +835,7 @@ mod tests {
     #[test]
     fn slint_debug_info_is_available_for_element_queries() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
 
         // Put the window into a state that actually renders something. Hidden
         // subtrees are absent from element queries, and MainWindow's *default*
@@ -892,7 +904,7 @@ mod tests {
     #[test]
     fn mic_toggle_sends_correct_muted_state() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
         let sent = Rc::new(Cell::new(None::<bool>));
         wire_mic_toggle(&app, sent.clone());
 
@@ -910,7 +922,7 @@ mod tests {
     #[test]
     fn deafen_toggle_sends_correct_deafened_state() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
         let sent_d = Rc::new(Cell::new(None::<bool>));
         let sent_m = Rc::new(Cell::new(None::<bool>));
         let mbd = Rc::new(Cell::new(false));
@@ -930,7 +942,7 @@ mod tests {
     #[test]
     fn deafen_auto_mutes_when_unmuted() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
         let sent_d = Rc::new(Cell::new(None::<bool>));
         let sent_m = Rc::new(Cell::new(None::<bool>));
         let mbd = Rc::new(Cell::new(false));
@@ -947,7 +959,7 @@ mod tests {
     #[test]
     fn undeafen_restores_unmuted_when_was_not_muted() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
         let sent_d = Rc::new(Cell::new(None::<bool>));
         let sent_m = Rc::new(Cell::new(None::<bool>));
         let mbd = Rc::new(Cell::new(false));
@@ -969,7 +981,7 @@ mod tests {
     #[test]
     fn undeafen_keeps_muted_when_was_manually_muted() {
         init_test_backend();
-        let app = MainWindow::new().unwrap();
+        let app = crate::testkit::new_main_window();
         let sent_mic = Rc::new(Cell::new(None::<bool>));
         let sent_d = Rc::new(Cell::new(None::<bool>));
         let sent_m_deafen = Rc::new(Cell::new(None::<bool>));
