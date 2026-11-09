@@ -26,7 +26,10 @@ test = false
 build-stamp = { path = "../build-stamp" }
 mello-core = { path = "../mello-core" }
 perf-scenarios = { path = "../tools/perf-scenarios" }
-slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-skia", "accessibility"] }
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-skia", "accessibility", "unstable-fontique-011"] }
+# The OS UI language, for the CJK font fallback order (cjk_fonts.rs). Slint
+# already pulls this crate in; the version matches Cargo.lock.
+sys-locale = "0.3.2"
 tokio = { workspace = true }
 log = { workspace = true }
 tracing = "0.1"
@@ -154,7 +157,9 @@ toml = "0.8"
 tempfile = "3"
 # Exact pin is mandatory: this crate explicitly does not follow semver and must
 # match the `slint` version. A patch bump can break compilation outright.
-i-slint-backend-testing = "=1.18.1"
+# `renderer-skia` gives the testing windows a real rasterizer for
+# `take_snapshot` (the CJK glyph test in cjk_fonts.rs). Skia is built already.
+i-slint-backend-testing = { version = "=1.18.1", features = ["renderer-skia"] }
 
 [build-dependencies]
 slint-build = { version = "1.18", default-features = false, features = ["compat-1-18"] }

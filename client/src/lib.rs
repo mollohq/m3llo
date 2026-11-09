@@ -9,6 +9,7 @@ mod build_info;
 pub(crate) mod callbacks;
 mod chat_images;
 mod chat_ui;
+mod cjk_fonts;
 mod clip_key;
 mod converters;
 #[cfg(target_os = "windows")]

@@ -86,6 +86,14 @@ pub(crate) fn configure_slint_platform() -> Result<(), Box<dyn std::error::Error
         }
 
         slint::platform::set_platform(Box::new(builder.build()?))?;
+
+        // The CJK fallback order, before the first window lays out text (the
+        // force-update dialog or the main window). Here the platform of this
+        // thread is set, so Slint's shared font collection exists and no other
+        // backend is made. The collection reads SLINT_FONT_PATH when it is
+        // made, and emoji_font::setup ran before this.
+        crate::cjk_fonts::platform_set();
+        crate::cjk_fonts::apply(&crate::cjk_fonts::os_ui_language());
     }
 
     Ok(())
