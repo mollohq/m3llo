@@ -185,6 +185,17 @@ add_library(rnnoise STATIC ${RNNOISE_SOURCES})
 target_include_directories(rnnoise PUBLIC ${RNNOISE_DIR}/include)
 target_include_directories(rnnoise PRIVATE ${RNNOISE_DIR}/src)
 target_compile_definitions(rnnoise PRIVATE COMPILE_OPUS _USE_MATH_DEFINES)
+# The 8-bit weights only, as upstream's configure.ac builds by default. Without
+# this define rnnoise_data.c also compiles a float copy of each quantized layer
+# (10.7 MB in the binary), and the layers then compute with the float copy.
+target_compile_definitions(rnnoise PRIVATE DISABLE_DEBUG_FLOAT)
+# MSVC does not define __SSE2__ on x64, so vec.h takes its plain C loops. These
+# two macros select vec_avx.h (the SSE2 code that GCC and Clang get on x86-64
+# with no flag). One 10 ms frame, 8-bit weights, Release, 2026-11-09: 0.83 ms in
+# plain C, 0.18 ms with SSE2. The float copy in plain C was 0.49 ms.
+if(MSVC AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(AMD64|x86_64)$")
+    target_compile_definitions(rnnoise PRIVATE OPUS_X86_MAY_HAVE_SSE OPUS_X86_MAY_HAVE_SSE2)
+endif()
 if(MSVC)
     target_compile_options(rnnoise PRIVATE /wd4244 /wd4305 /wd4267)
 endif()
