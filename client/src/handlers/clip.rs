@@ -212,6 +212,16 @@ fn recap_lead_minutes(data: &serde_json::Value) -> f64 {
     }
 }
 
+/// The kind of a clip in words, from `clip_type` of the clip data. A clip
+/// with no kind is a voice clip. An unknown kind is data and shows as it is.
+pub(super) fn clip_kind_text(tr: &crate::Tr<'_>, data: &serde_json::Value) -> String {
+    match data.get("clip_type").and_then(|v| v.as_str()) {
+        None | Some("voice") => tr.get_clip_kind_voice().into(),
+        Some("game") => tr.get_clip_kind_game().into(),
+        Some(other) => other.to_string(),
+    }
+}
+
 fn extract_subtitle(tr: &crate::Tr<'_>, data: &serde_json::Value, backend_type: &str) -> String {
     match backend_type {
         "weekly_recap" => {
@@ -225,12 +235,7 @@ fn extract_subtitle(tr: &crate::Tr<'_>, data: &serde_json::Value, backend_type: 
             }
         }
         "clip" => {
-            // The kind of the clip in words. An unknown kind is data.
-            let clip_type: String = match data.get("clip_type").and_then(|v| v.as_str()) {
-                None | Some("voice") => tr.get_clip_kind_voice().into(),
-                Some("game") => tr.get_clip_kind_game().into(),
-                Some(other) => other.to_string(),
-            };
+            let clip_type = clip_kind_text(tr, data);
             let game = data.get("game").and_then(|v| v.as_str()).unwrap_or("");
             if game.is_empty() {
                 clip_type
@@ -933,7 +938,10 @@ fn extract_recap_belts_held(ctx: &AppContext, data: &serde_json::Value) -> Vec<R
     rows
 }
 
-fn extract_recap_awards(data: &serde_json::Value) -> Vec<RecapAwardRow> {
+/// The game awards of a recap. An award with a `value` gets its title and its
+/// detail from `Tr` by its kind. A recap stored before `value` keeps its
+/// English title and detail.
+fn extract_recap_awards(tr: &crate::Tr<'_>, data: &serde_json::Value) -> Vec<RecapAwardRow> {
     let arr = match data.get("awards").and_then(|v| v.as_array()) {
         Some(a) => a,
         None => return Vec::new(),
@@ -942,21 +950,43 @@ fn extract_recap_awards(data: &serde_json::Value) -> Vec<RecapAwardRow> {
         // Belt awards are drawn as the Belts moved section, with the two members.
         .filter(|v| v.get("kind").and_then(|k| k.as_str()) != Some("belt"))
         .map(|v| {
-            let s = |k: &str| {
-                v.get(k)
-                    .and_then(|n| n.as_str())
-                    .unwrap_or("")
-                    .to_string()
-                    .into()
+            let s = |k: &str| -> slint::SharedString {
+                v.get(k).and_then(|n| n.as_str()).unwrap_or("").into()
+            };
+            let kind = s("kind");
+            let value = v
+                .get("value")
+                .and_then(|n| n.as_i64())
+                .filter(|&n| n > 0)
+                .map(|n| n.min(i64::from(i32::MAX)) as i32);
+            let (title, detail) = match value.and_then(|n| award_text(tr, kind.as_str(), n)) {
+                Some(text) => text,
+                None => (s("title"), s("detail")),
             };
             RecapAwardRow {
-                kind: s("kind"),
-                title: s("title"),
+                kind,
+                title,
                 name: s("name"),
-                detail: s("detail"),
+                detail,
             }
         })
         .collect()
+}
+
+/// The title and the detail of a game award: `n` is the matches (grinder),
+/// the wins in a row (heater) or the losses in a row (skid). `None` for
+/// another kind.
+fn award_text(
+    tr: &crate::Tr<'_>,
+    kind: &str,
+    n: i32,
+) -> Option<(slint::SharedString, slint::SharedString)> {
+    match kind {
+        "grinder" => Some((tr.get_award_grinder(), tr.invoke_matches(n))),
+        "heater" => Some((tr.get_award_heater(), tr.invoke_feed_win_streak(n))),
+        "skid" => Some((tr.get_award_skid(), tr.invoke_feed_loss_skid(n))),
+        _ => None,
+    }
 }
 
 /// A member of a recap with the avatar the client holds. `count` is minutes or
@@ -1823,7 +1853,7 @@ pub(super) fn build_feed_card(
     let (mvp1_av, mvp1_has_av) = resolve_avatar(ctx, &mvp1.3);
     let (mvp2_av, mvp2_has_av) = resolve_avatar(ctx, &mvp2.3);
     let recap_leaderboard = extract_recap_leaderboard(ctx, &data);
-    let recap_awards = extract_recap_awards(&data);
+    let recap_awards = extract_recap_awards(&tr, &data);
     let mut recap_belts_moved = with_seal(ctx, |seal| extract_recap_belts_moved(ctx, &data, seal));
     // A daily recap lists two belts at most, the server's newest first.
     if backend_type == "daily_recap" {

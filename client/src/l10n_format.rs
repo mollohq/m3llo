@@ -712,6 +712,26 @@ pub fn list_and(tr: &Tr<'_>, items: &[String]) -> String {
     }
 }
 
+/// Items with commas and ", and" before the last when there are three or
+/// more: "Bob", "Bob and Max", "Bob, Max, and Sara". The catch-up line of a
+/// crew uses this form.
+pub fn list_and_serial(tr: &Tr<'_>, items: &[String]) -> String {
+    match items {
+        [] => String::new(),
+        [one] => one.clone(),
+        [first, last] => tr
+            .invoke_list_and(first.as_str().into(), last.as_str().into())
+            .into(),
+        [rest @ .., next, last] => tr
+            .invoke_list_and_serial(
+                list_comma(tr, rest).into(),
+                next.as_str().into(),
+                last.as_str().into(),
+            )
+            .into(),
+    }
+}
+
 /// The first items with commas and the count of the others: "Bob, Max,
 /// Sara +2". With no others, the items only.
 pub fn list_plus(tr: &Tr<'_>, shown: &[String], others: usize) -> String {
@@ -982,6 +1002,17 @@ mod tests {
             assert_eq!(
                 list_comma(tr, &s(&["Bob", "Max", "Sara"])),
                 "Bob, Max, Sara"
+            );
+            assert_eq!(list_and_serial(tr, &s(&[])), "");
+            assert_eq!(list_and_serial(tr, &s(&["Bob"])), "Bob");
+            assert_eq!(list_and_serial(tr, &s(&["Bob", "Max"])), "Bob and Max");
+            assert_eq!(
+                list_and_serial(tr, &s(&["Bob", "Max", "Sara"])),
+                "Bob, Max, and Sara"
+            );
+            assert_eq!(
+                list_and_serial(tr, &s(&["Bob", "Max", "Sara", "Ida"])),
+                "Bob, Max, Sara, and Ida"
             );
             assert_eq!(list_plus(tr, &s(&["Bob", "Max"]), 3), "Bob, Max +3");
             assert_eq!(list_plus(tr, &s(&["Bob", "Max"]), 0), "Bob, Max");

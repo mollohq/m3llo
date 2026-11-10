@@ -418,6 +418,13 @@ export global Tr {
         // {0} is the list before the last item, {1} is the last item.
         @tr("{0} and {1}", first, last)
     }
+    /// A list of three with a comma before "and": {0} is the first item or
+    /// the items before the last two, {1} is the next item, {2} is the last
+    /// item ("Bob, Max, and Sara"). The catch-up line of a crew uses it.
+    pure public function list-and-serial(first: string, next: string, last: string) -> string {
+        // {0} is the first items, {1} and {2} are the last two items.
+        @tr("{0}, {1}, and {2}", first, next, last)
+    }
     /// A short list and the count of the names that are not shown ("Bob,
     /// Max +3").
     pure public function list-plus(list: string, others: int) -> string {
@@ -592,6 +599,16 @@ export global Tr {
     /// The kind of a clip: game.
     out property <string> clip-kind-game: @tr("noun" => "game");
 
+    // The names of the game awards of a weekly recap. The detail under the
+    // name is `matches`, `feed-win-streak` or `feed-loss-skid`.
+
+    /// The award of the member with the most matches of the week.
+    out property <string> award-grinder: @tr("Grinder of the week");
+    /// The award of the member with the longest run of wins of the week.
+    out property <string> award-heater: @tr("Biggest heater");
+    /// The award of the member with the longest run of losses of the week.
+    out property <string> award-skid: @tr("Roughest patch");
+
     // --- Joined cards (src/joined_line.rs) ---
 
     /// A member joined the crew. The value is the name ("Jonas joined").
@@ -670,6 +687,105 @@ export global Tr {
     }
     /// A stream with no streamer name and no title.
     out property <string> crew-card-streaming: @tr("streaming");
+
+    // --- Crew cards: the catch-up line, what happened while the user was
+    //     away (src/handlers/catchup.rs) ---
+    //
+    // The line has one to three parts. `list-and` joins two parts, and
+    // `list-and-serial` joins three ("Bob had a win in Valorant, Sara
+    // clipped that (12s voice), and Max joined the crew"). A part can come
+    // first, in the middle or last, so it starts in lower case when it has
+    // no name ("weekly recap is ready").
+
+    /// Nothing happened while the user was away.
+    out property <string> catchup-quiet: @tr("All quiet, crew's been chilling. Nothing new since you left.");
+    /// A moment with words: {0} is the member, {1} is the text that the
+    /// member wrote ("Bob: what a round").
+    pure public function catchup-moment-text(name: string, text: string) -> string {
+        // {0} is the member, {1} is the text that the member wrote.
+        @tr("format" => "{0}: {1}", name, text)
+    }
+    /// A member won a match: {0} is the member, {1} is the game ("Bob had a
+    /// win in Valorant").
+    pure public function catchup-had-win(name: string, game: string) -> string {
+        // {0} is the member, {1} is the game.
+        @tr("{0} had a win in {1}", name, game)
+    }
+    /// A member lost a match: {0} is the member, {1} is the game ("Bob took
+    /// an L in Valorant"). "An L" is a loss.
+    pure public function catchup-took-loss(name: string, game: string) -> string {
+        // {0} is the member, {1} is the game. "An L" is a loss.
+        @tr("{0} took an L in {1}", name, game)
+    }
+    /// A member marked a moment: {0} is the member, {1} is the game ("Bob had
+    /// a moment in Valorant").
+    pure public function catchup-had-moment(name: string, game: string) -> string {
+        // {0} is the member, {1} is the game.
+        @tr("{0} had a moment in {1}", name, game)
+    }
+    /// A voice session: {0} is the names, {1} is the voice channel, {2} is
+    /// the duration ("Bob and Sara hung out in General for 45m").
+    pure public function catchup-hung-out(names: string, channel: string, duration: string) -> string {
+        // {0} is the names, {1} is the channel, {2} is a duration ("45m").
+        @tr("{0} hung out in {1} for {2}", names, channel, duration)
+    }
+    /// A stream: {0} is the streamer, {1} is the stream title, {2} is the
+    /// duration ("Bob streamed ranked grind for 90m").
+    pure public function catchup-streamed(name: string, title: string, duration: string) -> string {
+        // {0} is the streamer, {1} is the stream title, {2} is a duration ("90m").
+        @tr("{0} streamed {1} for {2}", name, title, duration)
+    }
+    /// A game session with a match record: {0} is the names, {1} is the
+    /// record, {2} is the game ("Bob went 4W–2L in Valorant").
+    pure public function catchup-went(names: string, record: string, game: string) -> string {
+        // {0} is the names, {1} is the record ("4W–2L"), {2} is the game.
+        @tr("{0} went {1} in {2}", names, record, game)
+    }
+    /// A game session with a match record and wins in a row: {0} is the
+    /// names, {1} is the record, {2} is the game, {n} is the wins in a row
+    /// ("Bob went 4W–2L in Valorant, riding a 3-win streak").
+    pure public function catchup-went-win-streak(names: string, record: string, game: string, n: int) -> string {
+        // {0} names, {1} record, {2} game, {n} wins in a row.
+        @tr("{0} went {1} in {2}, riding a {n}-win streak" | "{0} went {1} in {2}, riding a {n}-win streak" % n, names, record, game)
+    }
+    /// A game session with a match record and losses in a row: {0} is the
+    /// names, {1} is the record, {2} is the game, {n} is the losses in a row
+    /// ("Bob went 1W–4L in Valorant, on a 3-loss skid").
+    pure public function catchup-went-loss-skid(names: string, record: string, game: string, n: int) -> string {
+        // {0} names, {1} record, {2} game, {n} losses in a row.
+        @tr("{0} went {1} in {2}, on a {n}-loss skid" | "{0} went {1} in {2}, on a {n}-loss skid" % n, names, record, game)
+    }
+    /// A member joined the crew. The value is the member ("Jonas joined the
+    /// crew").
+    pure public function catchup-joined(name: string) -> string {
+        @tr("{} joined the crew", name)
+    }
+    /// A member left the crew. The value is the member ("Jonas left the
+    /// crew").
+    pure public function catchup-left(name: string) -> string {
+        @tr("{} left the crew", name)
+    }
+    /// The chat while the user was away: {n} is the messages, {0} is the
+    /// members who wrote ("14 messages from 3 people in chat").
+    pure public function catchup-chat(messages: int, people: int) -> string {
+        // {n} is the messages, {0} is the members who wrote.
+        @tr("{n} messages from {0} people in chat" | "{n} messages from {0} people in chat" % messages, people)
+    }
+    /// A clip: {0} is the member, {1} is the length in whole seconds, {2} is
+    /// the kind of the clip, `clip-kind-voice` or `clip-kind-game` ("Bob
+    /// clipped that (12s voice)").
+    pure public function catchup-clipped(name: string, seconds: string, kind: string) -> string {
+        // {0} is the member, {1} is the seconds, {2} is the clip kind.
+        @tr("{0} clipped that ({1}s {2})", name, seconds, kind)
+    }
+    /// The weekly recap of the crew is ready to open.
+    out property <string> catchup-weekly-recap: @tr("weekly recap is ready");
+    /// Three names and the count of the other names: {0} is the names, {n}
+    /// is the count ("Bob, Max, Sara and 2 others").
+    pure public function catchup-names-and-others(names: string, others: int) -> string {
+        // {0} is the names, {n} is the count of the other names.
+        @tr("{0} and {n} others" | "{0} and {n} others" % others, names)
+    }
 
     // --- Crew quests: the quest card of the feed (src/handlers/quests.rs) ---
 
