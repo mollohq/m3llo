@@ -356,6 +356,12 @@ pub enum Command {
         avatar_style: Option<String>,
         avatar_seed: Option<String>,
     },
+    /// The UI language of the client (BCP 47: `sv`, `pt-BR`, `en`), for the
+    /// account (`lang_tag`). The core writes it when the account has another
+    /// tag. Sent after sign-in and when the language setting changes.
+    SetAccountLanguage {
+        lang_tag: String,
+    },
 
     // --- Streaming ---
     ListCaptureSources,

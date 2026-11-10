@@ -990,6 +990,13 @@ export global Tr {
         @tr("{0}p, {1} fps", height, fps)
     }
 
+    // --- Settings: the language of the General tab (src/callbacks/settings.rs) ---
+
+    /// The first choice of the Language dropdown: m3llo uses the language of
+    /// the operating system. The other choices are language names in their
+    /// own script, which are not translated.
+    out property <string> language-system: @tr("System");
+
     // --- File dialogs (src/callbacks/*.rs) ---
 
     /// The name of the file type filter in a dialog that picks an image.

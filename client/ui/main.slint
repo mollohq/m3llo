@@ -332,6 +332,13 @@ export component MainWindow inherits Window {
     in-out property <bool> settings-hw-acceleration: true;
     in property <bool> settings-show-openh264: false;
     in-out property <bool> settings-openh264-enabled: true;
+    /// The UI language (specs/features/LOCALIZATION.md section 9): the
+    /// choices, the saved tag ("" is System), the name that the dropdown
+    /// shows, and the hint that a restart applies the choice.
+    in property <[AudioDeviceData]> settings-languages: [];
+    in property <string> settings-language: "";
+    in-out property <string> settings-language-name: "";
+    in property <bool> settings-language-restart: false;
     // Audio settings
     in-out property <float> settings-input-volume: 1.0;
     in-out property <float> settings-output-volume: 1.0;
@@ -777,6 +784,7 @@ export component MainWindow inherits Window {
     callback setting-changed-minimize-on-join(bool);
     callback setting-changed-hw-acceleration(bool);
     callback setting-changed-openh264-enabled(bool);
+    callback setting-changed-language(/* language tag, "" is System */ string);
     callback setting-changed-input-volume(float);
     callback setting-changed-output-volume(float);
     callback setting-changed-sounds(SoundSettings);
@@ -1887,6 +1895,10 @@ export component MainWindow inherits Window {
         hw-acceleration <=> root.settings-hw-acceleration;
         show-openh264: root.settings-show-openh264;
         openh264-enabled <=> root.settings-openh264-enabled;
+        languages: root.settings-languages;
+        language: root.settings-language;
+        language-name <=> root.settings-language-name;
+        language-restart: root.settings-language-restart;
         // Audio
         input-volume <=> root.settings-input-volume;
         output-volume <=> root.settings-output-volume;
@@ -2004,6 +2016,10 @@ export component MainWindow inherits Window {
         setting-changed-openh264-enabled(v) => {
             root.settings-show-saved = true;
             root.setting-changed-openh264-enabled(v);
+        }
+        setting-changed-language(tag) => {
+            root.settings-show-saved = true;
+            root.setting-changed-language(tag);
         }
         setting-changed-input-volume(v) => {
             root.settings-show-saved = true;

@@ -688,6 +688,7 @@ All new fields read UI state that the app already has. Lists hold at most 20 row
 | `feed_zones`, `clip` | The zone feed (Stage, Board, clips, People, sessions, Crew history); clip path, paused, progress, duration | FEED-01 to FEED-12 |
 | `audio` | Device names, push to talk, its key | SET-02 |
 | `riot`, `update_available`, `app_version` | The settings and the update toast | SET-03, UPD-01 |
+| `ui_language` | The UI language of the run (`locale::ui_language`, BCP 47) | A journey that sets `MELLO_LANG` |
 | `/events` | `connected` and `reconnecting` on `ConnectionStateChanged` | VOICE-05 |
 | `GET /disabled` | The controls that declare `accessible-enabled: false` | `Control.enabled` |
 

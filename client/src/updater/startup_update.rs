@@ -91,9 +91,12 @@ pub(crate) fn configure_slint_platform() -> Result<(), Box<dyn std::error::Error
         // force-update dialog or the main window). Here the platform of this
         // thread is set, so Slint's shared font collection exists and no other
         // backend is made. The collection reads SLINT_FONT_PATH when it is
-        // made, and emoji_font::setup ran before this.
+        // made, and emoji_font::setup ran before this. The UI language is
+        // chosen here, one time; `locale::apply` selects the same choice
+        // after the first component exists.
         crate::cjk_fonts::platform_set();
-        crate::cjk_fonts::apply(&crate::cjk_fonts::os_ui_language());
+        let choice = crate::locale::startup(&crate::settings::Settings::load().language);
+        crate::cjk_fonts::apply(&crate::locale::startup_font_language(&choice));
     }
 
     Ok(())

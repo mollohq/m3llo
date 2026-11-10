@@ -43,6 +43,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                     crate::onboarding::advance(ctx, crate::onboarding::Input::SessionRestored);
                     let _ = ctx.cmd_tx.send(Command::LoadMyCrews);
                     let _ = ctx.cmd_tx.send(Command::FetchUserAvatar { user_id: uid });
+                    send_account_language(ctx);
                     dispatch_pending_deep_link(ctx);
                 }
             }
@@ -76,6 +77,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             // this is LinkIdentity, not Done.
             crate::onboarding::advance(ctx, crate::onboarding::Input::AccountReady);
             let _ = ctx.cmd_tx.send(Command::LoadMyCrews);
+            send_account_language(ctx);
             dispatch_pending_deep_link(ctx);
         }
         Event::OnboardingInviteFailed { error } => {
@@ -137,6 +139,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_user_tag(user.tag.into());
             crate::onboarding::advance(ctx, crate::onboarding::Input::SessionRestored);
             let _ = ctx.cmd_tx.send(Command::FetchUserAvatar { user_id: uid });
+            send_account_language(ctx);
 
             dispatch_pending_deep_link(ctx);
         }
@@ -167,6 +170,14 @@ pub fn handle(ctx: &AppContext, event: Event) {
         }
         _ => {}
     }
+}
+
+/// After a sign-in: the account gets the UI language of this run
+/// (`lang_tag`). The core writes it only when the account has another tag.
+fn send_account_language(ctx: &AppContext) {
+    let _ = ctx.cmd_tx.send(Command::SetAccountLanguage {
+        lang_tag: crate::locale::ui_language(),
+    });
 }
 
 /// The saved session did not restore (an empty `LoginFailed` reason).

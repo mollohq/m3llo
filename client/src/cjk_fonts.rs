@@ -302,11 +302,6 @@ pub fn apply(ui_language: &str) {
     );
 }
 
-/// The OS UI language as a BCP 47 tag, or `en` when the OS gives none.
-pub fn os_ui_language() -> String {
-    sys_locale::get_locale().unwrap_or_else(|| "en".to_owned())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

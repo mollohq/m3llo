@@ -660,6 +660,7 @@ impl super::Client {
                         Some(display_name)
                     },
                     avatar_url_value.as_deref(),
+                    None,
                 )
                 .await
             {

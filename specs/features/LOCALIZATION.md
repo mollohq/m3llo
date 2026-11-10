@@ -250,28 +250,54 @@ A string that stays in plain English under `qps` is not in `@tr()`, or the
 | Order | Source | Use |
 |---|---|---|
 | 1 | `MELLO_LANG` | Tests, the e2e driver, development |
+| 2 | `Settings.language`, when not empty | The user's choice. Empty is "System". |
+| 3 | The OS language (`sys_locale`) | The default |
 
 `MELLO_CLOCK` (`12` or `24`) sets the clock form in the same way, before
 the OS setting (section 13).
-| 2 | `Settings.language`, when not empty | The user's choice. Empty is "System". |
-| 3 | The OS language (`sys_locale`) | The default |
 
 A source that names a language with no catalog is skipped with a warning.
 When no source names a bundled language, the UI is English. The match is
 exact first (case and `_` ignored), then the base language: `sv-SE` selects
 `sv`. `en` and `en-*` select the source language.
 
-`locale::apply` selects the language after the first component exists:
+### Startup order
 
-- in `run_gate`, after `ForceUpdateWindow::new()`, when the force-update
-  dialog opens before the main window;
-- in `lib.rs`, after `MainWindow::new()`.
+The choice is made one time per run, before the first window. The CJK font
+fallback must be set before the first layout, and Slint can select a
+language only after the first component exists.
 
-It logs one `info` line with the language and its source.
-`locale::ui_language()` gives the effective tag (`sv`, `pt-BR`, `en`) for
-fonts, the HUD and dates.
+| Step | Where | What it does |
+|---|---|---|
+| 1 | `configure_slint_platform`, after `set_platform` | `locale::startup` chooses with the pure `locale::choose` (env, `Settings::load().language`, OS, bundled list), stores the choice and logs one `info` line with the language and its source. |
+| 2 | The same place | `cjk_fonts::apply(locale::startup_font_language(&choice))` sets the CJK fallback order. |
+| 3 | `run_gate` after `ForceUpdateWindow::new()`, and `lib.rs` after `MainWindow::new()` | `locale::apply` selects the stored choice. It does not choose again. |
 
-There is no Settings row for the language yet.
+`locale::ui_language()` gives the stored tag (`sv`, `pt-BR`, `en`) at each
+step: for fonts, the HUD, dates and the account language.
+
+The font language (`locale::font_language`) is the UI language when it has
+Han text (`ja`, `zh-*`, `ko`). For another UI language, Han text comes only
+from user data, so the OS language orders the fonts: a Japanese OS with an
+English UI keeps the Japanese glyph shapes.
+
+### The Settings row
+
+The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
+
+- The first row is "System" (`Tr.language-system`). It saves an empty
+  `Settings.language`.
+- Then English, then each bundled language (`locale::setting_choices`).
+  English is always a choice: it is the source language, not a catalog.
+- Each language shows its own name in its own script
+  (`locale::native_name`): English, Svenska, Deutsch, Español, Français,
+  Português (Brasil), 中文（简体）, 日本語. An unknown tag shows the tag.
+  `qps` shows "Pseudo (qps)". The names are data, not messages.
+- A release build with no catalog shows "System" and "English". A debug
+  build shows `qps` too.
+- A change saves `Settings.language` and applies at the next start. When the
+  choice differs from the setting of this run, the row shows "Takes effect
+  after restart".
 
 ### Tests run in English
 
@@ -283,7 +309,26 @@ the OS language on each test thread by itself, so:
   `MainWindow::new()` directly.
 - The e2e driver (`tools/mello-driver/src/app.ts`) starts each app with
   `MELLO_LANG=en` and `MELLO_CLOCK=24`. A journey can set another value in
-  its `env`.
+  its `env`. The state port gives the language of the run as
+  `ui_language` (`client/src/e2e_state.rs`).
+
+## 9a. The account language (`lang_tag`)
+
+The Nakama account has a `lang_tag`. The client writes the UI language to
+it, so the server knows the language of the user.
+
+- After a sign-in (`LoggedIn`, `OnboardingReady`, the device sign-in after
+  a failed restore), the client sends `Command::SetAccountLanguage` with
+  `locale::ui_language()`.
+- After a change of the Language setting, the client sends the language of
+  the next start: `locale::language_for_setting` (env, the new setting, OS).
+- The core keeps the `lang_tag` of the account from each account read. It
+  writes the tag with `NakamaClient::update_account_fields` only when the
+  tag differs (`set_account_lang_tag`).
+- `BeforeUpdateAccount` in `auth.go` changes only the display name. It
+  keeps `lang_tag` as the client sends it.
+- The pseudo language goes to the account as `qps`. It is in the private
+  use range of BCP 47, and only a debug build has it.
 
 ## 10. Add a language
 

@@ -138,6 +138,41 @@ fn show_game_clip_settings(app: &MainWindow, settings: &Settings) {
     ));
 }
 
+/// The rows of the Language dropdown: "System" (id "", from `Tr`), then
+/// English and each bundled language by its own name.
+fn language_choices(tr: &crate::Tr<'_>, bundled: &[&str]) -> Vec<crate::AudioDeviceData> {
+    let system = crate::AudioDeviceData {
+        id: "".into(),
+        name: tr.get_language_system(),
+        is_default: false,
+    };
+    std::iter::once(system)
+        .chain(
+            crate::locale::setting_choices(bundled)
+                .into_iter()
+                .map(|tag| crate::AudioDeviceData {
+                    name: crate::locale::native_name(&tag).into(),
+                    id: tag.into(),
+                    is_default: false,
+                }),
+        )
+        .collect()
+}
+
+/// Shows the Language row as these settings have it. `started_with` is the
+/// setting of this run: another value needs a restart, and the row says so.
+fn show_language_settings(app: &MainWindow, settings: &Settings, started_with: &str) {
+    let tag = settings.language.as_str();
+    let name = if tag.is_empty() {
+        app.global::<crate::Tr>().get_language_system()
+    } else {
+        crate::locale::native_name(tag).into()
+    };
+    app.set_settings_language(tag.into());
+    app.set_settings_language_name(name);
+    app.set_settings_language_restart(tag != started_with);
+}
+
 fn stop_diagnostic_capture(app: &MainWindow, cmd: &UnboundedSender<Command>) {
     if !crate::diag_capture::is_active() {
         return;
@@ -180,6 +215,14 @@ pub fn wire(ctx: &AppContext) {
         )));
     show_game_clip_settings(&ctx.app, &ctx.settings.borrow());
     show_stream_key_settings(&ctx.app, &ctx.settings.borrow());
+    // The language setting of this run. `locale::startup` chose the UI
+    // language from it; a change applies at the next start.
+    let started_with_language: std::rc::Rc<str> = ctx.settings.borrow().language.as_str().into();
+    ctx.app
+        .set_settings_languages(slint::ModelRc::new(slint::VecModel::from(
+            language_choices(&ctx.app.global::<crate::Tr>(), &crate::locale::bundled()),
+        )));
+    show_language_settings(&ctx.app, &ctx.settings.borrow(), &started_with_language);
 
     // --- About: the Third-party notices view fills its model on the first open ---
     {
@@ -215,6 +258,7 @@ pub fn wire(ctx: &AppContext) {
         let app_weak = ctx.app.as_weak();
         let s = ctx.settings.clone();
         let prof_st = ctx.profile_avatar_state.clone();
+        let started_with_language = started_with_language.clone();
         ctx.app.on_settings_requested(move || {
             let _ = cmd.send(Command::ListAudioDevices);
             // Games tab data: adapter list + install detection + Riot status.
@@ -256,6 +300,7 @@ pub fn wire(ctx: &AppContext) {
                 app.set_settings_clip_binding(false);
                 show_game_clip_settings(&app, &settings);
                 show_stream_key_settings(&app, &settings);
+                show_language_settings(&app, &settings, &started_with_language);
                 *prof_st.lock().unwrap() = avatar::AvatarGridState::new();
                 app.set_profile_selected_avatar(-1);
                 app.set_profile_grid_expanded(false);
@@ -401,6 +446,29 @@ pub fn wire(ctx: &AppContext) {
             let mut settings = s.borrow_mut();
             settings.openh264_enabled = v;
             settings.save();
+        });
+    }
+    // --- The UI language (specs/features/LOCALIZATION.md section 9) ---
+    {
+        let s = ctx.settings.clone();
+        let cmd = ctx.cmd_tx.clone();
+        let app_weak = ctx.app.as_weak();
+        let started_with_language = started_with_language.clone();
+        ctx.app.on_setting_changed_language(move |tag| {
+            let mut settings = s.borrow_mut();
+            settings.language = tag.trim().to_string();
+            settings.save();
+            log::info!(
+                "[settings] language = {:?} (applies at the next start)",
+                settings.language
+            );
+            // The account gets the language of the next start.
+            let _ = cmd.send(Command::SetAccountLanguage {
+                lang_tag: crate::locale::language_for_setting(&settings.language),
+            });
+            if let Some(app) = app_weak.upgrade() {
+                show_language_settings(&app, &settings, &started_with_language);
+            }
         });
     }
     // HUD settings
@@ -717,8 +785,10 @@ pub fn wire(ctx: &AppContext) {
         let cmd = ctx.cmd_tx.clone();
         let hud = ctx.hud_manager.clone();
         let fg = ctx.fg_monitor.clone();
+        let started_with_language = started_with_language.clone();
         ctx.app.on_settings_reset_defaults(move || {
             let defaults = Settings::default();
+            let language_changed = s.borrow().language != defaults.language;
             let current_deafened = app_weak
                 .upgrade()
                 .map(|app| app.get_deafened())
@@ -758,6 +828,11 @@ pub fn wire(ctx: &AppContext) {
             let _ = cmd.send(Command::SetMute {
                 muted: target_muted,
             });
+            if language_changed {
+                let _ = cmd.send(Command::SetAccountLanguage {
+                    lang_tag: crate::locale::language_for_setting(&defaults.language),
+                });
+            }
 
             fg.borrow_mut().set_hud_enabled(defaults.hud_enabled);
             hud.push_settings(crate::hud_manager::HudSettings {
@@ -791,6 +866,7 @@ pub fn wire(ctx: &AppContext) {
                 app.set_settings_clip_key_warning("".into());
                 show_game_clip_settings(&app, &defaults);
                 show_stream_key_settings(&app, &defaults);
+                show_language_settings(&app, &defaults, &started_with_language);
                 app.set_settings_hud_enabled(defaults.hud_enabled);
                 app.set_settings_hud_overlay_opacity(defaults.hud_overlay_opacity);
                 app.set_settings_hud_clip_toasts(defaults.hud_show_clip_toasts);

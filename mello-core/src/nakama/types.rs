@@ -23,6 +23,9 @@ pub struct ApiUser {
     pub display_name: Option<String>,
     pub metadata: Option<String>,
     pub online: Option<bool>,
+    /// The language of the account (BCP 47). Nakama gives `en` to a new
+    /// account.
+    pub lang_tag: Option<String>,
 }
 
 /// `GET /v2/user` response.

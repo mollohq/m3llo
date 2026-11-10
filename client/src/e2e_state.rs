@@ -199,6 +199,10 @@ struct Snapshot {
     update_available: bool,
     /// The version the settings show, for example `"v0.0.0-DEV"`.
     app_version: String,
+    /// The UI language of this run (BCP 47: `"en"`, `"sv"`, `"pt-BR"`),
+    /// from `locale::ui_language`. The driver starts the app with
+    /// `MELLO_LANG=en`.
+    ui_language: String,
     last_event_seq: u64,
 }
 
@@ -1487,6 +1491,7 @@ fn read(app: &MainWindow) -> Snapshot {
         },
         update_available: app.get_update_available(),
         app_version: app.get_settings_build_version().into(),
+        ui_language: crate::locale::ui_language(),
         last_event_seq: *EVENT_SEQ.lock().expect("event seq lock"),
     }
 }
@@ -1703,6 +1708,8 @@ mod tests {
         assert_eq!(s["riot"], json!({"linked": true, "id": "alice#EUW"}));
         assert_eq!(s["update_available"], true);
         assert_eq!(s["app_version"], "v1.2.3");
+        // The tests run in English.
+        assert_eq!(s["ui_language"], "en");
     }
 
     #[test]

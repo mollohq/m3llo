@@ -10480,3 +10480,155 @@ fn the_chat_sound_switch_saves_and_silences_chat() {
     });
     assert!(sounds_cued(&h).is_empty());
 }
+
+// ---------------------------------------------------------------------------
+// The UI language (specs/features/LOCALIZATION.md section 9)
+// ---------------------------------------------------------------------------
+
+/// A signed-in window with the GENERAL tab of the settings on screen.
+fn general_settings() -> Harness {
+    let mut h = Harness::new();
+    h.emit(Event::LoggedIn {
+        user: sample_user(),
+    });
+    h.commands();
+    h.app().invoke_settings_requested();
+    h.pump();
+    h.click_label("GENERAL");
+    // The APPEARANCE section is below the first screen of the tab. The
+    // wheel event goes to the tab content, above the first row.
+    let at = h.controls_labelled("Launch on system startup")[0].absolute_position();
+    h.app()
+        .window()
+        .dispatch_event(slint::platform::WindowEvent::PointerScrolled {
+            position: slint::LogicalPosition::new(at.x, at.y - 60.0),
+            delta_x: 0.0,
+            delta_y: -500.0,
+        });
+    h.pump();
+    h
+}
+
+/// The names of the Language dropdown: "System", English, then each bundled
+/// language, each by its own name.
+fn language_names() -> Vec<String> {
+    let mut names = vec!["System".to_string()];
+    names.extend(
+        crate::locale::setting_choices(&crate::locale::bundled())
+            .iter()
+            .map(|tag| crate::locale::native_name(tag)),
+    );
+    names
+}
+
+fn account_languages(cmds: &[Command]) -> Vec<String> {
+    cmds.iter()
+        .filter_map(|c| match c {
+            Command::SetAccountLanguage { lang_tag } => Some(lang_tag.clone()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Pick a row of the open Language dropdown, as the e2e driver does.
+fn pick_language(h: &mut Harness, name: &str) {
+    h.click_label("Language");
+    let rows = h.controls_labelled(name);
+    assert_eq!(rows.len(), 1, "one row {name:?} in the open dropdown");
+    rows[0].invoke_accessible_default_action();
+    h.pump();
+}
+
+fn restart_hint_shown(h: &Harness) -> bool {
+    i_slint_backend_testing::ElementHandle::find_by_accessible_label(
+        h.app(),
+        "Takes effect after restart",
+    )
+    .next()
+    .is_some()
+}
+
+#[test]
+fn the_language_row_lists_system_and_the_bundled_languages() {
+    let mut h = general_settings();
+    assert_eq!(h.controls_labelled("Language").len(), 1, "the dropdown");
+    assert_eq!(h.app().get_settings_language_name(), "System");
+
+    let names = language_names();
+    assert!(names.contains(&"English".to_string()), "{names:?}");
+    #[cfg(debug_assertions)]
+    assert!(names.contains(&"Pseudo (qps)".to_string()), "{names:?}");
+    let rows: Vec<String> = h
+        .app()
+        .get_settings_languages()
+        .iter()
+        .map(|r| r.name.to_string())
+        .collect();
+    assert_eq!(rows, names);
+
+    h.click_label("Language");
+    for name in &names {
+        assert_eq!(h.controls_labelled(name).len(), 1, "{name:?} in the list");
+    }
+}
+
+#[test]
+fn a_language_choice_is_saved_and_shows_the_restart_hint() {
+    let mut h = general_settings();
+    assert!(!restart_hint_shown(&h), "no hint before a change");
+
+    pick_language(&mut h, "English");
+    assert_eq!(h.settings().borrow().language, "en");
+    assert_eq!(h.app().get_settings_language(), "en");
+    assert_eq!(h.app().get_settings_language_name(), "English");
+    assert!(h.app().get_settings_language_restart());
+    assert!(restart_hint_shown(&h), "the hint shows after a change");
+    // The account gets the language of the next start.
+    assert_eq!(
+        account_languages(&h.commands()),
+        [crate::locale::language_for_setting("en")]
+    );
+
+    pick_language(&mut h, "System");
+    assert_eq!(h.settings().borrow().language, "", "System is empty");
+    assert_eq!(h.app().get_settings_language_name(), "System");
+    assert!(
+        !restart_hint_shown(&h),
+        "back to the language of this run: no restart"
+    );
+    assert_eq!(
+        account_languages(&h.commands()),
+        [crate::locale::language_for_setting("")]
+    );
+}
+
+/// The pseudo language is in debug builds only. Its tag goes to the
+/// account as it is.
+#[cfg(debug_assertions)]
+#[test]
+fn the_pseudo_language_can_be_chosen_in_a_debug_build() {
+    let mut h = general_settings();
+    pick_language(&mut h, "Pseudo (qps)");
+    assert_eq!(h.settings().borrow().language, "qps");
+    assert_eq!(
+        account_languages(&h.commands()),
+        [crate::locale::language_for_setting("qps")]
+    );
+}
+
+/// After a sign-in the account gets the UI language of this run. The
+/// tests run in English.
+#[test]
+fn a_sign_in_sends_the_ui_language_to_the_account() {
+    let mut h = Harness::new();
+    h.emit(Event::LoggedIn {
+        user: sample_user(),
+    });
+    assert_eq!(account_languages(&h.commands()), ["en"]);
+
+    let mut h = Harness::new();
+    h.emit(Event::OnboardingReady {
+        user: sample_user(),
+    });
+    assert_eq!(account_languages(&h.commands()), ["en"]);
+}

@@ -43,7 +43,7 @@ impl super::Client {
 
         match self
             .nakama
-            .update_account_fields(Some(display_name), avatar_url.as_deref())
+            .update_account_fields(Some(display_name), avatar_url.as_deref(), None)
             .await
         {
             Ok(()) => {
@@ -56,6 +56,19 @@ impl super::Client {
             Err(e) => {
                 log::error!("[profile] failed to update account: {}", e);
             }
+        }
+    }
+
+    /// Writes the UI language to the account (`lang_tag`) when it differs.
+    pub(super) async fn handle_set_account_language(&mut self, lang_tag: &str) {
+        let lang_tag = lang_tag.trim();
+        if lang_tag.is_empty() {
+            return;
+        }
+        match self.nakama.set_account_lang_tag(lang_tag).await {
+            Ok(true) => log::info!("[profile] account language set to {lang_tag}"),
+            Ok(false) => log::debug!("[profile] account language is {lang_tag} already"),
+            Err(e) => log::warn!("[profile] failed to set the account language {lang_tag}: {e}"),
         }
     }
 
