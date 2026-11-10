@@ -281,6 +281,8 @@ export type AppState = {
   update_available: boolean;
   /** The version the settings show, for example "v0.0.0-DEV". */
   app_version: string;
+  /** The UI language of this run (BCP 47: "en", "sv", "pt-BR"). The driver starts the app with MELLO_LANG=en. */
+  ui_language: string;
   last_event_seq: number;
 };
 

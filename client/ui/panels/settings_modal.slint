@@ -659,6 +659,14 @@ component GeneralTab inherits VerticalLayout {
     in-out property <bool> hud-enabled: true;
     in-out property <float> hud-overlay-opacity: 0.8;
     in-out property <bool> hud-clip-toasts: true;
+    // The UI language (specs/features/LOCALIZATION.md section 9). The id of
+    // a row is a language tag; "" is System.
+    in property <[AudioDeviceData]> languages: [];
+    in property <string> language: "";
+    in-out property <string> language-name: "";
+    // The choice differs from the language of this run: a restart applies it.
+    in property <bool> language-restart: false;
+    callback language-selected(string);
 
     callback setting-changed-start-on-boot(bool);
     callback setting-changed-start-minimized(bool);
@@ -735,6 +743,53 @@ component GeneralTab inherits VerticalLayout {
 
         VerticalLayout {
             spacing: 8px;
+
+            Rectangle {
+                HorizontalLayout {
+                    padding-top: 14px;
+                    padding-bottom: 14px;
+                    padding-left: 20px;
+                    padding-right: 20px;
+                    spacing: 32px;
+
+                    VerticalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 6px;
+                        alignment: center;
+
+                        Text {
+                            font-family: Theme.font-display;
+                            text: @tr("Language");
+                            font-size: 15px;
+                            font-weight: Theme.weight-display;
+                            color: Theme.text-primary;
+                            letter-spacing: 0.3px;
+                        }
+
+                        if root.language-restart: Text {
+                            font-weight: Theme.weight-display;
+                            font-family: Theme.font-display;
+                            text: @tr("Takes effect after restart");
+                            font-size: 13px;
+                            color: Theme.text-secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+
+                    VerticalLayout {
+                        width: 200px;
+                        alignment: center;
+
+                        DeviceDropdown {
+                            label: @tr("Language");
+                            devices: root.languages;
+                            selected-id: root.language;
+                            selected-name <=> root.language-name;
+                            device-selected(id) => { root.language-selected(id); }
+                        }
+                    }
+                }
+            }
 
             ToggleRow {
                 title: @tr("Hardware Acceleration");
@@ -3099,6 +3154,13 @@ export component SettingsModal inherits Rectangle {
     in-out property <bool> hw-acceleration: true;
     in property <bool> show-openh264: false;
     in-out property <bool> openh264-enabled: true;
+    // The UI language: the choices, the saved tag ("" is System), the name
+    // that the dropdown shows, and the restart hint.
+    in property <[AudioDeviceData]> languages: [];
+    in property <string> language: "";
+    in-out property <string> language-name: "";
+    in property <bool> language-restart: false;
+    callback setting-changed-language(string);
 
     // Audio settings
     in-out property <float> input-volume: 1.0;
@@ -3826,6 +3888,11 @@ export component SettingsModal inherits Rectangle {
                             setting-changed-hud-enabled(v) => { root.setting-changed-hud-enabled(v); }
                             setting-changed-hud-overlay-opacity(v) => { root.setting-changed-hud-overlay-opacity(v); }
                             setting-changed-hud-clip-toasts(v) => { root.setting-changed-hud-clip-toasts(v); }
+                            languages: root.languages;
+                            language: root.language;
+                            language-name <=> root.language-name;
+                            language-restart: root.language-restart;
+                            language-selected(tag) => { root.setting-changed-language(tag); }
                         }
 
                         audio-tab := AudioTab {
@@ -4045,6 +4112,7 @@ component SettingsPreview inherits Rectangle {
     in property <bool> clip-listening: false;
     in property <bool> game-clips-permission: false;
     in property <string> stream-warning: "";
+    in property <bool> language-restart: false;
 
     width: 1000px;
     height: 780px;
@@ -4069,6 +4137,15 @@ component SettingsPreview inherits Rectangle {
             { id: "720p60", name: "720p, 60 fps", is-default: true },
             { id: "720p30", name: "720p, 30 fps", is-default: false },
         ];
+        languages: [
+            { id: "", name: "System", is-default: false },
+            { id: "en", name: "English", is-default: false },
+            { id: "sv", name: "Svenska", is-default: false },
+            { id: "ja", name: "日本語", is-default: false },
+        ];
+        language: root.language-restart ? "sv" : "";
+        language-name: root.language-restart ? "Svenska" : "System";
+        language-restart: root.language-restart;
         notices: [
             { names: "serde 1.0.228\nserde_json 1.0.145", license: "MIT OR Apache-2.0", text: "Copyright (c) David Tolnay" },
             { names: "opus (vcpkg)", license: "BSD-3-Clause", text: "Licence: BSD-3-Clause. The full text is at https://spdx.org/licenses/BSD-3-Clause.html and in the opus source." },
@@ -4118,6 +4195,7 @@ component SettingsPreview inherits Rectangle {
 
 export component Preview inherits SettingsPreview { tab: 0; }
 export component PreviewGeneral inherits SettingsPreview { tab: 1; }
+export component PreviewGeneralLanguage inherits SettingsPreview { tab: 1; language-restart: true; }
 export component PreviewAudio inherits SettingsPreview { tab: 2; }
 export component PreviewAudioVideo inherits SettingsPreview { tab: 2; scroll: 1400px; }
 export component PreviewAudioSounds inherits SettingsPreview { tab: 2; scroll: 470px; }

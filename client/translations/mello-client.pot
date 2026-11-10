@@ -1991,6 +1991,14 @@ msgid "APPEARANCE"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint
+msgid "Language"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "Takes effect after restart"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"
 msgstr ""
 
@@ -4094,6 +4102,11 @@ msgstr ""
 
 #: client/ui/tr.slint
 msgid "{0}p, {1} fps"
+msgstr ""
+
+#. own script, which are not translated.
+#: client/ui/tr.slint
+msgid "System"
 msgstr ""
 
 #. The name of the file type filter in a dialog that picks an image.

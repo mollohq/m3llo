@@ -1107,6 +1107,9 @@ impl Client {
                 )
                 .await;
             }
+            Command::SetAccountLanguage { lang_tag } => {
+                self.handle_set_account_language(&lang_tag).await;
+            }
             // --- Streaming ---
             Command::ListCaptureSources => {
                 self.handle_list_capture_sources();

@@ -14,6 +14,11 @@
 //! `translations.rs`). [`apply`] selects the language explicitly after that,
 //! with the same base-language rule, so the result never depends on that
 //! order.
+//!
+//! The choice is made one time per run, by [`startup`], before the first
+//! window: the CJK font fallback needs the language before the first layout.
+//! [`apply`] selects that same choice later, so [`ui_language`] gives the
+//! same tag at both times.
 
 use std::sync::Mutex;
 
@@ -43,7 +48,7 @@ pub(crate) struct Choice {
     pub source: Source,
 }
 
-/// The effective language, after [`apply`].
+/// The effective language of this run, after [`startup`].
 static CHOSEN: Mutex<Option<Choice>> = Mutex::new(None);
 
 /// The languages bundled in this build.
@@ -139,33 +144,103 @@ pub(crate) fn select_source_language() {
     }
 }
 
-/// Choose the UI language and select it. Call it after the first component
-/// is created (the force-update dialog or the main window), and again for
-/// the main window: a second call selects the same language and logs
-/// nothing.
-pub(crate) fn apply(setting: &str) {
+/// The language that a run with this setting shows, from the env, the
+/// setting and the OS. The settings use it for the account language after
+/// a change: the change applies at the next start.
+pub(crate) fn language_for_setting(setting: &str) -> String {
+    let env = std::env::var(LANG_ENV).ok();
+    let os = sys_locale::get_locale();
+    choose(env.as_deref(), setting, os.as_deref(), &bundled()).language
+}
+
+/// Choose the UI language of this run, one time, and store it. Call it
+/// before the first window (the CJK font fallback needs it). A later call
+/// gives the stored choice and logs nothing: the setting can change while
+/// the app runs, and the change applies at the next start.
+pub(crate) fn startup(setting: &str) -> Choice {
+    let mut chosen = CHOSEN.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(choice) = chosen.as_ref() {
+        return choice.clone();
+    }
     let env = std::env::var(LANG_ENV).ok();
     let os = sys_locale::get_locale();
     let choice = choose(env.as_deref(), setting, os.as_deref(), &bundled());
+    log::info!(
+        "[locale] UI language {} (from {:?}; OS {:?}; bundled {:?})",
+        choice.language,
+        choice.source,
+        os.as_deref().unwrap_or("unknown"),
+        bundled()
+    );
+    *chosen = Some(choice.clone());
+    choice
+}
+
+/// Select the language of this run ([`startup`]). Call it after the first
+/// component is created (the force-update dialog or the main window), and
+/// again for the main window: a second call selects the same language.
+pub(crate) fn apply(setting: &str) {
+    let choice = startup(setting);
     if let Err(e) = select(&choice.language) {
         log::warn!("[locale] cannot select {:?}: {e}", choice.language);
-        return;
-    }
-    let mut chosen = CHOSEN.lock().unwrap_or_else(|e| e.into_inner());
-    if chosen.as_ref() != Some(&choice) {
-        log::info!(
-            "[locale] UI language {} (from {:?}; OS {:?}; bundled {:?})",
-            choice.language,
-            choice.source,
-            os.as_deref().unwrap_or("unknown"),
-            bundled()
-        );
-        *chosen = Some(choice);
     }
 }
 
+/// The language that orders the CJK font fallback (`cjk_fonts::apply`).
+///
+/// A UI language with Han text (`ja`, `zh-*`, `ko`) orders the fonts. Other
+/// UI languages show Han text only in user data (names, chat), so the OS
+/// language orders the fonts then: a Japanese OS with an English or Swedish
+/// UI keeps the Japanese glyph shapes. Pure, for the tests.
+pub(crate) fn font_language(ui_language: &str, os: Option<&str>) -> String {
+    let lang = normalize(ui_language);
+    if matches!(base(&lang), "ja" | "zh" | "ko") {
+        return ui_language.to_string();
+    }
+    os.filter(|tag| !tag.trim().is_empty())
+        .unwrap_or(ui_language)
+        .to_string()
+}
+
+/// [`font_language`] for the choice of this run and the OS language.
+pub(crate) fn startup_font_language(choice: &Choice) -> String {
+    font_language(&choice.language, sys_locale::get_locale().as_deref())
+}
+
+/// The name of a language in its own script, for the Language dropdown of
+/// the settings. Not translated: a user finds their language by this name
+/// in any UI language. An unknown tag shows the tag.
+pub(crate) fn native_name(tag: &str) -> String {
+    let name = match normalize(tag).as_str() {
+        "en" => "English",
+        "sv" => "Svenska",
+        "de" => "Deutsch",
+        "es" => "Español",
+        "fr" => "Français",
+        "pt-br" => "Português (Brasil)",
+        "zh-cn" => "中文（简体）",
+        "ja" => "日本語",
+        "qps" => "Pseudo (qps)",
+        _ => return tag.to_string(),
+    };
+    name.to_string()
+}
+
+/// The language choices of the settings after "System": the source
+/// language, then each bundled language, as tags. Each tag one time.
+pub(crate) fn setting_choices(bundled: &[&str]) -> Vec<String> {
+    let mut tags = vec![SOURCE_LANGUAGE.to_string()];
+    for tag in bundled {
+        if !tags.iter().any(|t| normalize(t) == normalize(tag)) {
+            tags.push((*tag).to_string());
+        }
+    }
+    tags
+}
+
 /// The effective UI language as a BCP 47 tag: the bundled catalog that the
-/// UI shows (`sv`, `pt-BR`), or `en`. For fonts, the HUD and dates.
+/// UI shows (`sv`, `pt-BR`), or `en`. For fonts, the HUD, dates and the
+/// account language (`lang_tag`).
 pub fn ui_language() -> String {
     CHOSEN
         .lock()
@@ -253,6 +328,76 @@ mod tests {
             assert_ne!(chosen(None, "", Some(os)).0, "qps", "{os}");
         }
         assert_eq!(chosen(None, "", Some("qps-ploc")).0, "qps");
+    }
+
+    /// The early choice orders the CJK fonts. `MELLO_LANG=ja` comes in as
+    /// the env input of `choose`, not as a process variable.
+    #[test]
+    fn the_font_plan_follows_the_chosen_language() {
+        use crate::cjk_fonts::{plan, WINDOWS};
+        const CJK: [&str; 3] = ["ja", "sv", "zh-CN"];
+        let all = |_: &str| true;
+        let fonts = |env: Option<&str>, setting: &str, os: Option<&str>| {
+            let choice = choose(env, setting, os, &CJK);
+            plan(&font_language(&choice.language, os), &WINDOWS, all).han
+        };
+
+        let ja = fonts(Some("ja"), "", Some("en-US"));
+        assert_eq!(ja[..2], ["Yu Gothic UI", "Meiryo"]);
+
+        let zh = fonts(None, "zh-CN", Some("en-US"));
+        assert_eq!(zh[0], "Microsoft YaHei UI");
+        let zh_on_ja_os = fonts(None, "zh-CN", Some("ja-JP"));
+        assert_eq!(zh_on_ja_os[0], "Microsoft YaHei UI");
+
+        // A UI language with no Han text keeps the order of the OS.
+        let sv_on_ja_os = fonts(None, "sv", Some("ja-JP"));
+        assert_eq!(sv_on_ja_os[0], "Yu Gothic UI");
+        // No catalog for the OS language: the UI is English, the fonts
+        // follow the OS, as before the early choice.
+        let choice = choose(None, "", Some("zh-TW"), &["sv"]);
+        assert_eq!(choice.language, "en");
+        let en_on_tw_os = plan(
+            &font_language(&choice.language, Some("zh-TW")),
+            &WINDOWS,
+            all,
+        )
+        .han;
+        assert_eq!(en_on_tw_os[0], "Microsoft JhengHei UI");
+    }
+
+    #[test]
+    fn a_font_language_with_no_os_language_is_the_ui_language() {
+        assert_eq!(font_language("en", None), "en");
+        assert_eq!(font_language("sv", Some("")), "sv");
+        assert_eq!(font_language("pt-BR", Some("ja-JP")), "ja-JP");
+        assert_eq!(font_language("zh-CN", Some("zh-TW")), "zh-CN");
+    }
+
+    #[test]
+    fn a_language_shows_its_own_name() {
+        assert_eq!(native_name("en"), "English");
+        assert_eq!(native_name("sv"), "Svenska");
+        assert_eq!(native_name("de"), "Deutsch");
+        assert_eq!(native_name("es"), "Español");
+        assert_eq!(native_name("fr"), "Français");
+        assert_eq!(native_name("pt-BR"), "Português (Brasil)");
+        assert_eq!(native_name("pt_br"), "Português (Brasil)");
+        assert_eq!(native_name("zh-CN"), "中文（简体）");
+        assert_eq!(native_name("ja"), "日本語");
+        assert_eq!(native_name("qps"), "Pseudo (qps)");
+        assert_eq!(native_name("fi-FI"), "fi-FI");
+    }
+
+    /// English is a choice also when it has no catalog, and comes one time.
+    #[test]
+    fn the_setting_choices_are_english_then_the_bundled_languages() {
+        assert_eq!(setting_choices(&[]), ["en"]);
+        assert_eq!(
+            setting_choices(&BUNDLED),
+            ["en", "de", "pt-BR", "qps", "sv"]
+        );
+        assert_eq!(setting_choices(&["en", "sv"]), ["en", "sv"]);
     }
 
     #[test]

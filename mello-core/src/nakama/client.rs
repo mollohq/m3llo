@@ -37,6 +37,9 @@ pub struct NakamaClient {
     token: SharedToken,
     refresh_token: Option<String>,
     current_user: Option<User>,
+    /// The `lang_tag` of the signed-in account, from the last account read
+    /// or write. `None` when unknown.
+    account_lang_tag: Option<String>,
     active_crew_id: Option<String>,
     ws_tx: Option<mpsc::Sender<String>>,
     ws_shared: Arc<RwLock<WsShared>>,
@@ -71,6 +74,7 @@ impl NakamaClient {
             token,
             refresh_token: None,
             current_user: None,
+            account_lang_tag: None,
             active_crew_id: None,
             ws_tx: None,
             ws_shared: Arc::new(RwLock::new(WsShared::default())),
@@ -491,7 +495,8 @@ impl NakamaClient {
         self.refresh_token.as_deref()
     }
 
-    async fn get_account(&self) -> Result<User> {
+    /// Reads the account of the session. Keeps its `lang_tag`.
+    async fn get_account(&mut self) -> Result<User> {
         let token = self.bearer()?;
         let url = format!("{}/v2/account", self.config.http_base());
 
@@ -505,6 +510,7 @@ impl NakamaClient {
         let api_user = account
             .user
             .ok_or(Error::Internal("No user in account".into()))?;
+        self.account_lang_tag = api_user.lang_tag.clone();
 
         let mut tag = String::new();
         let mut created_at = None;
@@ -608,6 +614,7 @@ impl NakamaClient {
         self.set_token(None);
         self.refresh_token = None;
         self.current_user = None;
+        self.account_lang_tag = None;
         self.active_crew_id = None;
     }
 
@@ -836,7 +843,21 @@ impl NakamaClient {
     }
 
     pub async fn update_account(&self, display_name: &str) -> Result<()> {
-        self.update_account_fields(Some(display_name), None).await
+        self.update_account_fields(Some(display_name), None, None)
+            .await
+    }
+
+    /// Writes the UI language of the client to the account (`lang_tag`, a
+    /// BCP 47 tag such as `sv` or `pt-BR`). No request when the account has
+    /// this tag already. Returns `true` when it wrote the tag.
+    pub async fn set_account_lang_tag(&mut self, lang_tag: &str) -> Result<bool> {
+        if self.account_lang_tag.as_deref() == Some(lang_tag) {
+            return Ok(false);
+        }
+        self.update_account_fields(None, None, Some(lang_tag))
+            .await?;
+        self.account_lang_tag = Some(lang_tag.to_string());
+        Ok(true)
     }
 
     /// Permanently delete the currently authenticated account.
@@ -857,10 +878,13 @@ impl NakamaClient {
         Ok(())
     }
 
+    /// Updates the account. A field that is `None` is not sent and does not
+    /// change. `lang_tag` is the language of the account (BCP 47).
     pub async fn update_account_fields(
         &self,
         display_name: Option<&str>,
         avatar_url: Option<&str>,
+        lang_tag: Option<&str>,
     ) -> Result<()> {
         let token = self.bearer()?;
         let url = format!("{}/v2/account", self.config.http_base());
@@ -876,6 +900,12 @@ impl NakamaClient {
             body.insert(
                 "avatar_url".into(),
                 serde_json::Value::String(au.to_string()),
+            );
+        }
+        if let Some(tag) = lang_tag {
+            body.insert(
+                "lang_tag".into(),
+                serde_json::Value::String(tag.to_string()),
             );
         }
 
@@ -3333,6 +3363,103 @@ mod invite_tests {
             crate::crew::InviteError::InvalidCode
         );
         server.join().expect("server thread");
+    }
+}
+
+#[cfg(test)]
+mod account_tests {
+    use super::*;
+    use std::io::{BufRead, BufReader, Read, Write};
+
+    /// Serve one HTTP request on a local port. The join handle returns the
+    /// request line and the JSON body.
+    fn serve_once() -> (u16, std::thread::JoinHandle<(String, serde_json::Value)>) {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let port = listener.local_addr().expect("addr").port();
+        let handle = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut reader = BufReader::new(stream.try_clone().expect("clone"));
+            let mut request_line = String::new();
+            reader.read_line(&mut request_line).expect("read");
+            let mut content_length = 0usize;
+            loop {
+                let mut line = String::new();
+                reader.read_line(&mut line).expect("read");
+                if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                    content_length = v.trim().parse().unwrap_or(0);
+                }
+                if line == "\r\n" || line.is_empty() {
+                    break;
+                }
+            }
+            let mut raw = vec![0u8; content_length];
+            reader.read_exact(&mut raw).expect("body");
+            let body: serde_json::Value = serde_json::from_slice(&raw).expect("json body");
+            write!(
+                stream,
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+            )
+            .expect("write");
+            (request_line, body)
+        });
+        (port, handle)
+    }
+
+    fn signed_in_client(port: u16) -> NakamaClient {
+        let mut config = Config::development();
+        config.nakama_host = "127.0.0.1".into();
+        config.nakama_port = port;
+        config.nakama_ssl = false;
+        let client = NakamaClient::new(config);
+        client.set_token(Some("session-token".into()));
+        client
+    }
+
+    #[tokio::test]
+    async fn update_account_fields_sends_the_lang_tag() {
+        let (port, server) = serve_once();
+        signed_in_client(port)
+            .update_account_fields(None, None, Some("pt-BR"))
+            .await
+            .expect("update");
+        let (line, body) = server.join().expect("server thread");
+        assert!(line.starts_with("PUT /v2/account "), "{line}");
+        assert_eq!(body, serde_json::json!({"lang_tag": "pt-BR"}));
+    }
+
+    /// The profile save sends no `lang_tag`, so it keeps the language.
+    #[tokio::test]
+    async fn update_account_fields_without_a_lang_tag_leaves_it_out() {
+        let (port, server) = serve_once();
+        signed_in_client(port)
+            .update_account_fields(Some("Alice"), None, None)
+            .await
+            .expect("update");
+        let (_, body) = server.join().expect("server thread");
+        assert_eq!(body, serde_json::json!({"display_name": "Alice"}));
+    }
+
+    /// The core writes the tag one time. The same tag again sends no
+    /// request; the server serves one request only.
+    #[tokio::test]
+    async fn the_account_language_is_written_only_when_it_differs() {
+        let (port, server) = serve_once();
+        let mut client = signed_in_client(port);
+        assert!(client.set_account_lang_tag("sv").await.expect("write"));
+        let (_, body) = server.join().expect("server thread");
+        assert_eq!(body, serde_json::json!({"lang_tag": "sv"}));
+        assert!(!client.set_account_lang_tag("sv").await.expect("no write"));
+    }
+
+    /// An account that has the tag already (from the account read) gets no
+    /// write. No server listens: a request would fail.
+    #[tokio::test]
+    async fn a_known_account_language_is_not_written_again() {
+        let mut client = signed_in_client(1);
+        client.account_lang_tag = Some("en".into());
+        assert!(!client.set_account_lang_tag("en").await.expect("no write"));
+        assert!(client.set_account_lang_tag("ja").await.is_err());
+        assert_eq!(client.account_lang_tag.as_deref(), Some("en"));
     }
 }
 
