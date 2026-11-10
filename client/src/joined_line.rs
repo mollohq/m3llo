@@ -3,9 +3,11 @@
 //! from the `joined` list of the feed response, which the server reads from
 //! the `member_joined` events of the crew ledger.
 //!
-//! Pure functions, so the rule needs no window.
+//! Pure functions: the text comes from the `Tr` that the caller gives.
 
 use mello_core::crew_events::FeedJoin;
+
+use crate::Tr;
 
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 /// The most cards the feed shows for joins.
@@ -25,47 +27,51 @@ pub struct Row {
 }
 
 /// "invited by b0bben", or empty without an inviter.
-pub fn invited_text(invited_by: &str) -> String {
+pub fn invited_text(tr: &Tr<'_>, invited_by: &str) -> String {
     if invited_by.trim().is_empty() {
         String::new()
     } else {
-        format!("invited by {}", invited_by.trim())
+        tr.invoke_joined_invited_by(invited_by.trim().into()).into()
     }
 }
 
 /// The name on the card: "A new member" when the name is blank.
-pub fn display_name(name: &str) -> String {
+pub fn display_name(tr: &Tr<'_>, name: &str) -> String {
     if name.trim().is_empty() {
-        "A new member".to_string()
+        tr.get_joined_new_member().into()
     } else {
         name.trim().to_string()
     }
 }
 
+/// The title of a joined card: "Jonas joined".
+pub fn joined_title(tr: &Tr<'_>, name: &str) -> String {
+    tr.invoke_joined(name.into()).into()
+}
+
 /// "Jonas joined, invited by b0bben", or "Jonas joined" when nobody invited.
-pub fn line(name: &str, invited_by: &str) -> String {
-    let name = display_name(name);
+pub fn line(tr: &Tr<'_>, name: &str, invited_by: &str) -> String {
+    let name = display_name(tr, name);
     if invited_by.trim().is_empty() {
-        format!("{name} joined")
+        joined_title(tr, &name)
     } else {
-        format!("{name} joined, invited by {}", invited_by.trim())
+        tr.invoke_joined_line(name.into(), invited_by.trim().into())
+            .into()
     }
 }
 
 /// The time of the join on the viewer's clock: "Today 23:14" or "Yesterday
-/// 23:14". `tz_offset_min` is the local offset, east positive. A join inside
-/// the 24 h window is on one of those two days.
-pub fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
-    let local = |ms: i64| ms + i64::from(tz_offset_min) * 60_000;
-    let day = |ms: i64| local(ms).div_euclid(DAY_MS);
-    let in_day = local(ts_ms).rem_euclid(DAY_MS) / 60_000;
-    let clock = format!("{:02}:{:02}", in_day / 60, in_day % 60);
-    let word = if day(ts_ms) >= day(now_ms) {
-        "Today"
-    } else {
-        "Yesterday"
-    };
-    format!("{word} {clock}")
+/// 23:14", in the clock form of the user. `tz_offset_min` is the local
+/// offset, east positive. A join inside the 24 h window is on one of those
+/// two days.
+pub fn when_label(tr: &Tr<'_>, ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
+    crate::l10n_format::today_or_yesterday_at(
+        tr,
+        ts_ms,
+        now_ms,
+        tz_offset_min,
+        crate::l10n_format::clock_form(),
+    )
 }
 
 /// The joins to draw. Joins older than 24 h, the viewer's own join and repeat
@@ -73,6 +79,7 @@ pub fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
 /// `name_of` gives the current name of a member from the roster; the name the
 /// event stored is the fallback.
 pub fn rows(
+    tr: &Tr<'_>,
     joins: &[FeedJoin],
     viewer_id: &str,
     now_ms: i64,
@@ -100,10 +107,10 @@ pub fn rows(
         };
         out.push(Row {
             user_id: j.user_id.clone(),
-            name: display_name(&name),
-            invited: invited_text(&inviter),
-            line: line(&name, &inviter),
-            when: when_label(j.ts, now_ms, tz_offset_min),
+            name: display_name(tr, &name),
+            invited: invited_text(tr, &inviter),
+            line: line(tr, &name, &inviter),
+            when: when_label(tr, j.ts, now_ms, tz_offset_min),
         });
         if out.len() == MAX_ROWS {
             break;
@@ -137,11 +144,59 @@ mod tests {
         None
     }
 
+    /// The functions under test, with the English `Tr` of a test window.
+    fn when_label(ts_ms: i64, now_ms: i64, tz_offset_min: i32) -> String {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        super::when_label(&app.global::<Tr>(), ts_ms, now_ms, tz_offset_min)
+    }
+    fn rows(
+        joins: &[FeedJoin],
+        viewer_id: &str,
+        now_ms: i64,
+        tz_offset_min: i32,
+        name_of: &dyn Fn(&str) -> Option<String>,
+    ) -> Vec<Row> {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        super::rows(
+            &app.global::<Tr>(),
+            joins,
+            viewer_id,
+            now_ms,
+            tz_offset_min,
+            name_of,
+        )
+    }
+
     #[test]
     fn the_line_names_the_inviter_when_there_is_one() {
-        assert_eq!(line("Jonas", "b0bben"), "Jonas joined, invited by b0bben");
-        assert_eq!(line("Jonas", ""), "Jonas joined");
-        assert_eq!(line("", ""), "A new member joined");
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(
+            line(tr, "Jonas", "b0bben"),
+            "Jonas joined, invited by b0bben"
+        );
+        assert_eq!(line(tr, "Jonas", ""), "Jonas joined");
+        assert_eq!(line(tr, "", ""), "A new member joined");
+        assert_eq!(invited_text(tr, " b0bben "), "invited by b0bben");
+    }
+
+    /// Under the pseudo language the line changes and keeps the names.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn the_line_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = line(tr, "Jonas", "b0bben");
+        crate::locale::select_source_language();
+        assert_eq!(
+            text,
+            pseudo("{0} joined, invited by {1}")
+                .replace("{0}", "Jonas")
+                .replace("{1}", "b0bben")
+        );
+        assert_ne!(text, "Jonas joined, invited by b0bben");
     }
 
     #[test]

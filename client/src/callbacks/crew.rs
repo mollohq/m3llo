@@ -34,9 +34,10 @@ pub fn wire(ctx: &AppContext) {
         ctx.app.on_new_crew_avatar_pick(move || {
             let app_weak = app_weak.clone();
             let avatar_b64 = avatar_b64.clone();
+            let filter = super::images_filter(&app_weak);
             rt_handle.spawn(async move {
                 let file = rfd::AsyncFileDialog::new()
-                    .add_filter("Images", &["jpg", "jpeg", "png", "gif"])
+                    .add_filter(filter, &["jpg", "jpeg", "png", "gif"])
                     .pick_file()
                     .await;
                 let Some(file) = file else { return };
@@ -266,13 +267,11 @@ pub fn wire(ctx: &AppContext) {
             if let Some(app) = app_weak.upgrade() {
                 app.set_discover_invite_error("".into());
                 if code.is_none() {
-                    app.set_discover_invite_error(
-                        crate::handlers::invite_join_error_message(
-                            mello_core::crew::InviteError::InvalidCode,
-                            crate::handlers::InviteSource::TypedCode,
-                        )
-                        .into(),
-                    );
+                    app.set_discover_invite_error(crate::handlers::invite_join_error_message(
+                        &app.global::<crate::Tr>(),
+                        mello_core::crew::InviteError::InvalidCode,
+                        crate::handlers::InviteSource::TypedCode,
+                    ));
                 }
             }
             if let Some(code) = code {

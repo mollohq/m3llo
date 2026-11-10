@@ -231,7 +231,8 @@ pub(crate) fn banner_jpeg(bytes: &[u8]) -> Option<(Vec<u8>, Vec<u8>, u32, u32)> 
 pub const E2E_PICK_FILE_ENV: &str = "MELLO_E2E_PICK_FILE";
 
 /// Pick one image file: its name and bytes. None when the user cancels.
-async fn pick_image(exts: &[&str]) -> Option<(String, Vec<u8>)> {
+/// `filter` is the name of the file type filter, from `Tr`.
+async fn pick_image(exts: &[&str], filter: String) -> Option<(String, Vec<u8>)> {
     #[cfg(feature = "e2e")]
     if let Some(path) = std::env::var_os(E2E_PICK_FILE_ENV) {
         let path = std::path::PathBuf::from(path);
@@ -243,7 +244,7 @@ async fn pick_image(exts: &[&str]) -> Option<(String, Vec<u8>)> {
         return std::fs::read(&path).ok().map(|b| (name, b));
     }
     let file = rfd::AsyncFileDialog::new()
-        .add_filter("Images", exts)
+        .add_filter(filter, exts)
         .pick_file()
         .await?;
     Some((file.file_name(), file.read().await))
@@ -252,8 +253,13 @@ async fn pick_image(exts: &[&str]) -> Option<(String, Vec<u8>)> {
 fn choose_banner_image(ctx: &AppContext, pending: &PendingJpeg) {
     let app_weak = ctx.app.as_weak();
     let pending = pending.clone();
+    let filter = ctx
+        .app
+        .global::<crate::Tr>()
+        .get_file_filter_images()
+        .to_string();
     ctx.rt.spawn(async move {
-        let Some((name, bytes)) = pick_image(&["jpg", "jpeg", "png"]).await else {
+        let Some((name, bytes)) = pick_image(&["jpg", "jpeg", "png"], filter).await else {
             return;
         };
         let made = if bytes.len() > 20 << 20 {
@@ -279,7 +285,7 @@ fn choose_banner_image(ctx: &AppContext, pending: &PendingJpeg) {
                     bp.set_error("".into());
                 }
                 None => {
-                    bp.set_error("That file is not an image we can use.".into());
+                    bp.set_error(app.global::<crate::Tr>().get_image_unusable());
                 }
             }
             log::info!("[gifts] banner image chosen: usable={ok}");
@@ -308,6 +314,22 @@ fn save_banner(ctx: &AppContext, pending: &PendingJpeg) {
     bp.set_busy(true);
     bp.set_error("".into());
     let _ = ctx.cmd_tx.send(cmd);
+}
+
+/// The text of a failed gift action. Server text is data and stays as it
+/// is.
+pub(crate) fn gift_failure_text(
+    tr: &crate::Tr<'_>,
+    failure: &mello_core::events::GiftFailure,
+) -> String {
+    use mello_core::events::GiftFailure;
+    match failure {
+        GiftFailure::Server(text) => text.clone(),
+        GiftFailure::NoAnswer => tr.get_gift_no_answer().into(),
+        GiftFailure::UploadOff => tr.get_image_upload_off().into(),
+        GiftFailure::UploadRefused => tr.get_image_upload_refused().into(),
+        GiftFailure::UploadIncomplete => tr.get_image_upload_incomplete().into(),
+    }
 }
 
 /// The answer to a save: close the picker, or say why it failed.
@@ -521,8 +543,13 @@ fn open_emoji_add(ctx: &AppContext, pending: &PendingJpeg) {
 fn choose_emoji_image(ctx: &AppContext, pending: &PendingJpeg) {
     let app_weak = ctx.app.as_weak();
     let pending = pending.clone();
+    let filter = ctx
+        .app
+        .global::<crate::Tr>()
+        .get_file_filter_images()
+        .to_string();
     ctx.rt.spawn(async move {
-        let Some((_, bytes)) = pick_image(&["png", "jpg", "jpeg", "gif"]).await else {
+        let Some((_, bytes)) = pick_image(&["png", "jpg", "jpeg", "gif"], filter).await else {
             return;
         };
         let made = if bytes.len() > 20 << 20 {

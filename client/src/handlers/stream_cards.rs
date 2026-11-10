@@ -149,7 +149,7 @@ pub fn sync_active_stream_cards(ctx: &AppContext) {
             session_id: ctx.app.get_active_stream_session_id(),
             streamer_name: active_streamer_name.clone().into(),
             subtitle: if active_stream_title.is_empty() {
-                "Live now".into()
+                slint::ComponentHandle::global::<crate::Tr>(&ctx.app).get_stream_live_now()
             } else {
                 active_stream_title.into()
             },

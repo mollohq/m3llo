@@ -22,6 +22,14 @@ mod steam;
 use std::sync::Arc;
 
 pub use cs2_gsi::Cs2GsiAdapter;
+
+/// The one-time action that a telemetry adapter needs. The client writes it
+/// in the UI language.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SetupHint {
+    /// Add `option` to the Steam launch options of `game` (a game name).
+    SteamLaunchOption { option: String, game: String },
+}
 pub use dota2_gsi::Dota2GsiAdapter;
 pub use hearthstone_log::HearthstoneAdapter;
 pub use listener::{TelemetryListener, TELEMETRY_PORT};
@@ -150,7 +158,7 @@ pub enum TelemetryEvent {
     /// The adapter needs a one-time user action before it can capture outcomes
     /// (e.g. Dota 2's `-gamestateintegration` launch option). Surfaced as a
     /// hint in the "now playing" card; telemetry silently stays off until done.
-    SetupRequired { game_id: String, hint: String },
+    SetupRequired { game_id: String, hint: SetupHint },
     /// The player entered an activity in a game whose adapter gates its
     /// sessions (spec 18 §2.4): a Roblox experience. The session opens here,
     /// at `ts`, not when the game's window came up. `activity_id` is the

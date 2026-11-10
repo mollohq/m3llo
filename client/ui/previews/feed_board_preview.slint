@@ -143,59 +143,59 @@ global Hist {
         snapshot-poster: @image-url("fixtures/stream-sample-3.png"), snapshot-poster-ready: true,
         actor-name: "Jonas", actor-initials: "JO", actor-avatar: Crew.jonas.avatar, actor-has-avatar: true, game-name: "Fall Guys", duration: "0:30" };
     out property <FeedCardData> s-cs: { id: "s-cs", card-type: "game-session", game-name: "Counter-Strike 2", game-capsule: Crew.cs2, game-has-capsule: true,
-        actor-name: "Jonas", actor-initials: "JO", actor-avatar: Crew.jonas.avatar, actor-has-avatar: true, duration-human: "2h 16m", timestamp: "Today",
+        actor-name: "Jonas", actor-initials: "JO", actor-avatar: Crew.jonas.avatar, actor-has-avatar: true, duration-human: "2h 16m", timestamp: "Today", timestamp-upper: "TODAY",
         game-record: "1W 2L", game-wins: 1, game-losses: 2, game-matches: 3, participant-count: 3,
         part0-initials: "JO", part0-avatar: Crew.jonas.avatar, part0-has-avatar: true,
         part1-initials: "SA", part1-avatar: Crew.sara.avatar, part1-has-avatar: true,
         part2-initials: "B0", part2-avatar: Crew.bob.avatar, part2-has-avatar: true };
     out property <FeedCardData> s-drg: { id: "s-drg", card-type: "game-session", game-name: "Deep Rock Galactic", game-capsule: Crew.drg, game-has-capsule: true,
-        actor-name: "Nils", actor-initials: "NI", actor-avatar: Crew.nils.avatar, actor-has-avatar: true, duration-human: "2h 05m", duration-value: "2", duration-unit: "h", duration-tail: "05", timestamp: "Yesterday", participant-count: 3,
+        actor-name: "Nils", actor-initials: "NI", actor-avatar: Crew.nils.avatar, actor-has-avatar: true, duration-human: "2h 05m", duration-value: "2", duration-unit: "h", duration-tail: "05", timestamp: "Yesterday", timestamp-upper: "YESTERDAY", participant-count: 3,
         participants-line: "Nils, Alva +1",
         part0-initials: "NI", part0-avatar: Crew.nils.avatar, part0-has-avatar: true,
         part1-initials: "AL", part1-avatar: Crew.alva.avatar, part1-has-avatar: true,
         part2-initials: "HU", part2-avatar: Crew.hugo.avatar, part2-has-avatar: true };
     out property <FeedCardData> s-hs: { id: "s-hs", card-type: "game-session", game-name: "Hearthstone", game-monogram: "HS",
         actor-name: "Oskar", actor-initials: "OS", actor-avatar: Crew.oskar.avatar, actor-has-avatar: true,
-        duration-human: "2m", duration-value: "2", duration-unit: "m", timestamp: "4m ago", participant-count: 1,
+        duration-human: "2m", duration-value: "2", duration-unit: "m", timestamp: "4m ago", timestamp-upper: "4M AGO", participant-count: 1,
         participants-line: "Oskar",
         part0-initials: "OS", part0-avatar: Crew.oskar.avatar, part0-has-avatar: true };
     out property <FeedCardData> s-bg3: { id: "s-bg3", card-type: "game-session", game-name: "Baldur's Gate 3: The Long Night Edition", game-monogram: "BG",
         actor-name: "Saga", actor-initials: "SA", actor-avatar: Crew.saga.avatar, actor-has-avatar: true,
-        duration-human: "1h 30m", duration-value: "1", duration-unit: "h", duration-tail: "30", timestamp: "2h ago", participant-count: 5,
+        duration-human: "1h 30m", duration-value: "1", duration-unit: "h", duration-tail: "30", timestamp: "2h ago", timestamp-upper: "2H AGO", participant-count: 5,
         participants-line: "Saga, Juni-Marie Lindqvist +3",
         part0-initials: "SA", part0-avatar: Crew.saga.avatar, part0-has-avatar: true,
         part1-initials: "JU", part1-avatar: Crew.juni.avatar, part1-has-avatar: true,
         part2-initials: "EL", part2-avatar: Crew.elin.avatar, part2-has-avatar: true };
     out property <FeedCardData> s-rl: { id: "s-rl", card-type: "game-session", game-name: "Rocket League", game-capsule: Crew.rl, game-has-capsule: true,
-        actor-name: "Max", actor-initials: "MA", actor-avatar: Crew.max.avatar, actor-has-avatar: true, duration-human: "48m", timestamp: "Monday",
+        actor-name: "Max", actor-initials: "MA", actor-avatar: Crew.max.avatar, actor-has-avatar: true, duration-human: "48m", timestamp: "Monday", timestamp-upper: "MONDAY",
         game-record: "2W 1L", game-wins: 2, game-losses: 1, game-matches: 3, participant-count: 2,
         part0-initials: "MA", part0-avatar: Crew.max.avatar, part0-has-avatar: true,
         part1-initials: "TH", part1-avatar: Crew.theo.avatar, part1-has-avatar: true };
     out property <FeedCardData> belt-hero: { id: "head2head-belt", card-type: "head2head",
         head2head: { variant: "belt", belt: {
-            title-id: "night_owl", title: "Night Owl", icon: Crew.i-owl, hue-index: Crew.sara.hue-index,
+            title-id: "night_owl", title: "Night Owl", title-upper: "NIGHT OWL", icon: Crew.i-owl, hue-index: Crew.sara.hue-index,
             prev: Crew.you, prev-value: "03:14", holder: Crew.sara, holder-value: "03:40",
             age: "6 days ago", headline: "Sara took Night Owl from you", detail: "03:40 beats 03:14." } } };
     out property <FeedCardData> recap-sealed: { id: "recap_45", card-type: "recap", recap-week: "Week 45", recap-seal: Data.week-seal };
     out property <[HistoryWeek]> locked: [
-        { label: "Week 44", age: "Last week", locked: true, seal: Data.week-seal, more: 9,
+        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: true, seal: Data.week-seal, more: 9,
           teasers: [
-            { person: Crew.leo, kind: "CLIP", duration: "0:30", code: SealedFixtures.carry-code },
-            { person: Crew.ida, kind: "STREAM", duration: "1 h 12 min", code: SealedFixtures.owl-code },
+            { person: Crew.leo, kind: "clip", duration: "0:30", code: SealedFixtures.carry-code },
+            { person: Crew.ida, kind: "stream", duration: "1 h 12 min", code: SealedFixtures.owl-code },
           ] },
-        { label: "Week 43", age: "2 weeks ago", locked: true, seal: { key: "plus:43", sealed: true, seed: 911, bright: SealedFixtures.recap-bright, dim: SealedFixtures.recap-dim }, more: 4,
+        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: true, seal: { key: "plus:43", sealed: true, seed: 911, bright: SealedFixtures.recap-bright, dim: SealedFixtures.recap-dim }, more: 4,
           teasers: [
             { person: Crew.sara, kind: "VOICE", duration: "0:24", code: SealedFixtures.marathon-code },
-            { person: Crew.max, kind: "CLIP", duration: "0:28", code: SealedFixtures.owl-code },
+            { person: Crew.max, kind: "clip", duration: "0:28", code: SealedFixtures.owl-code },
           ] },
     ];
     out property <[HistoryWeek]> open: [
-        { label: "Week 44", age: "Last week", locked: false,
+        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: false,
           big: { value: "38", unit: "h", tail: "05", label: "HANGOUT" },
           stats: [ { value: "22", label: "CLIPS" }, { value: "3", unit: "h", tail: "58", label: "LONGEST" }, { value: "5", label: "GAMES" } ],
           has-top: true, top: { name: "Counter-Strike 2", art: Crew.cs2 },
           clips: [Hist.g3, Hist.v2, Hist.g2] },
-        { label: "Week 43", age: "2 weeks ago", locked: false,
+        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: false,
           big: { value: "29", unit: "h", tail: "40", label: "HANGOUT" },
           stats: [ { value: "17", label: "CLIPS" }, { value: "2", unit: "h", tail: "10", label: "LONGEST" }, { value: "4", label: "GAMES" } ],
           has-top: true, top: { name: "Rocket League", art: Crew.rl },
@@ -236,9 +236,9 @@ global Strip {
         streak-positive: true, win-rate-text: "62%", recent-form: ["W", "W", "L", "W", "D", "W"],
         viewer: Crew.bob, ready: true, held-icons: [owl],
         bars: [
-            { take: true, title-id: "locked_in", title: "Locked In", icon: locked, other: Crew.jonas,
+            { take: true, title-id: "locked_in", title: "Locked In", title-upper: "LOCKED IN", icon: locked, other: Crew.jonas,
               you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 },
-            { take: false, title-id: "night_owl", title: "Night Owl", icon: owl, other: Crew.max,
+            { take: false, title-id: "night_owl", title: "Night Owl", title-upper: "NIGHT OWL", icon: owl, other: Crew.max,
               you-value: "03:14", other-value: "03:02", unit: "", delta: "+12", delta-unit: "min", ratio: 0.978 },
         ] };
 }

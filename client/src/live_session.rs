@@ -50,15 +50,8 @@ pub fn since_min(started_ms: i64, now_ms: i64) -> i64 {
 }
 
 /// The text of the card: "since 12 min", "since 1 h 5 min".
-pub fn since_text(min: i64) -> String {
-    let min = min.max(1);
-    if min >= 60 && min % 60 == 0 {
-        format!("since {} h", min / 60)
-    } else if min >= 60 {
-        format!("since {} h {} min", min / 60, min % 60)
-    } else {
-        format!("since {min} min")
-    }
+pub fn since_text(tr: &crate::Tr<'_>, min: i64) -> String {
+    crate::l10n_format::since(tr, min)
 }
 
 #[derive(Default)]
@@ -248,6 +241,10 @@ mod tests {
 
     #[test]
     fn since_text_reads_minutes_then_hours() {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        let tr = app.global::<crate::Tr>();
+        let since_text = |min| super::since_text(&tr, min);
         assert_eq!(since_text(0), "since 1 min");
         assert_eq!(since_text(12), "since 12 min");
         assert_eq!(since_text(65), "since 1 h 5 min");

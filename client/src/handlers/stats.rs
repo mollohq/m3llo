@@ -1,6 +1,6 @@
 use mello_core::crew_events::UserGameStats;
 use mello_core::Event;
-use slint::{Color, Model, ModelRc, SharedString, VecModel};
+use slint::{Color, ComponentHandle, Model, ModelRc, SharedString, VecModel};
 
 use crate::app_context::AppContext;
 use crate::head2head::{self, chase::Chase};
@@ -9,7 +9,7 @@ use crate::{GameStatsCardData, YouStripData};
 pub fn handle(ctx: &AppContext, event: Event) {
     if let Event::UserGameStatsLoaded { games } = event {
         log::info!("[ui] user game stats loaded ({} games)", games.len());
-        let mut strip = build_you_strip(&games);
+        let mut strip = build_you_strip(&ctx.app.global::<crate::Tr>(), &games);
         keep_head2head(&mut strip, &ctx.app.get_you_strip());
         if strip.has_stats {
             attach_icon(ctx, &strip.game_id, &strip.game_name, |img, has| {
@@ -18,7 +18,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             });
         }
         ctx.app.set_you_strip(strip);
-        let mut cards = build_profile_cards(&games);
+        let mut cards = build_profile_cards(&ctx.app.global::<crate::Tr>(), &games);
         for c in &mut cards {
             attach_icon(ctx, &c.game_id, &c.game_name, |img, has| {
                 c.icon = img;
@@ -58,7 +58,13 @@ pub(super) fn set_chase(ctx: &AppContext, chase: Option<&Chase>, quests_done: bo
             let bars: Vec<crate::ChaseBarData> = c
                 .strip()
                 .into_iter()
-                .map(|b| head2head::chase_bar_data(b, super::clip::live_person(ctx, &b.other)))
+                .map(|b| {
+                    head2head::chase_bar_data(
+                        &ctx.app.global::<crate::Tr>(),
+                        b,
+                        super::clip::live_person(ctx, &b.other),
+                    )
+                })
                 .collect();
             let sharing = ctx.settings.borrow().share_game_activity;
             log::debug!(
@@ -89,7 +95,13 @@ pub(super) fn set_you_view(ctx: &AppContext, chase: Option<&Chase>, pairs: &[hea
     let bars = |list: &[head2head::chase::Bar]| -> ModelRc<crate::ChaseBarData> {
         ModelRc::new(VecModel::from(
             list.iter()
-                .map(|b| head2head::chase_bar_data(b, super::clip::live_person(ctx, &b.other)))
+                .map(|b| {
+                    head2head::chase_bar_data(
+                        &ctx.app.global::<crate::Tr>(),
+                        b,
+                        super::clip::live_person(ctx, &b.other),
+                    )
+                })
                 .collect::<Vec<_>>(),
         ))
     };
@@ -98,7 +110,13 @@ pub(super) fn set_you_view(ctx: &AppContext, chase: Option<&Chase>, pairs: &[hea
         .unwrap_or_default();
     let rows: Vec<crate::YouPairRow> = pairs
         .iter()
-        .map(|p| head2head::view_pair_data(p, super::clip::live_person(ctx, &p.opponent)))
+        .map(|p| {
+            head2head::view_pair_data(
+                &ctx.app.global::<crate::Tr>(),
+                p,
+                super::clip::live_person(ctx, &p.opponent),
+            )
+        })
         .collect();
     ctx.app.set_you_view_holds(holds);
     ctx.app.set_you_view_takes(takes);
@@ -168,7 +186,7 @@ pub(super) fn refresh_art(ctx: &AppContext) {
 /// dropped, and an id with words in it ("epic-night-stones") is title cased.
 /// An id that is only digits or hashes ("steam-4999999") has no readable form,
 /// so it becomes "Unknown game". A raw id is never shown.
-pub(crate) fn fallback_game_name(game_id: &str) -> String {
+pub(crate) fn fallback_game_name(tr: &crate::Tr<'_>, game_id: &str) -> String {
     let rest = ["steam-", "epic-", "gog-"]
         .iter()
         .find_map(|p| game_id.strip_prefix(p))
@@ -182,7 +200,7 @@ pub(crate) fn fallback_game_name(game_id: &str) -> String {
             .iter()
             .all(|w| w.chars().all(|c| c.is_alphabetic()) && w.chars().count() <= 20);
     if !readable {
-        return "Unknown game".to_string();
+        return tr.get_unknown_game().into();
     }
     words
         .iter()
@@ -205,6 +223,7 @@ pub(crate) fn fallback_game_name(game_id: &str) -> String {
 /// The catalogue is asked by catalogue id first, then by the Steam appid for a
 /// launcher id. Anything else falls back to `fallback_game_name`.
 pub(crate) fn display_info(
+    tr: &crate::Tr<'_>,
     head: Option<&mello_core::catalogue::Head>,
     game_id: &str,
 ) -> (String, String, Color) {
@@ -218,37 +237,38 @@ pub(crate) fn display_info(
     match by_id.or_else(by_appid) {
         Some(e) => (e.name.to_string(), e.short_name.to_string(), grey),
         None => {
-            let name = fallback_game_name(game_id);
+            let name = fallback_game_name(tr, game_id);
             let short = mello_core::library::derive_short_name(&name);
             (name, short, grey)
         }
     }
 }
 
-fn streak_text(streak: i32) -> String {
+fn streak_text(tr: &crate::Tr<'_>, streak: i32) -> String {
     if streak > 0 {
-        format!("W{streak}")
+        tr.invoke_streak_wins(streak).into()
     } else if streak < 0 {
-        format!("L{}", -streak)
+        tr.invoke_streak_losses(-streak).into()
     } else {
         "—".to_string()
     }
 }
 
-fn win_rate_text(wins: u32, losses: u32) -> String {
+fn win_rate_text(tr: &crate::Tr<'_>, wins: u32, losses: u32) -> String {
     let decided = wins + losses;
     if decided > 0 {
-        format!("{}%", (wins * 100) / decided)
+        crate::l10n_format::percent(tr, i64::from((wins * 100) / decided))
     } else {
         "—".to_string()
     }
 }
 
-fn record_text(g: &UserGameStats) -> String {
+fn record_text(tr: &crate::Tr<'_>, g: &UserGameStats) -> String {
+    let (w, l, d) = (g.wins as i32, g.losses as i32, g.draws as i32);
     if g.draws > 0 {
-        format!("{}W {}L {}D", g.wins, g.losses, g.draws)
+        tr.invoke_record_w_l_d(w, l, d).into()
     } else {
-        format!("{}W {}L", g.wins, g.losses)
+        tr.invoke_record_w_l(w, l).into()
     }
 }
 
@@ -307,20 +327,13 @@ fn weekly_minutes(g: &UserGameStats) -> (u32, u32) {
 /// if it held the foreground for under a third of its wall time, the active
 /// figure is shown instead. An inflated number a crewmate can disprove costs
 /// more than the larger number gains.
-fn weekly_time_text(g: &UserGameStats) -> String {
+fn weekly_time_text(tr: &crate::Tr<'_>, g: &UserGameStats) -> String {
     let shown = weekly_shown_minutes(g);
     if shown == 0 {
         return String::new();
     }
-    let (h, m) = (shown / 60, shown % 60);
-    let duration = if h > 0 && m > 0 {
-        format!("{h}h {m}m")
-    } else if h > 0 {
-        format!("{h}h")
-    } else {
-        format!("{m}m")
-    };
-    format!("{duration} this week")
+    let duration = crate::l10n_format::duration_hm_compact(tr, i64::from(shown));
+    tr.invoke_play_time_this_week(duration.into()).into()
 }
 
 /// The minutes the week line shows. Wall time is the headline, except when a
@@ -336,12 +349,12 @@ fn weekly_shown_minutes(g: &UserGameStats) -> u32 {
 }
 
 /// The week's hours as the strip's number: "6.5", "0.0", "112".
-fn week_value(g: &UserGameStats) -> String {
+fn week_value(tr: &crate::Tr<'_>, g: &UserGameStats) -> String {
     let hours = f64::from(weekly_shown_minutes(g)) / 60.0;
-    head2head::value_text(&serde_json::json!(hours), "h").0
+    head2head::value_text(tr, &serde_json::json!(hours), "h").0
 }
 
-fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
+fn build_you_strip(tr: &crate::Tr<'_>, games: &[UserGameStats]) -> YouStripData {
     // The backend returns games newest-played first, so the first entry is
     // what the person was last doing. This used to pick the first game with a
     // win/loss record, which meant the strip stayed empty — or showed a stale
@@ -352,7 +365,7 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
     };
 
     let head = mello_core::catalogue::Head::bundled();
-    let (name, short, color) = display_info(head.as_ref(), &g.game_id);
+    let (name, short, color) = display_info(tr, head.as_ref(), &g.game_id);
     let has_record = g.wins + g.losses + g.draws > 0;
 
     YouStripData {
@@ -364,31 +377,35 @@ fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
         icon: Default::default(),
         has_icon: false,
         has_record,
-        streak_text: streak_text(g.current_streak).into(),
+        streak_text: streak_text(tr, g.current_streak).into(),
         streak_positive: g.current_streak >= 0,
-        record_text: format!("{}W {}L", g.wins, g.losses).into(),
-        win_rate_text: win_rate_text(g.wins, g.losses).into(),
-        weekly_time_text: weekly_time_text(g).into(),
+        record_text: tr.invoke_record_w_l(g.wins as i32, g.losses as i32),
+        win_rate_text: win_rate_text(tr, g.wins, g.losses).into(),
+        weekly_time_text: weekly_time_text(tr, g).into(),
         recent_form: ModelRc::new(VecModel::from(form_pips(g, 6))),
-        week_value: week_value(g).into(),
+        week_value: week_value(tr, g).into(),
         ..Default::default()
     }
 }
 
 /// The Games tab of the You view: one card per tracked game, in the
 /// backend's newest-played-first order. A game with no record shows hours.
-fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
+fn build_profile_cards(tr: &crate::Tr<'_>, games: &[UserGameStats]) -> Vec<GameStatsCardData> {
     let head = mello_core::catalogue::Head::bundled();
     games
         .iter()
         .map(|g| {
-            let (name, short, color) = display_info(head.as_ref(), &g.game_id);
+            let (name, short, color) = display_info(tr, head.as_ref(), &g.game_id);
 
-            let best = match (g.longest_win_streak, g.longest_loss_streak) {
+            let best: String = match (g.longest_win_streak, g.longest_loss_streak) {
                 (0, 0) => String::new(),
-                (w, 0) => format!("W{w} best"),
-                (0, l) => format!("L{l} worst"),
-                (w, l) => format!("W{w} best · L{l} worst"),
+                (w, 0) => tr.invoke_streak_best(w as i32).into(),
+                (0, l) => tr.invoke_streak_worst(l as i32).into(),
+                (w, l) => crate::l10n_format::dot_pair(
+                    tr,
+                    &tr.invoke_streak_best(w as i32),
+                    &tr.invoke_streak_worst(l as i32),
+                ),
             };
 
             GameStatsCardData {
@@ -398,22 +415,22 @@ fn build_profile_cards(games: &[UserGameStats]) -> Vec<GameStatsCardData> {
                 game_color: color,
                 icon: Default::default(),
                 has_icon: false,
-                record_text: record_text(g).into(),
-                win_rate_text: win_rate_text(g.wins, g.losses).into(),
-                streak_text: streak_text(g.current_streak).into(),
+                record_text: record_text(tr, g).into(),
+                win_rate_text: win_rate_text(tr, g.wins, g.losses).into(),
+                streak_text: streak_text(tr, g.current_streak).into(),
                 streak_positive: g.current_streak >= 0,
                 best_streak_text: best.into(),
                 recent_form: ModelRc::new(VecModel::from(form_pips(g, 10))),
-                last_played_text: relative_time(g.last_played).into(),
+                last_played_text: relative_time(tr, g.last_played).into(),
                 has_record: g.wins + g.losses + g.draws > 0,
-                week_value: week_value(g).into(),
+                week_value: week_value(tr, g).into(),
             }
         })
         .collect()
 }
 
 /// Coarse relative timestamp for "last played" (ms since epoch; "" if unset).
-fn relative_time(ts_ms: i64) -> String {
+fn relative_time(tr: &crate::Tr<'_>, ts_ms: i64) -> String {
     if ts_ms <= 0 {
         return String::new();
     }
@@ -421,18 +438,7 @@ fn relative_time(ts_ms: i64) -> String {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs() as i64;
-    let ago = now_secs - ts_ms / 1000;
-    if ago < 60 {
-        "just now".to_string()
-    } else if ago < 3600 {
-        format!("{}m ago", ago / 60)
-    } else if ago < 86400 {
-        format!("{}h ago", ago / 3600)
-    } else if ago < 7 * 86400 {
-        format!("{}d ago", ago / 86400)
-    } else {
-        format!("{}w ago", ago / (7 * 86400))
-    }
+    crate::l10n_format::short_age(tr, now_secs - ts_ms / 1000)
 }
 
 fn parse_hex_color(hex: &str) -> Color {
@@ -446,20 +452,49 @@ mod tests {
     use super::*;
     use mello_core::crew_events::RecentDayEntry;
 
+    /// The functions under test, with the English `Tr` of a test window.
+    fn with_tr<T>(f: impl FnOnce(&crate::Tr<'_>) -> T) -> T {
+        use slint::ComponentHandle;
+        let app = crate::testkit::new_main_window();
+        f(&app.global::<crate::Tr>())
+    }
+    fn weekly_time_text(g: &UserGameStats) -> String {
+        with_tr(|tr| super::weekly_time_text(tr, g))
+    }
+    fn build_you_strip(games: &[UserGameStats]) -> YouStripData {
+        with_tr(|tr| super::build_you_strip(tr, games))
+    }
+
     #[test]
     fn an_unknown_id_never_shows_as_a_raw_id() {
-        assert_eq!(fallback_game_name("steam-4999999"), "Unknown game");
-        assert_eq!(fallback_game_name("epic-4fe75bbc5a67"), "Unknown game");
-        assert_eq!(fallback_game_name(""), "Unknown game");
-        assert_eq!(fallback_game_name("epic-night-stones"), "Night Stones");
+        assert_eq!(
+            fallback_game_name(crate::l10n_format::test_tr(), "steam-4999999"),
+            "Unknown game"
+        );
+        assert_eq!(
+            fallback_game_name(crate::l10n_format::test_tr(), "epic-4fe75bbc5a67"),
+            "Unknown game"
+        );
+        assert_eq!(
+            fallback_game_name(crate::l10n_format::test_tr(), ""),
+            "Unknown game"
+        );
+        assert_eq!(
+            fallback_game_name(crate::l10n_format::test_tr(), "epic-night-stones"),
+            "Night Stones"
+        );
     }
 
     #[test]
     fn a_launcher_id_resolves_through_the_appid_index() {
         let head = mello_core::catalogue::Head::bundled();
-        let (name, _, _) = display_info(head.as_ref(), "steam-730");
+        let (name, _, _) = display_info(crate::l10n_format::test_tr(), head.as_ref(), "steam-730");
         assert_eq!(name, "Counter-Strike 2");
-        let (name, _, _) = display_info(head.as_ref(), "counter-strike-2");
+        let (name, _, _) = display_info(
+            crate::l10n_format::test_tr(),
+            head.as_ref(),
+            "counter-strike-2",
+        );
         assert_eq!(name, "Counter-Strike 2");
     }
 

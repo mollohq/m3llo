@@ -65,7 +65,7 @@ component ChaseBar inherits Rectangle {
                 height: 14px;
             }
             Kicker {
-                text: root.bar.title.to-uppercase();
+                text: root.bar.title-upper;
                 color: Theme.text-body;
                 overflow: elide;
                 horizontal-stretch: 0;
@@ -321,7 +321,7 @@ export component YouStrip inherits Rectangle {
                     alignment: center;
                     StatValue {
                         value: root.data.week-value;
-                        unit: @tr("h");
+                        unit: @tr("unit" => "h");
                         value-size: 15px;
                         unit-size: 11px;
                     }
@@ -373,18 +373,18 @@ export component Preview inherits Rectangle {
     property <image> i-samp: @image-url("../icons/h2h-sampler.svg");
     property <image> i-belt: @image-url("../icons/h2h-belt.svg");
 
-    property <ChaseBarData> take-lock: { take: true, title-id: "locked_in", title: "Locked In", icon: i-lock,
+    property <ChaseBarData> take-lock: { take: true, title-id: "locked_in", title: "Locked In", title-upper: "LOCKED IN", icon: i-lock,
         stat-line: "Most game hours in the last 7 days.", other: ebba,
         you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 };
-    property <ChaseBarData> hold-owl: { take: false, title-id: "night_owl", title: "Night Owl", icon: i-owl,
+    property <ChaseBarData> hold-owl: { take: false, title-id: "night_owl", title: "Night Owl", title-upper: "NIGHT OWL", icon: i-owl,
         other: axel, you-value: "03:14", other-value: "03:02", unit: "", delta: "+12", delta-unit: "min", ratio: 0.978 };
-    property <ChaseBarData> hold-col: { take: false, title-id: "the_collector", title: "The Collector", icon: i-col,
+    property <ChaseBarData> hold-col: { take: false, title-id: "the_collector", title: "The Collector", title-upper: "THE COLLECTOR", icon: i-col,
         other: elin, you-value: "212", other-value: "203", unit: "installed", delta: "+9", delta-unit: "", ratio: 0.958 };
-    property <ChaseBarData> take-owl: { take: true, title-id: "night_owl", title: "Night Owl", icon: i-owl,
+    property <ChaseBarData> take-owl: { take: true, title-id: "night_owl", title: "Night Owl", title-upper: "NIGHT OWL", icon: i-owl,
         other: axel, you-value: "03:02", other-value: "03:14", unit: "", delta: "−12", delta-unit: "min", ratio: 0.978 };
-    property <ChaseBarData> take-clip: { take: true, title-id: "clipper", title: "Clipper", icon: i-belt,
+    property <ChaseBarData> take-clip: { take: true, title-id: "clipper", title: "Clipper", title-upper: "CLIPPER", icon: i-belt,
         other: alva, you-value: "38", other-value: "41", unit: "clips", delta: "−3", delta-unit: "", ratio: 0.927 };
-    property <ChaseBarData> tie-samp: { take: true, title-id: "sampler", title: "Sampler", icon: i-samp,
+    property <ChaseBarData> tie-samp: { take: true, title-id: "sampler", title: "Sampler", title-upper: "SAMPLER", icon: i-samp,
         other: elin, you-value: "5", other-value: "5", unit: "games", delta: "±0", delta-unit: "", ratio: 1.0 };
 
     property <YouStripData> cs2: {

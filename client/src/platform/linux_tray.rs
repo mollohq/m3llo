@@ -17,7 +17,7 @@ use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{CheckmarkItem, StandardItem};
 use ksni::{Icon, MenuItem, OfflineReason, ToolTip, Tray};
 
-use super::VoiceState;
+use super::{TrayText, VoiceState};
 use crate::{APP_NAME, LINUX_APP_ID};
 
 /// The id of a left click on the tray icon: show or hide the window.
@@ -26,6 +26,8 @@ pub const TOGGLE_WINDOW: &str = "tray_toggle";
 struct M3lloTray {
     state: VoiceState,
     muted: bool,
+    /// The menu labels, read from `Tr` on the UI thread.
+    text: TrayText,
     tx: mpsc::Sender<String>,
     watcher_online: Arc<AtomicBool>,
 }
@@ -67,14 +69,14 @@ impl Tray for M3lloTray {
         );
         vec![
             StandardItem {
-                label: format!("Open {APP_NAME}"),
+                label: self.text.open.clone(),
                 activate: send("tray_open"),
                 ..Default::default()
             }
             .into(),
             MenuItem::Separator,
             CheckmarkItem {
-                label: "Mute".into(),
+                label: self.text.mute.clone(),
                 enabled: in_voice,
                 checked: self.muted,
                 activate: send("tray_mute"),
@@ -82,7 +84,7 @@ impl Tray for M3lloTray {
             }
             .into(),
             StandardItem {
-                label: "Leave Voice".into(),
+                label: self.text.leave_voice.clone(),
                 enabled: in_voice,
                 activate: send("tray_leave"),
                 ..Default::default()
@@ -90,7 +92,7 @@ impl Tray for M3lloTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: format!("Quit {APP_NAME}"),
+                label: self.text.quit.clone(),
                 activate: send("tray_quit"),
                 ..Default::default()
             }
@@ -121,7 +123,7 @@ pub struct LinuxTray {
 impl LinuxTray {
     /// Errors when no StatusNotifierWatcher exists (GNOME without the
     /// AppIndicator extension): ksni's spawn fails then.
-    pub fn spawn(state: VoiceState) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn spawn(state: VoiceState, text: TrayText) -> Result<Self, Box<dyn std::error::Error>> {
         let (tx, rx) = mpsc::channel();
         // True from the start: a spawn that returns Ok has registered the item
         // with a watcher. ksni calls watcher_online only when a watcher comes
@@ -131,6 +133,7 @@ impl LinuxTray {
         let handle = M3lloTray {
             state,
             muted: false,
+            text,
             tx,
             watcher_online: watcher_online.clone(),
         }

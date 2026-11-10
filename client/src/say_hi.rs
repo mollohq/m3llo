@@ -9,15 +9,25 @@
 
 use mello_core::chat::MentionRef;
 
-/// The six lines. `{name}` stands for the mention.
-const LINES: [&str; 6] = [
-    "@{name} made it. Welcome to the crew.",
-    "@{name} is in. Grab a seat.",
-    "Look who showed up. Hey @{name}.",
-    "@{name}, you found us. Good.",
-    "New blood. Welcome @{name}.",
-    "@{name} is here. Mic on, let's go.",
-];
+use crate::Tr;
+
+/// The count of lines.
+const LINES: u64 = 6;
+
+/// Line `i` of the six, with the mention ("@Sara") in it. The words come from
+/// `Tr`: the greeting goes out in the language of the sender.
+fn line(tr: &Tr<'_>, i: u64, mention: &str) -> String {
+    let m = mention.into();
+    match i {
+        0 => tr.invoke_say_hi_made_it(m),
+        1 => tr.invoke_say_hi_is_in(m),
+        2 => tr.invoke_say_hi_showed_up(m),
+        3 => tr.invoke_say_hi_found_us(m),
+        4 => tr.invoke_say_hi_new_blood(m),
+        _ => tr.invoke_say_hi_is_here(m),
+    }
+    .into()
+}
 
 /// A stable hash of the id (FNV-1a), so the pick does not change between runs.
 fn seed(user_id: &str) -> u64 {
@@ -30,10 +40,9 @@ fn seed(user_id: &str) -> u64 {
 }
 
 /// The greeting for this member and the mention it carries.
-pub fn greeting(user_id: &str, name: &str) -> (String, MentionRef) {
-    let line = LINES[(seed(user_id) % LINES.len() as u64) as usize];
+pub fn greeting(tr: &Tr<'_>, user_id: &str, name: &str) -> (String, MentionRef) {
     (
-        line.replace("{name}", name),
+        line(tr, seed(user_id) % LINES, &format!("@{name}")),
         MentionRef {
             user_id: user_id.to_string(),
             name: name.to_string(),
@@ -49,6 +58,11 @@ pub fn user_of_card(card_id: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::l10n_format::test_tr;
+
+    fn greeting(user_id: &str, name: &str) -> (String, MentionRef) {
+        super::greeting(test_tr(), user_id, name)
+    }
 
     #[test]
     fn the_line_mentions_the_member_in_the_chat_form() {
@@ -64,15 +78,16 @@ mod tests {
         let picked: std::collections::HashSet<String> = (0..200)
             .map(|n| greeting(&format!("user-{n}"), "X").0)
             .collect();
-        assert_eq!(picked.len(), LINES.len());
+        assert_eq!(picked.len() as u64, LINES);
     }
 
     #[test]
     fn no_line_has_an_exclamation_point_an_em_dash_or_the_word_team() {
-        for l in LINES {
+        for i in 0..LINES {
+            let l = line(test_tr(), i, "@X");
             assert!(!l.contains('!') && !l.contains('\u{2014}'), "{l}");
             assert!(!l.to_lowercase().contains("team"), "{l}");
-            assert!(l.contains("@{name}"));
+            assert!(l.contains("@X"));
         }
     }
 

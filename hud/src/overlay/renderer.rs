@@ -202,10 +202,14 @@ impl D2DRenderer {
             y += SEPARATOR_HEIGHT + GAP;
 
             if let Some(ref voice) = state.voice {
-                let streamer_name = state.stream_card.as_ref().map(|s| s.streamer.as_str());
                 for member in &voice.members {
-                    let is_streaming = streamer_name.is_some_and(|s| s == member.display_name);
-                    self.draw_member_row(rt, member, is_streaming, &mut y, width as f32)?;
+                    // The badge text of the member who streams.
+                    let live_label = state
+                        .stream_card
+                        .as_ref()
+                        .filter(|s| s.streamer == member.display_name)
+                        .map(|s| s.live_label.as_str());
+                    self.draw_member_row(rt, member, live_label, &mut y, width as f32)?;
                     y += GAP;
                 }
             }
@@ -303,7 +307,7 @@ impl D2DRenderer {
         &self,
         rt: &ID2D1RenderTarget,
         member: &crate::protocol::HudVoiceMember,
-        is_streaming: bool,
+        live_label: Option<&str>,
         y: &mut f32,
         _width: f32,
     ) -> Result<()> {
@@ -389,8 +393,8 @@ impl D2DRenderer {
             DWRITE_MEASURING_MODE_NATURAL,
         );
 
-        if is_streaming {
-            self.draw_live_badge(rt, row_y, ROW_HEIGHT)?;
+        if let Some(label) = live_label {
+            self.draw_live_badge(rt, row_y, ROW_HEIGHT, label)?;
         } else if member.speaking {
             let indicator_x = PANEL_WIDTH - PANEL_PADDING - 20.0;
             self.draw_speaking_bars(rt, indicator_x, row_y, ROW_HEIGHT)?;
@@ -468,7 +472,14 @@ impl D2DRenderer {
         Ok(())
     }
 
-    unsafe fn draw_live_badge(&self, rt: &ID2D1RenderTarget, row_y: f32, row_h: f32) -> Result<()> {
+    /// `label` is the badge text, in the UI language of the client.
+    unsafe fn draw_live_badge(
+        &self,
+        rt: &ID2D1RenderTarget,
+        row_y: f32,
+        row_h: f32,
+        label: &str,
+    ) -> Result<()> {
         let red = color(0.922, 0.302, 0.373, 1.0);
         let red_brush = self.brush(rt, red)?;
 
@@ -491,7 +502,9 @@ impl D2DRenderer {
         };
         rt.FillEllipse(&dot, &red_brush);
 
-        let live_text: Vec<u16> = "LIVE".encode_utf16().collect();
+        // An older client sends no label: the badge keeps its English text.
+        let label = if label.is_empty() { "LIVE" } else { label };
+        let live_text: Vec<u16> = label.encode_utf16().collect();
         rt.DrawText(
             &live_text,
             &self.tf_badge,

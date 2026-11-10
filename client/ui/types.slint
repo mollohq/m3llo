@@ -129,6 +129,8 @@ export struct RecapSeal {
 // split as on TitleChip. Hues are identity hue indexes of the two members.
 export struct RecapBeltMovedRow {
     title: string,
+    /// The title in upper case, as the chip shows it. Built in Rust.
+    title-upper: string,
     /// What the title measures, for the tooltip (`sealed::stat_line`).
     stat-line: string,
     icon: image,
@@ -240,6 +242,8 @@ export struct TitleHeld {
     id: string,
     icon: image,
     title: string,
+    /// The title in upper case, as the chip shows it. Built in Rust.
+    title-upper: string,
     value: string,
     unit: string,
     hue-index: int,
@@ -288,6 +292,8 @@ export struct H2hPairRow {
 export struct BeltHeroData {
     title-id: string,
     title: string,
+    // The title in upper case, as the hero shows it.
+    title-upper: string,
     icon: image,
     // The new holder's identity hue, for the chip and the number.
     hue-index: int,
@@ -354,6 +360,8 @@ export struct FeedCardData {
     title: string,
     subtitle: string,
     timestamp: string,
+    // The timestamp in upper case, for the session preview card.
+    timestamp-upper: string,
     duration: string,
     duration-min: int,
     actor-name: string,
@@ -525,6 +533,7 @@ export struct YouPairRow {
     you-count: int,
     them-count: int,
     title: string,            // "" when every title of the pair ties
+    title-upper: string,      // the title in upper case, as the row shows it
     icon: image,
     stat-line: string,
     you-value: string,
@@ -537,6 +546,7 @@ export struct ChaseBarData {
     take: bool,             // TAKE a belt from its holder, else HOLD yours
     title-id: string,
     title: string,
+    title-upper: string,    // the title in upper case, for the You strip
     icon: image,
     stat-line: string,      // the tooltip (`sealed::stat_line`)
     other: H2hPerson,       // the holder of a take, the runner-up of a hold
@@ -1016,8 +1026,12 @@ export struct QuestReveal {
     /// What the actions do: "banner-game", "banner-upload", "link", "emoji".
     action1: string,
     action1-label: string,
+    /// The labels in upper case, as the buttons show them. The sentence-case
+    /// labels are the accessible labels.
+    action1-label-upper: string,
     action2: string,
     action2-label: string,
+    action2-label-upper: string,
     bright: string,
     dim: string,
 }

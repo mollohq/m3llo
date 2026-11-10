@@ -18,6 +18,8 @@ export component SessionPreviewCard inherits Rectangle {
     in property <int> peak-viewers;
     in property <int> clip-count;
     in property <string> time-since-ended;
+    /// `time-since-ended` in upper case. Rust builds it.
+    in property <string> time-since-ended-upper;
     in property <bool> is-hero;
     in property <bool> was-seen: false;
 
@@ -51,13 +53,13 @@ export component SessionPreviewCard inherits Rectangle {
     property <int> duration-hours: duration-min / 60;
     property <int> duration-remaining-mins: Math.mod(duration-min, 60);
     property <string> duration-text: duration-hours > 0
-        ? @tr("{}h {}m", duration-hours, duration-remaining-mins)
-        : @tr("{}m", duration-min);
+        ? @tr("unit" => "{}h {}m", duration-hours, duration-remaining-mins)
+        : @tr("unit" => "{}m", duration-min);
 
     // "1 h 12 min", as the hero chip reads (frame C).
     property <string> duration-hero-text: duration-hours > 0
-        ? @tr("{} h {} min", duration-hours, (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins)
-        : @tr("{} min", duration-min);
+        ? @tr("unit" => "{} h {} min", duration-hours, (duration-remaining-mins < 10 ? "0" : "") + duration-remaining-mins)
+        : @tr("unit" => "{} min", duration-min);
 
     property <int> seen-threshold: image-count * 7 / 10;
 
@@ -291,7 +293,7 @@ export component SessionPreviewCard inherits Rectangle {
 
                     Text {
                         height: 14px;
-                        text: root.time-since-ended.to-uppercase();
+                        text: root.time-since-ended-upper;
                         font-family: Theme.font-label;
                         font-weight: Theme.weight-label;
                         font-size: 9.5px;
@@ -604,6 +606,7 @@ export component Preview inherits Rectangle {
             peak-viewers: 3;
             clip-count: 2;
             time-since-ended: "Tuesday";
+            time-since-ended-upper: "TUESDAY";
         }
 
         // standard, still loading
@@ -616,6 +619,7 @@ export component Preview inherits Rectangle {
             duration-min: 74;
             peak-viewers: 5;
             time-since-ended: "Yesterday";
+            time-since-ended-upper: "YESTERDAY";
             snapshot-loading: true;
         }
     }

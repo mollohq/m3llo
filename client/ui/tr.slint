@@ -68,4 +68,1139 @@ export global Tr {
     out property <string> image-unusable: @tr("That file is not an image we can use.");
     /// The emoji name does not obey the rule of the server.
     out property <string> emoji-name-rule: @tr("A name is 2 to 24 letters, digits or underscores.");
+
+    // --- Dates, times, durations and numbers (src/l10n_format.rs) ---
+    //
+    // Rust makes all date, time, duration and number text with these
+    // members. A pattern with no words has the context `format`: change the
+    // order of the places and the marks between them for your language. For
+    // example, Chinese can write `date-day-month` as "{1}{0}日".
+
+    /// A day of the week, in a date ("Sunday 1 Nov").
+    out property <string> weekday-sunday: @tr("Sunday");
+    out property <string> weekday-monday: @tr("Monday");
+    out property <string> weekday-tuesday: @tr("Tuesday");
+    out property <string> weekday-wednesday: @tr("Wednesday");
+    out property <string> weekday-thursday: @tr("Thursday");
+    out property <string> weekday-friday: @tr("Friday");
+    out property <string> weekday-saturday: @tr("Saturday");
+
+    /// The full name of a month, in a date ("2 October").
+    out property <string> month-january: @tr("January");
+    out property <string> month-february: @tr("February");
+    out property <string> month-march: @tr("March");
+    out property <string> month-april: @tr("April");
+    out property <string> month-may: @tr("May");
+    out property <string> month-june: @tr("June");
+    out property <string> month-july: @tr("July");
+    out property <string> month-august: @tr("August");
+    out property <string> month-september: @tr("September");
+    out property <string> month-october: @tr("October");
+    out property <string> month-november: @tr("November");
+    out property <string> month-december: @tr("December");
+
+    /// The short name of a month, in a short date ("6 Oct").
+    out property <string> month-short-january: @tr("short month" => "Jan");
+    out property <string> month-short-february: @tr("short month" => "Feb");
+    out property <string> month-short-march: @tr("short month" => "Mar");
+    out property <string> month-short-april: @tr("short month" => "Apr");
+    out property <string> month-short-may: @tr("short month" => "May");
+    out property <string> month-short-june: @tr("short month" => "Jun");
+    out property <string> month-short-july: @tr("short month" => "Jul");
+    out property <string> month-short-august: @tr("short month" => "Aug");
+    out property <string> month-short-september: @tr("short month" => "Sep");
+    out property <string> month-short-october: @tr("short month" => "Oct");
+    out property <string> month-short-november: @tr("short month" => "Nov");
+    out property <string> month-short-december: @tr("short month" => "Dec");
+
+    /// A date: {0} is the day of the month (a number), {1} is the name of
+    /// the month, full or short ("2 October", "6 Oct").
+    pure public function date-day-month(day: int, month: string) -> string {
+        // {0} is the day of the month, {1} is the name of the month.
+        @tr("format" => "{0} {1}", day, month)
+    }
+
+    /// A date with the year: {0} is the day of the month, {1} is the short
+    /// name of the month, {2} is the year ("29 Sep 2025").
+    pure public function date-day-month-year(day: int, month: string, year: int) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the year.
+        @tr("format" => "{0} {1} {2}", day, month, year)
+    }
+
+    /// A date inside the last week: {0} is the day of the month, {1} is
+    /// the short name of the month, {2} is the name of the day of the week
+    /// ("Sunday 1 Nov").
+    pure public function date-weekday-day-month(day: int, month: string, weekday: string) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the weekday.
+        @tr("format" => "{2} {0} {1}", day, month, weekday)
+    }
+
+    /// The short date of a chat message: {0} is the day of the month, {1}
+    /// is the short name of the month ("Oct 27").
+    pure public function date-month-day(day: int, month: string) -> string {
+        // {0} is the day of the month, {1} is the short month.
+        @tr("format" => "{1} {0}", day, month)
+    }
+
+    /// The short date of a chat message from an earlier year: {0} is the
+    /// day of the month, {1} is the short name of the month, {2} is the year
+    /// ("Oct 27, 2025").
+    pure public function date-month-day-year(day: int, month: string, year: int) -> string {
+        // {0} is the day of the month, {1} is the short month, {2} is the year.
+        @tr("format" => "{1} {0}, {2}", day, month, year)
+    }
+
+    /// The days of a week in one month: {0} is the first day, {1} is the
+    /// last day, {2} is the name of the month ("12 to 18 October").
+    pure public function date-range-in-month(first: int, last: int, month: string) -> string {
+        // {0} is the first day, {1} is the last day, {2} is the month.
+        @tr("{0} to {1} {2}", first, last, month)
+    }
+
+    /// The days of a week across two months: {0} and {1} are the first day
+    /// and its month, {2} and {3} are the last day and its month
+    /// ("28 September to 4 October").
+    pure public function date-range-across-months(first: int, first-month: string, last: int, last-month: string) -> string {
+        // {0} {1} is the first day and month, {2} {3} is the last day and month.
+        @tr("{0} {1} to {2} {3}", first, first-month, last, last-month)
+    }
+
+    /// The title of a weekly recap with no number. The value is a short
+    /// date, the first day of the week ("Week of 6 Oct").
+    pure public function week-of(date: string) -> string {
+        // The value is a short date ("6 Oct").
+        @tr("Week of {}", date)
+    }
+
+    /// The short name of a month in upper case, in an upper-case date ("6 OCT").
+    out property <string> month-short-upper-january: @tr("short month" => "JAN");
+    out property <string> month-short-upper-february: @tr("short month" => "FEB");
+    out property <string> month-short-upper-march: @tr("short month" => "MAR");
+    out property <string> month-short-upper-april: @tr("short month" => "APR");
+    out property <string> month-short-upper-may: @tr("short month" => "MAY");
+    out property <string> month-short-upper-june: @tr("short month" => "JUN");
+    out property <string> month-short-upper-july: @tr("short month" => "JUL");
+    out property <string> month-short-upper-august: @tr("short month" => "AUG");
+    out property <string> month-short-upper-september: @tr("short month" => "SEP");
+    out property <string> month-short-upper-october: @tr("short month" => "OCT");
+    out property <string> month-short-upper-november: @tr("short month" => "NOV");
+    out property <string> month-short-upper-december: @tr("short month" => "DEC");
+
+    /// The label of a recap week with no number, in upper case. The value is
+    /// a short date in upper case ("WEEK OF 6 OCT").
+    pure public function week-of-upper(date: string) -> string {
+        // The value is a short date in upper case ("6 OCT").
+        @tr("WEEK OF {}", date)
+    }
+
+    /// The label of a recap week in upper case ("WEEK 4").
+    pure public function week-number-upper(n: int) -> string {
+        @tr("WEEK {}", n)
+    }
+
+    /// The title of a weekly recap: the number of the week ("Week 4").
+    pure public function week-number(n: int) -> string {
+        @tr("Week {}", n)
+    }
+
+    /// The short form of a week number, on a quest gift ("W45").
+    pure public function week-number-short(n: int) -> string {
+        @tr("W{}", n)
+    }
+
+    /// The time of day on a 24-hour clock: {0} is the hour, {1} is the
+    /// minute, each with two digits ("23:14", "00:14").
+    pure public function time-24h(hour: string, minute: string) -> string {
+        // A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+        @tr("format" => "{0}:{1}", hour, minute)
+    }
+
+    /// The time of day on a 12-hour clock: {0} is the hour (1 to 12), {1}
+    /// is the minute with two digits, {2} is the marker, `time-am` or
+    /// `time-pm` ("11:14 PM").
+    pure public function time-12h(hour: int, minute: string, marker: string) -> string {
+        // A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM or PM.
+        @tr("format" => "{0}:{1} {2}", hour, minute, marker)
+    }
+
+    /// The marker of a time before noon on a 12-hour clock.
+    out property <string> time-am: @tr("AM");
+    /// The marker of a time after noon on a 12-hour clock.
+    out property <string> time-pm: @tr("PM");
+
+    /// A day, relative to today.
+    out property <string> today: @tr("Today");
+    out property <string> yesterday: @tr("Yesterday");
+    /// The same words in lower case, as the feed card writes its age.
+    out property <string> today-lower: @tr("today");
+    out property <string> yesterday-lower: @tr("yesterday");
+    /// The value is a time of day ("Today 23:14").
+    pure public function today-at(time: string) -> string {
+        // The value is a time of day.
+        @tr("Today {}", time)
+    }
+    /// The value is a time of day ("Yesterday 22:30").
+    pure public function yesterday-at(time: string) -> string {
+        // The value is a time of day.
+        @tr("Yesterday {}", time)
+    }
+    /// How many days ago, from 2 to 6 ("3 days ago").
+    pure public function days-ago(n: int) -> string {
+        @tr("{n} day ago" | "{n} days ago" % n)
+    }
+    out property <string> this-week: @tr("This week");
+    out property <string> last-week: @tr("Last week");
+    /// How many weeks ago, from 2 up ("3 weeks ago").
+    pure public function weeks-ago(n: int) -> string {
+        @tr("{n} week ago" | "{n} weeks ago" % n)
+    }
+
+    /// A short age, under a minute.
+    out property <string> just-now: @tr("just now");
+    /// The relative times of the session preview card, in upper case.
+    out property <string> just-now-upper: @tr("JUST NOW");
+    out property <string> today-upper: @tr("TODAY");
+    out property <string> yesterday-upper: @tr("YESTERDAY");
+    /// How many days ago, in upper case ("2 DAYS AGO").
+    pure public function days-ago-upper(n: int) -> string {
+        @tr("{n} DAY AGO" | "{n} DAYS AGO" % n)
+    }
+    /// A short age in minutes, in upper case ("5M AGO").
+    pure public function minutes-ago-short-upper(n: int) -> string {
+        @tr("{}M AGO", n)
+    }
+    /// A short age in hours, in upper case ("3H AGO").
+    pure public function hours-ago-short-upper(n: int) -> string {
+        @tr("{}H AGO", n)
+    }
+    /// A short age in days, in upper case ("9D AGO").
+    pure public function days-ago-short-upper(n: int) -> string {
+        @tr("{}D AGO", n)
+    }
+    /// A day of the week in upper case.
+    out property <string> weekday-upper-sunday: @tr("SUNDAY");
+    out property <string> weekday-upper-monday: @tr("MONDAY");
+    out property <string> weekday-upper-tuesday: @tr("TUESDAY");
+    out property <string> weekday-upper-wednesday: @tr("WEDNESDAY");
+    out property <string> weekday-upper-thursday: @tr("THURSDAY");
+    out property <string> weekday-upper-friday: @tr("FRIDAY");
+    out property <string> weekday-upper-saturday: @tr("SATURDAY");
+
+    /// A short age in minutes, with the unit letter ("5m ago").
+    pure public function minutes-ago-short(n: int) -> string {
+        @tr("{}m ago", n)
+    }
+    /// A short age in hours, with the unit letter ("3h ago").
+    pure public function hours-ago-short(n: int) -> string {
+        @tr("{}h ago", n)
+    }
+    /// A short age in days, with the unit letter ("4d ago").
+    pure public function days-ago-short(n: int) -> string {
+        @tr("{}d ago", n)
+    }
+    /// A short age in weeks, with the unit letter ("2w ago").
+    pure public function weeks-ago-short(n: int) -> string {
+        @tr("{}w ago", n)
+    }
+
+    /// A duration in hours and minutes, with unit letters ("1h 23m").
+    pure public function duration-h-m-short(hours: int, minutes: int) -> string {
+        @tr("unit" => "{}h {}m", hours, minutes)
+    }
+    /// A duration in hours, with the unit letter. The value is a whole
+    /// number or a number with one decimal, formatted by Rust ("2h", "2.5h").
+    pure public function duration-h-short(hours: string) -> string {
+        @tr("unit" => "{}h", hours)
+    }
+    /// A duration in minutes, with the unit letter ("47m").
+    pure public function duration-m-short(minutes: int) -> string {
+        @tr("unit" => "{}m", minutes)
+    }
+    /// A duration in hours and minutes: {} is the hours, the second {} is
+    /// the minutes with two digits ("6 h 40").
+    pure public function duration-h-mm(hours: int, minutes: string) -> string {
+        // A duration: the first value is the hours, the second is the minutes ("6 h 40").
+        @tr("unit" => "{} h {}", hours, minutes)
+    }
+    /// A duration in minutes ("48 min").
+    pure public function duration-min(minutes: int) -> string {
+        @tr("unit" => "{} min", minutes)
+    }
+    /// A duration in hours, upper case. The value is a number formatted by
+    /// Rust ("4,167 H", "12.6 H").
+    pure public function duration-hours-upper(hours: string) -> string {
+        @tr("unit" => "{} H", hours)
+    }
+    /// A duration in hours. The value is a number formatted by Rust
+    /// ("4,167 h", "4.5 h").
+    pure public function duration-hours(hours: string) -> string {
+        @tr("unit" => "{} h", hours)
+    }
+    /// The length of a clip: {0} is the minutes, {1} is the seconds with
+    /// two digits ("0:45").
+    pure public function duration-clock(minutes: int, seconds: string) -> string {
+        // The length of a clip: {0} is the minutes, {1} is the seconds.
+        @tr("unit" => "{0}:{1}", minutes, seconds)
+    }
+    /// The unit of a number of hours next to the number.
+    out property <string> unit-hours: @tr("unit" => "h");
+    /// The unit of a number of minutes next to the number.
+    out property <string> unit-minutes: @tr("unit" => "min");
+    /// The unit letter of a number of minutes next to the number ("2 m").
+    out property <string> unit-minutes-short: @tr("unit" => "m");
+
+    /// How long a live session runs, in minutes ("since 12 min").
+    pure public function since-minutes(minutes: int) -> string {
+        @tr("since {} min", minutes)
+    }
+    /// How long a live session runs, in whole hours ("since 2 h").
+    pure public function since-hours(hours: int) -> string {
+        @tr("since {} h", hours)
+    }
+    /// How long a live session runs: {0} is the hours, {1} is the minutes
+    /// ("since 1 h 5 min").
+    pure public function since-hours-minutes(hours: int, minutes: int) -> string {
+        @tr("since {0} h {1} min", hours, minutes)
+    }
+    /// The play time of a game this week. The value is a duration
+    /// ("4h 12m this week").
+    pure public function play-time-this-week(duration: string) -> string {
+        // The value is a duration ("4h 12m").
+        @tr("{} this week", duration)
+    }
+    /// A count of clips ("3 clips").
+    pure public function clips(n: int) -> string {
+        @tr("{n} clip" | "{n} clips" % n)
+    }
+    /// Two parts of a caption: {0} is when the game was last played, {1} is
+    /// the hours of play ("2 days ago, 4 h").
+    pure public function caption-when-hours(when: string, hours: string) -> string {
+        // {0} is when the game was last played, {1} is the hours of play.
+        @tr("format" => "{0}, {1}", when, hours)
+    }
+
+    /// The mark between the groups of digits of a large number ("4,201").
+    out property <string> digit-group-separator: @tr("format" => ",");
+    /// A time in milliseconds. The value is a number formatted by Rust,
+    /// with a sign or a decimal ("118 ms", "+8 ms", "2.1 ms").
+    pure public function duration-ms(value: string) -> string {
+        @tr("unit" => "{} ms", value)
+    }
+    /// A data rate in kilobits per second ("850 kbps").
+    pure public function bitrate-kbps(n: int) -> string {
+        @tr("unit" => "{} kbps", n)
+    }
+    /// A data rate in megabits per second. The value is a number with one
+    /// decimal, formatted by Rust ("6.2 Mbps").
+    pure public function bitrate-mbps(value: string) -> string {
+        @tr("unit" => "{} Mbps", value)
+    }
+    /// A percent ("62%").
+    pure public function percent(n: int) -> string {
+        @tr("{}%", n)
+    }
+    /// A value that is not exact, such as a duration ("~1h 5m").
+    pure public function approx(value: string) -> string {
+        @tr("format" => "~{}", value)
+    }
+
+    // Lists of names (src/l10n_format.rs, "Lists").
+
+    /// Two items of a list with a comma. {0} can be a list already
+    /// ("Bob, Max").
+    pure public function list-comma(first: string, next: string) -> string {
+        // {0} is the list so far, {1} is the next item.
+        @tr("list" => "{0}, {1}", first, next)
+    }
+    /// The last item of a list: {0} is the list before it, {1} is the last
+    /// item ("Bob, Max and Sara").
+    pure public function list-and(first: string, last: string) -> string {
+        // {0} is the list before the last item, {1} is the last item.
+        @tr("{0} and {1}", first, last)
+    }
+    /// A short list and the count of the names that are not shown ("Bob,
+    /// Max +3").
+    pure public function list-plus(list: string, others: int) -> string {
+        // {0} is the list, {1} is the count of the other names.
+        @tr("format" => "{0} +{1}", list, others)
+    }
+    /// A short list and the count of the names that are not shown, in words
+    /// ("Bob, Max and 3 more").
+    pure public function list-and-more(list: string, others: int) -> string {
+        // {0} is the list, {n} is the count of the other names.
+        @tr("{0} and {n} more" | "{0} and {n} more" % others, list)
+    }
+    /// Two parts of one line with a comma ("invited by Bob, Today 23:14").
+    pure public function comma-pair(first: string, second: string) -> string {
+        // {0} is the first part, {1} is the second part.
+        @tr("format" => "{0}, {1}", first, second)
+    }
+    /// Two parts of one line with a middle dot ("4W–2L · 3-win streak").
+    pure public function dot-pair(first: string, second: string) -> string {
+        // {0} is the first part, {1} is the second part.
+        @tr("format" => "{0} · {1}", first, second)
+    }
+
+    /// The size of a file in kilobytes ("860 KB").
+    pure public function size-kb(n: int) -> string {
+        @tr("{} KB", n)
+    }
+    /// The size of a file in megabytes. The value is a number with one
+    /// decimal, formatted by Rust ("1.2 MB").
+    pure public function size-mb(n: string) -> string {
+        @tr("{} MB", n)
+    }
+
+    // --- Sign in (src/handlers/auth.rs) ---
+
+    /// The sign-in failed because no account has this email or identity.
+    out property <string> sign-in-no-account: @tr("No account found.");
+    /// The sign-in failed because the email or the password is wrong.
+    out property <string> sign-in-wrong-password: @tr("Wrong email or password.");
+    /// The sign-in failed for a different reason.
+    out property <string> sign-in-failed: @tr("Sign-in failed. Try again.");
+
+    // --- Chat (src/handlers/chat.rs, src/converters.rs) ---
+
+    /// The text of a deleted message, and its quote above a reply.
+    out property <string> chat-message-deleted: @tr("[message deleted]");
+    /// The quote above a reply to a GIF with no text.
+    out property <string> chat-reply-gif: @tr("GIF");
+    /// The GIF search is off: the build has no key for the GIF service.
+    out property <string> gif-error-no-key: @tr("GIFs are off in this build.");
+    /// The GIF service did not accept the key of this build.
+    out property <string> gif-error-unauthorized: @tr("The GIF service refused this build's key.");
+    /// The GIF service got too many searches.
+    out property <string> gif-error-rate-limited: @tr("Too many GIF searches right now. Try again in a minute.");
+    /// The GIF service did not answer. The chat still works.
+    out property <string> gif-error-no-answer: @tr("The GIF service did not answer. Your messages still send.");
+
+    // --- Chat images: the chips of the composer (src/chat_images.rs) ---
+
+    /// The chip state while the app resizes the image.
+    out property <string> attachment-preparing: @tr("preparing");
+    /// The chip state while the image uploads.
+    out property <string> attachment-uploading: @tr("uploading");
+    out property <string> image-error-source-too-big: @tr("That file is over 64 MB.");
+    out property <string> image-error-not-an-image: @tr("That file is not an image.");
+    out property <string> image-error-gif-too-big: @tr("That GIF is over 8 MB.");
+    out property <string> image-error-gif-unreadable: @tr("That GIF cannot be read.");
+    out property <string> image-error-unreadable: @tr("That image cannot be read.");
+    out property <string> image-error-unencodable: @tr("That image cannot be encoded.");
+    out property <string> image-error-too-big-after-resize: @tr("That image is over 8 MB after resize.");
+    /// The upload failed because no crew is open.
+    out property <string> image-upload-no-crew: @tr("No crew is open.");
+    /// The server did not give a place to upload the image.
+    out property <string> image-upload-no-slot: @tr("The server did not give an upload slot.");
+    /// The server does not accept images.
+    out property <string> image-upload-off: @tr("Image upload is off on this server.");
+    out property <string> image-upload-refused: @tr("The upload was refused.");
+    out property <string> image-upload-incomplete: @tr("The upload did not complete.");
+
+    // --- Feed cards (src/handlers/clip.rs) ---
+
+    /// A person with no name in the feed, in the place of a name.
+    out property <string> someone: @tr("someone");
+    /// The first letter of "You", in the octagon of the viewer.
+    out property <string> you-initial: @tr("Y");
+    /// The title of a clip card. The value is the name of the member.
+    pure public function feed-clipped(name: string) -> string {
+        @tr("{} clipped that", name)
+    }
+    /// The title of a clip card when the member has no name.
+    out property <string> feed-someone-clipped: @tr("someone clipped that");
+    /// The name of a voice channel when the feed does not give it.
+    out property <string> voice-channel-fallback: @tr("voice");
+    /// The title of a voice session. The value is the channel.
+    pure public function feed-voice-session-in(channel: string) -> string {
+        @tr("Voice session in {}", channel)
+    }
+    /// The title of a voice session: {0} is the names, {1} is the channel.
+    pure public function feed-names-in-channel(names: string, channel: string) -> string {
+        @tr("{0} in {1}", names, channel)
+    }
+    /// The title of a stream: {0} is the streamer, {1} is the stream title.
+    pure public function feed-streamed(name: string, title: string) -> string {
+        @tr("{0} streamed {1}", name, title)
+    }
+    /// The title of a stream with no title. The value is the streamer.
+    pure public function feed-streamed-a-stream(name: string) -> string {
+        @tr("{} streamed a stream", name)
+    }
+    /// The title of a game session. The value is the game.
+    pure public function feed-played(game: string) -> string {
+        @tr("Played {}", game)
+    }
+    /// The title of a game session with no game name.
+    out property <string> feed-played-a-game: @tr("Played a game");
+    /// The title of a game session: {0} is the names, {1} is the game.
+    pure public function feed-names-played(names: string, game: string) -> string {
+        @tr("{0} played {1}", names, game)
+    }
+    /// The title of a game session with no game name. The value is the names.
+    pure public function feed-names-played-a-game(names: string) -> string {
+        @tr("{} played a game", names)
+    }
+    /// A match record and a streak: {0} is the record, {1} is the streak
+    /// ("4W–2L, 3-win streak").
+    pure public function feed-record-streak(record: string, streak: string) -> string {
+        // {0} is the record, {1} is the streak.
+        @tr("format" => "{0}, {1}", record, streak)
+    }
+    /// The wins in a row after a session ("3-win streak").
+    pure public function feed-win-streak(n: int) -> string {
+        @tr("{n}-win streak" | "{n}-win streak" % n)
+    }
+    /// The losses in a row after a session ("3-loss skid").
+    pure public function feed-loss-skid(n: int) -> string {
+        @tr("{n}-loss skid" | "{n}-loss skid" % n)
+    }
+    /// A match record with letters: {0} is the wins, {1} is the losses
+    /// ("12W 5L").
+    pure public function record-w-l(wins: int, losses: int) -> string {
+        @tr("{0}W {1}L", wins, losses)
+    }
+    /// A match record with a dash: {0} is the wins, {1} is the losses
+    /// ("4W–2L").
+    pure public function record-dash-w-l(wins: int, losses: int) -> string {
+        @tr("{0}W–{1}L", wins, losses)
+    }
+    /// A match record with a dash: {0} is the wins, {1} is the losses, {2}
+    /// is the draws ("4W–2L–1D").
+    pure public function record-dash-w-l-d(wins: int, losses: int, draws: int) -> string {
+        @tr("{0}W–{1}L–{2}D", wins, losses, draws)
+    }
+    /// The wins in a row, short ("W4").
+    pure public function streak-wins(n: int) -> string {
+        @tr("streak" => "W{}", n)
+    }
+    /// The losses in a row, short ("L2").
+    pure public function streak-losses(n: int) -> string {
+        @tr("streak" => "L{}", n)
+    }
+    /// The matches of a recap week ("312 matches").
+    pure public function matches(n: int) -> string {
+        @tr("{n} match" | "{n} matches" % n)
+    }
+    /// The matches of a recap week and the games: {0} is a list of games
+    /// ("312 matches · CS2, Rocket League").
+    pure public function matches-in-games(n: int, games: string) -> string {
+        @tr("{n} match · {0}" | "{n} matches · {0}" % n, games)
+    }
+    /// The kind of a clip: voice.
+    out property <string> clip-kind-voice: @tr("noun" => "voice");
+    /// The kind of a clip: game.
+    out property <string> clip-kind-game: @tr("noun" => "game");
+
+    // --- Joined cards (src/joined_line.rs) ---
+
+    /// A member joined the crew. The value is the name ("Jonas joined").
+    pure public function joined(name: string) -> string {
+        @tr("{} joined", name)
+    }
+    /// A member joined the crew: {0} is the member, {1} is the member who
+    /// invited ("Jonas joined, invited by Bob").
+    pure public function joined-line(name: string, inviter: string) -> string {
+        @tr("{0} joined, invited by {1}", name, inviter)
+    }
+    /// Under the name of a member who joined. The value is the member who
+    /// invited ("invited by Bob").
+    pure public function joined-invited-by(inviter: string) -> string {
+        @tr("invited by {}", inviter)
+    }
+    /// The name of a member who joined with no name.
+    out property <string> joined-new-member: @tr("A new member");
+
+    // --- Game sessions: the now-playing card (src/handlers/game.rs) ---
+
+    /// The game needs a launch option before the app can count wins: {0} is
+    /// the option ("-gamestateintegration"), {1} is the game ("Dota 2").
+    pure public function telemetry-launch-option(option: string, game: string) -> string {
+        @tr("Add {0} to {1}'s Steam launch options to track wins", option, game)
+    }
+    /// The draws of a session with no wins or losses ("2 draws").
+    pure public function draws(n: int) -> string {
+        @tr("{n} draw" | "{n} draws" % n)
+    }
+    /// The losses in a row after a session ("3-loss streak").
+    pure public function loss-streak(n: int) -> string {
+        @tr("{n}-loss streak" | "{n}-loss streak" % n)
+    }
+
+
+    // --- Riot account link (src/handlers/games.rs) ---
+
+    /// The Riot ID is wrong. "GameName#TAG" shows the form of an ID.
+    out property <string> riot-id-not-found: @tr("Riot ID not found. Check the spelling â€” it looks like GameName#TAG.");
+    /// The server needs the region of the Riot account.
+    out property <string> riot-pick-region: @tr("Pick the region your account plays in.");
+    /// The link failed. The value is the reason from the server.
+    pure public function riot-link-failed(reason: string) -> string {
+        @tr("Couldn't link right now: {}", reason)
+    }
+
+
+    // --- Crew invites (src/handlers/crew.rs) ---
+
+    /// The invite link that opened the app does not work any more.
+    out property <string> invite-link-invalid: @tr("This invite link is no longer valid.");
+    /// The invite code that the user typed does not work.
+    out property <string> invite-code-invalid: @tr("This invite code is not valid.");
+    out property <string> invite-crew-full: @tr("This crew is full.");
+    out property <string> invite-not-allowed: @tr("You cannot join this crew.");
+    /// The join failed for a reason that a retry can fix.
+    out property <string> invite-join-failed: @tr("Could not join the crew. Try again.");
+    /// The invite did not load for a reason that a retry can fix.
+    out property <string> invite-load-failed: @tr("Could not load this invite. Try again.");
+
+
+    // --- Crew cards in the sidebar (src/handlers/presence.rs) ---
+
+    /// A member streams: {0} is the member, {1} is the stream title.
+    pure public function crew-card-streaming-name-title(name: string, title: string) -> string {
+        @tr("{0} streaming {1}", name, title)
+    }
+    /// A member streams with no title. The value is the member.
+    pure public function crew-card-streamer-streaming(name: string) -> string {
+        @tr("{} streaming", name)
+    }
+    /// A stream with no streamer name. The value is the stream title.
+    pure public function crew-card-streaming-title(title: string) -> string {
+        @tr("streaming {}", title)
+    }
+    /// A stream with no streamer name and no title.
+    out property <string> crew-card-streaming: @tr("streaming");
+
+    // --- Crew quests: the quest card of the feed (src/handlers/quests.rs) ---
+
+    /// The steps that are done, of all the steps ("3 / 5").
+    pure public function quest-count(done: int, total: int) -> string {
+        // {0} is the steps done, {1} is all the steps.
+        @tr("format" => "{0} / {1}", done, total)
+    }
+    /// A closed gift, with its number ("DROP 2").
+    pure public function quest-drop(n: int) -> string {
+        @tr("DROP {}", n)
+    }
+    /// The label of a gift that the viewer opens. The value is the name of
+    /// the step, in upper case ("QUEST  ·  FIRST CALL").
+    pure public function quest-reveal-label(step: string) -> string {
+        @tr("QUEST  ·  {}", step)
+    }
+    /// The names of the open gifts, in upper case.
+    out property <string> quest-gift-banner: @tr("BANNER");
+    out property <string> quest-gift-invite-link: @tr("INVITE LINK");
+    out property <string> quest-gift-crew-emoji: @tr("CREW EMOJI");
+    out property <string> quest-gift-first-week: @tr("FIRST WEEK");
+    /// 30 days of m3llo+. "D" is the short form of "days".
+    out property <string> quest-gift-plus: @tr("M3LLO+ 30 D");
+    /// The gift of the last step: 30 days of m3llo+.
+    out property <string> quest-thirty-days: @tr("30 DAYS");
+    /// The names of the steps.
+    out property <string> quest-step-made: @tr("Crew made");
+    out property <string> quest-step-friend: @tr("A friend joins");
+    out property <string> quest-step-call: @tr("First call");
+    out property <string> quest-step-clip: @tr("First clip");
+    out property <string> quest-step-session: @tr("First session");
+    /// The names of the steps in upper case, in the label of a gift.
+    out property <string> quest-step-made-upper: @tr("CREW MADE");
+    out property <string> quest-step-friend-upper: @tr("A FRIEND JOINS");
+    out property <string> quest-step-call-upper: @tr("FIRST CALL");
+    out property <string> quest-step-clip-upper: @tr("FIRST CLIP");
+    out property <string> quest-step-session-upper: @tr("FIRST SESSION");
+    /// When the crew was made. The value is a date ("Made 2 October").
+    pure public function quest-made(date: string) -> string {
+        // The value is a date ("2 October").
+        @tr("Made {}", date)
+    }
+    /// The names of the gifts in a reveal.
+    out property <string> quest-name-banner: @tr("Crew banner");
+    out property <string> quest-name-invite-link: @tr("Your invite link");
+    out property <string> quest-name-crew-emoji: @tr("Crew emoji");
+    out property <string> quest-name-founding-week: @tr("Founding week");
+    out property <string> quest-name-for-the-crew: @tr("For the crew");
+    /// The buttons of a reveal.
+    out property <string> quest-action-game-art: @tr("Game art");
+    out property <string> quest-action-upload: @tr("Upload");
+    out property <string> quest-action-set-link: @tr("Set the link");
+    out property <string> quest-action-add-emoji: @tr("Add emoji");
+    /// The buttons of a reveal in upper case, as the buttons show them.
+    out property <string> quest-action-game-art-upper: @tr("GAME ART");
+    out property <string> quest-action-upload-upper: @tr("UPLOAD");
+    out property <string> quest-action-set-link-upper: @tr("SET THE LINK");
+    out property <string> quest-action-add-emoji-upper: @tr("ADD EMOJI");
+    /// The viewer joined the crew.
+    out property <string> quest-you-joined: @tr("You joined");
+    /// The viewer made the first clip.
+    out property <string> quest-you-clipped: @tr("You clipped");
+    /// A member made the first clip. The value is the member ("Ida clipped").
+    pure public function quest-clipped(name: string) -> string {
+        @tr("{} clipped", name)
+    }
+    /// The viewer invited the member who joined.
+    out property <string> quest-invited-by-you: @tr("Invited by you");
+    /// The member who invited the member who joined ("Invited by Ida").
+    pure public function quest-invited-by(name: string) -> string {
+        @tr("Invited by {}", name)
+    }
+    /// The emoji slots of the crew ("5 slots").
+    pure public function quest-slots(n: int) -> string {
+        @tr("{n} slot" | "{n} slots" % n)
+    }
+    /// Where the founding week opens.
+    out property <string> quest-week-line: @tr("Open in Crew history for every member");
+    /// The gift of the last step, on two lines.
+    out property <string> quest-plus-line: @tr("30 days of m3llo+\nfor every member in the crew");
+    /// The people of the first call and the guests: {0} is the names
+    /// ("You and Ida, +1 guest").
+    pure public function quest-call-guests(names: string, guests: int) -> string {
+        // {0} is the names, {n} is the count of guests.
+        @tr("{0}, +{n} guest" | "{0}, +{n} guests" % guests, names)
+    }
+    /// The hints of the steps that are not done.
+    out property <string> quest-hint-browser: @tr("Works in the browser");
+    out property <string> quest-hint-join-voice: @tr("Join voice to clip");
+    out property <string> quest-hint-play: @tr("Play with m3llo open");
+    out property <string> quest-hint-activity-off: @tr("Game activity is off");
+
+    // --- Head2head titles and belts (src/head2head.rs, src/sealed.rs) ---
+
+    /// The names of the titles that members hold. A title is a name, like
+    /// an award.
+    out property <string> title-the-carry: @tr("The Carry");
+    out property <string> title-night-owl: @tr("Night Owl");
+    out property <string> title-the-collector: @tr("The Collector");
+    out property <string> title-locked-in: @tr("Locked In");
+    out property <string> title-has-a-life: @tr("Has a Life");
+    out property <string> title-sampler: @tr("Sampler");
+    out property <string> title-one-trick: @tr("One Trick");
+    /// The names of the card titles in upper case, on the board.
+    out property <string> title-the-carry-upper: @tr("THE CARRY");
+    out property <string> title-night-owl-upper: @tr("NIGHT OWL");
+    out property <string> title-the-collector-upper: @tr("THE COLLECTOR");
+    out property <string> title-locked-in-upper: @tr("LOCKED IN");
+    out property <string> title-has-a-life-upper: @tr("HAS A LIFE");
+    out property <string> title-sampler-upper: @tr("SAMPLER");
+    out property <string> title-one-trick-upper: @tr("ONE TRICK");
+    out property <string> title-mouth-upper: @tr("MOUTH");
+    out property <string> title-marathon-upper: @tr("MARATHON");
+    out property <string> title-last-one-up-upper: @tr("LAST ONE UP");
+    out property <string> title-clipper-upper: @tr("CLIPPER");
+    out property <string> title-rage-quit-upper: @tr("RAGE QUIT");
+    out property <string> title-winner-upper: @tr("WINNER");
+    out property <string> title-mouth: @tr("Mouth");
+    out property <string> title-marathon: @tr("Marathon");
+    out property <string> title-last-one-up: @tr("Last One Up");
+    out property <string> title-clipper: @tr("Clipper");
+    out property <string> title-rage-quit: @tr("Rage Quit");
+    out property <string> title-winner: @tr("Winner");
+    /// What each title counts, under its value.
+    out property <string> stat-the-carry: @tr("Most hours in the top shared game.");
+    out property <string> stat-locked-in: @tr("Most game hours in the last 7 days.");
+    out property <string> stat-has-a-life: @tr("Fewest game hours in the last 7 days.");
+    out property <string> stat-night-owl: @tr("Latest local time of a last session.");
+    out property <string> stat-the-collector: @tr("Most installed games.");
+    out property <string> stat-sampler: @tr("Most different games in the last 14 days.");
+    out property <string> stat-one-trick: @tr("Highest share of play time in one game.");
+    out property <string> stat-mouth: @tr("Most voice minutes in the last 14 days.");
+    out property <string> stat-marathon: @tr("Longest single game session.");
+    out property <string> stat-last-one-up: @tr("Latest session end in the last 14 days.");
+    out property <string> stat-clipper: @tr("Most clips posted.");
+    out property <string> stat-rage-quit: @tr("Most sessions of 2 to 10 minutes in 14 days.");
+    out property <string> stat-winner: @tr("Most win moments in the last 14 days.");
+    /// A member the app does not know, for example one who left the crew.
+    out property <string> crew-mate: @tr("Crew mate");
+    /// The unit of the Locked In title: hours in this week.
+    out property <string> unit-hours-this-week: @tr("unit" => "h this week");
+    /// How long a member holds a title ("held 9 days").
+    pure public function held-days(n: int) -> string {
+        @tr("held {n} day" | "held {n} days" % n)
+    }
+    /// A title changed hands: {0} is the new holder, {1} is the title, {2}
+    /// is the holder before ("Sara took Night Owl from Bob").
+    pure public function belt-took(holder: string, title: string, prev: string) -> string {
+        @tr("{0} took {1} from {2}", holder, title, prev)
+    }
+    /// The two values of a title that changed hands: {0} is the value of
+    /// the new holder, {1} is the value of the holder before ("03:40 beats
+    /// 03:14.").
+    pure public function belt-beats(value: string, prev-value: string) -> string {
+        @tr("{0} beats {1}.", value, prev-value)
+    }
+    /// A value and its unit: {0} is the number, {1} is the unit ("4,201 h").
+    pure public function value-unit(value: string, unit: string) -> string {
+        // {0} is the number, {1} is the unit.
+        @tr("unit" => "{0} {1}", value, unit)
+    }
+
+    // --- Streams: the stream cards (src/handlers/streaming.rs,
+    //     src/handlers/stream_cards.rs) ---
+
+    /// A live stream with no title.
+    out property <string> stream-live-now: @tr("Live now");
+    /// The label of the control bar while the user streams, when the stream
+    /// has no name.
+    out property <string> stream-label-streaming: @tr("STREAMING");
+    /// The titles of the card that says why a stream stopped.
+    out property <string> stream-notice-ended: @tr("STREAM ENDED");
+    out property <string> stream-notice-not-started: @tr("STREAM DID NOT START");
+    out property <string> stream-notice-watch-failed: @tr("COULD NOT WATCH");
+    /// Why a stream ended.
+    out property <string> stream-ended-connection-lost: @tr("The connection to the stream was lost for 30 seconds.");
+    out property <string> stream-ended-lost-on-server: @tr("The server lost the stream during a reconnect.");
+    out property <string> stream-ended-host-left: @tr("The host ended the stream.");
+    out property <string> stream-ended: @tr("The stream ended.");
+    /// The names of the stream quality presets, as the quality buttons show
+    /// them.
+    out property <string> quality-ultra: @tr("ULTRA");
+    out property <string> quality-high: @tr("HIGH");
+    out property <string> quality-medium: @tr("MEDIUM");
+    out property <string> quality-pro-potato: @tr("PRO-POTATO");
+    out property <string> quality-potato: @tr("POTATO");
+
+    // --- Feed zones: the board and the people (src/handlers/zones.rs) ---
+
+    /// The labels of the numbers on the board, in upper case.
+    out property <string> stat-label-hangout: @tr("HANGOUT");
+    out property <string> stat-label-clips: @tr("CLIPS");
+    out property <string> stat-label-sessions: @tr("SESSIONS");
+    /// The members who were on today.
+    out property <string> stat-label-on: @tr("ON");
+    out property <string> stat-label-longest: @tr("LONGEST");
+    out property <string> stat-label-games: @tr("GAMES");
+    out property <string> stat-label-clips-and-streams: @tr("CLIPS AND STREAMS");
+    /// The board of a week with no crew time.
+    out property <string> zones-quiet-line: @tr("No crew time last week.");
+    /// The members who played in a quiet week. The value is a list of names.
+    pure public function zones-still-played(names: string) -> string {
+        @tr("{} still played.", names)
+    }
+    /// The board of a dormant crew. The value is a date ("Nothing new since
+    /// 2 October.").
+    pure public function zones-nothing-new(date: string) -> string {
+        @tr("Nothing new since {}.", date)
+    }
+    /// The board of a dormant crew with the first title: {0} is a date, {1}
+    /// is the member, {2} is the title ("Nothing new since 2 October. Bob
+    /// holds Night Owl.").
+    pure public function zones-nothing-new-holds(date: string, name: string, title: string) -> string {
+        @tr("Nothing new since {0}. {1} holds {2}.", date, name, title)
+    }
+    /// The titles that the board does not show ("+3 MORE").
+    pure public function zones-more-upper(n: int) -> string {
+        @tr("+{} MORE", n)
+    }
+    /// The members in the voice call ("3 in the call").
+    pure public function zones-in-call(n: int) -> string {
+        @tr("{n} in the call" | "{n} in the call" % n)
+    }
+    /// The voice channel has nobody in it.
+    out property <string> zones-voice-empty: @tr("Empty");
+    /// The voice channel has nobody in it. The value is the date of the last
+    /// call ("Empty. Last call 6 November").
+    pure public function zones-voice-empty-last-call(date: string) -> string {
+        @tr("Empty. Last call {}", date)
+    }
+
+    // --- Voice (src/handlers/voice.rs) ---
+
+    /// The saved microphone or speaker is gone, and the app uses the system
+    /// default.
+    out property <string> audio-device-fallback: @tr("Your saved audio device was not found. Switched to system default — you can change it in Settings.");
+
+    // --- Say hi: the greeting that a joined card sends to the crew chat
+    //     (src/say_hi.rs) ---
+    //
+    // The value is the mention of the new member ("@Sara"). Keep it as it is:
+    // the chat finds the member by it. Plain words, no exclamation marks.
+
+    pure public function say-hi-made-it(mention: string) -> string {
+        @tr("{} made it. Welcome to the crew.", mention)
+    }
+    pure public function say-hi-is-in(mention: string) -> string {
+        @tr("{} is in. Grab a seat.", mention)
+    }
+    pure public function say-hi-showed-up(mention: string) -> string {
+        @tr("Look who showed up. Hey {}.", mention)
+    }
+    pure public function say-hi-found-us(mention: string) -> string {
+        @tr("{}, you found us. Good.", mention)
+    }
+    pure public function say-hi-new-blood(mention: string) -> string {
+        @tr("New blood. Welcome {}.", mention)
+    }
+    pure public function say-hi-is-here(mention: string) -> string {
+        @tr("{} is here. Mic on, let's go.", mention)
+    }
+
+    // --- Game clips: the toasts over the game and the clip player
+    //     (src/game_clip.rs, src/clip_key.rs, src/game_clip_player.rs) ---
+
+    out property <string> clip-toast-saved: @tr("Game clip saved");
+    /// The clip key made no game clip.
+    out property <string> clip-toast-none: @tr("No game clip");
+    /// Why the replay cannot clip.
+    out property <string> clip-toast-disk-low: @tr("Game clips are off: the disk is almost full");
+    out property <string> clip-toast-unavailable: @tr("Clips are not available for this game");
+    /// macOS: the app needs the Screen Recording permission.
+    out property <string> clip-toast-no-permission: @tr("Allow Screen Recording in Settings to clip your game");
+    /// The clip key saved the voice only, and the replay cannot clip.
+    out property <string> clip-toast-voice-disk-low: @tr("Voice clip saved. Game clips are off: the disk is almost full");
+    out property <string> clip-toast-voice-unavailable: @tr("Voice clip saved. Clips are not available for this game");
+    out property <string> clip-toast-voice-no-permission: @tr("Voice clip saved. Allow Screen Recording in Settings to clip your game");
+    /// The clip player cannot play while the user watches a stream.
+    out property <string> clip-player-watching: @tr("Stop watching the stream to play a clip");
+
+    // --- Game stats: the You strip and the You view (src/handlers/stats.rs) ---
+
+    /// A game that the app cannot name.
+    out property <string> unknown-game: @tr("Unknown game");
+    /// A match record with letters: {0} is the wins, {1} is the losses, {2}
+    /// is the draws ("12W 5L 2D").
+    pure public function record-w-l-d(wins: int, losses: int, draws: int) -> string {
+        @tr("{0}W {1}L {2}D", wins, losses, draws)
+    }
+    /// The longest run of wins ("W6 best").
+    pure public function streak-best(n: int) -> string {
+        @tr("W{} best", n)
+    }
+    /// The longest run of losses ("L3 worst").
+    pure public function streak-worst(n: int) -> string {
+        @tr("L{} worst", n)
+    }
+
+    // --- Settings: Keybinds and Game clips (src/callbacks/settings.rs) ---
+
+    /// The key that the user pressed is the push-to-talk key already. {} is
+    /// the key ("F8").
+    pure public function key-taken-by-ptt(key: string) -> string {
+        @tr("Push-to-talk uses {}. Pick another key.", key)
+    }
+    /// The key that the user pressed is the clip key already. {} is the key.
+    pure public function key-taken-by-clip(key: string) -> string {
+        @tr("Clip uses {}. Pick another key.", key)
+    }
+    /// The key that the user pressed is the stream key already. {} is the key.
+    pure public function key-taken-by-stream-key(key: string) -> string {
+        @tr("Stream key uses {}. Pick another key.", key)
+    }
+    /// A quality of the game clips: {0} is the height of the picture in
+    /// pixels, {1} is the frames per second ("1080p, 60 fps").
+    pure public function game-clip-quality(height: int, fps: int) -> string {
+        @tr("{0}p, {1} fps", height, fps)
+    }
+
+    // --- File dialogs (src/callbacks/*.rs) ---
+
+    /// The name of the file type filter in a dialog that picks an image.
+    out property <string> file-filter-images: @tr("Images");
+
+    // --- The image viewer of the chat (src/callbacks/chat.rs) ---
+
+    /// The size of an image in pixels: {0} is the width, {1} is the height
+    /// ("1920×1080").
+    pure public function image-dimensions(width: int, height: int) -> string {
+        // {0} is the width, {1} is the height.
+        @tr("format" => "{0}×{1}", width, height)
+    }
+
+    // --- Sign in, links and onboarding: the failures that the core reports
+    //     (src/handlers/auth.rs) ---
+
+    /// The user cancelled the sign-in at the provider. {} is the provider
+    /// ("Discord").
+    pure public function auth-cancelled(provider: string) -> string {
+        @tr("You cancelled the {} sign-in.", provider)
+    }
+    /// The sign-in at a provider failed: {0} is the provider, {1} is the
+    /// error text of the sign-in flow (English).
+    pure public function auth-provider-failed(provider: string, detail: string) -> string {
+        @tr("{0} sign-in failed: {1}", provider, detail)
+    }
+    /// The sign-in at a provider stopped with no result. {} is the provider.
+    pure public function auth-unexpected(provider: string) -> string {
+        @tr("{} sign-in failed unexpectedly", provider)
+    }
+    /// This build has no sign-in for the provider. {} is the provider.
+    pure public function auth-not-configured(provider: string) -> string {
+        @tr("{} login not configured", provider)
+    }
+    /// The provider has no sign-in on this platform. {} is the provider
+    /// ("Apple").
+    pure public function auth-not-available(provider: string) -> string {
+        @tr("{} sign-in isn't available here", provider)
+    }
+    /// The provider gave no token. {} is the provider.
+    pure public function auth-no-token(provider: string) -> string {
+        @tr("{} sign-in returned no token", provider)
+    }
+    /// The realtime connection failed after the sign-in. {} is the error
+    /// text (English).
+    pure public function auth-socket-failed(detail: string) -> string {
+        @tr("WebSocket failed: {}", detail)
+    }
+    /// Onboarding: the account was not made.
+    out property <string> onboarding-account-failed: @tr("Couldn't create your account. Check your connection and try again.");
+    /// Onboarding: the app did not connect.
+    out property <string> onboarding-connect-failed: @tr("Couldn't connect. Check your connection and try again.");
+    /// Onboarding: the new crew was not made.
+    out property <string> onboarding-crew-create-failed: @tr("Couldn't create the crew. Try again.");
+    /// Onboarding: the chosen crew was not joined, and why.
+    out property <string> onboarding-crew-full: @tr("That crew is full. Pick another one.");
+    out property <string> onboarding-crew-gone: @tr("That crew no longer exists. Pick another one.");
+    out property <string> onboarding-crew-not-allowed: @tr("You can't join that crew. Pick another one.");
+    out property <string> onboarding-crew-join-failed: @tr("Couldn't join the crew. Check your connection and try again.");
+
+    // --- Protocol versions: the update banner (src/handlers/mod.rs) ---
+
+    /// The app is too old for the server: {0} is the protocol version that
+    /// the server needs, {1} is the version of the app.
+    pure public function protocol-client-outdated(required: int, actual: int) -> string {
+        @tr("Server requires protocol {0} but client speaks {1}. Please update m3llo.", required, actual)
+    }
+    /// The server is too old for the app: {0} is the protocol version that
+    /// the app needs, {1} is the version of the server.
+    pure public function protocol-server-outdated(required: int, actual: int) -> string {
+        @tr("Client requires server protocol {0} but server speaks {1}. Server needs updating.", required, actual)
+    }
+
+    // --- Streams: why a start or a watch failed, and the sources of the
+    //     stream picker (src/handlers/streaming.rs) ---
+
+    out property <string> stream-failed-not-signed-in: @tr("You are not signed in.");
+    out property <string> stream-failed-server-unavailable: @tr("Streaming is not available on the server right now.");
+    out property <string> stream-failed-server-no-answer: @tr("The server did not answer the stream start.");
+    out property <string> stream-failed-server-refused: @tr("The server did not accept the stream.");
+    out property <string> stream-failed-unreachable: @tr("Could not reach the stream server.");
+    out property <string> stream-failed-no-encoder: @tr("Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was found on this machine.");
+    out property <string> stream-failed-engine-off: @tr("The media engine is not running.");
+    out property <string> stream-failed-no-session: @tr("The stream has no session to join.");
+    out property <string> stream-failed-decoder: @tr("The video decoder did not start.");
+    out property <string> stream-failed-unavailable: @tr("The stream is not available.");
+    /// A monitor in the stream picker. {} is its number ("Display 2").
+    pure public function stream-source-display(n: int) -> string {
+        @tr("Display {}", n)
+    }
+    /// The primary monitor in the stream picker. {} is its number.
+    pure public function stream-source-display-primary(n: int) -> string {
+        @tr("Display {} (Primary)", n)
+    }
+
+    // --- Crew gifts: the pickers (src/callbacks/quests.rs) ---
+
+    /// The server did not answer a gift change.
+    out property <string> gift-no-answer: @tr("The server did not answer.");
+
+    // --- Game clips: the clip player (src/game_clip_player.rs) ---
+
+    out property <string> clip-player-engine-off: @tr("The media engine is not running");
+    out property <string> clip-player-load-failed: @tr("The clip does not load");
+    out property <string> clip-player-play-failed: @tr("The clip does not play");
+
+    // --- The tray menu (src/platform/mod.rs, src/platform/linux_tray.rs) ---
+
+    /// {} is the app name.
+    pure public function tray-open(app: string) -> string {
+        @tr("Open {}", app)
+    }
+    out property <string> tray-mute: @tr("Mute");
+    out property <string> tray-leave-voice: @tr("Leave Voice");
+    /// {} is the app name. The macOS app menu uses it too.
+    pure public function tray-quit(app: string) -> string {
+        @tr("Quit {}", app)
+    }
+
+    // --- Windows: the buttons under the taskbar thumbnail
+    //     (src/platform/taskbar_toolbar.rs). Mute and Leave Voice are the
+    //     tray members. ---
+
+    out property <string> taskbar-unmute: @tr("Unmute");
+    out property <string> taskbar-deafen: @tr("Deafen");
+    out property <string> taskbar-undeafen: @tr("Undeafen");
+
+    // --- The macOS menu bar (src/platform/macos.rs, src/edit_shortcuts.rs) ---
+
+    /// {} is the app name.
+    pure public function menu-about(app: string) -> string {
+        @tr("About {}", app)
+    }
+    out property <string> menu-check-updates: @tr("Check for Updates…");
+    out property <string> menu-preferences: @tr("Preferences…");
+    /// {} is the app name.
+    pure public function menu-hide(app: string) -> string {
+        @tr("Hide {}", app)
+    }
+    /// The names of the menus.
+    out property <string> menu-edit: @tr("menu" => "Edit");
+    out property <string> menu-view: @tr("menu" => "View");
+    out property <string> menu-help: @tr("menu" => "Help");
+    /// The items of the Edit menu.
+    out property <string> menu-undo: @tr("Undo");
+    out property <string> menu-redo: @tr("Redo");
+    out property <string> menu-cut: @tr("Cut");
+    out property <string> menu-copy: @tr("Copy");
+    out property <string> menu-paste: @tr("Paste");
+    out property <string> menu-select-all: @tr("Select All");
+    out property <string> menu-find: @tr("Find…");
+    /// The items of the View menu.
+    out property <string> menu-toggle-mute: @tr("Toggle Mute");
+    out property <string> menu-toggle-deafen: @tr("Toggle Deafen");
+    /// The item of the Help menu. {} is the app name.
+    pure public function menu-github(app: string) -> string {
+        @tr("{} on GitHub", app)
+    }
+
+    // --- OS notifications (src/notifications.rs, src/stream_key.rs) ---
+
+    /// The window closed to the tray. {} is the app name.
+    pure public function notice-tray-title(app: string) -> string {
+        @tr("{} is still running", app)
+    }
+    /// Windows and Linux: where the app is now.
+    out property <string> notice-tray-body: @tr("It stays in the tray to keep collecting your gaming stats. Right-click the tray icon to quit.");
+    /// macOS: where the app is now.
+    out property <string> notice-tray-body-macos: @tr("It stays in the menu bar to keep collecting your gaming stats. Quit it from the menu bar icon.");
+    /// The title of a notification about the stream key.
+    out property <string> notice-stream-title: @tr("noun" => "Stream");
+    /// The stream key started a stream, and the stream is live.
+    out property <string> notice-stream-live: @tr("You are live");
+    /// The stream key ended the stream.
+    out property <string> notice-stream-ended: @tr("Stream ended");
+    /// The stream that the stream key started did not start.
+    out property <string> notice-stream-failed: @tr("Stream failed");
+    /// The stream key found no active crew.
+    out property <string> notice-stream-no-crew: @tr("Pick a crew to stream to");
+    /// The stream key found no detected game.
+    out property <string> notice-stream-no-game: @tr("No game to stream");
+    /// The title of a notification about a member of the crew.
+    out property <string> notice-crew-title: @tr("Crew");
+    /// A member joined the voice channel. {} is the member.
+    pure public function notice-member-joined(name: string) -> string {
+        @tr("{} jumped in", name)
+    }
+    /// A chat message: {0} is the sender, {1} is the start of the message.
+    pure public function notice-message(sender: string, preview: string) -> string {
+        // {0} is the sender, {1} is the message.
+        @tr("format" => "{0}: {1}", sender, preview)
+    }
+    /// The title of an invite notification. {} is the app name.
+    pure public function notice-invite-title(app: string) -> string {
+        @tr("{} invite", app)
+    }
+    /// An invite: {0} is the person who invites, {1} is the crew.
+    pure public function notice-invite-body(inviter: string, crew: string) -> string {
+        @tr("{0} invited you to {1}", inviter, crew)
+    }
+
+    // --- Linux: the global shortcuts that the desktop shows
+    //     (src/platform/linux_shortcuts.rs) ---
+
+    out property <string> shortcut-push-to-talk: @tr("Push to talk");
+    out property <string> shortcut-clip: @tr("Clip the last moments of voice");
+
+    // --- The overlay over the game (src/hud_overlay/renderer.rs, the hud
+    //     process) ---
+
+    /// The badge of a live stream.
+    out property <string> hud-live: @tr("LIVE");
 }

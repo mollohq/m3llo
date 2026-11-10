@@ -55,32 +55,49 @@ fn show_stream_key_settings(app: &MainWindow, settings: &Settings) {
     app.set_settings_stream_binding(false);
 }
 
-/// The binding other than the stream key that uses this key, as the
-/// Keybinds warnings name it.
-fn stream_key_taken_by(settings: &Settings, raw: &str) -> Option<&'static str> {
+/// A binding of Keybinds that holds a key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum KeyOwner {
+    PushToTalk,
+    Clip,
+    StreamKey,
+}
+
+impl KeyOwner {
+    /// The Keybinds warning: this binding uses `key` already.
+    fn warning(self, tr: &crate::Tr<'_>, key: &str) -> slint::SharedString {
+        match self {
+            Self::PushToTalk => tr.invoke_key_taken_by_ptt(key.into()),
+            Self::Clip => tr.invoke_key_taken_by_clip(key.into()),
+            Self::StreamKey => tr.invoke_key_taken_by_stream_key(key.into()),
+        }
+    }
+}
+
+/// The binding other than the stream key that uses this key.
+fn stream_key_taken_by(settings: &Settings, raw: &str) -> Option<KeyOwner> {
     if settings.ptt_key.as_deref() == Some(raw) {
-        Some("Push-to-talk")
+        Some(KeyOwner::PushToTalk)
     } else if settings.clip_key.as_deref() == Some(raw) {
-        Some("Clip")
+        Some(KeyOwner::Clip)
     } else {
         None
     }
 }
 
-/// The binding other than the clip key that uses this key, as the
-/// Keybinds warnings name it.
-fn clip_key_taken_by(settings: &Settings, raw: &str) -> Option<&'static str> {
+/// The binding other than the clip key that uses this key.
+fn clip_key_taken_by(settings: &Settings, raw: &str) -> Option<KeyOwner> {
     if settings.ptt_key.as_deref() == Some(raw) {
-        Some("Push-to-talk")
+        Some(KeyOwner::PushToTalk)
     } else if settings.stream_key.as_deref() == Some(raw) {
-        Some("Stream key")
+        Some(KeyOwner::StreamKey)
     } else {
         None
     }
 }
 
 /// The clip qualities of the Game clips section, in the dropdown's rows.
-fn game_clip_qualities() -> Vec<crate::AudioDeviceData> {
+fn game_clip_qualities(tr: &crate::Tr<'_>) -> Vec<crate::AudioDeviceData> {
     use mello_core::events::GameClipQuality;
     [
         GameClipQuality::P1080Fps60,
@@ -90,19 +107,23 @@ fn game_clip_qualities() -> Vec<crate::AudioDeviceData> {
     .into_iter()
     .map(|q| crate::AudioDeviceData {
         id: q.as_str().into(),
-        name: game_clip_quality_name(q).into(),
+        name: game_clip_quality_name(tr, q),
         is_default: q == GameClipQuality::default(),
     })
     .collect()
 }
 
-fn game_clip_quality_name(quality: mello_core::events::GameClipQuality) -> &'static str {
+fn game_clip_quality_name(
+    tr: &crate::Tr<'_>,
+    quality: mello_core::events::GameClipQuality,
+) -> slint::SharedString {
     use mello_core::events::GameClipQuality;
-    match quality {
-        GameClipQuality::P1080Fps60 => "1080p, 60 fps",
-        GameClipQuality::P720Fps60 => "720p, 60 fps",
-        GameClipQuality::P720Fps30 => "720p, 30 fps",
-    }
+    let (height, fps) = match quality {
+        GameClipQuality::P1080Fps60 => (1080, 60),
+        GameClipQuality::P720Fps60 => (720, 60),
+        GameClipQuality::P720Fps30 => (720, 30),
+    };
+    tr.invoke_game_clip_quality(height, fps)
 }
 
 /// Shows the Game clips section as these settings have it.
@@ -111,7 +132,10 @@ fn show_game_clip_settings(app: &MainWindow, settings: &Settings) {
         mello_core::events::GameClipQuality::parse(&settings.game_clip_quality).unwrap_or_default();
     app.set_settings_game_clips_enabled(settings.game_clips_enabled);
     app.set_settings_game_clip_quality(quality.as_str().into());
-    app.set_settings_game_clip_quality_name(game_clip_quality_name(quality).into());
+    app.set_settings_game_clip_quality_name(game_clip_quality_name(
+        &app.global::<crate::Tr>(),
+        quality,
+    ));
 }
 
 fn stop_diagnostic_capture(app: &MainWindow, cmd: &UnboundedSender<Command>) {
@@ -152,7 +176,7 @@ pub fn wire(ctx: &AppContext) {
     }
     ctx.app
         .set_settings_game_clip_qualities(slint::ModelRc::new(slint::VecModel::from(
-            game_clip_qualities(),
+            game_clip_qualities(&ctx.app.global::<crate::Tr>()),
         )));
     show_game_clip_settings(&ctx.app, &ctx.settings.borrow());
     show_stream_key_settings(&ctx.app, &ctx.settings.borrow());
@@ -219,15 +243,14 @@ pub fn wire(ctx: &AppContext) {
                 app.set_settings_hud_overlay_opacity(settings.hud_overlay_opacity);
                 app.set_settings_hud_clip_toasts(settings.hud_show_clip_toasts);
                 app.set_settings_share_game_activity(settings.share_game_activity);
-                let ptt_label: slint::SharedString = if let Some(ref key_str) = settings.ptt_key {
-                    platform::hotkeys::parse_ptt_string(key_str)
-                        .map(|(_, label)| label)
-                        .unwrap_or_else(|| "Unassigned".into())
-                } else {
-                    "Unassigned".into()
-                }
-                .into();
-                app.set_settings_ptt_key_label(ptt_label);
+                // "" is no key: Settings shows its own prompt for it.
+                let ptt_label = settings
+                    .ptt_key
+                    .as_deref()
+                    .and_then(platform::hotkeys::parse_ptt_string)
+                    .map(|(_, label)| label)
+                    .unwrap_or_default();
+                app.set_settings_ptt_key_label(ptt_label.into());
                 app.set_clip_key_label(clip_key_label(&settings).into());
                 app.set_settings_clip_key_warning("".into());
                 app.set_settings_clip_binding(false);
@@ -600,9 +623,9 @@ pub fn wire(ctx: &AppContext) {
                 // A key that another binding uses stays with it. The field
                 // keeps the clip key it had.
                 if let Some(other) = clip_key_taken_by(&settings, &raw_str) {
-                    log::info!("Clip key refused, {other} uses it: {raw_str}");
+                    log::info!("Clip key refused, {other:?} uses it: {raw_str}");
                     app.set_settings_clip_key_warning(
-                        format!("{other} uses {label}. Pick another key.").into(),
+                        other.warning(&app.global::<crate::Tr>(), &label),
                     );
                     return;
                 }
@@ -638,9 +661,9 @@ pub fn wire(ctx: &AppContext) {
                 // A key that another binding uses stays with it. The field
                 // keeps the stream key it had.
                 if let Some(other) = stream_key_taken_by(&settings, &raw_str) {
-                    log::info!("Stream key refused, {other} uses it: {raw_str}");
+                    log::info!("Stream key refused, {other:?} uses it: {raw_str}");
                     app.set_settings_stream_key_warning(
-                        format!("{other} uses {label}. Pick another key.").into(),
+                        other.warning(&app.global::<crate::Tr>(), &label),
                     );
                     return;
                 }
@@ -680,7 +703,10 @@ pub fn wire(ctx: &AppContext) {
             let _ = cmd.send(settings.game_clips_command());
             if let Some(app) = app_weak.upgrade() {
                 app.set_settings_game_clip_quality(quality.as_str().into());
-                app.set_settings_game_clip_quality_name(game_clip_quality_name(quality).into());
+                app.set_settings_game_clip_quality_name(game_clip_quality_name(
+                    &app.global::<crate::Tr>(),
+                    quality,
+                ));
             }
         });
     }
@@ -760,7 +786,7 @@ pub fn wire(ctx: &AppContext) {
                 app.set_settings_ptt_mode(defaults.input_mode == "push_to_talk");
                 app.set_settings_vad_threshold(defaults.vad_threshold);
                 app.set_settings_vad_auto(defaults.vad_auto);
-                app.set_settings_ptt_key_label("Unassigned".into());
+                app.set_settings_ptt_key_label("".into());
                 app.set_clip_key_label(clip_key_label(&defaults).into());
                 app.set_settings_clip_key_warning("".into());
                 show_game_clip_settings(&app, &defaults);
@@ -871,7 +897,10 @@ pub fn wire(ctx: &AppContext) {
         let app_weak = ctx.app.as_weak();
         ctx.app.on_profile_upload_clicked(move || {
             let dialog = rfd::FileDialog::new()
-                .add_filter("Images", &["png", "jpg", "jpeg", "webp"])
+                .add_filter(
+                    super::images_filter(&app_weak),
+                    &["png", "jpg", "jpeg", "webp"],
+                )
                 .pick_file();
             if let Some(path) = dialog {
                 match image::open(&path) {
@@ -1050,5 +1079,43 @@ fn collect_avatar_data(
         }
     } else {
         (None, None, None, None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_key_warnings_and_qualities_read_in_english() {
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(
+            KeyOwner::PushToTalk.warning(tr, "V").as_str(),
+            "Push-to-talk uses V. Pick another key."
+        );
+        assert_eq!(
+            KeyOwner::StreamKey.warning(tr, "F9").as_str(),
+            "Stream key uses F9. Pick another key."
+        );
+        assert_eq!(
+            game_clip_quality_name(tr, mello_core::events::GameClipQuality::P720Fps30).as_str(),
+            "720p, 30 fps"
+        );
+    }
+
+    /// Under the pseudo language a warning changes and keeps the key.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn a_key_warning_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = KeyOwner::Clip.warning(tr, "F8");
+        crate::locale::select_source_language();
+        assert_eq!(
+            text.as_str(),
+            pseudo("Clip uses {}. Pick another key.").replace("{}", "F8")
+        );
+        assert_ne!(text.as_str(), "Clip uses F8. Pick another key.");
     }
 }

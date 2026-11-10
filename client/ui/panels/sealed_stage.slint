@@ -280,6 +280,9 @@ component BigBeltFace inherits Rectangle {
             spacing: 8px;
             opacity: root.line;
             Text {
+                // Slint cannot put an avatar inside one message, so the
+                // sentence is in parts. The extractor keeps the last line:
+                // i18n: one sentence in parts: [holder name] took it from [avatar] [name]
                 text: @tr("took it from");
                 vertical-alignment: center;
                 font-family: Theme.font-body;
@@ -834,7 +837,7 @@ export component SealedStage inherits Rectangle {
         alignment: start;
         opacity: Ease.span(root.t, 1500ms, 1800ms);
         ZoneButton {
-            label: SealedUi.quest.action1-label.to-uppercase();
+            label: SealedUi.quest.action1-label-upper;
             a11y-label: SealedUi.quest.action1-label;
             tone: "line";
             clicked => {
@@ -843,7 +846,7 @@ export component SealedStage inherits Rectangle {
             }
         }
         if SealedUi.quest.action2 != "": ZoneButton {
-            label: SealedUi.quest.action2-label.to-uppercase();
+            label: SealedUi.quest.action2-label-upper;
             a11y-label: SealedUi.quest.action2-label;
             tone: "line";
             clicked => {

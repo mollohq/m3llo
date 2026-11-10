@@ -254,8 +254,19 @@ fn dispatch(ctx: &AppContext, event: Event) {
             };
             ctx.app.set_connection_warning(msg);
         }
-        Event::ProtocolMismatch { message, .. } => {
-            ctx.app.set_protocol_warning(message.into());
+        Event::ProtocolMismatch {
+            required,
+            actual,
+            client_outdated,
+        } => {
+            use slint::ComponentHandle as _;
+            let tr = ctx.app.global::<crate::Tr>();
+            let (required, actual) = (required as i32, actual as i32);
+            ctx.app.set_protocol_warning(if client_outdated {
+                tr.invoke_protocol_client_outdated(required, actual)
+            } else {
+                tr.invoke_protocol_server_outdated(required, actual)
+            });
         }
         // The notice is a log line in mello-core for now; the UI shows
         // nothing yet (mello-admin increment 4).

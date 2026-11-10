@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Datelike, Local, NaiveDateTime, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::events::ChatMessage;
@@ -30,6 +30,23 @@ pub struct ImageData {
     /// `image/jpeg`, `image/png` or `image/gif`.
     #[serde(default)]
     pub mime: String,
+}
+
+/// Why a chat image did not reach the bucket. The client writes it in the
+/// UI language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ImageUploadError {
+    /// No crew is open.
+    NoCrew,
+    /// The server did not give an upload slot.
+    NoSlot,
+    /// The server has no bucket for chat images.
+    Off,
+    /// The bucket refused the upload.
+    Refused,
+    /// The upload did not complete.
+    Incomplete,
 }
 
 /// The most images one message carries.
@@ -605,7 +622,8 @@ pub struct DisplayMessage {
     pub display_body: String,
     pub mentions: Vec<MentionRef>,
     pub timestamp: String,
-    pub display_time: String,
+    /// The time beside the message. `None` for a system row.
+    pub display_time: Option<MessageTime>,
     pub is_group_start: bool,
     pub is_continuation: bool,
     pub is_system: bool,
@@ -615,10 +633,80 @@ pub struct DisplayMessage {
     pub images: Vec<ImageData>,
     pub reply_to: Option<String>,
     pub reply_to_name: Option<String>,
-    pub reply_preview: Option<String>,
-    /// The separator above this message when it starts a new local day:
-    /// "Today", "Yesterday", a date. "" otherwise.
-    pub day_label: String,
+    pub reply_preview: Option<ReplyPreview>,
+    /// The separator above this message when it starts a new local day.
+    /// `None` otherwise, or when the time does not parse.
+    pub day_label: Option<DayLabel>,
+}
+
+/// The quote of the replied-to message above a reply. The client writes
+/// `Deleted` and `Gif` in the UI language.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReplyPreview {
+    /// The replied-to message is deleted.
+    Deleted,
+    /// The replied-to message is a GIF with no text.
+    Gif,
+    /// The start of the text of the replied-to message.
+    Text(String),
+}
+
+/// A calendar day in local time. The client writes it in the UI language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalDay {
+    pub year: i32,
+    /// 1 to 12.
+    pub month: u32,
+    /// 1 to 31.
+    pub day: u32,
+    /// 0 is Sunday, 6 is Saturday.
+    pub weekday: u32,
+}
+
+impl LocalDay {
+    fn of(d: chrono::NaiveDate) -> Self {
+        Self {
+            year: d.year(),
+            month: d.month(),
+            day: d.day(),
+            weekday: d.weekday().num_days_from_sunday(),
+        }
+    }
+}
+
+/// The day separator of the chat. The client makes the text.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DayLabel {
+    Today,
+    Yesterday,
+    /// Two to six days ago: the weekday with the date.
+    Weekday(LocalDay),
+    /// Earlier in this year: the date.
+    ThisYear(LocalDay),
+    /// An earlier year: the date with the year.
+    Older(LocalDay),
+}
+
+/// The time beside a chat message (spec section 4.2). The client makes the
+/// text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum MessageTime {
+    /// The timestamp does not parse. The client shows it as it is.
+    Unparsed(String),
+    /// Under a minute ago.
+    JustNow,
+    /// Under an hour ago, in whole minutes.
+    MinutesAgo(i64),
+    /// Earlier today: the local time of day.
+    Clock {
+        hour: u32,
+        minute: u32,
+    },
+    Yesterday,
+    /// Earlier in this year: the date.
+    ThisYear(LocalDay),
+    /// An earlier year: the date with the year.
+    Older(LocalDay),
 }
 
 const GROUP_GAP_SECS: i64 = 300; // 5 minutes
@@ -644,27 +732,25 @@ fn parse_timestamp(ts: &str) -> Option<DateTime<Utc>> {
         })
 }
 
-/// The label of a day separator, in local time: "Today", "Yesterday", the
+/// The label of a day separator, in local time: today, yesterday, the
 /// weekday with the date inside the last week, the date in this year, and
-/// the date with the year before that. "" when `ts` does not parse.
-pub fn day_label(ts: &str) -> String {
+/// the date with the year before that. `None` when `ts` does not parse.
+pub fn day_label(ts: &str) -> Option<DayLabel> {
     day_label_at(ts, Utc::now())
 }
 
-fn day_label_at(ts: &str, now: DateTime<Utc>) -> String {
-    let Some(dt) = parse_timestamp(ts) else {
-        return String::new();
-    };
+fn day_label_at(ts: &str, now: DateTime<Utc>) -> Option<DayLabel> {
+    let dt = parse_timestamp(ts)?;
     let day = dt.with_timezone(&Local).date_naive();
     let today = now.with_timezone(&Local).date_naive();
     let days_ago = (today - day).num_days();
-    match days_ago {
-        0 => "Today".to_string(),
-        1 => "Yesterday".to_string(),
-        2..=6 => day.format("%A %-d %b").to_string(),
-        _ if day.year() == today.year() => day.format("%-d %b").to_string(),
-        _ => day.format("%-d %b %Y").to_string(),
-    }
+    Some(match days_ago {
+        0 => DayLabel::Today,
+        1 => DayLabel::Yesterday,
+        2..=6 => DayLabel::Weekday(LocalDay::of(day)),
+        _ if day.year() == today.year() => DayLabel::ThisYear(LocalDay::of(day)),
+        _ => DayLabel::Older(LocalDay::of(day)),
+    })
 }
 
 /// True when `a` and `b` fall on different local days. An unparseable
@@ -678,40 +764,46 @@ fn different_local_day(a: &str, b: &str) -> bool {
     }
 }
 
-/// Format a timestamp for display per spec section 4.2.
-pub fn format_display_time(ts: &str) -> String {
-    let now = Utc::now();
+/// The time beside a message, per spec section 4.2.
+pub fn display_time(ts: &str) -> MessageTime {
+    display_time_at(ts, Utc::now())
+}
+
+fn display_time_at(ts: &str, now: DateTime<Utc>) -> MessageTime {
     let Some(dt) = parse_timestamp(ts) else {
-        return ts.to_string();
+        return MessageTime::Unparsed(ts.to_string());
     };
 
     let diff = now.signed_duration_since(dt);
     let secs = diff.num_seconds();
 
     if secs < 60 {
-        return "just now".to_string();
+        return MessageTime::JustNow;
     }
     if secs < 3600 {
-        return format!("{}m ago", secs / 60);
+        return MessageTime::MinutesAgo(secs / 60);
     }
 
     let local_dt = dt.with_timezone(&Local);
     let local_now = now.with_timezone(&Local);
 
     if local_dt.date_naive() == local_now.date_naive() {
-        return local_dt.format("%H:%M").to_string();
+        return MessageTime::Clock {
+            hour: local_dt.hour(),
+            minute: local_dt.minute(),
+        };
     }
 
     let yesterday = local_now.date_naive() - chrono::Duration::days(1);
     if local_dt.date_naive() == yesterday {
-        return "Yesterday".to_string();
+        return MessageTime::Yesterday;
     }
 
+    let day = LocalDay::of(local_dt.date_naive());
     if local_dt.year() == local_now.year() {
-        return local_dt.format("%b %-d").to_string();
+        return MessageTime::ThisYear(day);
     }
-
-    local_dt.format("%b %-d, %Y").to_string()
+    MessageTime::Older(day)
 }
 
 /// Count non-system, non-deleted messages from the current local week (Mon–Sun) in the loaded set.
@@ -867,7 +959,7 @@ fn truncate_preview(text: &str, max: usize) -> String {
 fn resolve_reply(
     reply_to: &Option<String>,
     messages: &[ChatMessage],
-) -> (Option<String>, Option<String>) {
+) -> (Option<String>, Option<ReplyPreview>) {
     let Some(id) = reply_to else {
         return (None, None);
     };
@@ -875,11 +967,11 @@ fn resolve_reply(
         return (None, None);
     };
     let preview = if orig.is_deleted {
-        "[message deleted]".to_string()
+        ReplyPreview::Deleted
     } else if orig.gif.is_some() && orig.content.is_empty() {
-        "GIF".to_string()
+        ReplyPreview::Gif
     } else {
-        truncate_preview(&orig.display_body, 100)
+        ReplyPreview::Text(truncate_preview(&orig.display_body, 100))
     };
     (Some(orig.sender_name.clone()), Some(preview))
 }
@@ -893,7 +985,7 @@ pub fn prepare_messages_for_display(messages: &[ChatMessage]) -> Vec<DisplayMess
         let day = if starts_day {
             day_label(&msg.timestamp)
         } else {
-            String::new()
+            None
         };
         if msg.is_system {
             result.push(DisplayMessage {
@@ -905,7 +997,7 @@ pub fn prepare_messages_for_display(messages: &[ChatMessage]) -> Vec<DisplayMess
                 display_body: msg.display_body.clone(),
                 mentions: msg.mentions.clone(),
                 timestamp: msg.timestamp.clone(),
-                display_time: String::new(),
+                display_time: None,
                 is_group_start: false,
                 is_continuation: false,
                 is_system: true,
@@ -944,19 +1036,21 @@ pub fn prepare_messages_for_display(messages: &[ChatMessage]) -> Vec<DisplayMess
             sender_id: msg.sender_id.clone(),
             sender_name: msg.sender_name.clone(),
             sender_initials: sender_initials(&msg.sender_name),
+            // A deleted message has no body. The client shows its notice
+            // from `is_deleted`.
             content: if msg.is_deleted {
-                "[message deleted]".to_string()
+                String::new()
             } else {
                 msg.content.clone()
             },
             display_body: if msg.is_deleted {
-                "[message deleted]".to_string()
+                String::new()
             } else {
                 msg.display_body.clone()
             },
             mentions: msg.mentions.clone(),
             timestamp: msg.timestamp.clone(),
-            display_time: format_display_time(&msg.timestamp),
+            display_time: Some(display_time(&msg.timestamp)),
             is_group_start,
             is_continuation: !is_group_start,
             is_system: false,
@@ -990,13 +1084,79 @@ mod tests {
                 .with_timezone(&Utc)
                 .to_rfc3339()
         };
-        assert_eq!(day_label_at(&at(0), now), "Today");
-        assert_eq!(day_label_at(&at(1), now), "Yesterday");
-        assert_eq!(day_label_at(&at(2), now), "Sunday 1 Nov");
-        assert_eq!(day_label_at(&at(6), now), "Wednesday 28 Oct");
-        assert_eq!(day_label_at(&at(7), now), "27 Oct");
-        assert_eq!(day_label_at(&at(400), now), "29 Sep 2025");
-        assert_eq!(day_label_at("garbage", now), "");
+        let day = |year, month, day, weekday| LocalDay {
+            year,
+            month,
+            day,
+            weekday,
+        };
+        assert_eq!(day_label_at(&at(0), now), Some(DayLabel::Today));
+        assert_eq!(day_label_at(&at(1), now), Some(DayLabel::Yesterday));
+        // Sunday 1 November.
+        assert_eq!(
+            day_label_at(&at(2), now),
+            Some(DayLabel::Weekday(day(2026, 11, 1, 0)))
+        );
+        // Wednesday 28 October.
+        assert_eq!(
+            day_label_at(&at(6), now),
+            Some(DayLabel::Weekday(day(2026, 10, 28, 3)))
+        );
+        assert_eq!(
+            day_label_at(&at(7), now),
+            Some(DayLabel::ThisYear(day(2026, 10, 27, 2)))
+        );
+        assert_eq!(
+            day_label_at(&at(400), now),
+            Some(DayLabel::Older(day(2025, 9, 29, 1)))
+        );
+        assert_eq!(day_label_at("garbage", now), None);
+    }
+
+    #[test]
+    fn display_times_read_just_now_minutes_clock_then_dates() {
+        use chrono::TimeZone;
+        let now_local = Local
+            .with_ymd_and_hms(2026, 11, 3, 12, 0, 0)
+            .single()
+            .expect("now");
+        let now = now_local.with_timezone(&Utc);
+        let ago = |d: chrono::Duration| (now_local - d).with_timezone(&Utc).to_rfc3339();
+        assert_eq!(
+            display_time_at(&ago(chrono::Duration::seconds(30)), now),
+            MessageTime::JustNow
+        );
+        assert_eq!(
+            display_time_at(&ago(chrono::Duration::minutes(5)), now),
+            MessageTime::MinutesAgo(5)
+        );
+        assert_eq!(
+            display_time_at(&ago(chrono::Duration::minutes(150)), now),
+            MessageTime::Clock {
+                hour: 9,
+                minute: 30
+            }
+        );
+        assert_eq!(
+            display_time_at(&ago(chrono::Duration::days(1)), now),
+            MessageTime::Yesterday
+        );
+        assert!(matches!(
+            display_time_at(&ago(chrono::Duration::days(7)), now),
+            MessageTime::ThisYear(LocalDay {
+                month: 10,
+                day: 27,
+                ..
+            })
+        ));
+        assert!(matches!(
+            display_time_at(&ago(chrono::Duration::days(400)), now),
+            MessageTime::Older(LocalDay { year: 2025, .. })
+        ));
+        assert_eq!(
+            display_time_at("garbage", now),
+            MessageTime::Unparsed("garbage".into())
+        );
     }
 
     #[test]
@@ -1033,18 +1193,15 @@ mod tests {
         );
         let rows = prepare_messages_for_display(&[a, b, c]);
         assert!(
-            !rows[0].day_label.is_empty(),
+            rows[0].day_label.is_some(),
             "the first message starts its day"
         );
-        assert_eq!(rows[1].day_label, "");
+        assert_eq!(rows[1].day_label, None);
         assert!(
             rows[1].is_continuation,
             "three minutes later, same day: grouped"
         );
-        assert!(
-            !rows[2].day_label.is_empty(),
-            "midnight passed: a separator"
-        );
+        assert!(rows[2].day_label.is_some(), "midnight passed: a separator");
         assert!(
             rows[2].is_group_start,
             "and a new group, even within five minutes"
@@ -1346,7 +1503,23 @@ mod tests {
         let mut reply = msg("2", "u2", "bob", "2026-03-08T12:01:00Z", "yes");
         reply.reply_to = Some("1".into());
         let display = prepare_messages_for_display(&[orig, reply]);
-        assert_eq!(display[1].reply_preview.as_deref(), Some("hi @Bob"));
+        assert_eq!(
+            display[1].reply_preview,
+            Some(ReplyPreview::Text("hi @Bob".into()))
+        );
+    }
+
+    /// The core gives no text for a deleted message: the client writes it.
+    #[test]
+    fn a_deleted_message_has_no_body_and_a_typed_reply_preview() {
+        let mut orig = msg("1", "u1", "alice", "2026-03-08T12:00:00Z", "hi");
+        orig.is_deleted = true;
+        let mut reply = msg("2", "u2", "bob", "2026-03-08T12:01:00Z", "yes");
+        reply.reply_to = Some("1".into());
+        let display = prepare_messages_for_display(&[orig, reply]);
+        assert_eq!(display[0].display_body, "");
+        assert_eq!(display[0].content, "");
+        assert_eq!(display[1].reply_preview, Some(ReplyPreview::Deleted));
     }
 
     #[test]

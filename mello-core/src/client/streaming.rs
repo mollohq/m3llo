@@ -67,6 +67,7 @@ fn game_capture_source(
         name,
         mode: "process".to_string(),
         monitor_index: None,
+        primary: false,
         hwnd: None,
         pid: Some(pid),
         exe,
@@ -306,9 +307,8 @@ pub(super) struct NativeStartParams {
 pub(super) fn start_host_blocking(params: NativeStartParams) -> Result<NativeStartOutcome, String> {
     let ctx = params.ctx as *mut mello_sys::MelloContext;
     if !unsafe { crate::stream::encoder_available(ctx) } {
-        return Err("Streaming requires a hardware encoder \
-                    (NVIDIA, AMD, or Intel). None was found on this machine."
-            .to_string());
+        // `start_failure_reason` knows this text.
+        return Err(crate::stream::error::StreamError::NoHardwareEncoder.to_string());
     }
     #[cfg(not(target_os = "linux"))]
     let source = mello_sys::MelloCaptureSource {
@@ -838,16 +838,13 @@ impl super::Client {
             unsafe { mello_sys::mello_enumerate_monitors(ctx, mons_raw.as_mut_ptr(), 16) };
         let mut monitors = Vec::new();
         for mon in mons_raw.iter().take(mon_count as usize) {
-            let display_name = if mon.primary {
-                format!("Display {} (Primary)", mon.index + 1)
-            } else {
-                format!("Display {}", mon.index + 1)
-            };
+            // The client names the monitor in the UI language.
             monitors.push(crate::events::CaptureSource {
                 id: format!("monitor-{}", mon.index),
-                name: display_name,
+                name: String::new(),
                 mode: "monitor".to_string(),
                 monitor_index: Some(mon.index),
+                primary: mon.primary,
                 hwnd: None,
                 pid: None,
                 exe: String::new(),
@@ -933,6 +930,7 @@ impl super::Client {
                 name: title,
                 mode: "window".to_string(),
                 monitor_index: None,
+                primary: false,
                 hwnd: Some(hwnd),
                 pid: Some(win.pid),
                 exe,
@@ -2010,7 +2008,7 @@ pub(super) mod stream_lifecycle_tests {
             matches!(
                 failures.as_slice(),
                 [Event::StreamFailed { role: StreamRole::Host, reason }]
-                    if reason == "Could not reach the stream server."
+                    if *reason == crate::events::StreamFailure::StreamServerUnreachable
             ),
             "one failure that names the cause: {failures:?}"
         );

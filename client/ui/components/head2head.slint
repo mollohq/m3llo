@@ -32,6 +32,9 @@ export global H2hHue {
 export component TitleChip inherits Rectangle {
     in property <image> icon;
     in property <string> title;
+    /// The title in upper case, as the chip shows it. Rust builds it: a
+    /// translated title is never upper-cased here.
+    in property <string> title-upper;
     in property <string> value;
     in property <string> unit;
     in property <color> hue: Theme.id-blue;
@@ -78,7 +81,7 @@ export component TitleChip inherits Rectangle {
             alignment: center;
             spacing: 0px;
             Text {
-                text: root.title.to-uppercase();
+                text: root.title-upper;
                 font-family: Theme.font-label;
                 font-size: 9px;
                 font-weight: Theme.weight-label;
@@ -108,7 +111,7 @@ export component TitleChip inherits Rectangle {
                 height: root.dense ? 11px : 13px;
             }
             Text {
-                text: root.title.to-uppercase();
+                text: root.title-upper;
                 font-family: Theme.font-label;
                 font-size: 8px;
                 font-weight: Theme.weight-label;
@@ -334,7 +337,7 @@ export component BeltHero inherits Rectangle {
                     cross-axis-alignment: center;
                     Image { source: root.belt.icon; colorize: root.hue; width: 26px; height: 26px; }
                     Text {
-                        text: root.belt.title.to-uppercase();
+                        text: root.belt.title-upper;
                         font-family: Theme.font-label; font-weight: Theme.weight-label;
                         font-size: 10px; letter-spacing: 1.8px; color: Theme.text-body;
                         vertical-alignment: center;

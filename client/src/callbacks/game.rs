@@ -149,7 +149,10 @@ pub(crate) fn quick_start_stream(
 
     let mut title = app.get_game_name().to_string();
     if title.trim().is_empty() {
-        title = "STREAMING".to_string();
+        title = app
+            .global::<crate::Tr>()
+            .get_stream_label_streaming()
+            .into();
     }
     app.set_stream_label(title.clone().into());
 

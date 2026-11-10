@@ -6,13 +6,10 @@
 
 use mello_core::events::GameClipState;
 use mello_core::{Command, Event};
+use slint::ComponentHandle as _;
 
 use crate::app_context::AppContext;
 use crate::hud_manager::HudClipToast;
-
-pub(crate) const DISK_LOW_TOAST: &str = "Game clips are off: the disk is almost full";
-pub(crate) const NO_PERMISSION_TOAST: &str = "Allow Screen Recording in Settings to clip your game";
-pub(crate) const UNAVAILABLE_TOAST: &str = "Clips are not available for this game";
 
 /// The replay as core last reported it.
 #[derive(Debug, Clone, Default)]
@@ -41,7 +38,10 @@ pub(crate) fn handle(ctx: &AppContext, event: Event) {
             };
             // CLIPS.md 15.2: the replay stops on a full disk, and says so once.
             if state == GameClipState::DiskLow && was != GameClipState::DiskLow {
-                toast(ctx, DISK_LOW_TOAST);
+                toast(
+                    ctx,
+                    &ctx.app.global::<crate::Tr>().get_clip_toast_disk_low(),
+                );
             }
         }
         Event::GameClipCaptured {
@@ -62,7 +62,7 @@ pub(crate) fn handle(ctx: &AppContext, event: Event) {
                 width,
                 height
             );
-            toast(ctx, "Game clip saved");
+            toast(ctx, &ctx.app.global::<crate::Tr>().get_clip_toast_saved());
             // The clip goes to the active crew (CLIPS.md 15.2), and core
             // uploads it in the background (CLIPS.md 15.7).
             let crew_id = ctx.app.get_active_crew_id().to_string();
@@ -83,7 +83,7 @@ pub(crate) fn handle(ctx: &AppContext, event: Event) {
         }
         Event::GameClipFailed { reason } => {
             log::warn!("[game clip] no clip: {reason}");
-            toast(ctx, "No game clip");
+            toast(ctx, &ctx.app.global::<crate::Tr>().get_clip_toast_none());
         }
         Event::GameClipUploadFailed { clip_id, reason } => {
             log::warn!("[game clip] {clip_id} does not go up: {reason}");

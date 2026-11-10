@@ -176,7 +176,7 @@ component PairRow inherits Rectangle {
             VerticalLayout {
                 spacing: 2px;
                 alignment: center;
-                Kicker { text: root.pair.title.to-uppercase(); color: Theme.text-body; }
+                Kicker { text: root.pair.title-upper; color: Theme.text-body; }
                 Versus {
                     you-value: root.pair.you-value;
                     other-value: root.pair.other-value;
@@ -361,7 +361,7 @@ component GameRow inherits Rectangle {
         if !root.card.has-record: Cell {
             width: 76px;
             value: root.card.week-value;
-            unit: @tr("h");
+            unit: @tr("unit" => "h");
             label: @tr("THIS WEEK");
         }
     }
@@ -559,19 +559,19 @@ global Fx {
     out property <image> belt: @image-url("../icons/h2h-belt.svg");
 
     out property <[YouPairRow]> pairs: [
-        { other: axel, you-count: 4, them-count: 4, title: "Night Owl", icon: owl, you-value: "03:14", other-value: "03:02" }, // i18n: none (mock default)
-        { other: ebba, you-count: 5, them-count: 4, title: "Locked In", icon: lock, you-value: "12.9", other-value: "14.2", unit: "h" }, // i18n: none (mock default)
-        { other: alva, you-count: 2, them-count: 6, title: "Clipper", icon: belt, you-value: "38", other-value: "41", unit: "clips" }, // i18n: none (mock default)
-        { other: elin, you-count: 6, them-count: 1, title: "Sampler", icon: samp, you-value: "5", other-value: "4", unit: "games" }, // i18n: none (mock default)
+        { other: axel, you-count: 4, them-count: 4, title: "Night Owl", title-upper: "NIGHT OWL", icon: owl, you-value: "03:14", other-value: "03:02" }, // i18n: none (mock default)
+        { other: ebba, you-count: 5, them-count: 4, title: "Locked In", title-upper: "LOCKED IN", icon: lock, you-value: "12.9", other-value: "14.2", unit: "h" }, // i18n: none (mock default)
+        { other: alva, you-count: 2, them-count: 6, title: "Clipper", title-upper: "CLIPPER", icon: belt, you-value: "38", other-value: "41", unit: "clips" }, // i18n: none (mock default)
+        { other: elin, you-count: 6, them-count: 1, title: "Sampler", title-upper: "SAMPLER", icon: samp, you-value: "5", other-value: "4", unit: "games" }, // i18n: none (mock default)
     ];
     out property <[ChaseBarData]> holds: [
-        { take: false, title: "Night Owl", icon: owl, other: axel, you-value: "03:14", other-value: "03:02", delta: "+12", delta-unit: "min", ratio: 0.978 }, // i18n: none (mock default)
-        { take: false, title: "The Collector", icon: col, other: elin, you-value: "212", other-value: "203", unit: "installed", delta: "+9", ratio: 0.958 }, // i18n: none (mock default)
-        { take: false, title: "Clipper", icon: belt, other: alva, you-value: "41", other-value: "38", unit: "clips", delta: "+3", ratio: 0.927 }, // i18n: none (mock default)
+        { take: false, title: "Night Owl", title-upper: "NIGHT OWL", icon: owl, other: axel, you-value: "03:14", other-value: "03:02", delta: "+12", delta-unit: "min", ratio: 0.978 }, // i18n: none (mock default)
+        { take: false, title: "The Collector", title-upper: "THE COLLECTOR", icon: col, other: elin, you-value: "212", other-value: "203", unit: "installed", delta: "+9", ratio: 0.958 }, // i18n: none (mock default)
+        { take: false, title: "Clipper", title-upper: "CLIPPER", icon: belt, other: alva, you-value: "41", other-value: "38", unit: "clips", delta: "+3", ratio: 0.927 }, // i18n: none (mock default)
     ];
     out property <[ChaseBarData]> takes: [
-        { take: true, title: "Locked In", icon: lock, other: ebba, you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 }, // i18n: none (mock default)
-        { take: true, title: "Sampler", icon: samp, other: elin, you-value: "5", other-value: "6", unit: "games", delta: "−1", ratio: 0.833 }, // i18n: none (mock default)
+        { take: true, title: "Locked In", title-upper: "LOCKED IN", icon: lock, other: ebba, you-value: "12.9", other-value: "14.2", unit: "h", delta: "−1.3", delta-unit: "h", ratio: 0.908 }, // i18n: none (mock default)
+        { take: true, title: "Sampler", title-upper: "SAMPLER", icon: samp, other: elin, you-value: "5", other-value: "6", unit: "games", delta: "−1", ratio: 0.833 }, // i18n: none (mock default)
         { take: true, title: "The Carry", icon: carry, other: axel, you-value: "2,927", other-value: "4,167", unit: "h", delta: "−1,240", delta-unit: "h", ratio: 0.702 }, // i18n: none (mock default)
     ];
     out property <[GameStatsCardData]> games: [

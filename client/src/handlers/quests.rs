@@ -163,8 +163,12 @@ pub(crate) fn handle(ctx: &crate::app_context::AppContext, event: mello_core::ev
             gift,
             reason,
         } => {
-            log::warn!("[gifts] {gift} failed for crew {crew_id}: {reason}");
-            crate::callbacks::on_gift_result(ctx, &gift, Some(&reason));
+            log::warn!("[gifts] {gift} failed for crew {crew_id}: {reason:?}");
+            let text = {
+                use slint::ComponentHandle as _;
+                crate::callbacks::gift_failure_text(&ctx.app.global::<crate::Tr>(), &reason)
+            };
+            crate::callbacks::on_gift_result(ctx, &gift, Some(&text));
         }
         Event::InviteNameChecked {
             crew_id,
@@ -182,13 +186,15 @@ pub(crate) fn handle(ctx: &crate::app_context::AppContext, event: mello_core::ev
 pub(crate) const STEPS: [&str; 5] = ["made", "friend", "call", "clip", "session"];
 /// The name of a gift, shown once it is open. Until then it is "DROP 1" to
 /// "DROP 5": what is in it stays a surprise.
-const NAMES: [&str; 5] = [
-    "BANNER",
-    "INVITE LINK",
-    "CREW EMOJI",
-    "FIRST WEEK",
-    "M3LLO+ 30 D",
-];
+fn gift_name(tr: &crate::Tr<'_>, i: usize) -> slint::SharedString {
+    match i {
+        0 => tr.get_quest_gift_banner(),
+        1 => tr.get_quest_gift_invite_link(),
+        2 => tr.get_quest_gift_crew_emoji(),
+        3 => tr.get_quest_gift_first_week(),
+        _ => tr.get_quest_gift_plus(),
+    }
+}
 const CONTENT: [&str; 5] = ["art", "link", "emoji", "week", "plus"];
 
 /// The quest card as the zones draw it.
@@ -218,6 +224,8 @@ pub(crate) struct Input<'a> {
     pub emoji_art: Option<Image>,
     /// The header art of a game by id, when the art cache has it.
     pub game_art: &'a dyn Fn(&str) -> Option<Image>,
+    /// The messages of the UI, for dates and durations.
+    pub tr: &'a crate::Tr<'a>,
 }
 
 /// The key of the gift of a step on a crew.
@@ -286,7 +294,7 @@ pub(crate) fn build(q: &ZoneQuests, inp: &Input) -> Option<Card> {
     ];
     let last = done.iter().rposition(|d| *d).unwrap_or(0);
     Some(Card {
-        count: format!("{count_done} / 5"),
+        count: inp.tr.invoke_quest_count(count_done as i32, 5).into(),
         fill: last as f32 / 4.0,
         gifts,
         rows,
@@ -298,7 +306,7 @@ fn gift(i: usize, q: &ZoneQuests, inp: &Input, done: bool, owner: bool, opened: 
     let seed = sealed::quest_seed(STEPS[i], inp.crew_id);
     let mut g = QuestGift {
         key: key.into(),
-        label: format!("DROP {}", i + 1).into(),
+        label: inp.tr.invoke_quest_drop(i as i32 + 1),
         big: i == 4,
         content: CONTENT[i].into(),
         ..Default::default()
@@ -321,7 +329,7 @@ fn gift(i: usize, q: &ZoneQuests, inp: &Input, done: bool, owner: bool, opened: 
         g.dim = dim.into();
     } else {
         g.state = "open".into();
-        g.label = NAMES[i].into();
+        g.label = gift_name(inp.tr, i);
         match i {
             0 => {
                 if let Some(art) = &inp.banner_art {
@@ -337,9 +345,9 @@ fn gift(i: usize, q: &ZoneQuests, inp: &Input, done: bool, owner: bool, opened: 
             }
             3 => {
                 let week = q.gifts.founding_weeks.first().copied().unwrap_or(q.made_ms);
-                g.text = format!("W{}", iso_week(week)).into();
+                g.text = inp.tr.invoke_week_number_short(iso_week(week) as i32);
             }
-            4 => g.text = "30 DAYS".into(),
+            4 => g.text = inp.tr.get_quest_thirty_days(),
             _ => {}
         }
     }
@@ -353,9 +361,9 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
     let other = |ids: &[String]| ids.iter().find(|id| *id != inp.viewer_id).cloned();
     let mut r = QuestReveal {
         step: STEPS[i].into(),
-        label: format!("QUEST  ·  {}", STEP_NAMES[i].to_uppercase()).into(),
+        label: inp.tr.invoke_quest_reveal_label(step_name_upper(inp.tr, i)),
         hue_index: hue_of(inp.viewer_id),
-        count: format!("{done} / 5").into(),
+        count: inp.tr.invoke_quest_count(done as i32, 5),
         content: CONTENT[i].into(),
         bright: g.bright.clone(),
         dim: g.dim.clone(),
@@ -370,31 +378,36 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
     match i {
         0 => {
             r.moment_title = inp.crew_name.into();
-            r.moment_sub = format!("Made {}", day_month(q.made_ms)).into();
-            r.name = "Crew banner".into();
+            r.moment_sub = inp
+                .tr
+                .invoke_quest_made(crate::l10n_format::date_label(inp.tr, q.made_ms).into());
+            r.name = inp.tr.get_quest_name_banner();
             if let Some(art) = &inp.banner_art {
                 r.gift_art = art.clone();
                 r.gift_has_art = true;
             }
             r.action1 = "banner-game".into();
-            r.action1_label = "Game art".into();
+            r.action1_label = inp.tr.get_quest_action_game_art();
+            r.action1_label_upper = inp.tr.get_quest_action_game_art_upper();
             r.action2 = "banner-upload".into();
-            r.action2_label = "Upload".into();
+            r.action2_label = inp.tr.get_quest_action_upload();
+            r.action2_label_upper = inp.tr.get_quest_action_upload_upper();
         }
         1 => {
             if let Some(f) = &q.steps.friend {
                 r.hue_index = hue_of(&f.user_id);
                 set_person(&mut r, &f.user_id);
-                r.moment_title = format!("{} joined", who(&f.user_id, &f.name, inp)).into();
+                r.moment_title = joined_title(&f.user_id, &f.name, inp);
                 if !f.invited_by.is_empty() {
-                    r.moment_sub = format!(
-                        "Invited by {}",
-                        who(&f.invited_by, &f.invited_by_name, inp).replace("You", "you")
-                    )
-                    .into();
+                    r.moment_sub = if f.invited_by == inp.viewer_id {
+                        inp.tr.get_quest_invited_by_you()
+                    } else {
+                        inp.tr
+                            .invoke_quest_invited_by(f.invited_by_name.as_str().into())
+                    };
                 }
             }
-            r.name = "Your invite link".into();
+            r.name = inp.tr.get_quest_name_invite_link();
             r.gift_text = if q.gifts.invite_name.is_empty() {
                 suggest_invite_name(inp.crew_name)
             } else {
@@ -402,7 +415,8 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
             }
             .into();
             r.action1 = "link".into();
-            r.action1_label = "Set the link".into();
+            r.action1_label = inp.tr.get_quest_action_set_link();
+            r.action1_label_upper = inp.tr.get_quest_action_set_link_upper();
         }
         2 => {
             if let Some(c) = &q.steps.call {
@@ -412,25 +426,29 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
                 r.moment_title = call_people(c, inp).into();
                 r.moment_sub = c.channel_name.clone().into();
             }
-            r.name = "Crew emoji".into();
-            r.gift_line = "5 slots".into();
+            r.name = inp.tr.get_quest_name_crew_emoji();
+            r.gift_line = inp.tr.invoke_quest_slots(5);
             r.action1 = "emoji".into();
-            r.action1_label = "Add emoji".into();
+            r.action1_label = inp.tr.get_quest_action_add_emoji();
+            r.action1_label_upper = inp.tr.get_quest_action_add_emoji_upper();
         }
         3 => {
             if let Some(c) = &q.steps.clip {
                 r.hue_index = hue_of(&c.clipper_id);
-                r.moment_title =
-                    format!("{} clipped", who(&c.clipper_id, &c.clipper_name, inp)).into();
+                r.moment_title = if c.clipper_id == inp.viewer_id {
+                    inp.tr.get_quest_you_clipped()
+                } else {
+                    inp.tr.invoke_quest_clipped(c.clipper_name.as_str().into())
+                };
                 r.moment_sub = c.game.clone().into();
             }
-            r.name = "Founding week".into();
+            r.name = inp.tr.get_quest_name_founding_week();
             r.gift_text = g.text.clone();
             if r.gift_text.is_empty() {
                 let week = q.gifts.founding_weeks.first().copied().unwrap_or(q.made_ms);
-                r.gift_text = format!("W{}", iso_week(week)).into();
+                r.gift_text = inp.tr.invoke_week_number_short(iso_week(week) as i32);
             }
-            r.gift_line = "Open in Crew history for every member".into();
+            r.gift_line = inp.tr.get_quest_week_line();
         }
         _ => {
             if let Some(s) = &q.steps.session {
@@ -441,35 +459,44 @@ fn reveal(i: usize, q: &ZoneQuests, inp: &Input, g: &QuestGift, done: usize) -> 
                     r.moment_art = art;
                     r.moment_has_art = true;
                 }
-                let span = if s.minutes >= 60 {
-                    format!("{} h {:02}", s.minutes / 60, s.minutes % 60)
-                } else {
-                    format!("{} min", s.minutes)
-                };
+                let span = crate::l10n_format::duration_h_mm(inp.tr, i64::from(s.minutes));
                 r.moment_title = if s.game_name.is_empty() {
                     span
                 } else {
-                    format!("{span} · {}", s.game_name)
+                    crate::l10n_format::dot_pair(inp.tr, &span, &s.game_name)
                 }
                 .into();
                 r.moment_sub = names_line(&s.user_ids, &s.names, inp).into();
             }
-            r.name = "For the crew".into();
-            r.gift_text = "30 DAYS".into();
-            r.gift_line = "30 days of m3llo+\nfor every member in the crew".into();
+            r.name = inp.tr.get_quest_name_for_the_crew();
+            r.gift_text = inp.tr.get_quest_thirty_days();
+            r.gift_line = inp.tr.get_quest_plus_line();
         }
     }
     r
 }
 
-/// The step names of the rows, in `STEPS` order.
-const STEP_NAMES: [&str; 5] = [
-    "Crew made",
-    "A friend joins",
-    "First call",
-    "First clip",
-    "First session",
-];
+/// The name of a step, in `STEPS` order.
+fn step_name(tr: &crate::Tr<'_>, i: usize) -> slint::SharedString {
+    match i {
+        0 => tr.get_quest_step_made(),
+        1 => tr.get_quest_step_friend(),
+        2 => tr.get_quest_step_call(),
+        3 => tr.get_quest_step_clip(),
+        _ => tr.get_quest_step_session(),
+    }
+}
+
+/// The name of a step in upper case, for the label of a reveal.
+fn step_name_upper(tr: &crate::Tr<'_>, i: usize) -> slint::SharedString {
+    match i {
+        0 => tr.get_quest_step_made_upper(),
+        1 => tr.get_quest_step_friend_upper(),
+        2 => tr.get_quest_step_call_upper(),
+        3 => tr.get_quest_step_clip_upper(),
+        _ => tr.get_quest_step_session_upper(),
+    }
+}
 
 /// A name for the invite link made from the crew name: lower case letters
 /// and digits, 3 to 24 of them (the server's rule, crew_gifts.go).
@@ -484,26 +511,6 @@ fn suggest_invite_name(crew_name: &str) -> String {
         out.push('x');
     }
     out
-}
-
-/// "5 November" of a time in ms (UTC).
-fn day_month(ms: i64) -> String {
-    const MONTHS: [&str; 12] = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-    ];
-    let (_, m, d) = civil_from_days(ms.div_euclid(DAY_MS));
-    format!("{d} {}", MONTHS[(m - 1) as usize])
 }
 
 /// The date of a day count (H. Hinnant, civil_from_days): year, month, day.
@@ -545,9 +552,9 @@ fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
     era * 146_097 + doe - 719_468
 }
 
-fn row(name: &str) -> QuestRow {
+fn row(inp: &Input, step: usize) -> QuestRow {
     QuestRow {
-        name: name.into(),
+        name: step_name(inp.tr, step),
         ..Default::default()
     }
 }
@@ -555,9 +562,18 @@ fn row(name: &str) -> QuestRow {
 /// "You" for the viewer, else the name.
 fn who(id: &str, name: &str, inp: &Input) -> String {
     if id == inp.viewer_id {
-        "You".into()
+        inp.tr.get_you().into()
     } else {
         name.into()
+    }
+}
+
+/// "You joined" for the viewer, else "Ida joined".
+fn joined_title(id: &str, name: &str, inp: &Input) -> slint::SharedString {
+    if id == inp.viewer_id {
+        inp.tr.get_quest_you_joined()
+    } else {
+        inp.tr.invoke_joined(name.into())
     }
 }
 
@@ -565,40 +581,36 @@ fn who(id: &str, name: &str, inp: &Input) -> String {
 fn names_line(ids: &[String], names: &[String], inp: &Input) -> String {
     let mut out: Vec<String> = Vec::new();
     if ids.iter().any(|id| id == inp.viewer_id) {
-        out.push("You".into());
+        out.push(inp.tr.get_you().into());
     }
     for (id, name) in ids.iter().zip(names) {
         if id != inp.viewer_id {
             out.push(name.clone());
         }
     }
-    match out.as_slice() {
-        [] => String::new(),
-        [a] => a.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
+    crate::l10n_format::list_and(inp.tr, &out)
 }
 
 fn made_row(inp: &Input) -> QuestRow {
     QuestRow {
         done: true,
         meta: inp.crew_name.into(),
-        ..row("Crew made")
+        ..row(inp, 0)
     }
 }
 
 fn friend_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
     let Some(f) = &q.steps.friend else {
         return QuestRow {
-            meta: "Works in the browser".into(),
+            meta: inp.tr.get_quest_hint_browser(),
             action: "invite".into(),
-            ..row("A friend joins")
+            ..row(inp, 1)
         };
     };
     let mut r = QuestRow {
         done: true,
-        title: format!("{} joined", who(&f.user_id, &f.name, inp)).into(),
-        ..row("A friend joins")
+        title: joined_title(&f.user_id, &f.name, inp),
+        ..row(inp, 1)
     };
     if let Some(p) = (inp.person)(&f.user_id) {
         r.person = p;
@@ -611,48 +623,48 @@ fn call_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
     let Some(c) = &q.steps.call else {
         return QuestRow {
             action: "voice".into(),
-            ..row("First call")
+            ..row(inp, 2)
         };
     };
     let mut meta = call_people(c, inp);
     if !c.channel_name.is_empty() {
-        meta = format!("{meta} · {}", c.channel_name);
+        meta = crate::l10n_format::dot_pair(inp.tr, &meta, &c.channel_name);
     }
     QuestRow {
         done: true,
         meta: meta.into(),
-        ..row("First call")
+        ..row(inp, 2)
     }
 }
 
 /// Who was in the first call: "You and Ida, +1 guest".
 fn call_people(c: &QuestCall, inp: &Input) -> String {
-    let mut out = names_line(&c.user_ids, &c.names, inp);
+    let out = names_line(&c.user_ids, &c.names, inp);
     if c.guests > 0 {
-        let g = if c.guests == 1 { "guest" } else { "guests" };
-        out = format!("{out}, +{} {g}", c.guests);
+        inp.tr.invoke_quest_call_guests(out.into(), c.guests).into()
+    } else {
+        out
     }
-    out
 }
 
 fn clip_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
     let Some(c) = &q.steps.clip else {
         return QuestRow {
-            meta: "Join voice to clip".into(),
+            meta: inp.tr.get_quest_hint_join_voice(),
             key_cap: inp.clip_key.into(),
-            ..row("First clip")
+            ..row(inp, 3)
         };
     };
     let by = who(&c.clipper_id, &c.clipper_name, inp);
     let meta = if c.game.is_empty() {
         by
     } else {
-        format!("{by} · {}", c.game)
+        crate::l10n_format::dot_pair(inp.tr, &by, &c.game)
     };
     QuestRow {
         done: true,
         meta: meta.into(),
-        ..row("First clip")
+        ..row(inp, 3)
     }
 }
 
@@ -660,31 +672,27 @@ fn session_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
     let Some(s) = &q.steps.session else {
         return if inp.activity_on {
             QuestRow {
-                meta: "Play with m3llo open".into(),
-                ..row("First session")
+                meta: inp.tr.get_quest_hint_play(),
+                ..row(inp, 4)
             }
         } else {
             QuestRow {
-                meta: "Game activity is off".into(),
+                meta: inp.tr.get_quest_hint_activity_off(),
                 action: "settings".into(),
-                ..row("First session")
+                ..row(inp, 4)
             }
         };
     };
-    let value = if s.minutes >= 60 {
-        format!("{} h {:02}", s.minutes / 60, s.minutes % 60)
-    } else {
-        format!("{} min", s.minutes)
-    };
+    let value = crate::l10n_format::duration_h_mm(inp.tr, i64::from(s.minutes));
     let mut meta = names_line(&s.user_ids, &s.names, inp);
     if !s.game_name.is_empty() {
-        meta = format!("{meta} · {}", s.game_name);
+        meta = crate::l10n_format::dot_pair(inp.tr, &meta, &s.game_name);
     }
     QuestRow {
         done: true,
         meta: meta.into(),
         value: value.into(),
-        ..row("First session")
+        ..row(inp, 4)
     }
 }
 
@@ -715,6 +723,7 @@ mod tests {
             banner_art: None,
             emoji_art: None,
             game_art: &|_| None,
+            tr: crate::l10n_format::test_tr(),
         }
     }
 

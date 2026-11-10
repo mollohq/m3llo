@@ -6,67 +6,51 @@
 
 use std::collections::HashSet;
 
-use crate::head2head::grouped;
+use crate::l10n_format;
+use crate::Tr;
 
 /// Hours as the mockup writes them, uppercase: "4,167 H" from 100 hours up,
 /// one decimal below ("12.6 H"). No minutes gives the launcher name
 /// ("EPIC"), or nothing when even that is unknown.
-pub fn hours_label(minutes: i64, launcher: &str) -> String {
+pub fn hours_label(tr: &Tr<'_>, minutes: i64, launcher: &str) -> String {
     if minutes <= 0 {
         return launcher.trim().to_uppercase();
     }
-    let hours = minutes as f64 / 60.0;
-    if hours >= 100.0 {
-        format!("{} H", grouped(hours.round() as i64))
-    } else {
-        format!("{:.1} H", hours.max(0.1))
+    l10n_format::hours_upper(tr, minutes)
+}
+
+/// [`hours_label`] in lower case, for the solo board: "4,167 h", or the
+/// launcher ("steam") when the server has no minutes.
+pub fn hours_label_lower(tr: &Tr<'_>, minutes: i64, launcher: &str) -> String {
+    if minutes <= 0 {
+        return launcher.trim().to_lowercase();
     }
+    l10n_format::hours_lower(tr, minutes)
 }
 
 /// When a game was last played, as the poster grid writes it under the name
 /// (frames C and D): "Today", "Yesterday", "3 days ago", "Last week",
 /// "3 weeks ago". Days are UTC days, as the feed timestamps are. Empty when the
 /// server has no time.
-pub fn when_label(last_played_ms: i64, now_ms: i64) -> String {
-    if last_played_ms <= 0 {
-        return String::new();
-    }
-    let day = |ms: i64| ms.div_euclid(86_400_000);
-    let days = (day(now_ms) - day(last_played_ms)).max(0);
-    match days {
-        0 => "Today".to_string(),
-        1 => "Yesterday".to_string(),
-        2..=6 => format!("{days} days ago"),
-        7..=13 => "Last week".to_string(),
-        _ => format!("{} weeks ago", days / 7),
-    }
+pub fn when_label(tr: &Tr<'_>, last_played_ms: i64, now_ms: i64) -> String {
+    l10n_format::days_ago(tr, last_played_ms, now_ms)
 }
 
 /// The one-line caption of a list row: when it was last played, then the
 /// hours, "2 days ago, 4 h". Under an hour it reads minutes, from ten hours it
 /// has no decimal. A part the server does not know is left out. With neither,
 /// the launcher stands alone ("Epic").
-pub fn caption_label(when: &str, minutes: i64, launcher: &str) -> String {
-    let hours = if minutes <= 0 {
-        String::new()
-    } else if minutes < 60 {
-        format!("{minutes} min")
-    } else {
-        let h = minutes as f64 / 60.0;
-        if h >= 10.0 {
-            format!("{} h", grouped(h.round() as i64))
-        } else if (h - h.round()).abs() < 0.05 {
-            format!("{} h", h.round() as i64)
-        } else {
-            format!("{h:.1} h")
+pub fn caption_label(tr: &Tr<'_>, when: &str, minutes: i64, launcher: &str) -> String {
+    let hours = l10n_format::play_time(tr, minutes);
+    match (when.is_empty(), hours.is_empty()) {
+        (false, false) => {
+            return tr
+                .invoke_caption_when_hours(when.into(), hours.into())
+                .into();
         }
-    };
-    let parts: Vec<&str> = [when, hours.as_str()]
-        .into_iter()
-        .filter(|p| !p.is_empty())
-        .collect();
-    if !parts.is_empty() {
-        return parts.join(", ");
+        (false, true) => return when.to_string(),
+        (true, false) => return hours,
+        (true, true) => {}
     }
     let mut chars = launcher.trim().chars();
     match chars.next() {
@@ -168,51 +152,67 @@ pub fn pc_count_of(server: Option<i64>, owners_per_tile: &[Vec<String>]) -> i64 
 
 #[cfg(test)]
 mod tests {
+    use slint::ComponentHandle;
+
     use super::*;
+
+    fn with_tr(f: impl FnOnce(&Tr<'_>)) {
+        let app = crate::testkit::new_main_window();
+        f(&app.global::<Tr>());
+    }
 
     #[test]
     fn when_reads_as_days_then_weeks() {
-        let day = 86_400_000;
-        let now = 100 * day + 3_600_000;
-        assert_eq!(when_label(now - 1_000, now), "Today");
-        assert_eq!(when_label(99 * day, now), "Yesterday");
-        assert_eq!(when_label(96 * day, now), "4 days ago");
-        assert_eq!(when_label(92 * day, now), "Last week");
-        assert_eq!(when_label(79 * day, now), "3 weeks ago");
-        assert_eq!(when_label(0, now), "", "no time from the server");
+        with_tr(|tr| {
+            let day = 86_400_000;
+            let now = 100 * day + 3_600_000;
+            assert_eq!(when_label(tr, now - 1_000, now), "Today");
+            assert_eq!(when_label(tr, 99 * day, now), "Yesterday");
+            assert_eq!(when_label(tr, 96 * day, now), "4 days ago");
+            assert_eq!(when_label(tr, 92 * day, now), "Last week");
+            assert_eq!(when_label(tr, 79 * day, now), "3 weeks ago");
+            assert_eq!(when_label(tr, 0, now), "", "no time from the server");
+        });
     }
 
     #[test]
     fn the_caption_is_when_then_hours_on_one_line() {
-        assert_eq!(caption_label("2 days ago", 240, ""), "2 days ago, 4 h");
-        assert_eq!(caption_label("Today", 250_020, "steam"), "Today, 4,167 h");
-        assert_eq!(caption_label("Yesterday", 756, ""), "Yesterday, 13 h");
-        assert_eq!(caption_label("Last week", 270, ""), "Last week, 4.5 h");
-        assert_eq!(caption_label("", 45, ""), "45 min");
-        assert_eq!(caption_label("Today", 0, "epic"), "Today");
-        assert_eq!(caption_label("", 0, "epic"), "Epic");
-        assert_eq!(caption_label("", 0, ""), "");
+        with_tr(|tr| {
+            let c = |when, minutes, launcher| caption_label(tr, when, minutes, launcher);
+            assert_eq!(c("2 days ago", 240, ""), "2 days ago, 4 h");
+            assert_eq!(c("Today", 250_020, "steam"), "Today, 4,167 h");
+            assert_eq!(c("Yesterday", 756, ""), "Yesterday, 13 h");
+            assert_eq!(c("Last week", 270, ""), "Last week, 4.5 h");
+            assert_eq!(c("", 45, ""), "45 min");
+            assert_eq!(c("Today", 0, "epic"), "Today");
+            assert_eq!(c("", 0, "epic"), "Epic");
+            assert_eq!(c("", 0, ""), "");
+        });
     }
 
     #[test]
     fn hours_read_like_the_mockup() {
-        assert_eq!(hours_label(249_008, ""), "4,150 H");
-        assert_eq!(hours_label(250_020, "steam"), "4,167 H");
-        assert_eq!(hours_label(756, ""), "12.6 H");
-        assert_eq!(hours_label(6_000, ""), "100 H");
-        assert_eq!(hours_label(5_940, ""), "99.0 H");
-        assert_eq!(hours_label(2, ""), "0.1 H");
+        with_tr(|tr| {
+            assert_eq!(hours_label(tr, 249_008, ""), "4,150 H");
+            assert_eq!(hours_label(tr, 250_020, "steam"), "4,167 H");
+            assert_eq!(hours_label(tr, 756, ""), "12.6 H");
+            assert_eq!(hours_label(tr, 6_000, ""), "100 H");
+            assert_eq!(hours_label(tr, 5_940, ""), "99.0 H");
+            assert_eq!(hours_label(tr, 2, ""), "0.1 H");
+        });
     }
 
     #[test]
     fn unknown_hours_show_the_launcher_in_capitals() {
-        assert_eq!(hours_label(0, "epic"), "EPIC");
-        assert_eq!(hours_label(0, ""), "");
-        assert_eq!(
-            hours_label(60, "epic"),
-            "1.0 H",
-            "hours win over the launcher"
-        );
+        with_tr(|tr| {
+            assert_eq!(hours_label(tr, 0, "epic"), "EPIC");
+            assert_eq!(hours_label(tr, 0, ""), "");
+            assert_eq!(
+                hours_label(tr, 60, "epic"),
+                "1.0 H",
+                "hours win over the launcher"
+            );
+        });
     }
 
     #[test]

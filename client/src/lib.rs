@@ -25,7 +25,6 @@ mod diag_capture;
 mod e2e_state;
 mod edit_shortcuts;
 mod emoji_font;
-mod feed_age;
 #[cfg(test)]
 mod flow_catalogue;
 #[cfg(test)]
@@ -47,6 +46,7 @@ mod i18n_lint;
 mod image_cache;
 mod ipc;
 mod joined_line;
+mod l10n_format;
 mod live_session;
 pub mod locale;
 mod member_audio;
@@ -486,7 +486,7 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     // --- macOS native menu bar ---
     #[cfg(target_os = "macos")]
     let _menu_bar = {
-        let menu = platform::macos::build_menu_bar();
+        let menu = platform::macos::build_menu_bar(&app.global::<Tr>());
         menu.init_for_nsapp();
         menu
     };
@@ -496,12 +496,21 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     // convenience, whereas panicking here means the app refuses to start at
     // all. Same for the hotkey listener below, which additionally requires
     // Accessibility permission on macOS that the user may not have granted.
-    let status_item = Rc::new(RefCell::new(StatusItem::new().unwrap_or_else(|e| {
-        log::warn!("Failed to create tray icon, continuing without it: {e}");
-        StatusItem::disabled()
-    })));
+    let tray_text = platform::TrayText::from_tr(&app.global::<Tr>());
+    let status_item = Rc::new(RefCell::new(StatusItem::new(&tray_text).unwrap_or_else(
+        |e| {
+            log::warn!("Failed to create tray icon, continuing without it: {e}");
+            StatusItem::disabled()
+        },
+    )));
 
     // --- Global hotkey manager ---
+    // Linux: the desktop shows a description of each portal shortcut.
+    #[cfg(target_os = "linux")]
+    platform::linux_shortcuts::set_descriptions(
+        app.global::<Tr>().get_shortcut_push_to_talk().into(),
+        app.global::<Tr>().get_shortcut_clip().into(),
+    );
     let hotkey_mgr = Rc::new(RefCell::new(
         platform::hotkeys::HotkeyManager::new().unwrap_or_else(|e| {
             log::warn!("Failed to init hotkey manager, push-to-talk disabled: {e}");

@@ -2,22 +2,22 @@
 //! commands, the state for the UI, and the stop on the teardown thread.
 
 use crate::clip_play::{ClipPlayback, SendCtx};
-use crate::events::Event;
+use crate::events::{ClipPlayClose, Event};
 
 impl super::Client {
     pub(super) async fn handle_play_game_clip(&mut self, source: String) {
         if self.viewer_state.is_some() || self.watch_join.is_some() {
             log::info!("[clip-play] {source} waits: a stream is watched");
             let _ = self.event_tx.send(Event::GameClipPlaybackClosed {
-                reason: "Stop watching the stream to play a clip".into(),
+                reason: ClipPlayClose::StreamWatched,
             });
             return;
         }
-        self.close_game_clip("");
+        self.close_game_clip(ClipPlayClose::Closed);
         let ctx = SendCtx(self.voice.mello_ctx());
         if ctx.0.is_null() {
             let _ = self.event_tx.send(Event::GameClipPlaybackClosed {
-                reason: "The media engine is not running".into(),
+                reason: ClipPlayClose::EngineNotRunning,
             });
             return;
         }
@@ -32,7 +32,7 @@ impl super::Client {
             Ok(Err(e)) => {
                 log::warn!("[clip-play] the clip does not play: {e}");
                 let _ = self.event_tx.send(Event::GameClipPlaybackClosed {
-                    reason: "The clip does not load".into(),
+                    reason: ClipPlayClose::LoadFailed,
                 });
             }
             Err(e) => log::warn!("[clip-play] the open task failed: {e}"),
@@ -58,15 +58,14 @@ impl super::Client {
     }
 
     /// Stops the clip that plays, on the teardown thread (the stop joins
-    /// libmello's threads). `reason` goes to the UI; empty: the user closed.
-    pub(super) fn close_game_clip(&mut self, reason: &str) {
+    /// libmello's threads). `reason` goes to the UI; `Closed`: the user
+    /// closed.
+    pub(super) fn close_game_clip(&mut self, reason: ClipPlayClose) {
         let Some(playback) = self.clip_playback.take() else {
             return;
         };
         crate::stream::teardown::spawn("clip_player", move |_| drop(playback));
-        let _ = self.event_tx.send(Event::GameClipPlaybackClosed {
-            reason: reason.to_string(),
-        });
+        let _ = self.event_tx.send(Event::GameClipPlaybackClosed { reason });
     }
 
     /// Every 100 ms while a clip plays: its state when the UI must hear it.
@@ -79,7 +78,7 @@ impl super::Client {
         };
         if s.failed {
             log::warn!("[clip-play] {} failed", playback.source);
-            self.close_game_clip("The clip does not play");
+            self.close_game_clip(ClipPlayClose::PlayFailed);
             return;
         }
         let _ = self.event_tx.send(Event::GameClipPlayback {

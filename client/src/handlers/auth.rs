@@ -1,3 +1,4 @@
+use mello_core::events::AuthFailure;
 use mello_core::{Command, Event};
 
 use crate::app_context::AppContext;
@@ -84,8 +85,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             // Release the guard: the user is still on the same step and must be
             // able to retry.
             ctx.app.set_onboarding_busy(false);
-            log::error!("[onboarding] finalization failed: {}", reason);
-            ctx.app.set_link_error(reason.into());
+            log::error!("[onboarding] finalization failed: {:?}", reason);
+            ctx.app.set_link_error(failure_text(ctx, &reason).into());
         }
         Event::EmailLinked => {
             log::info!("[auth] email linked — onboarding complete");
@@ -93,8 +94,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             crate::onboarding::advance(ctx, crate::onboarding::Input::IdentitySettled);
         }
         Event::EmailLinkFailed { reason } => {
-            log::warn!("[auth] email-link-failed  reason={}", reason);
-            ctx.app.set_link_error(reason.into());
+            log::warn!("[auth] email-link-failed  reason={:?}", reason);
+            ctx.app.set_link_error(failure_text(ctx, &reason).into());
         }
         Event::SocialLinked => {
             log::info!("[auth] social identity linked — onboarding complete");
@@ -112,9 +113,9 @@ pub fn handle(ctx: &AppContext, event: Event) {
             log::warn!("[auth] account-delete-failed  reason={}", reason);
         }
         Event::SocialLinkFailed { reason } => {
-            log::warn!("[auth] social-link-failed  reason={}", reason);
+            log::warn!("[auth] social-link-failed  reason={:?}", reason);
             ctx.app.set_login_loading(false);
-            ctx.app.set_link_error(reason.into());
+            ctx.app.set_link_error(failure_text(ctx, &reason).into());
         }
         Event::LoggedIn { user } => {
             log::info!(
@@ -140,7 +141,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             dispatch_pending_deep_link(ctx);
         }
         Event::LoginFailed { reason } => {
-            log::warn!("[auth] login-failed  reason={}", reason);
+            log::warn!("[auth] login-failed  reason={:?}", reason);
             ctx.app.set_login_loading(false);
             ctx.app.set_logged_in(false);
 
@@ -152,12 +153,15 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 return;
             }
 
-            if reason.is_empty() {
+            if reason.is_silent() {
                 restore_failed(ctx);
                 return;
             }
 
-            let failure = SignInFailure::from_reason(&reason);
+            let failure = {
+                use slint::ComponentHandle as _;
+                SignInFailure::from_failure(&ctx.app.global::<crate::Tr>(), &reason)
+            };
             ctx.app.set_login_error(failure.message.into());
             ctx.app.set_login_account_missing(failure.account_missing);
         }
@@ -198,6 +202,41 @@ fn restore_failed(ctx: &AppContext) {
     }
 }
 
+/// The text of a failed sign-in, link or onboarding step, in the UI language.
+fn failure_text(ctx: &AppContext, failure: &AuthFailure) -> String {
+    use slint::ComponentHandle as _;
+    SignInFailure::from_failure(&ctx.app.global::<crate::Tr>(), failure).message
+}
+
+/// The message of a failure that the core reports as a value. Server text
+/// (`AuthFailure::Server`) is data and stays as it is.
+pub(crate) fn auth_failure_text(tr: &crate::Tr<'_>, failure: &AuthFailure) -> String {
+    use mello_core::crew::InviteError;
+    match failure {
+        AuthFailure::NoSession => String::new(),
+        AuthFailure::Server(text) => text.clone(),
+        AuthFailure::Cancelled(p) => tr.invoke_auth_cancelled(p.into()).into(),
+        AuthFailure::ProviderFailed { provider, detail } => tr
+            .invoke_auth_provider_failed(provider.into(), detail.into())
+            .into(),
+        AuthFailure::Unexpected(p) => tr.invoke_auth_unexpected(p.into()).into(),
+        AuthFailure::NotConfigured(p) => tr.invoke_auth_not_configured(p.into()).into(),
+        AuthFailure::NotAvailable(p) => tr.invoke_auth_not_available(p.into()).into(),
+        AuthFailure::NoToken(p) => tr.invoke_auth_no_token(p.into()).into(),
+        AuthFailure::Socket(detail) => tr.invoke_auth_socket_failed(detail.into()).into(),
+        AuthFailure::AccountNotCreated => tr.get_onboarding_account_failed().into(),
+        AuthFailure::NotConnected => tr.get_onboarding_connect_failed().into(),
+        AuthFailure::CrewNotCreated => tr.get_onboarding_crew_create_failed().into(),
+        AuthFailure::CrewNotJoined(error) => match error {
+            InviteError::CrewFull => tr.get_onboarding_crew_full(),
+            InviteError::InvalidCode => tr.get_onboarding_crew_gone(),
+            InviteError::NotAllowed => tr.get_onboarding_crew_not_allowed(),
+            InviteError::Failed => tr.get_onboarding_crew_join_failed(),
+        }
+        .into(),
+    }
+}
+
 /// What the sign-in panel shows when a sign-in fails.
 ///
 /// The core reports the server's text, for example "Authentication failed:
@@ -211,17 +250,28 @@ pub(crate) struct SignInFailure {
 }
 
 impl SignInFailure {
-    pub(crate) fn from_reason(reason: &str) -> Self {
+    /// The message of a failure: a known server answer becomes a plain
+    /// message, and a failure that the client names gets its message.
+    pub(crate) fn from_failure(tr: &crate::Tr<'_>, failure: &AuthFailure) -> Self {
+        match failure {
+            AuthFailure::Server(reason) => Self::from_reason(tr, reason),
+            other => Self {
+                message: auth_failure_text(tr, other),
+                account_missing: false,
+            },
+        }
+    }
+
+    pub(crate) fn from_reason(tr: &crate::Tr<'_>, reason: &str) -> Self {
         let lower = reason.to_ascii_lowercase();
         let (message, account_missing) = if lower.contains("account not found") {
-            ("No account found.", true)
+            (tr.get_sign_in_no_account(), true)
         } else if lower.contains("invalid credentials") {
-            ("Wrong email or password.", false)
+            (tr.get_sign_in_wrong_password(), false)
         } else if lower.starts_with("authentication failed") {
-            ("Sign-in failed. Try again.", false)
+            (tr.get_sign_in_failed(), false)
         } else {
-            // Messages the client composes itself, for example
-            // "Discord sign-in failed: …", are already written for the user.
+            // Other server text is data: it shows as it is.
             return Self {
                 message: reason.to_string(),
                 account_missing: false,
@@ -266,32 +316,85 @@ fn dispatch_pending_deep_link(ctx: &AppContext) {
 
 #[cfg(test)]
 mod tests {
-    use super::SignInFailure;
+    use super::{auth_failure_text, SignInFailure};
+    use crate::l10n_format::test_tr;
+    use mello_core::events::AuthFailure;
 
     /// #67: the raw server text for an unknown account never reaches the user.
     #[test]
     fn an_unknown_account_reads_as_a_plain_message_with_a_way_forward() {
-        let f = SignInFailure::from_reason("Authentication failed: User account not found.");
+        let f =
+            SignInFailure::from_reason(test_tr(), "Authentication failed: User account not found.");
         assert_eq!(f.message, "No account found.");
         assert!(f.account_missing);
     }
 
     #[test]
     fn other_server_answers_read_as_plain_messages() {
-        let f = SignInFailure::from_reason("Authentication failed: Invalid credentials.");
+        let f =
+            SignInFailure::from_reason(test_tr(), "Authentication failed: Invalid credentials.");
         assert_eq!(f.message, "Wrong email or password.");
         assert!(!f.account_missing);
 
-        let f = SignInFailure::from_reason("Authentication failed: something new");
+        let f = SignInFailure::from_reason(test_tr(), "Authentication failed: something new");
         assert_eq!(f.message, "Sign-in failed. Try again.");
         assert!(!f.account_missing);
     }
 
     #[test]
     fn client_messages_pass_through() {
-        let reason = "Discord sign-in failed: Timeout waiting for authentication";
-        let f = SignInFailure::from_reason(reason);
+        let reason = "HTTP error: connection refused";
+        let f = SignInFailure::from_reason(test_tr(), reason);
         assert_eq!(f.message, reason);
         assert!(!f.account_missing);
+    }
+
+    #[test]
+    fn a_failure_that_the_client_names_reads_in_english() {
+        let f = SignInFailure::from_failure(
+            test_tr(),
+            &AuthFailure::ProviderFailed {
+                provider: "Discord".into(),
+                detail: "Timeout waiting for authentication".into(),
+            },
+        );
+        assert_eq!(
+            f.message,
+            "Discord sign-in failed: Timeout waiting for authentication"
+        );
+        assert_eq!(
+            auth_failure_text(test_tr(), &AuthFailure::Cancelled("Steam".into())),
+            "You cancelled the Steam sign-in."
+        );
+        assert_eq!(
+            auth_failure_text(
+                test_tr(),
+                &AuthFailure::CrewNotJoined(mello_core::crew::InviteError::CrewFull)
+            ),
+            "That crew is full. Pick another one."
+        );
+        assert_eq!(
+            auth_failure_text(test_tr(), &AuthFailure::NotAvailable("Apple".into())),
+            "Apple sign-in isn't available here"
+        );
+    }
+
+    /// Under the pseudo language a failure that the client names changes
+    /// and keeps the provider.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn a_failure_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = auth_failure_text(tr, &AuthFailure::Cancelled("Discord".into()));
+        let server = auth_failure_text(tr, &AuthFailure::Server("raw text".into()));
+        crate::locale::select_source_language();
+        assert_eq!(
+            text,
+            pseudo("You cancelled the {} sign-in.").replace("{}", "Discord")
+        );
+        assert_ne!(text, "You cancelled the Discord sign-in.");
+        assert_eq!(server, "raw text", "server text is data");
     }
 }

@@ -30,6 +30,7 @@ use std::rc::Rc;
 
 use mello_core::crew::{InviteError, ResolvedInvite};
 use mello_core::Command;
+use slint::ComponentHandle as _;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::app_context::AppContext;
@@ -268,10 +269,11 @@ pub fn open_typed(app: &crate::MainWindow, cmd_tx: &UnboundedSender<Command>, te
         }
         None => {
             log::info!("[invite] card: the text is not an invite — no network call");
-            app.set_onboarding_invite_code_error(
-                invite_resolve_error_message(InviteError::InvalidCode, InviteSource::TypedCode)
-                    .into(),
-            );
+            app.set_onboarding_invite_code_error(invite_resolve_error_message(
+                &app.global::<crate::Tr>(),
+                InviteError::InvalidCode,
+                InviteSource::TypedCode,
+            ));
         }
     }
 }
@@ -328,15 +330,21 @@ pub fn resolve_failed(ctx: &AppContext, error: InviteError) {
     if ctx.app.get_onboarding_invite_code_checking() {
         log::warn!("[invite] card: the invite did not resolve: {error:?} — message in the card");
         ctx.app.set_onboarding_invite_code_checking(false);
-        ctx.app.set_onboarding_invite_code_error(
-            invite_resolve_error_message(error, InviteSource::TypedCode).into(),
-        );
+        ctx.app
+            .set_onboarding_invite_code_error(invite_resolve_error_message(
+                &ctx.app.global::<crate::Tr>(),
+                error,
+                InviteSource::TypedCode,
+            ));
         return;
     }
     log::warn!("[invite] onboarding invite did not resolve: {error:?} — step 1 with a message");
-    ctx.app.set_onboarding_invite_error(
-        invite_resolve_error_message(error, InviteSource::Link).into(),
-    );
+    ctx.app
+        .set_onboarding_invite_error(invite_resolve_error_message(
+            &ctx.app.global::<crate::Tr>(),
+            error,
+            InviteSource::Link,
+        ));
 }
 
 /// Finalize could not join the invited crew. The account exists.
@@ -346,15 +354,16 @@ pub fn resolve_failed(ctx: &AppContext, error: InviteError) {
 /// user picks another crew there.
 pub fn join_failed(ctx: &AppContext, error: InviteError) {
     ctx.app.set_onboarding_busy(false);
-    let message = invite_join_error_message(error, InviteSource::Link);
+    let message =
+        invite_join_error_message(&ctx.app.global::<crate::Tr>(), error, InviteSource::Link);
     if error == InviteError::Failed {
         log::warn!("[invite] finalize could not join the invited crew — retry on step 2");
-        ctx.app.set_link_error(message.into());
+        ctx.app.set_link_error(message);
         return;
     }
     log::warn!("[invite] finalize cannot join the invited crew: {error:?} — back to step 1");
     clear(&ctx.app, &ctx.settings);
-    ctx.app.set_onboarding_invite_error(message.into());
+    ctx.app.set_onboarding_invite_error(message);
     crate::onboarding::advance(ctx, Input::GoBackTo(OnboardingState::PickCrew));
 }
 

@@ -92,6 +92,41 @@ Rules:
 Server text (an error reason, a protocol notice) is data. It is not
 translated in the client.
 
+`mello-core` does not make a user sentence. It sends a typed value, and the
+client writes the message from `Tr`:
+
+| Core value | Client function |
+|---|---|
+| `events::AuthFailure` (sign-in, link, onboarding) | `handlers::auth::auth_failure_text` |
+| `events::StreamFailure` (a stream start or a watch) | `handlers::streaming::stream_failure_text` |
+| `events::GiftFailure` (a crew gift) | `callbacks::gift_failure_text` |
+| `events::ClipPlayClose` (the game clip player) | `game_clip_player` |
+| `ProtocolMismatch { required, actual }` | `handlers::mod` |
+| `CaptureSource { primary, monitor_index }` (a monitor) | `handlers::streaming` ("Display 2") |
+
+A value that holds server text (`AuthFailure::Server`, `GiftFailure::Server`)
+or the error text of a native step (`StreamFailure::Detail`) shows that text
+as it is.
+
+### Text outside the Slint window
+
+The tray menu, the macOS menu bar, the taskbar buttons, OS notifications and
+the Linux shortcut descriptions are native text. Rust reads them from `Tr`
+on the UI thread, after the main window exists, and passes them in:
+
+| Text | Read in | Given to |
+|---|---|---|
+| Tray menu | `lib.rs` (`platform::TrayText::from_tr`) | `StatusItem::new`, the Linux tray thread |
+| macOS menu bar | `lib.rs` | `platform::macos::build_menu_bar(tr)`, `edit_shortcuts::edit_item_title` |
+| Taskbar buttons (Windows) | `TaskbarToolbar::try_init` | the button tooltips |
+| Notifications | the caller, on the UI thread | `notifications::*` |
+| Linux shortcut descriptions | `lib.rs` | `linux_shortcuts::set_descriptions`, before the portal thread starts |
+| HUD "LIVE" badge | `hud_state_builder` | `HudStreamCard::live_label` |
+
+The overlay in the client gives `locale::ui_language()` to DirectWrite. The
+`hud` process gets no language from the client: it uses the OS language and
+an English badge when the label is empty.
+
 ## 5. Plurals and contexts
 
 A plural is one message with the Slint plural form. `{n}` is the count:
@@ -107,6 +142,15 @@ two forms, and the catalog gives the rule (`Plural-Forms`).
 A context is written only when one English string has two meanings:
 `@tr("verb" => "Open")` and `@tr("state" => "Open")`. The context is in
 the `.pot` as `msgctxt`.
+
+Contexts in use: `verb`, `noun`, `state`, `unit`, `title`, `format`, `list`,
+`streak`, `short month`, `menu` (a menu name of the macOS menu bar, "Edit")
+and `Riot region` (the region ids of the Riot link, "europe").
+
+A sentence that Slint must show in parts (an avatar or a link in the
+middle) gets a note for the translator on the line above the `@tr()`. The
+extractor keeps the last comment line only:
+`// i18n: one sentence in parts: Made with [link: Slint]`.
 
 ## 6. Upper case
 
@@ -125,6 +169,12 @@ Kicker { text: @tr("ADDED BY {}", e.added-by.to-uppercase()); }
 
 A control often has an upper-case label and a sentence-case
 `accessible-label` (`"SAVE"` and `"Save"`). These are two messages.
+
+When Rust sets a message that Slint shows in upper case, Rust sets the
+upper-case form too, from a second `Tr` member (`quest-action-upload` and
+`quest-action-upload-upper`). The struct has a field for it
+(`title-upper`, `label-upper`, `timestamp-upper`), and the `.slint` file shows
+that field with no `to-uppercase()`.
 
 ## 7. The lint and its list
 
@@ -200,6 +250,9 @@ A string that stays in plain English under `qps` is not in `@tr()`, or the
 | Order | Source | Use |
 |---|---|---|
 | 1 | `MELLO_LANG` | Tests, the e2e driver, development |
+
+`MELLO_CLOCK` (`12` or `24`) sets the clock form in the same way, before
+the OS setting (section 13).
 | 2 | `Settings.language`, when not empty | The user's choice. Empty is "System". |
 | 3 | The OS language (`sys_locale`) | The default |
 
@@ -229,7 +282,8 @@ the OS language on each test thread by itself, so:
   language after they make the window. A test never calls
   `MainWindow::new()` directly.
 - The e2e driver (`tools/mello-driver/src/app.ts`) starts each app with
-  `MELLO_LANG=en`. A journey can set another language in its `env`.
+  `MELLO_LANG=en` and `MELLO_CLOCK=24`. A journey can set another value in
+  its `env`.
 
 ## 10. Add a language
 
@@ -280,3 +334,56 @@ languages only.
 
 CJK text in UTF-8 is 3 bytes for each character, but it is shorter in
 characters. The estimate stays under 0.5 MB.
+
+## 13. Dates, times, durations and numbers
+
+`client/src/l10n_format.rs` makes all date, time, duration and number text
+of the client. The words and the patterns are members of `Tr` (the section
+"Dates, times, durations and numbers" in `client/ui/tr.slint`).
+
+The rule: no date, time, duration or number text outside this module. Do
+not write a weekday, a month, "ago", "h", "min" or a `{:02}:{:02}` pattern in
+another file. Add a function to the module, and call it.
+
+| Part | What it does |
+|---|---|
+| Names | Weekdays, full and short months, from `Tr`. |
+| Dates | `day_month`, `week_range`, `week_of`, `chat_day`. Each date is one pattern message. |
+| Relative time | `days_ago` ("3 days ago", a plural), `recap_age`, `short_age` ("5m ago"), `feed_card_age`, `chat_time`. |
+| Time of day | `time_of_day`: 12 h or 24 h from `clock_form()`. The AM and PM markers come from `Tr`. |
+| Durations | `duration_hm_short` ("1h 23m"), `duration_h_mm` ("6 h 40"), `duration_clock` ("0:45"), `since`. The unit letters have the context `unit`. |
+| Numbers | `grouped`: the group separator is the message `digit-group-separator` (context `format`). `percent`, `approx` ("~1h 5m"), `file_size` ("860 KB"), `milliseconds` ("118 ms"). |
+| Lists | `list_and` ("Bob, Max and Sara"), `list_comma`, `list_plus` ("Bob, Max +3"), `list_and_more` ("Bob, Max and 3 more"), `dot_pair` ("4W–2L · 3-win streak"). A list is never joined with `join(", ")` for the UI. |
+| Upper case | `week_label_upper`, `feed_card_age_upper`, `weekday_name_upper`, `month_short_upper_name`. |
+
+Decisions:
+
+- `mello-core` returns values (`chat::DayLabel`, `chat::MessageTime`,
+  `chat::ReplyPreview`, `chat::ImageUploadError`,
+  `telemetry::SetupHint`). The client makes the text.
+- Two more contexts: `list` (the comma between the items of a list, which
+  differs from the comma between two parts of a caption) and `streak` ("W4",
+  which is not the short week "W45").
+- The clock form comes from the OS setting of the user, not from the UI
+  language. Windows reads the short time format (`LOCALE_SSHORTTIME`). macOS
+  and Linux use 24 h. The value is read one time per run.
+- `MELLO_CLOCK=12` or `MELLO_CLOCK=24` comes before the OS setting. Another
+  value is ignored with a warning. The e2e driver sets `24`, so a journey
+  reads the same time on every PC.
+- A test gets 24 h. A test that needs 12 h calls `set_test_clock_form`. No
+  test reads the OS setting.
+- Days are UTC days, except where a function takes a time zone offset or a
+  `mello-core` value in local time.
+
+How a translator changes a pattern: a pattern message has the context
+`format` and a `///` line that tells what each place is. Write the places in
+the order of the language, with its marks. Keep each place:
+
+| Message | English | Chinese |
+|---|---|---|
+| `date-day-month` | `{0} {1}` (5 October) | `{1}{0}日` (10月5日) |
+| `time-12h` | `{0}:{1} {2}` (11:14 PM) | `{2}{0}:{1}` (下午11:14) |
+
+The pseudo language `qps` keeps a message with no letter as it is, with no
+padding (`build_l10n::pseudo`). So a pattern or a separator does not change
+under `qps`, and the words in it do.

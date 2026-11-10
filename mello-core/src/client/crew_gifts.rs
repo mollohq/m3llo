@@ -4,7 +4,7 @@
 //! as a chat image does. After a change, crew state and the feed load again,
 //! so the crew header, the quest card and the chat see it.
 
-use crate::events::Event;
+use crate::events::{Event, GiftFailure};
 
 /// The largest media image `FetchMediaImage` takes: a banner is under
 /// 400 KB and an emoji under 256 KB on the server.
@@ -18,9 +18,9 @@ struct UploadSlot {
     key: String,
 }
 
-/// The message of a Nakama RPC error, for the UI: "name taken" from
-/// `{"code":6,"message":"name taken"}`. Anything else is one plain sentence.
-fn server_reason(e: &crate::Error) -> String {
+/// The message of a Nakama RPC error, for the UI: "Name taken." from
+/// `{"code":6,"message":"name taken"}`. Anything else is `NoAnswer`.
+fn server_reason(e: &crate::Error) -> GiftFailure {
     if let crate::Error::Server(text) = e {
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
             if let Some(m) = v.get("message").and_then(|m| m.as_str()) {
@@ -30,17 +30,20 @@ fn server_reason(e: &crate::Error) -> String {
                         .next()
                         .map(|f| f.to_uppercase().collect::<String>())
                         .unwrap_or_default();
-                    return format!("{first}{}.", c.as_str().trim_end_matches('.'));
+                    return GiftFailure::Server(format!(
+                        "{first}{}.",
+                        c.as_str().trim_end_matches('.')
+                    ));
                 }
             }
         }
     }
-    "The server did not answer.".into()
+    GiftFailure::NoAnswer
 }
 
 impl super::Client {
-    fn gift_failed(&self, crew_id: &str, gift: &str, reason: String) {
-        log::warn!("[gifts] {gift} for crew {crew_id} failed: {reason}");
+    fn gift_failed(&self, crew_id: &str, gift: &str, reason: GiftFailure) {
+        log::warn!("[gifts] {gift} for crew {crew_id} failed: {reason:?}");
         let _ = self.event_tx.send(Event::CrewGiftFailed {
             crew_id: crew_id.to_string(),
             gift: gift.to_string(),
@@ -68,14 +71,14 @@ impl super::Client {
         crew_id: &str,
         mime: &str,
         bytes: Vec<u8>,
-    ) -> Result<String, String> {
+    ) -> Result<String, GiftFailure> {
         let payload = serde_json::json!({ "crew_id": crew_id, "mime": mime, "bytes": bytes.len() });
         let slot: UploadSlot = match self.nakama.rpc(rpc, &payload).await {
             Ok(text) => serde_json::from_str(&text).unwrap_or_default(),
             Err(e) => return Err(server_reason(&e)),
         };
         if slot.upload_url.is_empty() || slot.key.is_empty() {
-            return Err("Image upload is off on this server.".into());
+            return Err(GiftFailure::UploadOff);
         }
         match reqwest::Client::new()
             .put(&slot.upload_url)
@@ -88,11 +91,11 @@ impl super::Client {
             Ok(resp) if resp.status().is_success() => Ok(slot.key),
             Ok(resp) => {
                 log::warn!("[gifts] media PUT answered HTTP {}", resp.status());
-                Err("The upload was refused.".into())
+                Err(GiftFailure::UploadRefused)
             }
             Err(e) => {
                 log::warn!("[gifts] media PUT failed: {e}");
-                Err("The upload did not complete.".into())
+                Err(GiftFailure::UploadIncomplete)
             }
         }
     }
@@ -239,8 +242,8 @@ mod tests {
         let e = crate::Error::Server(
             r#"{"code":6,"message":"name taken","error":"name taken"}"#.into(),
         );
-        assert_eq!(server_reason(&e), "Name taken.");
+        assert_eq!(server_reason(&e), GiftFailure::Server("Name taken.".into()));
         let e = crate::Error::Server("<html>bad gateway</html>".into());
-        assert_eq!(server_reason(&e), "The server did not answer.");
+        assert_eq!(server_reason(&e), GiftFailure::NoAnswer);
     }
 }

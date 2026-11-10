@@ -32,6 +32,23 @@ const PTT_ID: &str = "push-to-talk";
 // key, so a confirmed shortcut stays bound after an update.
 const CLIP_ID: &str = "voice-clip";
 
+/// The descriptions that the desktop shows for the two shortcuts, in the UI
+/// language: push-to-talk, then the clip key. The UI thread sets them from
+/// `Tr` before the portal thread starts.
+static DESCRIPTIONS: std::sync::OnceLock<(String, String)> = std::sync::OnceLock::new();
+
+/// Set the descriptions of the shortcuts. The first call wins.
+pub fn set_descriptions(push_to_talk: String, clip: String) {
+    let _ = DESCRIPTIONS.set((push_to_talk, clip));
+}
+
+fn descriptions() -> (&'static str, &'static str) {
+    DESCRIPTIONS
+        .get()
+        .map(|(ptt, clip)| (ptt.as_str(), clip.as_str()))
+        .unwrap_or_default()
+}
+
 /// True on a Wayland session, where the portal is the only way to see a key
 /// while another app has focus.
 pub fn wayland_session() -> bool {
@@ -168,17 +185,15 @@ async fn bind<'a>(
             return None;
         }
     };
+    let (ptt_text, clip_text) = descriptions();
     let mut shortcuts = Vec::new();
     if let Some(key) = &wanted.ptt {
-        shortcuts.push(
-            NewShortcut::new(PTT_ID, "Push to talk").preferred_trigger(key.trigger.as_deref()),
-        );
+        shortcuts
+            .push(NewShortcut::new(PTT_ID, ptt_text).preferred_trigger(key.trigger.as_deref()));
     }
     if let Some(key) = &wanted.clip {
-        shortcuts.push(
-            NewShortcut::new(CLIP_ID, "Clip the last moments of voice")
-                .preferred_trigger(key.trigger.as_deref()),
-        );
+        shortcuts
+            .push(NewShortcut::new(CLIP_ID, clip_text).preferred_trigger(key.trigger.as_deref()));
     }
     let response = match portal.bind_shortcuts(&session, &shortcuts, None).await {
         Ok(request) => request.response(),

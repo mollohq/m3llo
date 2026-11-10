@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use mello_core::Event;
+use slint::ComponentHandle as _;
 
 use crate::app_context::AppContext;
 use crate::{GameIntegrationData, InstalledGameData};
@@ -43,8 +44,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
         }
         Event::RiotLinkFailed { reason } => {
             ctx.app.set_riot_dialog_busy(false);
-            ctx.app
-                .set_riot_dialog_error(friendly_link_error(&reason).into());
+            ctx.app.set_riot_dialog_error(friendly_link_error(
+                &ctx.app.global::<crate::Tr>(),
+                &reason,
+            ));
         }
         _ => {}
     }
@@ -164,13 +167,14 @@ pub(super) fn on_icon_art_loaded(ctx: &AppContext, art_id: &str) {
 }
 
 /// Map raw RPC errors to something a user can act on.
-fn friendly_link_error(reason: &str) -> String {
+fn friendly_link_error(tr: &crate::Tr<'_>, reason: &str) -> slint::SharedString {
     let lower = reason.to_lowercase();
     if lower.contains("riot id must") || lower.contains("not found") {
-        "Riot ID not found. Check the spelling — it looks like GameName#TAG.".to_string()
+        tr.get_riot_id_not_found()
     } else if lower.contains("region") {
-        "Pick the region your account plays in.".to_string()
+        tr.get_riot_pick_region()
     } else {
-        format!("Couldn't link right now: {reason}")
+        // The reason is server text.
+        tr.invoke_riot_link_failed(reason.into())
     }
 }

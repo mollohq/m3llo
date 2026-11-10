@@ -184,7 +184,10 @@ impl PollState {
                     }
                     Event::MemberJoined { member, .. } => {
                         if !poll_ctx.app.window().is_visible() {
-                            notifications::notify_member_joined(&member.display_name);
+                            notifications::notify_member_joined(
+                                &poll_ctx.app.global::<crate::Tr>(),
+                                &member.display_name,
+                            );
                         }
                     }
                     _ => {}

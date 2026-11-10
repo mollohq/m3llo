@@ -31,7 +31,7 @@ msgstr ""
 msgid "Sealed recap, open it"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "TODAY"
 msgstr ""
 
@@ -73,7 +73,8 @@ msgstr ""
 msgid "BELTS"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#. The badge of a live stream.
+#: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"
 msgstr ""
 
@@ -106,7 +107,7 @@ msgstr ""
 msgid "Show all clips"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "CLIPS"
 msgstr ""
 
@@ -139,8 +140,25 @@ msgstr ""
 msgid "JOIN"
 msgstr ""
 
+#. which shows as it is.
+#: client/ui/components/feed_board.slint
+msgid "Locked clip, m3llo+"
+msgstr ""
+
+#: client/ui/components/feed_board.slint
+msgid "Locked stream, m3llo+"
+msgstr ""
+
 #: client/ui/components/feed_board.slint
 msgid "Locked {}, m3llo+"
+msgstr ""
+
+#: client/ui/components/feed_board.slint
+msgid "CLIP"
+msgstr ""
+
+#: client/ui/components/feed_board.slint
+msgid "STREAM"
 msgstr ""
 
 #: client/ui/components/feed_board.slint
@@ -206,23 +224,24 @@ msgstr ""
 msgid "QUALITY"
 msgstr ""
 
-#: client/ui/components/quality_pills.slint
+#. them.
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "ULTRA"
 msgstr ""
 
-#: client/ui/components/quality_pills.slint
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "HIGH"
 msgstr ""
 
-#: client/ui/components/quality_pills.slint
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "MEDIUM"
 msgstr ""
 
-#: client/ui/components/quality_pills.slint
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "PRO-POTATO"
 msgstr ""
 
-#: client/ui/components/quality_pills.slint
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "POTATO"
 msgstr ""
 
@@ -246,19 +265,25 @@ msgstr ""
 msgid "~1.5 Mbit/s"
 msgstr ""
 
+A duration: the first value is the hours, the second is the minutes ("6 h 
+40").
 #: client/ui/components/sealed.slint
+msgctxt "unit"
 msgid "{} h {}"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{} min"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{}h {}m"
 msgstr ""
 
-#: client/ui/components/sealed.slint
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
 msgid "{}m"
 msgstr ""
 
@@ -267,7 +292,7 @@ msgid "Sealed belt, open it"
 msgstr ""
 
 #. "Week 4", or "This week" before the server counts the weeks.
-#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "This week"
 msgstr ""
 
@@ -275,7 +300,8 @@ msgstr ""
 msgid "WEEKLY RECAP"
 msgstr ""
 
-#: client/ui/components/stream_hero.slint
+#. has no name.
+#: client/ui/components/stream_hero.slint client/ui/tr.slint
 msgid "STREAMING"
 msgstr ""
 
@@ -458,7 +484,7 @@ msgstr ""
 msgid "Above 100% loud game audio can distort."
 msgstr ""
 
-#: client/ui/panels/active_streams_panel.slint
+#: client/ui/panels/active_streams_panel.slint client/ui/tr.slint
 msgid "Mute"
 msgstr ""
 
@@ -510,7 +536,7 @@ msgstr ""
 msgid "Copy text"
 msgstr ""
 
-#: client/ui/panels/chat_panel.slint client/ui/panels/crew_feed.slint
+#: client/ui/panels/chat_panel.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "{} clipped that"
 msgstr ""
 
@@ -534,7 +560,8 @@ msgstr ""
 msgid "TRY AGAIN"
 msgstr ""
 
-#: client/ui/panels/chat_panel.slint
+#. The quote above a reply to a GIF with no text.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
 msgid "GIF"
 msgstr ""
 
@@ -564,7 +591,8 @@ msgstr ""
 msgid "(edited)"
 msgstr ""
 
-#: client/ui/panels/chat_panel.slint
+#. The text of a deleted message, and its quote above a reply.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
 msgid "[message deleted]"
 msgstr ""
 
@@ -640,7 +668,7 @@ msgstr ""
 msgid "Search emoji"
 msgstr ""
 
-#: client/ui/panels/chat_panel.slint
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
 msgid "Add emoji"
 msgstr ""
 
@@ -724,15 +752,15 @@ msgstr ""
 msgid "Not connected"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Unmute"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Undeafen"
 msgstr ""
 
-#: client/ui/panels/control_bar.slint
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
 msgid "Deafen"
 msgstr ""
 
@@ -817,11 +845,13 @@ msgstr ""
 msgid "CREW BANNER"
 msgstr ""
 
-#: client/ui/panels/crew_banner_modal.slint
+#. The buttons of a reveal in upper case, as the buttons show them.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
 msgid "GAME ART"
 msgstr ""
 
-#: client/ui/panels/crew_banner_modal.slint
+#. The buttons of a reveal.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
 msgid "Game art"
 msgstr ""
 
@@ -881,7 +911,7 @@ msgstr ""
 msgid "SAVE"
 msgstr ""
 
-#: client/ui/panels/crew_emoji_modal.slint
+#: client/ui/panels/crew_emoji_modal.slint client/ui/tr.slint
 msgid "CREW EMOJI"
 msgstr ""
 
@@ -932,11 +962,12 @@ msgid_plural "{n} participants"
 msgstr[0] ""
 msgstr[1] ""
 
-#: client/ui/panels/crew_feed.slint
+#. The labels of the numbers on the board, in upper case.
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "HANGOUT"
 msgstr ""
 
-#: client/ui/panels/crew_feed.slint
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "LONGEST"
 msgstr ""
 
@@ -948,7 +979,7 @@ msgstr ""
 msgid "BELTS MOVED"
 msgstr ""
 
-#: client/ui/panels/crew_feed.slint
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
 msgid "+{} MORE"
 msgstr ""
 
@@ -1356,10 +1387,6 @@ msgid "Required update"
 msgstr ""
 
 #: client/ui/panels/game_clip_card.slint
-msgid "CLIP"
-msgstr ""
-
-#: client/ui/panels/game_clip_card.slint
 msgid "UPLOADING"
 msgstr ""
 
@@ -1395,7 +1422,7 @@ msgstr ""
 msgid "Close image"
 msgstr ""
 
-#: client/ui/panels/invite_name_modal.slint
+#: client/ui/panels/invite_name_modal.slint client/ui/tr.slint
 msgid "INVITE LINK"
 msgstr ""
 
@@ -1519,7 +1546,7 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
-#: client/ui/panels/new_crew_modal.slint
+#: client/ui/panels/new_crew_modal.slint client/ui/tr.slint
 msgid "UPLOAD"
 msgstr ""
 
@@ -1786,6 +1813,26 @@ msgid "Link account"
 msgstr ""
 
 #: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "americas"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "europe"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "asia"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "sea"
+msgstr ""
+
+#: client/ui/panels/riot_link_modal.slint
 msgid "Connect your Riot account"
 msgstr ""
 
@@ -1829,6 +1876,7 @@ msgstr ""
 msgid "You"
 msgstr ""
 
+#. i18n: one sentence in parts: [holder name] took it from [avatar] [name]
 #: client/ui/panels/sealed_stage.slint
 msgid "took it from"
 msgstr ""
@@ -1837,7 +1885,8 @@ msgstr ""
 msgid "UNLOCKED"
 msgstr ""
 
-#: client/ui/panels/sealed_stage.slint
+#. The names of the open gifts, in upper case.
+#: client/ui/panels/sealed_stage.slint client/ui/tr.slint
 msgid "BANNER"
 msgstr ""
 
@@ -1846,10 +1895,11 @@ msgid "CLICK ANYWHERE TO CLOSE"
 msgstr ""
 
 #: client/ui/panels/session_preview_card.slint
+msgctxt "unit"
 msgid "{} h {} min"
 msgstr ""
 
-#: client/ui/panels/session_preview_card.slint
+#: client/ui/panels/session_preview_card.slint client/ui/tr.slint
 msgid "{n} clip"
 msgid_plural "{n} clips"
 msgstr[0] ""
@@ -2038,7 +2088,8 @@ msgstr ""
 msgid "Your clip is saved, someone in the crew clips."
 msgstr ""
 
-#: client/ui/panels/settings_modal.slint
+#. The title of a notification about a member of the crew.
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Crew"
 msgstr ""
 
@@ -2156,7 +2207,7 @@ msgstr ""
 msgid "Press Enter to save"
 msgstr ""
 
-#: client/ui/panels/settings_modal.slint
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Upload"
 msgstr ""
 
@@ -2356,6 +2407,7 @@ msgstr ""
 msgid "Game data and artwork by"
 msgstr ""
 
+#. i18n: one sentence in parts: Made with [link: Slint]
 #: client/ui/panels/settings_modal.slint
 msgid "Made with"
 msgstr ""
@@ -2416,7 +2468,7 @@ msgstr ""
 msgid "AUDIO & VIDEO"
 msgstr ""
 
-#: client/ui/panels/settings_modal.slint
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "GAMES"
 msgstr ""
 
@@ -2552,7 +2604,8 @@ msgstr ""
 msgid "Active Session"
 msgstr ""
 
-#: client/ui/panels/voice_channel_view.slint
+#. The voice channel has nobody in it.
+#: client/ui/panels/voice_channel_view.slint client/ui/tr.slint
 msgid "Empty"
 msgstr ""
 
@@ -2588,7 +2641,9 @@ msgid_plural "{n} BELTS"
 msgstr[0] ""
 msgstr[1] ""
 
+#. The unit of a number of hours next to the number.
 #: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgctxt "unit"
 msgid "h"
 msgstr ""
 
@@ -2673,6 +2728,1681 @@ msgstr ""
 #. The emoji name does not obey the rule of the server.
 #: client/ui/tr.slint
 msgid "A name is 2 to 24 letters, digits or underscores."
+msgstr ""
+
+#. A day of the week, in a date ("Sunday 1 Nov").
+#: client/ui/tr.slint
+msgid "Sunday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Monday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Tuesday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Wednesday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Thursday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Friday"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Saturday"
+msgstr ""
+
+#. The full name of a month, in a date ("2 October").
+#: client/ui/tr.slint
+msgid "January"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "February"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "March"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "April"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "May"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "June"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "July"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "August"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "September"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "October"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "November"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "December"
+msgstr ""
+
+#. The short name of a month, in a short date ("6 Oct").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jan"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Feb"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Mar"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Apr"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "May"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jun"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jul"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Aug"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Sep"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Oct"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Nov"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Dec"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the name of the month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1} {2}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the weekday.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{2} {0} {1}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}"
+msgstr ""
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}, {2}"
+msgstr ""
+
+#. {0} is the first day, {1} is the last day, {2} is the month.
+#: client/ui/tr.slint
+msgid "{0} to {1} {2}"
+msgstr ""
+
+#. {0} {1} is the first day and month, {2} {3} is the last day and month.
+#: client/ui/tr.slint
+msgid "{0} {1} to {2} {3}"
+msgstr ""
+
+#. The value is a short date ("6 Oct").
+#: client/ui/tr.slint
+msgid "Week of {}"
+msgstr ""
+
+#. The short name of a month in upper case, in an upper-case date ("6 OCT").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JAN"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "FEB"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAR"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "APR"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUN"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUL"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "AUG"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "SEP"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "OCT"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "NOV"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "DEC"
+msgstr ""
+
+#. The value is a short date in upper case ("6 OCT").
+#: client/ui/tr.slint
+msgid "WEEK OF {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "WEEK {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Week {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "W{}"
+msgstr ""
+
+#. A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1}"
+msgstr ""
+
+A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
+or PM.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1} {2}"
+msgstr ""
+
+#. The marker of a time before noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "AM"
+msgstr ""
+
+#. The marker of a time after noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "PM"
+msgstr ""
+
+#. A day, relative to today.
+#: client/ui/tr.slint
+msgid "Today"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Yesterday"
+msgstr ""
+
+#. The same words in lower case, as the feed card writes its age.
+#: client/ui/tr.slint
+msgid "today"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "yesterday"
+msgstr ""
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Today {}"
+msgstr ""
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Yesterday {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "Last week"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} week ago"
+msgid_plural "{n} weeks ago"
+msgstr[0] ""
+msgstr[1] ""
+
+#. A short age, under a minute.
+#: client/ui/tr.slint
+msgid "just now"
+msgstr ""
+
+#. The relative times of the session preview card, in upper case.
+#: client/ui/tr.slint
+msgid "JUST NOW"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "YESTERDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} DAY AGO"
+msgid_plural "{n} DAYS AGO"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{}M AGO"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}H AGO"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}D AGO"
+msgstr ""
+
+#. A day of the week in upper case.
+#: client/ui/tr.slint
+msgid "SUNDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "MONDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "TUESDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "WEDNESDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "THURSDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "FRIDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "SATURDAY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}m ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}h ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}d ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}w ago"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} H"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} h"
+msgstr ""
+
+#. The length of a clip: {0} is the minutes, {1} is the seconds.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0}:{1}"
+msgstr ""
+
+#. The unit of a number of minutes next to the number.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "min"
+msgstr ""
+
+#. The unit letter of a number of minutes next to the number ("2 m").
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "m"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {} min"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {} h"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "since {0} h {1} min"
+msgstr ""
+
+#. The value is a duration ("4h 12m").
+#: client/ui/tr.slint
+msgid "{} this week"
+msgstr ""
+
+#. {0} is when the game was last played, {1} is the hours of play.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}, {1}"
+msgstr ""
+
+#. The mark between the groups of digits of a large number ("4,201").
+#: client/ui/tr.slint
+msgctxt "format"
+msgid ","
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} ms"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} kbps"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} Mbps"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "~{}"
+msgstr ""
+
+#. {0} is the list so far, {1} is the next item.
+#: client/ui/tr.slint
+msgctxt "list"
+msgid "{0}, {1}"
+msgstr ""
+
+#. {0} is the list before the last item, {1} is the last item.
+#: client/ui/tr.slint
+msgid "{0} and {1}"
+msgstr ""
+
+#. {0} is the list, {1} is the count of the other names.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} +{1}"
+msgstr ""
+
+#. {0} is the list, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} more"
+msgid_plural "{0} and {n} more"
+msgstr[0] ""
+msgstr[1] ""
+
+#. {0} is the first part, {1} is the second part.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} · {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} KB"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} MB"
+msgstr ""
+
+#. The sign-in failed because no account has this email or identity.
+#: client/ui/tr.slint
+msgid "No account found."
+msgstr ""
+
+#. The sign-in failed because the email or the password is wrong.
+#: client/ui/tr.slint
+msgid "Wrong email or password."
+msgstr ""
+
+#. The sign-in failed for a different reason.
+#: client/ui/tr.slint
+msgid "Sign-in failed. Try again."
+msgstr ""
+
+#. The GIF search is off: the build has no key for the GIF service.
+#: client/ui/tr.slint
+msgid "GIFs are off in this build."
+msgstr ""
+
+#. The GIF service did not accept the key of this build.
+#: client/ui/tr.slint
+msgid "The GIF service refused this build's key."
+msgstr ""
+
+#. The GIF service got too many searches.
+#: client/ui/tr.slint
+msgid "Too many GIF searches right now. Try again in a minute."
+msgstr ""
+
+#. The GIF service did not answer. The chat still works.
+#: client/ui/tr.slint
+msgid "The GIF service did not answer. Your messages still send."
+msgstr ""
+
+#. The chip state while the app resizes the image.
+#: client/ui/tr.slint
+msgid "preparing"
+msgstr ""
+
+#. The chip state while the image uploads.
+#: client/ui/tr.slint
+msgid "uploading"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That file is over 64 MB."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That file is not an image."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That GIF is over 8 MB."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That GIF cannot be read."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That image cannot be read."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That image cannot be encoded."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That image is over 8 MB after resize."
+msgstr ""
+
+#. The upload failed because no crew is open.
+#: client/ui/tr.slint
+msgid "No crew is open."
+msgstr ""
+
+#. The server did not give a place to upload the image.
+#: client/ui/tr.slint
+msgid "The server did not give an upload slot."
+msgstr ""
+
+#. The server does not accept images.
+#: client/ui/tr.slint
+msgid "Image upload is off on this server."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The upload was refused."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The upload did not complete."
+msgstr ""
+
+#. A person with no name in the feed, in the place of a name.
+#: client/ui/tr.slint
+msgid "someone"
+msgstr ""
+
+#. The first letter of "You", in the octagon of the viewer.
+#: client/ui/tr.slint
+msgid "Y"
+msgstr ""
+
+#. The title of a clip card when the member has no name.
+#: client/ui/tr.slint
+msgid "someone clipped that"
+msgstr ""
+
+#. The name of a voice channel when the feed does not give it.
+#: client/ui/tr.slint
+msgid "voice"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Voice session in {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} in {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} streamed {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} streamed a stream"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Played {}"
+msgstr ""
+
+#. The title of a game session with no game name.
+#: client/ui/tr.slint
+msgid "Played a game"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} played {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} played a game"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n}-win streak"
+msgid_plural "{n}-win streak"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{n}-loss skid"
+msgid_plural "{n}-loss skid"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L–{2}D"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "W{}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "L{}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} match"
+msgid_plural "{n} matches"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{n} match · {0}"
+msgid_plural "{n} matches · {0}"
+msgstr[0] ""
+msgstr[1] ""
+
+#. The kind of a clip: voice.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "voice"
+msgstr ""
+
+#. The kind of a clip: game.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "game"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} joined"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} joined, invited by {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "invited by {}"
+msgstr ""
+
+#. The name of a member who joined with no name.
+#: client/ui/tr.slint
+msgid "A new member"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Add {0} to {1}'s Steam launch options to track wins"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} draw"
+msgid_plural "{n} draws"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{n}-loss streak"
+msgid_plural "{n}-loss streak"
+msgstr[0] ""
+msgstr[1] ""
+
+#. The Riot ID is wrong. "GameName#TAG" shows the form of an ID.
+#: client/ui/tr.slint
+msgid "Riot ID not found. Check the spelling â€” it looks like GameName#TAG."
+msgstr ""
+
+#. The server needs the region of the Riot account.
+#: client/ui/tr.slint
+msgid "Pick the region your account plays in."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Couldn't link right now: {}"
+msgstr ""
+
+#. The invite link that opened the app does not work any more.
+#: client/ui/tr.slint
+msgid "This invite link is no longer valid."
+msgstr ""
+
+#. The invite code that the user typed does not work.
+#: client/ui/tr.slint
+msgid "This invite code is not valid."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "This crew is full."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You cannot join this crew."
+msgstr ""
+
+#. The join failed for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not join the crew. Try again."
+msgstr ""
+
+#. The invite did not load for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not load this invite. Try again."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} streaming {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} streaming"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "streaming {}"
+msgstr ""
+
+#. A stream with no streamer name and no title.
+#: client/ui/tr.slint
+msgid "streaming"
+msgstr ""
+
+#. {0} is the steps done, {1} is all the steps.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} / {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "DROP {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "QUEST  ·  {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "FIRST WEEK"
+msgstr ""
+
+#. 30 days of m3llo+. "D" is the short form of "days".
+#: client/ui/tr.slint
+msgid "M3LLO+ 30 D"
+msgstr ""
+
+#. The gift of the last step: 30 days of m3llo+.
+#: client/ui/tr.slint
+msgid "30 DAYS"
+msgstr ""
+
+#. The names of the steps.
+#: client/ui/tr.slint
+msgid "Crew made"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "A friend joins"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "First call"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "First clip"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "First session"
+msgstr ""
+
+#. The names of the steps in upper case, in the label of a gift.
+#: client/ui/tr.slint
+msgid "CREW MADE"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "A FRIEND JOINS"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "FIRST CALL"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "FIRST CLIP"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "FIRST SESSION"
+msgstr ""
+
+#. The value is a date ("2 October").
+#: client/ui/tr.slint
+msgid "Made {}"
+msgstr ""
+
+#. The names of the gifts in a reveal.
+#: client/ui/tr.slint
+msgid "Crew banner"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Your invite link"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Crew emoji"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Founding week"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "For the crew"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Set the link"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "SET THE LINK"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "ADD EMOJI"
+msgstr ""
+
+#. The viewer joined the crew.
+#: client/ui/tr.slint
+msgid "You joined"
+msgstr ""
+
+#. The viewer made the first clip.
+#: client/ui/tr.slint
+msgid "You clipped"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} clipped"
+msgstr ""
+
+#. The viewer invited the member who joined.
+#: client/ui/tr.slint
+msgid "Invited by you"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Invited by {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} slot"
+msgid_plural "{n} slots"
+msgstr[0] ""
+msgstr[1] ""
+
+#. Where the founding week opens.
+#: client/ui/tr.slint
+msgid "Open in Crew history for every member"
+msgstr ""
+
+#. The gift of the last step, on two lines.
+#: client/ui/tr.slint
+msgid "30 days of m3llo+\nfor every member in the crew"
+msgstr ""
+
+#. {0} is the names, {n} is the count of guests.
+#: client/ui/tr.slint
+msgid "{0}, +{n} guest"
+msgid_plural "{0}, +{n} guests"
+msgstr[0] ""
+msgstr[1] ""
+
+#. The hints of the steps that are not done.
+#: client/ui/tr.slint
+msgid "Works in the browser"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Join voice to clip"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Play with m3llo open"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Game activity is off"
+msgstr ""
+
+#. an award.
+#: client/ui/tr.slint
+msgid "The Carry"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Night Owl"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The Collector"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Locked In"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Has a Life"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Sampler"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "One Trick"
+msgstr ""
+
+#. The names of the card titles in upper case, on the board.
+#: client/ui/tr.slint
+msgid "THE CARRY"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "NIGHT OWL"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "THE COLLECTOR"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "LOCKED IN"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "HAS A LIFE"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "SAMPLER"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "ONE TRICK"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "MOUTH"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "MARATHON"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "LAST ONE UP"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "CLIPPER"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "RAGE QUIT"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "WINNER"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Mouth"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Marathon"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Last One Up"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clipper"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Rage Quit"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Winner"
+msgstr ""
+
+#. What each title counts, under its value.
+#: client/ui/tr.slint
+msgid "Most hours in the top shared game."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most game hours in the last 7 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Fewest game hours in the last 7 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Latest local time of a last session."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most installed games."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most different games in the last 14 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Highest share of play time in one game."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most voice minutes in the last 14 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Longest single game session."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Latest session end in the last 14 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most clips posted."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most sessions of 2 to 10 minutes in 14 days."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Most win moments in the last 14 days."
+msgstr ""
+
+#. A member the app does not know, for example one who left the crew.
+#: client/ui/tr.slint
+msgid "Crew mate"
+msgstr ""
+
+#. The unit of the Locked In title: hours in this week.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "h this week"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "held {n} day"
+msgid_plural "held {n} days"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{0} took {1} from {2}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} beats {1}."
+msgstr ""
+
+#. {0} is the number, {1} is the unit.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0} {1}"
+msgstr ""
+
+#. A live stream with no title.
+#: client/ui/tr.slint
+msgid "Live now"
+msgstr ""
+
+#. The titles of the card that says why a stream stopped.
+#: client/ui/tr.slint
+msgid "STREAM ENDED"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "STREAM DID NOT START"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "COULD NOT WATCH"
+msgstr ""
+
+#. Why a stream ended.
+#: client/ui/tr.slint
+msgid "The connection to the stream was lost for 30 seconds."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The server lost the stream during a reconnect."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The host ended the stream."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The stream ended."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "SESSIONS"
+msgstr ""
+
+#. The members who were on today.
+#: client/ui/tr.slint
+msgid "ON"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "CLIPS AND STREAMS"
+msgstr ""
+
+#. The board of a week with no crew time.
+#: client/ui/tr.slint
+msgid "No crew time last week."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} still played."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Nothing new since {}."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Nothing new since {0}. {1} holds {2}."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{n} in the call"
+msgid_plural "{n} in the call"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "Empty. Last call {}"
+msgstr ""
+
+#. default.
+#: client/ui/tr.slint
+msgid ""
+"Your saved audio device was not found. Switched to system default — you can "
+"change it in Settings."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} made it. Welcome to the crew."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} is in. Grab a seat."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Look who showed up. Hey {}."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{}, you found us. Good."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "New blood. Welcome {}."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} is here. Mic on, let's go."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Game clip saved"
+msgstr ""
+
+#. The clip key made no game clip.
+#: client/ui/tr.slint
+msgid "No game clip"
+msgstr ""
+
+#. Why the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Game clips are off: the disk is almost full"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clips are not available for this game"
+msgstr ""
+
+#. macOS: the app needs the Screen Recording permission.
+#: client/ui/tr.slint
+msgid "Allow Screen Recording in Settings to clip your game"
+msgstr ""
+
+#. The clip key saved the voice only, and the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Voice clip saved. Game clips are off: the disk is almost full"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Clips are not available for this game"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Allow Screen Recording in Settings to clip your game"
+msgstr ""
+
+#. The clip player cannot play while the user watches a stream.
+#: client/ui/tr.slint
+msgid "Stop watching the stream to play a clip"
+msgstr ""
+
+#. A game that the app cannot name.
+#: client/ui/tr.slint
+msgid "Unknown game"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L {2}D"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "W{} best"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "L{} worst"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Push-to-talk uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clip uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Stream key uses {}. Pick another key."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0}p, {1} fps"
+msgstr ""
+
+#. The name of the file type filter in a dialog that picks an image.
+#: client/ui/tr.slint
+msgid "Images"
+msgstr ""
+
+#. {0} is the width, {1} is the height.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}×{1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You cancelled the {} sign-in."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} sign-in failed: {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in failed unexpectedly"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} login not configured"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in isn't available here"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} sign-in returned no token"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "WebSocket failed: {}"
+msgstr ""
+
+#. Onboarding: the account was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create your account. Check your connection and try again."
+msgstr ""
+
+#. Onboarding: the app did not connect.
+#: client/ui/tr.slint
+msgid "Couldn't connect. Check your connection and try again."
+msgstr ""
+
+#. Onboarding: the new crew was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create the crew. Try again."
+msgstr ""
+
+#. Onboarding: the chosen crew was not joined, and why.
+#: client/ui/tr.slint
+msgid "That crew is full. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "That crew no longer exists. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You can't join that crew. Pick another one."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Couldn't join the crew. Check your connection and try again."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Server requires protocol {0} but client speaks {1}. Please update m3llo."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid ""
+"Client requires server protocol {0} but server speaks {1}. Server needs "
+"updating."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "You are not signed in."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Streaming is not available on the server right now."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The server did not answer the stream start."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The server did not accept the stream."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Could not reach the stream server."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid ""
+"Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was "
+"found on this machine."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The media engine is not running."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The stream has no session to join."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The video decoder did not start."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The stream is not available."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Display {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Display {} (Primary)"
+msgstr ""
+
+#. The server did not answer a gift change.
+#: client/ui/tr.slint
+msgid "The server did not answer."
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The media engine is not running"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The clip does not load"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "The clip does not play"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Open {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Leave Voice"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Quit {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "About {}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Check for Updates…"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Preferences…"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Hide {}"
+msgstr ""
+
+#. The names of the menus.
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Edit"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "View"
+msgstr ""
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Help"
+msgstr ""
+
+#. The items of the Edit menu.
+#: client/ui/tr.slint
+msgid "Undo"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Redo"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Cut"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Copy"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Paste"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Select All"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Find…"
+msgstr ""
+
+#. The items of the View menu.
+#: client/ui/tr.slint
+msgid "Toggle Mute"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Toggle Deafen"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} on GitHub"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} is still running"
+msgstr ""
+
+#. Windows and Linux: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the tray to keep collecting your gaming stats. Right-click the "
+"tray icon to quit."
+msgstr ""
+
+#. macOS: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the menu bar to keep collecting your gaming stats. Quit it from "
+"the menu bar icon."
+msgstr ""
+
+#. The title of a notification about the stream key.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "Stream"
+msgstr ""
+
+#. The stream key started a stream, and the stream is live.
+#: client/ui/tr.slint
+msgid "You are live"
+msgstr ""
+
+#. The stream key ended the stream.
+#: client/ui/tr.slint
+msgid "Stream ended"
+msgstr ""
+
+#. The stream that the stream key started did not start.
+#: client/ui/tr.slint
+msgid "Stream failed"
+msgstr ""
+
+#. The stream key found no active crew.
+#: client/ui/tr.slint
+msgid "Pick a crew to stream to"
+msgstr ""
+
+#. The stream key found no detected game.
+#: client/ui/tr.slint
+msgid "No game to stream"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} jumped in"
+msgstr ""
+
+#. {0} is the sender, {1} is the message.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}: {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} invite"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{0} invited you to {1}"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Push to talk"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "Clip the last moments of voice"
 msgstr ""
 
 #: hud/ui/mini_player.slint

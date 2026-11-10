@@ -33,3 +33,15 @@ test("an app shows English, whatever the shell has", () => {
 test("a journey can select another language", () => {
   assert.equal(app({ env: { MELLO_LANG: "qps" } }).launchEnv().MELLO_LANG, "qps");
 });
+
+test("an app shows the 24 h clock, whatever the shell has", () => {
+  const was = process.env.MELLO_CLOCK;
+  process.env.MELLO_CLOCK = "12";
+  try {
+    assert.equal(app().launchEnv().MELLO_CLOCK, "24");
+    assert.equal(app({ env: { MELLO_CLOCK: "12" } }).launchEnv().MELLO_CLOCK, "12");
+  } finally {
+    if (was === undefined) delete process.env.MELLO_CLOCK;
+    else process.env.MELLO_CLOCK = was;
+  }
+});

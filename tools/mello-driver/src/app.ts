@@ -605,6 +605,9 @@ export class App {
       // language, whatever the language of the OS or the developer's shell.
       // A journey can set another one in its env (a layout run with "qps").
       MELLO_LANG: "en",
+      // The 24 h clock, whatever the clock setting of the OS, so a time
+      // reads the same on every PC (l10n_format::clock_form).
+      MELLO_CLOCK: "24",
       ...this.opts.env,
       // The e2e-mic seam (mello-core/src/client/mic_permission.rs). Last, so
       // the user's option decides, not the developer's shell or the run.

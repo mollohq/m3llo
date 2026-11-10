@@ -142,6 +142,19 @@ fn text_after_pick(current: &str, name: &str) -> String {
     format!("{head}@{name} ")
 }
 
+/// The line under an image in the viewer: its size in pixels, and its size
+/// in bytes when the message has it ("1920×1080 · 860 KB").
+fn viewer_label(tr: &crate::Tr<'_>, width: u32, height: u32, bytes: u64) -> String {
+    let dimensions = tr
+        .invoke_image_dimensions(width as i32, height as i32)
+        .to_string();
+    if bytes > 0 {
+        crate::l10n_format::dot_pair(tr, &dimensions, &crate::l10n_format::file_size(tr, bytes))
+    } else {
+        dimensions
+    }
+}
+
 /// Adds one member to the mention picker if missing. Channel presence (a member
 /// opening the app) only ever adds: the picker lists the whole crew, online or
 /// not, and is rebuilt from the crew roster when crew state loads.
@@ -313,7 +326,8 @@ pub fn wire(ctx: &AppContext) {
                     said.push(user_id.to_string());
                     s.save();
                 }
-                let (content, mention) = crate::say_hi::greeting(user_id, &name);
+                let (content, mention) =
+                    crate::say_hi::greeting(&app.global::<crate::Tr>(), user_id, &name);
                 log::info!("[feed] said hi to {user_id} in crew {crew_id}");
                 let _ = cmd.send(Command::SendMessage {
                     content,
@@ -569,14 +583,14 @@ use crate::chat_images::{
 };
 
 /// The chip rows for the window, from the composer state.
-fn attachment_rows(composer: &Attachments) -> Vec<crate::AttachmentData> {
+fn attachment_rows(tr: &crate::Tr<'_>, composer: &Attachments) -> Vec<crate::AttachmentData> {
     lock(composer)
         .attachments
         .iter()
         .map(|a| crate::AttachmentData {
             id: a.id.clone().into(),
             state: a.state_name().into(),
-            label: a.label().into(),
+            label: a.label(tr).into(),
             thumb: a
                 .thumb
                 .as_ref()
@@ -595,7 +609,8 @@ fn attachment_rows(composer: &Attachments) -> Vec<crate::AttachmentData> {
 
 fn push_attachment_rows(app_weak: &slint::Weak<crate::MainWindow>, composer: &Attachments) {
     if let Some(app) = app_weak.upgrade() {
-        app.set_chat_attachments(Rc::new(slint::VecModel::from(attachment_rows(composer))).into());
+        let rows = attachment_rows(&app.global::<crate::Tr>(), composer);
+        app.set_chat_attachments(Rc::new(slint::VecModel::from(rows)).into());
     }
 }
 
@@ -702,7 +717,10 @@ impl AttachmentRefresh {
                     a.bytes = p.bytes.len() as u64;
                     a.state = AttachmentState::Uploading;
                 }
-                Err(e) => a.state = AttachmentState::Failed(e.0.clone()),
+                Err(e) => {
+                    a.state =
+                        AttachmentState::Failed(crate::chat_images::AttachmentError::Prepare(*e))
+                }
             }
         }
         if let Ok(p) = result {
@@ -734,9 +752,10 @@ fn wire_attachments(ctx: &AppContext) {
             let app_weak = app_weak.clone();
             let cmd = cmd.clone();
             let rt2 = rt.clone();
+            let filter = super::images_filter(&app_weak);
             rt.spawn(async move {
                 let files = rfd::AsyncFileDialog::new()
-                    .add_filter("Images", &["jpg", "jpeg", "png", "gif"])
+                    .add_filter(filter, &["jpg", "jpeg", "png", "gif"])
                     .pick_files()
                     .await
                     .unwrap_or_default();
@@ -798,20 +817,16 @@ fn wire_attachments(ctx: &AppContext) {
                 .iter()
                 .position(|i| i.url == url.as_str())
                 .unwrap_or(0);
+            let tr = app.global::<crate::Tr>();
             let rows: Vec<crate::ViewerImageData> = images
                 .iter()
                 .map(|i| {
-                    let size = if i.bytes > 0 {
-                        format!(" · {}", crate::chat_images::size_label(i.bytes))
-                    } else {
-                        String::new()
-                    };
                     let small = anim.current_frame(&i.url);
                     crate::ViewerImageData {
                         url: i.url.clone().into(),
                         width: i.width as i32,
                         height: i.height as i32,
-                        label: format!("{}×{}{}", i.width, i.height, size).into(),
+                        label: viewer_label(&tr, i.width, i.height, i.bytes).into(),
                         has_image: small.is_some(),
                         image: small.unwrap_or_default(),
                         failed: anim.has_failed(&i.url),
@@ -1127,5 +1142,18 @@ impl ViewerFetch {
                 }
             });
         });
+    }
+}
+
+#[cfg(test)]
+mod viewer_label_tests {
+    #[test]
+    fn the_viewer_label_names_the_size() {
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(super::viewer_label(tr, 1920, 1080, 0), "1920×1080");
+        assert_eq!(
+            super::viewer_label(tr, 640, 480, 860 * 1024),
+            "640×480 · 860 KB"
+        );
     }
 }

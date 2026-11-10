@@ -124,7 +124,9 @@ impl Win32OverlayWindow {
             d2d_dc.SetAntialiasMode(D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
             d2d_dc.SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_GRAYSCALE);
 
-            // The OS UI language, as in the client (cjk_fonts::os_ui_language).
+            // The OS UI language. The protocol does not carry the UI language
+            // of the client; the overlay in the client uses that language
+            // (locale::ui_language).
             let locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_owned());
             let renderer = D2DRenderer::new(d2d_factory.into(), &locale)?;
 

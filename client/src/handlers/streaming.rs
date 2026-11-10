@@ -74,11 +74,12 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 games.len(),
                 windows.len()
             );
+            let tr = ctx.app.global::<crate::Tr>();
             let mon: Vec<CaptureSourceData> = monitors
                 .into_iter()
                 .map(|s| CaptureSourceData {
+                    name: capture_source_name(&tr, &s),
                     id: s.id.into(),
-                    name: s.name.into(),
                     mode: s.mode.into(),
                     pid: s.pid.unwrap_or(0) as i32,
                     exe: s.exe.into(),
@@ -158,7 +159,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_stream_host_state("live".into());
             ctx.app.set_streamer_name(ctx.app.get_user_name());
             if ctx.app.get_stream_label().is_empty() {
-                ctx.app.set_stream_label("STREAMING".into());
+                ctx.app
+                    .set_stream_label(ctx.app.global::<crate::Tr>().get_stream_label_streaming());
             }
             ctx.app.set_dbg_stream_mode(mode.into());
             ctx.app.set_dbg_host_pacing_mode("idle".into());
@@ -185,12 +187,13 @@ pub fn handle(ctx: &AppContext, event: Event) {
             crate::sounds::cue(ctx, mello_core::sounds::Sound::StreamEnded);
             end_watched_card(ctx, "the watched stream ended");
             let name = ctx.app.get_active_streamer_name().to_string();
+            let tr = ctx.app.global::<crate::Tr>();
             show_stream_notice(
                 ctx,
                 "ended",
-                "STREAM ENDED",
+                &tr.get_stream_notice_ended(),
                 &name,
-                ended_reason_text(&reason),
+                &ended_reason_text(&tr, &reason),
             );
         }
         Event::StreamEnded {
@@ -203,12 +206,13 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_stream_host_state("".into());
             if !reason.is_empty() && reason != "stopped" {
                 let name = ctx.app.get_user_name().to_string();
+                let tr = ctx.app.global::<crate::Tr>();
                 show_stream_notice(
                     ctx,
                     "ended",
-                    "STREAM ENDED",
+                    &tr.get_stream_notice_ended(),
                     &name,
-                    ended_reason_text(&reason),
+                    &ended_reason_text(&tr, &reason),
                 );
             }
             ctx.app.set_is_hosting(false);
@@ -409,6 +413,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
         } => {
             let ui = ctx.app.global::<crate::StreamCardUi>();
             ui.set_stats(stream_stats(
+                &ctx.app.global::<crate::Tr>(),
                 target_delay_ms,
                 jitter_ms,
                 decode_ms_p95,
@@ -432,7 +437,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
         } => {
             ctx.app
                 .global::<crate::StreamCardUi>()
-                .set_host_sending(sending_text(out_kbps).into());
+                .set_host_sending(sending_text(&ctx.app.global::<crate::Tr>(), out_kbps).into());
             ctx.app.set_dbg_host_pacing_mode(mode.into());
             ctx.app.set_dbg_host_pacing_target_kbps(target_kbps as i32);
             ctx.app.set_dbg_host_pacing_out_kbps(out_kbps);
@@ -471,7 +476,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_stream_host_state("starting".into());
             ctx.app.set_streamer_name(ctx.app.get_user_name());
             if ctx.app.get_stream_label().is_empty() {
-                ctx.app.set_stream_label("STREAMING".into());
+                ctx.app
+                    .set_stream_label(ctx.app.global::<crate::Tr>().get_stream_label_streaming());
             }
             sync_active_stream_cards(ctx);
         }
@@ -504,7 +510,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             sync_active_stream_cards(ctx);
         }
         Event::StreamFailed { role, reason } => {
-            log::error!("Stream failed ({:?}): {}", role, reason);
+            log::error!("Stream failed ({:?}): {:?}", role, reason);
             match role {
                 StreamRole::Host => {
                     end_hosted_card(ctx);
@@ -512,13 +518,23 @@ pub fn handle(ctx: &AppContext, event: Event) {
                     ctx.app.set_stream_host_state("".into());
                     ctx.app.set_stream_label("".into());
                     let name = ctx.app.get_user_name().to_string();
-                    show_stream_notice(ctx, "failed", "STREAM DID NOT START", &name, &reason);
+                    let title = ctx
+                        .app
+                        .global::<crate::Tr>()
+                        .get_stream_notice_not_started();
+                    let text = stream_failure_text(&ctx.app.global::<crate::Tr>(), &reason);
+                    show_stream_notice(ctx, "failed", &title, &name, &text);
                     crate::stream_key::stream_failed(ctx);
                 }
                 StreamRole::Viewer => {
                     end_watched_card(ctx, "the watch failed");
                     let name = ctx.app.get_active_streamer_name().to_string();
-                    show_stream_notice(ctx, "failed", "COULD NOT WATCH", &name, &reason);
+                    let title = ctx
+                        .app
+                        .global::<crate::Tr>()
+                        .get_stream_notice_watch_failed();
+                    let text = stream_failure_text(&ctx.app.global::<crate::Tr>(), &reason);
+                    show_stream_notice(ctx, "failed", &title, &name, &text);
                 }
             }
         }
@@ -532,13 +548,54 @@ pub fn handle(ctx: &AppContext, event: Event) {
 /// How long a stream notice card stays.
 const STREAM_NOTICE_FOR: std::time::Duration = std::time::Duration::from_secs(8);
 
+/// The card copy for a `StreamFailed` reason. The detail of a native step
+/// is text for developers and stays as it is.
+pub(crate) fn stream_failure_text(
+    tr: &crate::Tr<'_>,
+    failure: &mello_core::events::StreamFailure,
+) -> slint::SharedString {
+    use mello_core::events::StreamFailure as F;
+    match failure {
+        F::NotSignedIn => tr.get_stream_failed_not_signed_in(),
+        F::ServerUnavailable => tr.get_stream_failed_server_unavailable(),
+        F::ServerNoAnswer => tr.get_stream_failed_server_no_answer(),
+        F::ServerRefused => tr.get_stream_failed_server_refused(),
+        F::StreamServerUnreachable => tr.get_stream_failed_unreachable(),
+        F::NoHardwareEncoder => tr.get_stream_failed_no_encoder(),
+        F::EngineNotRunning => tr.get_stream_failed_engine_off(),
+        F::NoSession => tr.get_stream_failed_no_session(),
+        F::DecoderFailed => tr.get_stream_failed_decoder(),
+        F::StreamUnavailable => tr.get_stream_failed_unavailable(),
+        F::Detail(text) => text.into(),
+    }
+}
+
+/// The name of a capture source in the stream picker. A monitor gets its
+/// name in the UI language; a game or a window keeps its own name.
+fn capture_source_name(
+    tr: &crate::Tr<'_>,
+    s: &mello_core::events::CaptureSource,
+) -> slint::SharedString {
+    match (s.mode.as_str(), s.monitor_index) {
+        ("monitor", Some(index)) if s.name.is_empty() => {
+            let n = index as i32 + 1;
+            if s.primary {
+                tr.invoke_stream_source_display_primary(n)
+            } else {
+                tr.invoke_stream_source_display(n)
+            }
+        }
+        _ => s.name.as_str().into(),
+    }
+}
+
 /// The card copy for a `StreamEnded` reason.
-fn ended_reason_text(reason: &str) -> &'static str {
+fn ended_reason_text(tr: &crate::Tr<'_>, reason: &str) -> slint::SharedString {
     match reason {
-        "connection_lost" => "The connection to the stream was lost for 30 seconds.",
-        "lost_on_server" => "The server lost the stream during a reconnect.",
-        "host_left" => "The host ended the stream.",
-        _ => "The stream ended.",
+        "connection_lost" => tr.get_stream_ended_connection_lost(),
+        "lost_on_server" => tr.get_stream_ended_lost_on_server(),
+        "host_left" => tr.get_stream_ended_host_left(),
+        _ => tr.get_stream_ended(),
     }
 }
 
@@ -763,6 +820,7 @@ pub fn refresh_stream_format(app: &crate::MainWindow, decoded_height: u32) {
 
 /// The stats strip's values from the 1 s viewer timeline.
 pub fn stream_stats(
+    tr: &crate::Tr<'_>,
     target_delay_ms: f32,
     jitter_ms: f32,
     decode_ms_p95: f32,
@@ -770,13 +828,13 @@ pub fn stream_stats(
     audio_delay_ms: f32,
     av_offset_ms: f32,
 ) -> crate::StreamStatsData {
-    let ms = |v: f32| format!("{} ms", v.round() as i64);
+    let ms = |v: f32| crate::l10n_format::milliseconds(tr, &(v.round() as i64).to_string());
     // No game audio: no audio delay and no offset to show.
     let has_audio = audio_delay_ms > 0.0;
     crate::StreamStatsData {
         target_delay: ms(target_delay_ms).into(),
         jitter: ms(jitter_ms).into(),
-        decode: format!("{decode_ms_p95:.1} ms").into(),
+        decode: crate::l10n_format::milliseconds(tr, &format!("{decode_ms_p95:.1}")).into(),
         frames_late: frames_late.to_string().into(),
         audio_delay: if has_audio {
             ms(audio_delay_ms).into()
@@ -786,9 +844,9 @@ pub fn stream_stats(
         av_offset: if has_audio {
             let v = av_offset_ms.round() as i64;
             if v > 0 {
-                format!("+{v} ms").into()
+                crate::l10n_format::milliseconds(tr, &format!("+{v}")).into()
             } else {
-                format!("{v} ms").into()
+                crate::l10n_format::milliseconds(tr, &v.to_string()).into()
             }
         } else {
             "-".into()
@@ -799,30 +857,101 @@ pub fn stream_stats(
 /// The host's quality: the preset the stream started with, as the quality
 /// pills name it.
 fn set_host_quality(ctx: &crate::app_context::AppContext) {
-    let text = match ctx.app.get_stream_preset() {
-        0 => "ULTRA \u{b7} 1080p60",
-        1 => "HIGH \u{b7} 1080p30",
-        2 => "MEDIUM \u{b7} 720p60",
-        3 => "PRO-POTATO \u{b7} 720p30",
-        _ => "POTATO \u{b7} 480p30",
+    let tr = ctx.app.global::<crate::Tr>();
+    let (name, format) = match ctx.app.get_stream_preset() {
+        0 => (tr.get_quality_ultra(), "1080p60"),
+        1 => (tr.get_quality_high(), "1080p30"),
+        2 => (tr.get_quality_medium(), "720p60"),
+        3 => (tr.get_quality_pro_potato(), "720p30"),
+        _ => (tr.get_quality_potato(), "480p30"),
     };
+    let text = crate::l10n_format::dot_pair(&tr, &name, format);
     ctx.app
         .global::<crate::StreamCardUi>()
         .set_host_quality(text.into());
 }
 
 /// What the host sends now, from the pacer's output rate.
-pub fn sending_text(out_kbps: f32) -> String {
+pub fn sending_text(tr: &crate::Tr<'_>, out_kbps: f32) -> String {
     if out_kbps >= 1000.0 {
-        format!("{:.1} Mbps", out_kbps / 1000.0)
+        tr.invoke_bitrate_mbps(format!("{:.1}", out_kbps / 1000.0).into())
     } else {
-        format!("{} kbps", out_kbps.round() as i64)
+        tr.invoke_bitrate_kbps(out_kbps.round() as i32)
     }
+    .into()
 }
 
 #[cfg(test)]
 mod stage9_tests {
     use super::*;
+
+    #[test]
+    fn a_stream_failure_reads_in_english_and_a_detail_stays() {
+        use mello_core::events::StreamFailure;
+        let tr = crate::l10n_format::test_tr();
+        assert_eq!(
+            stream_failure_text(tr, &StreamFailure::StreamServerUnreachable).as_str(),
+            "Could not reach the stream server."
+        );
+        assert_eq!(
+            stream_failure_text(tr, &StreamFailure::Detail("raw".into())).as_str(),
+            "raw"
+        );
+        let display = |index: u32, primary: bool| {
+            capture_source_name(
+                tr,
+                &mello_core::events::CaptureSource {
+                    id: format!("monitor-{index}"),
+                    name: String::new(),
+                    mode: "monitor".into(),
+                    monitor_index: Some(index),
+                    primary,
+                    hwnd: None,
+                    pid: None,
+                    exe: String::new(),
+                    igdb_id: 0,
+                    is_fullscreen: false,
+                    resolution: String::new(),
+                },
+            )
+        };
+        assert_eq!(display(0, true).as_str(), "Display 1 (Primary)");
+        assert_eq!(display(1, false).as_str(), "Display 2");
+    }
+
+    /// Under the pseudo language a failure that the client names changes.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn a_stream_failure_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        use mello_core::events::StreamFailure;
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let text = stream_failure_text(tr, &StreamFailure::NotSignedIn);
+        crate::locale::select_source_language();
+        assert_eq!(text.as_str(), pseudo("You are not signed in."));
+        assert_ne!(text.as_str(), "You are not signed in.");
+    }
+
+    /// Under the pseudo language the copy of the stream card changes, and
+    /// the units keep their numbers.
+    #[cfg(debug_assertions)]
+    #[test]
+    fn the_stream_copy_follows_the_ui_language() {
+        use crate::build_l10n::{pseudo, PSEUDO};
+        let tr = crate::l10n_format::test_tr();
+        crate::locale::select(PSEUDO).expect("select qps");
+        let ended = ended_reason_text(tr, "host_left");
+        let sending = sending_text(tr, 850.4);
+        crate::locale::select_source_language();
+        assert_eq!(ended.as_str(), pseudo("The host ended the stream."));
+        assert_ne!(ended.as_str(), "The host ended the stream.");
+        assert_eq!(sending, pseudo("{} kbps").replace("{}", "850"));
+        assert_eq!(
+            ended_reason_text(tr, "host_left").as_str(),
+            "The host ended the stream."
+        );
+    }
 
     #[test]
     fn the_format_label_names_the_height_and_the_rung_rate() {
@@ -838,7 +967,15 @@ mod stage9_tests {
 
     #[test]
     fn the_stats_strip_formats_the_timeline() {
-        let s = stream_stats(118.4, 6.2, 2.06, 3, 141.6, 8.4);
+        let s = stream_stats(
+            crate::l10n_format::test_tr(),
+            118.4,
+            6.2,
+            2.06,
+            3,
+            141.6,
+            8.4,
+        );
         assert_eq!(s.target_delay, "118 ms");
         assert_eq!(s.jitter, "6 ms");
         assert_eq!(s.decode, "2.1 ms");
@@ -846,10 +983,19 @@ mod stage9_tests {
         assert_eq!(s.audio_delay, "142 ms");
         assert_eq!(s.av_offset, "+8 ms");
         assert_eq!(
-            stream_stats(1.0, 1.0, 1.0, 0, 120.0, -12.4).av_offset,
+            stream_stats(
+                crate::l10n_format::test_tr(),
+                1.0,
+                1.0,
+                1.0,
+                0,
+                120.0,
+                -12.4
+            )
+            .av_offset,
             "-12 ms"
         );
-        let silent = stream_stats(100.0, 5.0, 2.0, 0, 0.0, 0.0);
+        let silent = stream_stats(crate::l10n_format::test_tr(), 100.0, 5.0, 2.0, 0, 0.0, 0.0);
         assert_eq!(
             (silent.audio_delay.as_str(), silent.av_offset.as_str()),
             ("-", "-")
@@ -869,7 +1015,13 @@ mod stage9_tests {
 
     #[test]
     fn the_send_rate_reads_in_mbps_or_kbps() {
-        assert_eq!(sending_text(6200.0), "6.2 Mbps");
-        assert_eq!(sending_text(850.4), "850 kbps");
+        assert_eq!(
+            sending_text(crate::l10n_format::test_tr(), 6200.0),
+            "6.2 Mbps"
+        );
+        assert_eq!(
+            sending_text(crate::l10n_format::test_tr(), 850.4),
+            "850 kbps"
+        );
     }
 }

@@ -963,8 +963,8 @@ fn event_record(ev: &Event, seq: u64, ts_ms: u128) -> EventRecord {
     let reason = match ev {
         Event::GameClipStateChanged { reason, .. }
         | Event::GameClipFailed { reason }
-        | Event::GameClipUploadFailed { reason, .. }
-        | Event::GameClipPlaybackClosed { reason } => Some(reason.clone()),
+        | Event::GameClipUploadFailed { reason, .. } => Some(reason.clone()),
+        Event::GameClipPlaybackClosed { reason } => Some(reason.as_str().to_string()),
         _ => None,
     }
     .filter(|r| !r.is_empty());
