@@ -416,3 +416,33 @@ func TestRecapWithoutCreateTimeHasNoWeekNumber(t *testing.T) {
 		t.Fatalf("week_start_ms %d", recaps[0].WeekStartMs)
 	}
 }
+
+// The three game awards carry the count in value, so the client can write
+// the detail in the language of the user. The English title and detail stay
+// for old clients.
+func TestGameAwardsCarryTheCountInValue(t *testing.T) {
+	nk := recapFixture()
+	awards := buildAwards(context.Background(), nk, map[string]int{"u1": 12}, 4, "Bo", -3, "u2")
+	want := []RecapAward{
+		{Kind: "grinder", Title: "Grinder of the week", Name: "Ann", Detail: "12 matches", Value: 12},
+		{Kind: "heater", Title: "Biggest heater", Name: "Bo", Detail: "4-win streak", Value: 4},
+		{Kind: "skid", Title: "Roughest patch", Name: "Bo", Detail: "3-loss skid", Value: 3},
+	}
+	if len(awards) != len(want) {
+		t.Fatalf("awards: %+v", awards)
+	}
+	for i := range want {
+		if awards[i] != want[i] {
+			t.Errorf("award %d: got %+v, want %+v", i, awards[i], want[i])
+		}
+	}
+	raw, _ := json.Marshal(awards[0])
+	if !strings.Contains(string(raw), `"value":12`) {
+		t.Errorf("award JSON lacks the value: %s", raw)
+	}
+	// A belt award has no count, and its JSON has no value.
+	raw, _ = json.Marshal(RecapAward{Kind: "belt", Title: "Clipper"})
+	if strings.Contains(string(raw), `"value"`) {
+		t.Errorf("belt award JSON has a value: %s", raw)
+	}
+}

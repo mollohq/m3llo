@@ -173,11 +173,17 @@ type RecapClipOfWeek struct {
 }
 
 // RecapAward is a fun, shareable superlative for the week (spec 19).
+// The client makes the title and the detail from Kind and Value, in the
+// language of the user. Title and Detail stay in English for old clients and
+// for the recaps that are stored without Value.
 type RecapAward struct {
 	Kind   string `json:"kind"` // "grinder" | "heater" | "skid"
 	Title  string `json:"title"`
 	Name   string `json:"name"`
 	Detail string `json:"detail"`
+	// Value is the count of the detail: the matches (grinder), the wins in
+	// a row (heater) or the losses in a row (skid).
+	Value int `json:"value,omitempty"`
 }
 
 // RecapBeltMoved is one head2head title that changed hands in the recap week
@@ -689,6 +695,7 @@ func buildAwards(ctx context.Context, nk runtime.NakamaModule, actorMatches map[
 			Title:  "Grinder of the week",
 			Name:   resolveOrID(ctx, nk, grinderID),
 			Detail: fmt.Sprintf("%d matches", grinderMatches),
+			Value:  grinderMatches,
 		})
 	}
 	if bestStreak >= 2 && bestStreakName != "" {
@@ -697,6 +704,7 @@ func buildAwards(ctx context.Context, nk runtime.NakamaModule, actorMatches map[
 			Title:  "Biggest heater",
 			Name:   bestStreakName,
 			Detail: fmt.Sprintf("%d-win streak", bestStreak),
+			Value:  bestStreak,
 		})
 	}
 	if worstStreak <= -2 && worstStreakActor != "" {
@@ -705,6 +713,7 @@ func buildAwards(ctx context.Context, nk runtime.NakamaModule, actorMatches map[
 			Title:  "Roughest patch",
 			Name:   resolveOrID(ctx, nk, worstStreakActor),
 			Detail: fmt.Sprintf("%d-loss skid", -worstStreak),
+			Value:  -worstStreak,
 		})
 	}
 	return awards

@@ -876,6 +876,8 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 response.crew_id,
                 response.event_count
             );
+            let tr = ctx.app.global::<crate::Tr>();
+            let text: slint::SharedString = super::catchup::caption(&tr, &response).into();
             let crews = ctx.app.get_crews();
             let updated: Vec<CrewData> = (0..crews.row_count())
                 .map(|i| {
@@ -884,7 +886,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                         c.has_catchup = response.has_events;
                         c.catchup_count = response.event_count as i32;
                         c.catchup_loaded = true;
-                        c.catchup_text = response.catchup_text.clone().into();
+                        c.catchup_text = text.clone();
                     }
                     c
                 })

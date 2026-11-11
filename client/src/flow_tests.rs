@@ -6979,6 +6979,138 @@ fn crew_menu_survives_preview_and_catchup_updates() {
     assert_crew_menu_open(&h, "a catch-up");
 }
 
+fn catchup_event(
+    kind: &str,
+    actor_name: Option<&str>,
+    data: serde_json::Value,
+) -> mello_core::crew_events::CatchupEvent {
+    mello_core::crew_events::CatchupEvent {
+        event_type: kind.into(),
+        actor_id: "u2".into(),
+        actor_name: actor_name.map(String::from),
+        ts: 1,
+        data,
+    }
+}
+
+/// Load the catch-up of crew-2 with these events and the English text of the
+/// server, and give the catch-up line of its crew row.
+fn catchup_line(
+    h: &mut Harness,
+    events: Vec<mello_core::crew_events::CatchupEvent>,
+    server_text: &str,
+) -> String {
+    h.emit(Event::CatchupLoaded {
+        response: mello_core::crew_events::CatchupResponse {
+            crew_id: "crew-2".into(),
+            catchup_text: server_text.into(),
+            event_count: events.len() as u32,
+            has_events: !events.is_empty() || !server_text.is_empty(),
+            top_events: events,
+        },
+    });
+    crew_row(h, "crew-2").catchup_text.to_string()
+}
+
+/// The client makes the catch-up line from the events of the server. In
+/// English it is the sentence of the server, word for word.
+#[test]
+fn the_catchup_line_reads_as_the_server_sentence() {
+    let mut h = crew_menu_open();
+
+    let win_clip_voice = vec![
+        catchup_event(
+            "moment",
+            Some("Ann"),
+            serde_json::json!({"sentiment": "win", "game_name": "Valorant"}),
+        ),
+        catchup_event(
+            "clip",
+            Some("Bo"),
+            serde_json::json!({"clip_type": "voice", "duration_seconds": 12.0}),
+        ),
+        catchup_event(
+            "voice_session",
+            None,
+            serde_json::json!({"channel_name": "General", "participant_names": ["Ann", "Bo"], "duration_min": 45}),
+        ),
+    ];
+    let server = "Ann had a win in Valorant, Bo clipped that (12s voice), and Ann and Bo hung out in General for 45m";
+    // The server text is a different string, so the line is the client's own.
+    assert_eq!(catchup_line(&mut h, win_clip_voice, "old"), server);
+
+    let streak = vec![catchup_event(
+        "game_session",
+        None,
+        serde_json::json!({"player_names": ["Bob", "Max"], "game_name": "CS2", "wins": 4, "losses": 2, "streak_after": 3}),
+    )];
+    assert_eq!(
+        catchup_line(&mut h, streak, "old"),
+        "Bob and Max went 4W–2L in CS2, riding a 3-win streak"
+    );
+
+    // An old server sends no events: its text shows as it is.
+    assert_eq!(
+        catchup_line(&mut h, vec![], "2 clips from an old server"),
+        "2 clips from an old server"
+    );
+
+    // Nothing happened: the quiet line, from the client.
+    h.emit(Event::CatchupLoaded {
+        response: mello_core::crew_events::CatchupResponse {
+            crew_id: "crew-2".into(),
+            catchup_text: String::new(),
+            event_count: 0,
+            top_events: vec![],
+            has_events: false,
+        },
+    });
+    assert_eq!(
+        crew_row(&h, "crew-2").catchup_text.as_str(),
+        "All quiet, crew's been chilling. Nothing new since you left."
+    );
+    assert_crew_menu_open(&h, "a catch-up");
+}
+
+/// Under the pseudo language the catch-up line changes, and keeps the names
+/// and the numbers.
+#[cfg(debug_assertions)]
+#[test]
+fn the_catchup_line_follows_the_ui_language() {
+    use crate::build_l10n::{pseudo, PSEUDO};
+    let mut h = crew_menu_open();
+    let events = vec![
+        catchup_event(
+            "moment",
+            Some("Ann"),
+            serde_json::json!({"sentiment": "win", "game_name": "Valorant"}),
+        ),
+        catchup_event(
+            "chat_activity",
+            None,
+            serde_json::json!({"message_count": 14, "active_user_count": 3}),
+        ),
+    ];
+    let english = "Ann had a win in Valorant and 14 messages from 3 people in chat";
+    assert_eq!(catchup_line(&mut h, events.clone(), "old"), english);
+
+    crate::locale::select(PSEUDO).expect("select qps");
+    let text = catchup_line(&mut h, events, "old");
+    crate::locale::select_source_language();
+
+    let win = pseudo("{0} had a win in {1}")
+        .replace("{0}", "Ann")
+        .replace("{1}", "Valorant");
+    let chat = pseudo("{n} messages from {0} people in chat")
+        .replace("{n}", "14")
+        .replace("{0}", "3");
+    let want = pseudo("{0} and {1}")
+        .replace("{0}", &win)
+        .replace("{1}", &chat);
+    assert_eq!(text, want);
+    assert_ne!(text, english);
+}
+
 /// ★ Regression (#105): another crew leaves the list. The rows change, and
 /// the active crew card and its menu stay.
 #[test]
@@ -8273,6 +8405,96 @@ fn recap_with_two_moved_belts_shows_two_rows_and_the_held_section() {
     );
     // The hangout numbers stay.
     assert_eq!(card.game_name.as_str(), "Rocket League");
+}
+
+fn game_awards(with_value: bool) -> serde_json::Value {
+    let award = |kind: &str, title: &str, name: &str, detail: &str, value: i64| {
+        let mut a =
+            serde_json::json!({"kind": kind, "title": title, "name": name, "detail": detail});
+        if with_value {
+            a["value"] = value.into();
+        }
+        a
+    };
+    serde_json::json!({"awards": [
+        award("grinder", "Grinder of the week", "Max", "12 matches", 12),
+        award("heater", "Biggest heater", "Bob", "4-win streak", 4),
+        award("skid", "Roughest patch", "Ida", "3-loss skid", 3),
+        {"kind": "belt", "title": "The Carry", "name": "Jonas", "detail": "took it from Bob"},
+    ]})
+}
+
+/// The title, the name and the detail of each award of the first card.
+fn award_rows(h: &Harness) -> Vec<(String, String, String)> {
+    let card = first_card(h);
+    (0..card.awards.row_count())
+        .filter_map(|i| card.awards.row_data(i))
+        .map(|a| (a.title.into(), a.name.into(), a.detail.into()))
+        .collect()
+}
+
+fn english_awards() -> Vec<(String, String, String)> {
+    [
+        ("Grinder of the week", "Max", "12 matches"),
+        ("Biggest heater", "Bob", "4-win streak"),
+        ("Roughest patch", "Ida", "3-loss skid"),
+    ]
+    .map(|(t, n, d)| (t.to_string(), n.to_string(), d.to_string()))
+    .to_vec()
+}
+
+/// The client writes the game awards of a recap from the kind and the
+/// count. In English they read as the stored text. A belt award stays out.
+#[test]
+fn recap_game_awards_read_as_the_stored_english() {
+    let mut h = Harness::new();
+    emit_recap(&mut h, game_awards(true));
+    assert_eq!(award_rows(&h), english_awards());
+}
+
+/// A recap stored before the count shows its stored title and detail.
+#[test]
+fn an_old_recap_shows_its_stored_award_text() {
+    let mut h = Harness::new();
+    let mut old = game_awards(false);
+    old["awards"][0]["title"] = "Stored title".into();
+    old["awards"][0]["detail"] = "stored detail".into();
+    emit_recap(&mut h, old);
+    let mut want = english_awards();
+    want[0] = ("Stored title".into(), "Max".into(), "stored detail".into());
+    assert_eq!(award_rows(&h), want);
+}
+
+/// Under the pseudo language the award titles and details change, and keep
+/// the names and the counts.
+#[cfg(debug_assertions)]
+#[test]
+fn recap_game_awards_follow_the_ui_language() {
+    use crate::build_l10n::{pseudo, PSEUDO};
+    let mut h = Harness::new();
+    crate::locale::select(PSEUDO).expect("select qps");
+    emit_recap(&mut h, game_awards(true));
+    let rows = award_rows(&h);
+    crate::locale::select_source_language();
+    let want: Vec<(String, String, String)> = vec![
+        (
+            pseudo("Grinder of the week"),
+            "Max".into(),
+            pseudo("{n} matches").replace("{n}", "12"),
+        ),
+        (
+            pseudo("Biggest heater"),
+            "Bob".into(),
+            pseudo("{n}-win streak").replace("{n}", "4"),
+        ),
+        (
+            pseudo("Roughest patch"),
+            "Ida".into(),
+            pseudo("{n}-loss skid").replace("{n}", "3"),
+        ),
+    ];
+    assert_eq!(rows, want);
+    assert_ne!(rows, english_awards());
 }
 
 /// The tall card shows two moved belts and "+N more" in the section header.

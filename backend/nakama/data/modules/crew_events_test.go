@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 )
 
@@ -111,5 +113,63 @@ func TestClampGameSessionDurations(t *testing.T) {
 			t.Fatalf("clampGameSessionDurations(%d, %d) = (%d, %d), want (%d, %d)",
 				c.duration, c.active, gotDuration, gotActive, c.wantDuration, c.wantActive)
 		}
+	}
+}
+
+// The catch-up names the actor of a moment and of a clip in actor_name, so
+// the client can write the sentence in the language of the user. The English
+// catchup_text does not change.
+func TestCatchupEventsCarryTheActorName(t *testing.T) {
+	nk := newFakeGuestNk()
+	nk.addMember("crew", "u1", "Ann")
+	nk.addMember("crew", "u2", "Bo")
+	events := []CrewEvent{
+		{ID: "m", Type: "moment", ActorID: "u1", Timestamp: 300, Score: 30,
+			Data: MomentData{Sentiment: "win", GameName: "Valorant"}},
+		{ID: "c", Type: "clip", ActorID: "u2", Timestamp: 200, Score: 20,
+			Data: StoredClip{ClipType: "voice", DurationSeconds: 12}},
+		{ID: "v", Type: "voice_session", ActorID: "u1", Timestamp: 100, Score: 10,
+			Data: VoiceSessionData{ChannelName: "General", ParticipantNames: []string{"Ann", "Bo"}, DurationMin: 45}},
+	}
+
+	resp := buildCatchup(events, 0, "crew", context.Background(), nk)
+
+	if len(resp.TopEvents) != 3 {
+		t.Fatalf("top_events: %+v", resp.TopEvents)
+	}
+	names := map[string]string{}
+	for _, e := range resp.TopEvents {
+		names[e.Type] = e.ActorName
+	}
+	if names["moment"] != "Ann" || names["clip"] != "Bo" {
+		t.Errorf("actor names: %+v", names)
+	}
+	if names["voice_session"] != "" {
+		t.Errorf("a voice session has no actor name: %q", names["voice_session"])
+	}
+	wantText := "Ann had a win in Valorant, Bo clipped that (12s voice), and Ann and Bo hung out in General for 45m"
+	if resp.CatchupText != wantText {
+		t.Errorf("catchup_text:\n got %q\nwant %q", resp.CatchupText, wantText)
+	}
+	raw, _ := json.Marshal(resp)
+	if !strings.Contains(string(raw), `"actor_name":"Ann"`) || strings.Count(string(raw), `"actor_name"`) != 2 {
+		t.Errorf("catch-up JSON: %s", raw)
+	}
+}
+
+// An actor that the server does not find has no actor_name. The English text
+// says "someone".
+func TestCatchupActorNotFoundHasNoName(t *testing.T) {
+	nk := newFakeGuestNk()
+	events := []CrewEvent{
+		{ID: "c", Type: "clip", ActorID: "gone", Timestamp: 100, Score: 20,
+			Data: StoredClip{ClipType: "game", DurationSeconds: 30}},
+	}
+	resp := buildCatchup(events, 0, "crew", context.Background(), nk)
+	if len(resp.TopEvents) != 1 || resp.TopEvents[0].ActorName != "" {
+		t.Fatalf("top_events: %+v", resp.TopEvents)
+	}
+	if resp.CatchupText != "someone clipped that (30s game)" {
+		t.Errorf("catchup_text: %q", resp.CatchupText)
 	}
 }

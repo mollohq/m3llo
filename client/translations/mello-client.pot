@@ -3237,6 +3237,11 @@ msgstr ""
 msgid "{0} and {1}"
 msgstr ""
 
+#. {0} is the first items, {1} and {2} are the last two items.
+#: client/ui/tr.slint
+msgid "{0}, {1}, and {2}"
+msgstr ""
+
 #. {0} is the list, {1} is the count of the other names.
 #: client/ui/tr.slint
 msgctxt "format"
@@ -3471,6 +3476,21 @@ msgctxt "noun"
 msgid "game"
 msgstr ""
 
+#. The award of the member with the most matches of the week.
+#: client/ui/tr.slint
+msgid "Grinder of the week"
+msgstr ""
+
+#. The award of the member with the longest run of wins of the week.
+#: client/ui/tr.slint
+msgid "Biggest heater"
+msgstr ""
+
+#. The award of the member with the longest run of losses of the week.
+#: client/ui/tr.slint
+msgid "Roughest patch"
+msgstr ""
+
 #: client/ui/tr.slint
 msgid "{} joined"
 msgstr ""
@@ -3562,6 +3582,93 @@ msgstr ""
 #: client/ui/tr.slint
 msgid "streaming"
 msgstr ""
+
+#. Nothing happened while the user was away.
+#: client/ui/tr.slint
+msgid "All quiet, crew's been chilling. Nothing new since you left."
+msgstr ""
+
+#. {0} is the member, {1} is the text that the member wrote.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}: {1}"
+msgstr ""
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a win in {1}"
+msgstr ""
+
+#. {0} is the member, {1} is the game. "An L" is a loss.
+#: client/ui/tr.slint
+msgid "{0} took an L in {1}"
+msgstr ""
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a moment in {1}"
+msgstr ""
+
+#. {0} is the names, {1} is the channel, {2} is a duration ("45m").
+#: client/ui/tr.slint
+msgid "{0} hung out in {1} for {2}"
+msgstr ""
+
+#. {0} is the streamer, {1} is the stream title, {2} is a duration ("90m").
+#: client/ui/tr.slint
+msgid "{0} streamed {1} for {2}"
+msgstr ""
+
+#. {0} is the names, {1} is the record ("4W–2L"), {2} is the game.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}"
+msgstr ""
+
+#. {0} names, {1} record, {2} game, {n} wins in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, riding a {n}-win streak"
+msgid_plural "{0} went {1} in {2}, riding a {n}-win streak"
+msgstr[0] ""
+msgstr[1] ""
+
+#. {0} names, {1} record, {2} game, {n} losses in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, on a {n}-loss skid"
+msgid_plural "{0} went {1} in {2}, on a {n}-loss skid"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/tr.slint
+msgid "{} joined the crew"
+msgstr ""
+
+#: client/ui/tr.slint
+msgid "{} left the crew"
+msgstr ""
+
+#. {n} is the messages, {0} is the members who wrote.
+#: client/ui/tr.slint
+msgid "{n} messages from {0} people in chat"
+msgid_plural "{n} messages from {0} people in chat"
+msgstr[0] ""
+msgstr[1] ""
+
+#. {0} is the member, {1} is the seconds, {2} is the clip kind.
+#: client/ui/tr.slint
+msgid "{0} clipped that ({1}s {2})"
+msgstr ""
+
+#. The weekly recap of the crew is ready to open.
+#: client/ui/tr.slint
+msgid "weekly recap is ready"
+msgstr ""
+
+#. {0} is the names, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} others"
+msgid_plural "{0} and {n} others"
+msgstr[0] ""
+msgstr[1] ""
 
 #. {0} is the steps done, {1} is all the steps.
 #: client/ui/tr.slint
@@ -4394,12 +4501,6 @@ msgstr ""
 
 #: client/ui/tr.slint
 msgid "{} jumped in"
-msgstr ""
-
-#. {0} is the sender, {1} is the message.
-#: client/ui/tr.slint
-msgctxt "format"
-msgid "{0}: {1}"
 msgstr ""
 
 #: client/ui/tr.slint

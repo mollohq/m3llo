@@ -108,6 +108,35 @@ A value that holds server text (`AuthFailure::Server`, `GiftFailure::Server`)
 or the error text of a native step (`StreamFailure::Detail`) shows that text
 as it is.
 
+### Server text with a kind and values
+
+The rule: the server sends no new user sentence. It sends a kind and values,
+and the client writes the sentence from `Tr`. The feed cards work this way
+already (`handlers::clip::extract_title`).
+
+Old clients and the mobile app read the English fields. These fields stay,
+with their English content. The server adds the new fields next to them.
+
+| Payload | Kind and values | English field that stays | Client |
+|---|---|---|---|
+| `crew_catchup` (`CatchupResponse`) | `top_events[]`: `type`, `data`, and `actor_name` for a moment and a clip | `catchup_text` | `handlers::catchup::caption` |
+| A weekly recap (`awards[]`, `RecapAward`) | `kind`, `value` (the count) for `grinder`, `heater`, `skid` | `title`, `detail` | `handlers::clip::extract_recap_awards` |
+
+Old servers and old stored data:
+
+- The catch-up: when `has_events` is true and `top_events` is empty, the
+  client shows `catchup_text` as it is. When `has_events` is false, the
+  client shows the quiet line from `Tr`. An `actor_name` that is not there
+  shows as `someone`.
+- A recap is stored with its English awards. A recap stored before `value`
+  has no `value`, and the client shows the stored `title` and `detail`.
+
+The English line of the client is the English line of the server, word for
+word. The flow tests compare them (`the_catchup_line_reads_as_the_server_sentence`,
+`recap_game_awards_read_as_the_stored_english`). The catch-up line joins its
+parts with `list_and_serial` ("A, B, and C"). This list has a comma before
+"and", and `list_and` does not.
+
 ### Text outside the Slint window
 
 The tray menu, the macOS menu bar, the taskbar buttons, OS notifications and
@@ -398,7 +427,7 @@ another file. Add a function to the module, and call it.
 | Time of day | `time_of_day`: 12 h or 24 h from `clock_form()`. The AM and PM markers come from `Tr`. |
 | Durations | `duration_hm_short` ("1h 23m"), `duration_h_mm` ("6 h 40"), `duration_clock` ("0:45"), `since`. The unit letters have the context `unit`. |
 | Numbers | `grouped`: the group separator is the message `digit-group-separator` (context `format`). `percent`, `approx` ("~1h 5m"), `file_size` ("860 KB"), `milliseconds` ("118 ms"). |
-| Lists | `list_and` ("Bob, Max and Sara"), `list_comma`, `list_plus` ("Bob, Max +3"), `list_and_more` ("Bob, Max and 3 more"), `dot_pair` ("4W–2L · 3-win streak"). A list is never joined with `join(", ")` for the UI. |
+| Lists | `list_and` ("Bob, Max and Sara"), `list_and_serial` ("Bob, Max, and Sara", the catch-up line), `list_comma`, `list_plus` ("Bob, Max +3"), `list_and_more` ("Bob, Max and 3 more"), `dot_pair` ("4W–2L · 3-win streak"). A list is never joined with `join(", ")` for the UI. |
 | Upper case | `week_label_upper`, `feed_card_age_upper`, `weekday_name_upper`, `month_short_upper_name`. |
 
 Decisions:

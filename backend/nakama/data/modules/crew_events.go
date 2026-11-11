@@ -344,11 +344,17 @@ type CatchupResponse struct {
 	HasEvents   bool           `json:"has_events"`
 }
 
+// CatchupEvent is one event of the catch-up, in the order of catchup_text.
+// The client makes its own sentence from the type and the values, in the
+// language of the user. catchup_text stays in English for old clients.
 type CatchupEvent struct {
-	Type    string      `json:"type"`
-	ActorID string      `json:"actor_id"`
-	Ts      int64       `json:"ts"`
-	Data    interface{} `json:"data"`
+	Type    string `json:"type"`
+	ActorID string `json:"actor_id"`
+	// ActorName is the display name of the actor of a moment or a clip. It is
+	// empty when the user is not found. The client then shows "someone".
+	ActorName string      `json:"actor_name,omitempty"`
+	Ts        int64       `json:"ts"`
+	Data      interface{} `json:"data"`
 }
 
 const quietCatchupText = "All quiet, crew's been chilling. Nothing new since you left."
@@ -431,15 +437,20 @@ func buildCatchup(events []CrewEvent, lastSeen int64, crewID string, ctx context
 	})
 
 	selected := selectDiverse(recent, CatchupTopN)
-	text := renderCatchupText(selected, ctx, nk)
+	names := make([]string, len(selected))
+	for i, e := range selected {
+		names[i] = catchupActorName(e, ctx, nk)
+	}
+	text := renderCatchupText(selected, names)
 
 	topEvents := make([]CatchupEvent, 0, len(selected))
-	for _, e := range selected {
+	for i, e := range selected {
 		topEvents = append(topEvents, CatchupEvent{
-			Type:    e.Type,
-			ActorID: e.ActorID,
-			Ts:      e.Timestamp,
-			Data:    e.Data,
+			Type:      e.Type,
+			ActorID:   e.ActorID,
+			ActorName: names[i],
+			Ts:        e.Timestamp,
+			Data:      e.Data,
 		})
 	}
 
@@ -508,24 +519,37 @@ func selectDiverse(events []CrewEvent, n int) []CrewEvent {
 // Template rendering
 // ---------------------------------------------------------------------------
 
-func renderCatchupText(events []CrewEvent, ctx context.Context, nk runtime.NakamaModule) string {
+// catchupActorName is the display name of the actor of a moment or a clip.
+// The data of these two types has no name, so the server reads it. It is ""
+// for another type, or when the user is not found.
+func catchupActorName(e CrewEvent, ctx context.Context, nk runtime.NakamaModule) string {
+	switch e.Type {
+	case "moment", "clip":
+		return resolveUsername(ctx, nk, e.ActorID)
+	}
+	return ""
+}
+
+// renderCatchupText makes the English catch-up text. names[i] is the actor
+// name of events[i] (catchupActorName).
+func renderCatchupText(events []CrewEvent, names []string) string {
 	fragments := make([]string, 0, len(events))
-	for _, e := range events {
-		if f := renderEventFragment(e, ctx, nk); f != "" {
+	for i, e := range events {
+		if f := renderEventFragment(e, names[i]); f != "" {
 			fragments = append(fragments, f)
 		}
 	}
 	return joinWithAnd(fragments)
 }
 
-func renderEventFragment(e CrewEvent, ctx context.Context, nk runtime.NakamaModule) string {
+func renderEventFragment(e CrewEvent, actorName string) string {
 	dataBytes, _ := json.Marshal(e.Data)
 
 	switch e.Type {
 	case "moment":
 		var d MomentData
 		json.Unmarshal(dataBytes, &d)
-		name := resolveUsername(ctx, nk, e.ActorID)
+		name := actorName
 		if name == "" {
 			name = "someone"
 		}
@@ -587,7 +611,7 @@ func renderEventFragment(e CrewEvent, ctx context.Context, nk runtime.NakamaModu
 	case "clip":
 		var d ClipData
 		json.Unmarshal(dataBytes, &d)
-		name := resolveUsername(ctx, nk, e.ActorID)
+		name := actorName
 		if name == "" {
 			name = "someone"
 		}

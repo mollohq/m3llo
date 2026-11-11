@@ -32,6 +32,10 @@ pub struct CatchupEvent {
     pub event_type: String,
     #[serde(default)]
     pub actor_id: String,
+    /// The display name of the actor of a moment or a clip. `None` from an
+    /// old server, or when the server does not find the user.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub actor_name: Option<String>,
     #[serde(default)]
     pub ts: i64,
     #[serde(default)]

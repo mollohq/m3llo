@@ -397,12 +397,17 @@ initializer.RegisterRpc("crew_catchup", CrewCatchupRPC)
     "catchup_text": "ash hit Immortal in Valorant, new scrim times posted, and koji streamed his first ace yesterday.",
     "event_count": 14,
     "top_events": [
-        { "type": "moment", "actor_id": "user_a", "ts": 1711350000000, "data": { "text": "hit Immortal", "sentiment": "highlight", "game_name": "Valorant" } },
+        { "type": "moment", "actor_id": "user_a", "actor_name": "ash", "ts": 1711350000000, "data": { "text": "hit Immortal", "sentiment": "highlight", "game_name": "Valorant" } },
         { "type": "stream_session", "actor_id": "user_c", "ts": 1711340000000, "data": { "streamer_name": "koji", "title": "first ace", "duration_min": 30 } }
     ],
     "has_events": true
 }
 ```
+
+`catchup_text` is English, for old clients. The client makes its own line
+from `top_events` in the language of the user (`specs/features/LOCALIZATION.md`,
+"Server text with a kind and values"). `actor_name` is on a moment and a clip
+only, and is absent when the server does not find the user.
 
 When there are no events or `last_seen` is recent (< 4 hours), return the quiet state:
 
@@ -811,6 +816,8 @@ pub struct CatchupEvent {
     #[serde(rename = "type")]
     pub event_type: String,
     pub actor_id: String,
+    /// The display name of the actor of a moment or a clip.
+    pub actor_name: Option<String>,
     pub ts: i64,
     pub data: serde_json::Value,
 }

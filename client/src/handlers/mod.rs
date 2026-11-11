@@ -1,4 +1,5 @@
 mod auth;
+mod catchup;
 pub(crate) mod chat;
 pub(crate) mod clip;
 mod crew;
