@@ -102,7 +102,22 @@ Sizes in the centre:
   (Oxanium 700 120 px, unit in Barlow 300 34 px), the stat sentence (Barlow 300 18 px),
   and on the right the holder (avatar 112 px, name Oxanium 600 34 px) and
   "took it from" with the previous holder (avatar 22 px).
-- **Recap:** the recap card at the size of the sealed recap on the Board (one column, two rows), scaled by `min(1.1, (panel height - 2 * 40 px) / h, (panel width - 2 * 40 px) / w)`: it grows to 1.1 as in the fx lab and never past the panel. The panel is the clipped stage, the feed panel. The card stands in the centre of the panel and keeps 40 px on every side.
+- **Recap:** the recap has two boxes.
+  - The back is the sealed recap in the box of its slot. It grows until it fits in the box of the face.
+  - The face is the centre card, a layout of 508 by 360 (`RecapCentre`), scaled by
+    `min(1.5, (panel height - 2 * 40 px) / 360, (panel width - 2 * 40 px) / 508)`.
+    It is 762 by 540 on a panel of 865 by 784, and never past the panel.
+  - The box changes from the back to the face at 1030 ms. The flip shows the card on its edge then, so the change does not show.
+  - On close the face flies back and shrinks until it fits in its slot. The card of the slot fades in over it.
+
+  The panel is the clipped stage, the feed panel. The card stands in the centre of the panel and keeps 40 px on every side.
+  The centre card has two columns with a keyline between. The feed slot and the Week tab keep the tall card and the wide card.
+
+  | Week | Left column | Right column | Under both columns |
+  |---|---|---|---|
+  | With belts | The week, the numbers, Most active, Most clipped | Belts moved (three rows, then `+N MORE`), Belts held (four members) | Games played, four tiles in a row |
+  | With no belt | The week, the numbers, Most active, Most clipped | Games played, two tiles in a row, three rows | Nothing |
+
   The back clears with radius `clear * 470 px`, 80 px soft edge. The numbers count up, the top game fades in with them.
   The revealed card has no control. Back on the Board, the week is the Week tab.
 
@@ -203,6 +218,9 @@ The slot is open and the dot is clear.
 
 Previews and renders: `PreviewFeedSealed` (stage D with sealed belts and recap) and
 `PreviewRevealFrame` (the centre view at 1400 ms), rendered with `slint-viewer`.
+`previews/recap_reveal_preview.slint` has the recap in the centre view: `PreviewRevealRecap`
+(at rest), `PreviewRevealRecapBack` (the back at 850 ms), and the weeks with no belt, with
+five belts moved, and with the numbers only.
 
 ## 8. Measured
 

@@ -727,20 +727,68 @@ fn open_recap_in_the_centre(panel_w: f32, panel_h: f32) -> Harness {
     h
 }
 
-/// The recap in the centre keeps 40 px of the panel on every side and grows
-/// to 1.1 times its slot at most (the fx lab): `min(1.1, (panel height - 80)
-/// / card height, (panel width - 80) / card width)`.
+/// The face of the recap in the centre is the two column card, 508 by 360. It
+/// keeps 40 px of the panel on every side and grows to 1.5 times its box at
+/// most: `min(1.5, (panel height - 80) / 360, (panel width - 80) / 508)`.
 #[test]
-fn the_opened_recap_is_inside_a_900_px_tall_feed_panel() {
+fn the_opened_recap_is_762_by_540_in_a_900_px_tall_feed_panel() {
     let h = open_recap_in_the_centre(1008.0, 900.0);
     assert_card_inside_panel(&h);
-    // It grows to 1.1 times its slot, not past it.
-    let (_, _, w, _) = bounds_of(&h, "SealedCardBounds");
-    let (_, _, sw, _) = bounds_of(&h, "RecapCard");
-    assert!(w <= sw * 1.1 + 0.5, "card {w} wide from a {sw} wide slot");
+    let (_, _, w, hgt) = bounds_of(&h, "SealedCardBounds");
     assert!(
-        w >= sw * 1.1 - 0.5,
-        "card {w} wide: the 900 px panel has room for 1.1 of {sw}"
+        (w - 762.0).abs() < 0.5 && (hgt - 540.0).abs() < 0.5,
+        "the card is {w} by {hgt}"
+    );
+    let (_, _, cw, ch) = bounds_of(&h, "RecapCard");
+    assert_eq!((cw, ch), (508.0, 360.0), "the box before the scale");
+}
+
+/// Before the flip the recap shows its back. The back keeps the shape of its
+/// slot and grows as large as fits in the box of the face.
+#[test]
+fn the_back_of_the_recap_keeps_the_shape_of_its_slot() {
+    let mut h = Harness::new();
+    emit_recap(&mut h, serde_json::json!({"week_end": now_ms()}));
+    size_feed_panel(&h, 1008.0, 900.0);
+    at(&h, 0);
+    h.click_label("Sealed recap, open it");
+    let from = ui(&h).get_from();
+    at(&h, 850);
+    assert_card_inside_panel(&h);
+    let (_, _, w, hgt) = bounds_of(&h, "SealedCardBounds");
+    let msg = format!("back {w} by {hgt} from a slot {} by {}", from.w, from.h);
+    assert!((w / hgt - from.w / from.h).abs() < 0.01, "{msg}");
+    assert!(w <= 762.5 && hgt <= 540.5, "{msg}");
+    assert!(
+        (w - 762.0).abs() < 0.5 || (hgt - 540.0).abs() < 0.5,
+        "one side fills the box of the face: {msg}"
+    );
+}
+
+/// On the close the face goes back as large as fits in its slot, in the
+/// centre of the slot.
+#[test]
+fn the_closing_recap_lands_inside_its_slot() {
+    let mut h = open_recap_in_the_centre(1008.0, 900.0);
+    let from = ui(&h).get_from();
+    h.click_label("Close");
+    assert!(ui(&h).get_closing());
+    // The flight back takes 460 ms. The card is in its slot at the end.
+    at(&h, 1800 + 455);
+    let (x, y, w, hgt) = bounds_of(&h, "SealedCardBounds");
+    let s = (from.w / 508.0).min(from.h / 360.0);
+    let msg = format!(
+        "card {x},{y} {w}x{hgt} in slot {},{} {}x{}",
+        from.x, from.y, from.w, from.h
+    );
+    assert!(
+        (w - 508.0 * s).abs() < 1.0 && (hgt - 360.0 * s).abs() < 1.0,
+        "{msg}"
+    );
+    assert!(
+        ((x + w / 2.0) - (from.x + from.w / 2.0)).abs() < 1.0
+            && ((y + hgt / 2.0) - (from.y + from.h / 2.0)).abs() < 1.0,
+        "centred: {msg}"
     );
 }
 
