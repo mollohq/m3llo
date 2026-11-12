@@ -546,6 +546,21 @@ export component MainWindow inherits Window {
     in-out property <int> crew-settings-active-tab: 0;
     in-out property <bool> crew-settings-is-open: false;
     in-out property <string> crew-settings-invite-policy: "everyone";
+    // The push switches of the crew whose settings are open. `push-ready` is
+    // false until the server gives their state.
+    in-out property <bool> crew-settings-push-messages: false;
+    in-out property <bool> crew-settings-push-looking-to-play: false;
+    in property <bool> crew-settings-push-ready: false;
+    callback crew-settings-opened();
+    callback crew-settings-push-messages-toggled(/* on */ bool);
+    callback crew-settings-push-looking-to-play-toggled(/* on */ bool);
+    // The one way to open crew settings: `crew-settings-opened` loads the
+    // state that the modal does not get from the crew state.
+    public function open-crew-settings(tab: int) {
+        root.crew-settings-active-tab = tab;
+        root.crew-settings-open = true;
+        root.crew-settings-opened();
+    }
     callback crew-settings-save(/* name */ string, /* description */ string);
     callback crew-settings-avatar-upload();
     callback crew-settings-add-channel(/* name */ string);
@@ -1092,8 +1107,7 @@ export component MainWindow inherits Window {
                     root.invite-share-requested();
                 }
                 crew-edit-requested => {
-                    root.crew-settings-active-tab = 0;
-                    root.crew-settings-open = true;
+                    root.open-crew-settings(0);
                 }
                 crew-leave-requested => {
                     root.crew-context-leave();
@@ -2142,8 +2156,17 @@ export component MainWindow inherits Window {
         crew-is-open <=> root.crew-settings-is-open;
         crew-invite-policy <=> root.crew-settings-invite-policy;
         show-saved <=> root.crew-settings-show-saved;
+        push-messages <=> root.crew-settings-push-messages;
+        push-looking-to-play <=> root.crew-settings-push-looking-to-play;
+        push-ready: root.crew-settings-push-ready;
         close-requested => {
             root.crew-settings-open = false;
+        }
+        push-messages-toggled(on) => {
+            root.crew-settings-push-messages-toggled(on);
+        }
+        push-looking-to-play-toggled(on) => {
+            root.crew-settings-push-looking-to-play-toggled(on);
         }
         save-crew(name, description) => {
             root.crew-settings-save(name, description);

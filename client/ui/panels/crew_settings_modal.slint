@@ -30,6 +30,89 @@ component SectionHeader inherits Rectangle {
     }
 }
 
+// ─── Toggle switch ─────────────────────────────────────────────────────────
+// A press flips `checked`, then sends `toggled` with the new value.
+component CrewToggle inherits Rectangle {
+    in-out property <bool> checked: false;
+    /// False: dimmed, and a press does nothing.
+    in property <bool> enabled: true;
+    /// Accessible label: what the switch controls, for screen readers and the e2e driver.
+    in property <string> label;
+    callback toggled(bool);
+
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: checked ? Theme.accent : Theme.graphic-light;
+    opacity: enabled ? 1.0 : 0.4;
+
+    Rectangle {
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        // A white knob on a white track cannot be seen.
+        background: checked ? Theme.on-action : Theme.text-secondary;
+        x: checked ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+
+        animate x { duration: 150ms; }
+    }
+
+    TouchArea {
+        enabled: root.enabled;
+        accessible-role: switch;
+        accessible-label: root.label;
+        accessible-enabled: root.enabled;
+        accessible-checkable: true;
+        accessible-checked: root.checked;
+        mouse-cursor: pointer;
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+// ─── Switch Row (title + one line + toggle) ────────────────────────────────
+component SwitchRow inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> description;
+    in-out property <bool> checked: false;
+    in property <bool> enabled: true;
+    callback toggled(bool);
+
+    spacing: 12px;
+
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 2px;
+
+        Text {
+            font-family: Theme.font-display;
+            text: root.title;
+            font-size: 13px;
+            font-weight: Theme.weight-display;
+            color: Theme.text-primary;
+        }
+        Text {
+            font-weight: Theme.weight-sentence;
+            font-family: Theme.font-body;
+            text: root.description;
+            font-size: 11px;
+            color: Theme.text-tertiary;
+            wrap: word-wrap;
+        }
+    }
+
+    CrewToggle {
+        y: (parent.height - self.height) / 2;
+        checked <=> root.checked;
+        enabled: root.enabled;
+        label: root.title;
+        toggled(on) => { root.toggled(on); }
+    }
+}
+
 // ─── Overview Tab ──────────────────────────────────────────────────────────
 component OverviewTab inherits VerticalLayout {
     padding: 40px;
@@ -207,32 +290,10 @@ component OverviewTab inherits VerticalLayout {
                 }
             }
 
-            // Toggle switch
-            Rectangle {
-                width: 44px;
-                height: 24px;
-                border-radius: 12px;
-                background: is-open ? Theme.accent : Theme.graphic-light;
+            CrewToggle {
                 y: (parent.height - self.height) / 2;
-
-                Rectangle {
-                    width: 18px;
-                    height: 18px;
-                    border-radius: 9px;
-                    // A white knob on a white track cannot be seen.
-                    background: is-open ? Theme.on-action : Theme.text-secondary;
-                    x: is-open ? parent.width - self.width - 3px : 3px;
-                    y: 3px;
-
-                    animate x { duration: 150ms; }
-                }
-
-                privacy-ta := TouchArea {
-                    accessible-role: switch;
-                    accessible-label: @tr("Open crew");
-                    mouse-cursor: pointer;
-                    clicked => { is-open = !is-open; }
-                }
+                checked <=> is-open;
+                label: @tr("Open crew");
             }
         }
     }
@@ -748,6 +809,44 @@ component MembersTab inherits VerticalLayout {
     }
 }
 
+// ─── Notifications Tab ─────────────────────────────────────────────────────
+// The push switches of this member for this crew. `ready` is false until the
+// server gives their state.
+component NotificationsTab inherits VerticalLayout {
+    padding: 40px;
+    padding-bottom: 40px;
+    spacing: 32px;
+
+    in-out property <bool> messages: false;
+    in-out property <bool> looking-to-play: false;
+    in property <bool> ready: false;
+
+    callback messages-toggled(bool);
+    callback looking-to-play-toggled(bool);
+
+    VerticalLayout {
+        spacing: 16px;
+
+        SectionHeader { title: @tr("NOTIFICATIONS"); }
+
+        SwitchRow {
+            title: @tr("Messages");
+            description: @tr("A phone push for each new message in this crew");
+            checked <=> root.messages;
+            enabled: root.ready;
+            toggled(on) => { root.messages-toggled(on); }
+        }
+
+        SwitchRow {
+            title: @tr("Looking to play");
+            description: @tr("A push, a toast and a sound when a crew member asks");
+            checked <=> root.looking-to-play;
+            enabled: root.ready;
+            toggled(on) => { root.looking-to-play-toggled(on); }
+        }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── Crew Settings Modal (main export) ─────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
@@ -767,7 +866,13 @@ export component CrewSettingsModal inherits Rectangle {
     in-out property <string> crew-invite-policy: "everyone";
     in-out property <string> new-channel-name: "";
 
-    // Tab state: 0 = Overview, 1 = Voice Channels, 2 = Members
+    // The push switches of this member for this crew. `push-ready` is false
+    // until the server gives their state: the switches are disabled.
+    in-out property <bool> push-messages: false;
+    in-out property <bool> push-looking-to-play: false;
+    in property <bool> push-ready: false;
+
+    // Tab state: 0 = Overview, 1 = Voice Channels, 2 = Members, 3 = Notifications
     in-out property <int> active-tab: 0;
 
     changed active-tab => {
@@ -786,6 +891,8 @@ export component CrewSettingsModal inherits Rectangle {
     callback promote-member(string);
     callback demote-member(string);
     callback kick-member(string);
+    callback push-messages-toggled(bool);
+    callback push-looking-to-play-toggled(bool);
 
     // Backdrop
     background: Theme.scrim;
@@ -1051,6 +1158,53 @@ export component CrewSettingsModal inherits Rectangle {
                                     clicked => { active-tab = 2; }
                                 }
                             }
+
+                            // Notifications
+                            Rectangle {
+                                height: 40px;
+                                background: transparent;
+
+                                if active-tab == 3 || notifications-ta.has-hover: CutButtonShape {
+                                    width: parent.width;
+                                    height: parent.height;
+                                    n: Theme.cut;
+                                    fill: active-tab == 3 ? Theme.graphic-light : Theme.surface-hover;
+                                }
+                                if active-tab == 3: CutButtonShape {
+                                    width: parent.width;
+                                    height: parent.height;
+                                    n: Theme.cut;
+                                    inset: Theme.keyline;
+                                    fill: Theme.surface;
+                                }
+
+                                Image {
+                                    source: @image-url("../icons/bell.svg");
+                                    width: 16px;
+                                    height: 16px;
+                                    colorize: active-tab == 3 ? Theme.text-primary : Theme.text-secondary;
+                                    x: 12px;
+                                    y: (parent.height - self.height) / 2;
+                                    opacity: 0.8;
+                                }
+
+                                Text {
+                                    text: @tr("NOTIFICATIONS");
+                                    font-family: Theme.font-label;
+                                    font-size: 12px;
+                                    font-weight: Theme.weight-label;
+                                    letter-spacing: 0.6px;
+                                    color: active-tab == 3 ? Theme.text-primary : Theme.text-secondary;
+                                    x: 12px + 16px + 12px;
+                                    y: (parent.height - self.preferred-height) / 2;
+                                }
+
+                                notifications-ta := TouchArea {
+                                    accessible-role: tab;
+                                    accessible-label: @tr("NOTIFICATIONS");
+                                    clicked => { active-tab = 3; }
+                                }
+                            }
                         }
 
                         Rectangle {
@@ -1068,7 +1222,7 @@ export component CrewSettingsModal inherits Rectangle {
                     crew-scroll := MelloScrollArea {
                         width: parent.width;
                         height: parent.height;
-                        content-height: active-tab == 0 ? overview-tab.preferred-height : (active-tab == 1 ? channels-tab.preferred-height : members-tab.preferred-height);
+                        content-height: active-tab == 0 ? overview-tab.preferred-height : (active-tab == 1 ? channels-tab.preferred-height : (active-tab == 2 ? members-tab.preferred-height : notifications-tab.preferred-height));
 
                         overview-tab := OverviewTab {
                             visible: active-tab == 0;
@@ -1102,6 +1256,16 @@ export component CrewSettingsModal inherits Rectangle {
                             promote-member(id) => { root.promote-member(id); }
                             demote-member(id) => { root.demote-member(id); }
                             kick-member(id) => { root.kick-member(id); }
+                        }
+
+                        notifications-tab := NotificationsTab {
+                            visible: active-tab == 3;
+                            width: parent.width;
+                            messages <=> root.push-messages;
+                            looking-to-play <=> root.push-looking-to-play;
+                            ready: root.push-ready;
+                            messages-toggled(on) => { root.push-messages-toggled(on); }
+                            looking-to-play-toggled(on) => { root.push-looking-to-play-toggled(on); }
                         }
                     }
                 }
@@ -1259,6 +1423,9 @@ component CrewSettingsPreview inherits Rectangle {
         crew-description: "Crew for m3llo lovers <3";
         crew-initials: "M3";
         my-role: 0;
+        push-messages: true;
+        push-looking-to-play: false;
+        push-ready: true;
         channels: [
             { id: "c1", name: "General", member-count: 4, is-default: true },
             { id: "c2", name: "Ranked grind", member-count: 2, is-default: false },
@@ -1277,3 +1444,4 @@ component CrewSettingsPreview inherits Rectangle {
 export component Preview inherits CrewSettingsPreview { tab: 0; }
 export component PreviewChannels inherits CrewSettingsPreview { tab: 1; }
 export component PreviewMembers inherits CrewSettingsPreview { tab: 2; }
+export component PreviewNotifications inherits CrewSettingsPreview { tab: 3; }
