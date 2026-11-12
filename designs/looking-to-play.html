@@ -103,7 +103,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
 .gm .tile.any svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .pop .btn{width:100%;padding:13px 12px}
 
-/* ---------- the check card ---------- */
+/* ---------- the ask card ---------- */
 .chk{margin:10px 16px 4px;padding:14px 14px 12px}
 .chk .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .chk .top .left{margin-left:auto;margin-right:12px;font-size:11px}
@@ -210,7 +210,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
 <body>
 
 <h1>Looking to play</h1>
-<p class="lede">Mockup for <code>plans/LOOKING-TO-PLAY.md</code>, phase 0. A check is a message in crew chat. Red is state (the open pip, the ON tag) and the fill of the two buttons that commit: Ask the crew, and In. White is the selected game. Identity hues are on people and the crew only. Game art keeps its colour. Names and games are sample data.</p>
+<p class="lede">Mockup for <code>plans/LOOKING-TO-PLAY.md</code>, phase 0. An ask is a message in crew chat. Red is state (the open pip, the ON tag) and the fill of the two buttons that commit: Ask the crew, and In. White is the selected game. Identity hues are on people and the crew only. Game art keeps its colour. Names and games are sample data.</p>
 
 <h2>Desktop, the chat panel</h2>
 <div class="row">
@@ -292,7 +292,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
     <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
   </div>
 </div>
-<p class="note"><b>Open.</b> The card is a message in the feed. One row for each asked member, because this check asks 10 members or fewer. The red pip and the minutes left show it is open. In is the red button: on desktop it also joins voice. The button in the composer carries the pip while the crew has a check.</p>
+<p class="note"><b>Open.</b> The card is a message in the feed. One row for each asked member, because this ask goes to 10 members or fewer. The red pip and the minutes left show it is open. In is the red button: on desktop it also joins voice. The button in the composer carries the pip while the crew has an open ask.</p>
 </div>
 
 <!-- ============ 3. ON ============ -->
@@ -335,7 +335,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
 
 <!-- ============ 4. CLOSED ============ -->
 <div class="col">
-<div class="kicker">4 · Closed cards, and a build that does not know the check</div>
+<div class="kicker">4 · Closed cards, and a build that does not know the ask</div>
 <div class="panel" style="height:auto">
   <div class="head"><span class="t">Crew chat</span></div>
   <div class="feed" style="justify-content:flex-start">
@@ -379,14 +379,14 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
       <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
     </div></div>
 </div>
-<p class="note" style="max-width:980px"><b>Toast.</b> A small card in the top right corner. It does not dim or block the window and does not take the keyboard. It shows once for a check, with the check sound, and closes after 12 seconds, on its close button or on an answer. It names the crew, because the check can come from a crew you do not have open. It does not show when the card is on screen already. A member can ask once in 10 minutes, so nobody can fire it again and again.</p>
+<p class="note" style="max-width:980px"><b>Toast.</b> A small card in the top right corner. It does not dim or block the window and does not take the keyboard. It shows once for an ask, with its sound, and closes after 12 seconds, on its close button or on an answer. It names the crew, because the ask can come from a crew you do not have open. It does not show when the card is on screen already. A member can ask once in 10 minutes, so nobody can fire it again and again.</p>
 </div>
 
 <!-- ============ 6. OS NOTIFICATION ============ -->
 <div class="col">
 <div class="kicker">6 · Window hidden: the OS notification</div>
 <div class="toast"><span class="ic">m<b>3</b></span><div><div class="tt">Night Shift</div><div class="tb">k0ji is looking to play Counter-Strike 2</div></div></div>
-<p class="note" style="max-width:340px"><b>No buttons.</b> The OS draws this one. The notification library gives no buttons on Windows and macOS. A click brings the window up at the card in chat. The check sound plays with it.</p>
+<p class="note" style="max-width:340px"><b>No buttons.</b> The OS draws this one. The notification library gives no buttons on Windows and macOS. A click brings the window up at the card in chat. The sound plays with it.</p>
 </div>
 
 </div>
@@ -477,7 +477,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
   <div class="phone lock"><div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">No one this time</div></div></div></div>
   <div class="phone lock"><div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">k0ji and oweboweob are playing</div></div></div></div>
 </div>
-<p class="note" style="max-width:300px"><b>Three pushes.</b> Someone is in: your reason to go to the PC. Nobody is: you can stop checking. The third goes once to members who did not answer, when two of the crew are in voice together. Each push of a check replaces the one before.</p>
+<p class="note" style="max-width:300px"><b>Three pushes.</b> Someone is in: your reason to go to the PC. Nobody is: you can stop checking. The third goes once to members who did not answer, when two of the crew are in voice together. Each push of an ask replaces the one before.</p>
 </div>
 
 </div>
@@ -487,7 +487,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
 
 <!-- ============ 11. BIG CARD ============ -->
 <div class="col">
-<div class="kicker">11 · A check that asks everyone, 14 members in</div>
+<div class="kicker">11 · An ask to everyone, 14 members in</div>
 <div class="panel">
   <div class="head"><span class="t">Crew chat</span></div>
   <div class="feed">
@@ -558,7 +558,7 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
     <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
   </div>
 </div>
-<p class="note"><b>Several checks.</b> A crew has one open check for each game, and one with no game. The popover lists them first: a press goes to the card. Then who to ask. A large crew starts with your last picks, and offers a field to find a member, the members who are on now, and Everyone. The button says how many you ask.</p>
+<p class="note"><b>Several asks.</b> A crew has one open ask for each game, and one with no game. The popover lists them first: a press goes to the card. Then who to ask. A large crew starts with your last picks, and offers a field to find a member, the members who are on now, and Everyone. The button says how many you ask.</p>
 </div>
 
 <!-- ============ 13. BIG POPUP ============ -->
@@ -570,12 +570,12 @@ h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi
       <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span><span class="w"><span class="num">14</span><span class="lbl">in</span></span></div>
       <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
     </div></div>
-<p class="note" style="max-width:330px"><b>Who gets it.</b> In a crew of more than 10, a check with a game goes to the members who have that game. A check with no game goes to everyone. The toast shows a count, not names. In joins the voice channel where most of them are.</p>
+<p class="note" style="max-width:330px"><b>Who gets it.</b> In a crew of more than 10, an ask to everyone that names a game goes to the members who have that game. With no game it goes to everyone. The toast shows a count, not names. In joins the voice channel where most of them are.</p>
 </div>
 
 <!-- ============ 14. PICKED ============ -->
 <div class="col">
-<div class="kicker">14 · A check that asks three members</div>
+<div class="kicker">14 · An ask to three members</div>
 <div class="panel" style="height:auto">
   <div class="head"><span class="t">Crew chat</span></div>
   <div class="feed" style="justify-content:flex-start">
