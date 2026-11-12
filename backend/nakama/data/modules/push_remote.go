@@ -511,10 +511,10 @@ func schedulePushAfterGrace(logger runtime.Logger, nk runtime.NakamaModule, user
 	})
 }
 
-// heldPushSend passes a released push to the limiter; tests replace it to
-// observe the recheck.
+// heldPushSend passes a released push to the limiter of its type; tests
+// replace it to observe the recheck.
 var heldPushSend = func(_ context.Context, _ runtime.Logger, _ runtime.NakamaModule, userID string, n pushAlert) {
-	mentionPushes.submit(userID, n)
+	submitPush(userID, n)
 }
 
 // crewMemberSet returns the crew's members (not pending join requests).
