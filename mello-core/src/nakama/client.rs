@@ -1454,6 +1454,34 @@ impl NakamaClient {
         Ok(())
     }
 
+    /// The current user's push switches for one crew, defaults included
+    /// (plans/LOOKING-TO-PLAY.md section 4).
+    pub async fn push_prefs_get(&self, crew_id: &str) -> Result<crate::push_prefs::PushPrefs> {
+        let payload = serde_json::json!({ "crew_id": crew_id });
+        let resp = self.rpc("push_prefs_get", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    /// Stores the user's choice for one or both push switches of a crew. A
+    /// switch that is `None` keeps its value. Returns the switches as they
+    /// apply after the write.
+    pub async fn push_prefs_set(
+        &self,
+        crew_id: &str,
+        messages: Option<bool>,
+        looking_to_play: Option<bool>,
+    ) -> Result<crate::push_prefs::PushPrefs> {
+        let mut payload = serde_json::json!({ "crew_id": crew_id });
+        if let Some(on) = messages {
+            payload["messages"] = on.into();
+        }
+        if let Some(on) = looking_to_play {
+            payload["looking_to_play"] = on.into();
+        }
+        let resp = self.rpc("push_prefs_set", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
     /// Set or clear the orthogonal game field without touching status or
     /// activity, so "playing CS2" can coexist with "in voice" (spec 17 §5.2).
     pub async fn presence_set_game(&self, game: Option<&GamePresence>) -> Result<()> {
@@ -3537,6 +3565,33 @@ mod push_tests {
             payload,
             serde_json::json!({"token": "ab12", "platform": "ios", "environment": "sandbox"})
         );
+    }
+
+    /// A switch that the caller leaves out is not in the payload, so the
+    /// server keeps its stored value.
+    #[tokio::test]
+    async fn push_prefs_set_sends_only_the_switch_that_changed() {
+        let (port, server) = serve_rpc_once();
+        // The test server answers every call with {"success":true}, which is
+        // not a switch reply: only the request is checked here.
+        let _ = signed_in_client(port)
+            .push_prefs_set("c1", Some(false), None)
+            .await;
+        let (head, payload) = server.join().expect("server thread");
+        assert!(head.starts_with("POST /v2/rpc/push_prefs_set "), "{head}");
+        assert_eq!(
+            payload,
+            serde_json::json!({"crew_id": "c1", "messages": false})
+        );
+    }
+
+    #[tokio::test]
+    async fn push_prefs_get_sends_the_crew() {
+        let (port, server) = serve_rpc_once();
+        let _ = signed_in_client(port).push_prefs_get("c1").await;
+        let (head, payload) = server.join().expect("server thread");
+        assert!(head.starts_with("POST /v2/rpc/push_prefs_get "), "{head}");
+        assert_eq!(payload, serde_json::json!({"crew_id": "c1"}));
     }
 
     /// The activity report goes over the socket as a Nakama realtime RPC

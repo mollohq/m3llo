@@ -495,6 +495,16 @@ pub enum Event {
     ChatReadCursors {
         cursors: Vec<(String, crate::chat::ChatReadCursor)>,
     },
+    /// The user's push switches for a crew, after a load or a set
+    /// (plans/LOOKING-TO-PLAY.md section 4).
+    PushPrefsLoaded {
+        prefs: crate::push_prefs::PushPrefs,
+    },
+    /// A load or a set of the push switches failed. The UI puts the switch
+    /// back to the last state it got.
+    PushPrefsFailed {
+        crew_id: String,
+    },
     /// The reactions of the loaded messages, for the crew on screen.
     ChatReactionsLoaded {
         crew_id: String,
