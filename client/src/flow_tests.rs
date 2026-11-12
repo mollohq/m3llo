@@ -8497,9 +8497,9 @@ fn recap_game_awards_follow_the_ui_language() {
     assert_ne!(rows, english_awards());
 }
 
-/// The tall card shows two moved belts and "+N more" in the section header.
+/// The centre card shows three moved belts and "+N more" in the section header.
 #[test]
-fn recap_card_caps_moved_belts_at_two() {
+fn the_centre_recap_caps_moved_belts_at_three() {
     let mut h = Harness::new();
     emit_recap(
         &mut h,
@@ -8516,11 +8516,11 @@ fn recap_card_caps_moved_belts_at_two() {
     recap_in_the_centre(&h);
     assert_eq!(
         count_of(&h, "TitleChip"),
-        2,
-        "the card shows two of the four rows: a clipped row is absent from queries"
+        3,
+        "the card shows three of the four rows: a clipped row is absent from queries"
     );
     assert!(
-        drawn_texts(&h).iter().any(|t| t == "+2 MORE"),
+        drawn_texts(&h).iter().any(|t| t == "+1 MORE"),
         "the rest is a count"
     );
     assert_eq!(
@@ -8543,7 +8543,7 @@ fn recap_without_belts_shows_neither_section() {
     assert_eq!(count_of(&h, "TitleChip"), 0);
 }
 
-// ---- the tall recap card (mockup weekly-recap-card, frame 1) ----
+// ---- the recap card in the centre view (SEALED-REVEAL.md section 3) ----
 
 /// Sessions for the cells under head2head in frame F.
 fn tall_recap_crew(recap: serde_json::Value) -> Harness {
@@ -8630,7 +8630,7 @@ fn week_without_belts() -> serde_json::Value {
     w
 }
 
-const TALL_SECTIONS: [&str; 5] = [
+const RECAP_SECTIONS: [&str; 5] = [
     "RecapHead",
     "RecapPeople",
     "RecapMoved",
@@ -8638,12 +8638,13 @@ const TALL_SECTIONS: [&str; 5] = [
     "RecapGamesStrip",
 ];
 
-/// With belts the recap card has every section.
+/// With belts the recap card has every section, and each of the three belts
+/// that moved has a row.
 #[test]
-fn the_tall_recap_has_every_section_and_two_rows_with_belts() {
+fn the_centre_recap_has_every_section_and_three_rows_with_belts() {
     let h = tall_recap_crew(week_with_everything());
     recap_in_the_centre(&h);
-    for name in TALL_SECTIONS {
+    for name in RECAP_SECTIONS {
         assert_eq!(count_of(&h, name), 1, "{name} is on the card");
     }
     assert_eq!(
@@ -8661,7 +8662,6 @@ fn the_tall_recap_has_every_section_and_two_rows_with_belts() {
         "MOST ACTIVE",
         "MOST CLIPPED",
         "BELTS MOVED",
-        "+1 MORE",
         "BELTS HELD",
         "GAMES PLAYED",
         "Max",
@@ -8670,17 +8670,104 @@ fn the_tall_recap_has_every_section_and_two_rows_with_belts() {
     ] {
         assert!(texts.iter().any(|t| t == want), "{want:?} in {texts:?}");
     }
-    assert_eq!(
-        count_of(&h, "TitleChip"),
-        2,
-        "two belts and the rest a count"
-    );
+    assert_eq!(count_of(&h, "TitleChip"), 3, "a row for each belt");
+    assert!(!texts.iter().any(|t| t.ends_with(" MORE")), "{texts:?}");
     // The games strip is tiles only: the hours of the week stand in its
     // header, Recent games names the games.
     assert!(!texts.iter().any(|t| t == "12 H 20"), "{texts:?}");
     // No note of the mockup stays on the card: no day, no source.
     for note in ["Monday", "Head2head", "Now", "NOW", "31 h 40 together"] {
         assert!(!texts.iter().any(|t| t == note), "{note:?} in {texts:?}");
+    }
+}
+
+/// The box of a section of the centre card, in the px of the card, from the
+/// top left corner of the card. The centre view scales the card: an element
+/// query gives a scaled position and a size that is not scaled.
+fn in_centre_card(h: &Harness, name: &str) -> (f32, f32, f32, f32) {
+    let (cx, cy, cw, ch) = sealed::bounds_of(h, "RecapCard");
+    assert_eq!((cw, ch), (508.0, 360.0), "the box of the centre card");
+    let scale = sealed::bounds_of(h, "SealedCardBounds").2 / cw;
+    let (x, y, w, hgt) = sealed::bounds_of(h, name);
+    ((x - cx) / scale, (y - cy) / scale, w, hgt)
+}
+
+/// The centre card has two columns. The week and the people stand left, the
+/// belts stand right, and the games strip is under both with four tiles.
+#[test]
+fn the_centre_recap_has_two_columns_and_the_games_under_both() {
+    let h = tall_recap_crew(week_with_everything());
+    recap_in_the_centre(&h);
+    let (hx, hy, hw, _) = in_centre_card(&h, "RecapHead");
+    let (px, py, _, ph) = in_centre_card(&h, "RecapPeople");
+    let (mx, my, mw, _) = in_centre_card(&h, "RecapMoved");
+    let (bx, by, _, bh) = in_centre_card(&h, "RecapHeld");
+    let (gx, gy, gw, gh) = in_centre_card(&h, "RecapGamesStrip");
+    let boxes = format!(
+        "head {hx},{hy} {hw} wide, people {px},{py} {ph} tall, moved {mx},{my} {mw} wide, \
+         held {bx},{by} {bh} tall, games {gx},{gy} {gw}x{gh}"
+    );
+    assert!(
+        (px - hx).abs() < 1.0 && py > hy,
+        "the people are under the week: {boxes}"
+    );
+    assert!(
+        mx >= hx + hw && (my - hy).abs() < 1.0,
+        "the belts are right of the week, from the same line: {boxes}"
+    );
+    assert!(
+        (bx - mx).abs() < 1.0 && by > my,
+        "the belts held are under the belts moved: {boxes}"
+    );
+    assert!(
+        gy >= py + ph - 1.0 && gy >= by + bh - 1.0,
+        "the games are under both columns: {boxes}"
+    );
+    assert!(
+        (gx - hx).abs() < 1.0 && (gx + gw - (mx + mw)).abs() < 1.0,
+        "the games strip is as wide as both columns: {boxes}"
+    );
+    assert!(
+        gx >= 0.0 && gx + gw <= 508.0 && gy + gh <= 360.0,
+        "the card holds every section: {boxes}"
+    );
+    // Four tiles in the row: the fifth game has no tile.
+    let texts = drawn_texts(&h);
+    for mono in ["RL", "CS", "FG", "D2"] {
+        assert!(texts.iter().any(|t| t == mono), "{mono} in {texts:?}");
+    }
+    assert!(!texts.iter().any(|t| t == "NS"), "{texts:?}");
+}
+
+/// A week with no belt has its games in the right column, two tiles in a row.
+#[test]
+fn the_centre_recap_with_no_belt_has_its_games_in_the_right_column() {
+    let h = tall_recap_crew(week_without_belts());
+    recap_in_the_centre(&h);
+    for (name, n) in [
+        ("RecapHead", 1),
+        ("RecapPeople", 1),
+        ("RecapMoved", 0),
+        ("RecapHeld", 0),
+        ("RecapGamesStrip", 1),
+    ] {
+        assert_eq!(count_of(&h, name), n, "{name}");
+    }
+    let (hx, hy, hw, _) = in_centre_card(&h, "RecapHead");
+    let (gx, gy, gw, gh) = in_centre_card(&h, "RecapGamesStrip");
+    let boxes = format!("head {hx},{hy} {hw} wide, games {gx},{gy} {gw}x{gh}");
+    assert!(
+        gx >= hx + hw && (gy - hy).abs() < 1.0,
+        "the games are right of the week, from the same line: {boxes}"
+    );
+    assert!(
+        gx + gw <= 508.0 && gy + gh <= 360.0,
+        "the card holds the games: {boxes}"
+    );
+    // Two tiles in a row and three rows: each of the five games has a tile.
+    let texts = drawn_texts(&h);
+    for mono in ["RL", "CS", "FG", "D2", "NS"] {
+        assert!(texts.iter().any(|t| t == mono), "{mono} in {texts:?}");
     }
 }
 

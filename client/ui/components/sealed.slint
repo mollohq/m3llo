@@ -301,6 +301,14 @@ export component BeltSlot inherits Rectangle {
     }
 }
 
+/// The box of the weekly recap in the centre view, before the view scales it
+/// (SEALED-REVEAL.md section 3). It is two columns wide: the centre view has
+/// more width than the slot in the feed.
+export global RecapCentre {
+    out property <length> w: 508px;
+    out property <length> h: 360px;
+}
+
 /// The sealed weekly recap: the shape of the recap card, a sparse field of
 /// code cells with one red key, and the week under the label. The proportions
 /// follow the sketch Bob picked, relative to the card size.
