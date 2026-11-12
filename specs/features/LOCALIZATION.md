@@ -295,6 +295,57 @@ MELLO_LANG=qps cargo run -p mello-client
 A string that stays in plain English under `qps` is not in `@tr()`, or the
 `.pot` is stale.
 
+### The pseudo render
+
+`slint-viewer` has no option to select a translation. The tool
+`tools/l10n-pseudo-ui` writes a copy of `client/ui` and `hud/ui` in which
+each `@tr()` text is in the pseudo language (`pseudo` of
+`client/build_l10n.rs`): the plain form, the text of the context form (the
+context stays) and the two forms of a plural. All other bytes stay the same,
+so the relative imports and the preview fixtures work in the copy.
+
+`scripts/l10n-pseudo-shots.sh <out-dir>` runs the tool and renders each
+exported preview (a component whose name starts or ends with `Preview`)
+with `slint-viewer --screenshot`, two times: `<file>.<Component>.en.png`
+from the real tree and `<file>.<Component>.qps.png` from the copy.
+`rejected.txt` lists the files that `slint-viewer --check` rejects alone
+(`feed_board.slint`); these are not rendered.
+
+```bash
+./scripts/l10n-pseudo-shots.sh /tmp/l10n-shots
+```
+
+Look at each `.qps.png` for text that clips, runs out of its box, covers a
+neighbour or pushes a control out of its row. Text that Rust gives at run
+time (`Tr`) comes from the preview fixtures, which are English.
+
+Compare two `.en.png` sets with `cmp` to see that a layout change keeps the
+English UI the same.
+
+The layout rules for a longer translation:
+
+- A label wraps to two lines before it elides. A number does not wrap.
+- A button grows with its text. A button with a fixed width keeps that
+  width as its minimum: `width: max(120px, label.preferred-width + pad)`.
+- A pill or a badge grows with its word.
+- A label column that more rows share (the About rows, the recap people)
+  takes the width of its longest label, so the values stay in line.
+- A font size does not change to make a word fit.
+
+### Label tracking for CJK
+
+The label register has wide letter spacing (`Theme.track-label`,
+`Theme.track-kicker`). Chinese, Japanese and Korean have no case, and wide
+spacing breaks the rhythm of the glyphs. `Theme.cjk` makes both values 0.
+Rust sets it one time at startup, after the main window exists, from the UI
+language (`locale::apply_theme`, `locale::is_cjk`). The UI language, not
+the font language: an English UI on a Japanese OS keeps its tracking. A
+change of the language setting applies at the next start.
+
+A literal `letter-spacing` that is a different size of the label tracking
+(`2px` on a 12px label) stays as it is. Only the values of the tokens
+change for CJK.
+
 ## 9. Language selection
 
 `client/src/locale.rs` chooses the language in this order:
@@ -432,6 +483,7 @@ translations of the messages that did not change.
 |---|---|---|
 | `slint-tr-extractor` 1.18.1 | Writes the `.pot` from `@tr()` | The Slint licence, the same as the `slint` crate |
 | `client/build_l10n.rs` | Reads the `.pot`, writes `qps` | This repository |
+| `tools/l10n-pseudo-ui`, `scripts/l10n-pseudo-shots.sh` | Renders the previews in English and in `qps` | This repository |
 | The Slint compiler | Reads the catalogs at build time | The Slint licence |
 
 Install the extractor:

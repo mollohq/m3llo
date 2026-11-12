@@ -234,7 +234,8 @@ export component ChatImageViewer inherits Rectangle {
 
             // i18n: none (ids that the code compares; the labels are below)
             for action[i] in ["Save", "Copy"]: Rectangle {
-                width: 96px;
+                // 96px, or wider for a longer translation.
+                width: max(96px, action-label.preferred-width + 2 * Theme.spacing-md);
                 background: transparent;
                 CutButtonShape {
                     width: parent.width;
@@ -251,7 +252,7 @@ export component ChatImageViewer inherits Rectangle {
                         else { root.copy(root.current.url); }
                     }
                 }
-                Text {
+                action-label := Text {
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     letter-spacing: Theme.track-label;
@@ -269,7 +270,8 @@ export component ChatImageViewer inherits Rectangle {
 
             // The one white button on this surface.
             Rectangle {
-                width: 100px;
+                // 100px, or wider for a longer translation.
+                width: max(100px, close-label.preferred-width + 2 * Theme.spacing-md);
                 background: transparent;
                 CutButtonShape {
                     width: parent.width;
@@ -283,7 +285,7 @@ export component ChatImageViewer inherits Rectangle {
                     mouse-cursor: pointer;
                     clicked => { root.close(); }
                 }
-                Text {
+                close-label := Text {
                     font-family: Theme.font-label;
                     font-weight: Theme.weight-label;
                     letter-spacing: Theme.track-label;

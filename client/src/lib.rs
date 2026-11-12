@@ -455,6 +455,7 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
     let app = MainWindow::new()?;
     // After the first component: Slint knows the bundled languages from then.
     locale::apply(&settings.borrow().language);
+    locale::apply_theme(&app, &locale::ui_language());
     about::show_build(&app);
     // m3llo+ has no purchase flow yet: the zone feed's locked weeks and strip
     // open the coming soon modal and record the intent.

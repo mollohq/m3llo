@@ -3606,6 +3606,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "l10n-pseudo-ui"
+version = "0.0.0-DEV"
+
+[[package]]
 name = "lazy_static"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

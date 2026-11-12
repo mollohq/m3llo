@@ -293,15 +293,17 @@ component Cell inherits VerticalLayout {
     in property <string> unit;
     in property <string> label;
     in property <color> hue: Theme.text-primary;
+    /// The width at English length. A longer label makes the cell wider.
+    in property <length> base-width: 64px;
 
-    width: 64px;
+    width: max(root.base-width, label-text.preferred-width);
     spacing: 2px;
     alignment: center;
     HorizontalLayout {
         alignment: center;
         StatValue { value: root.value; unit: root.unit; value-size: 16px; unit-size: 11px; gap: 3px; hue: root.hue; }
     }
-    Text {
+    label-text := Text {
         text: root.label;
         font-family: Theme.font-label;
         font-size: 8.5px;
@@ -356,10 +358,10 @@ component GameRow inherits Rectangle {
                 hue: root.card.streak-positive ? Theme.text-primary : Theme.text-body;
             }
             Cell { value: root.card.win-rate-text; label: @tr("WIN RATE"); }
-            Cell { width: 76px; value: root.card.record-text; label: @tr("RECORD"); hue: Theme.text-body; }
+            Cell { base-width: 76px; value: root.card.record-text; label: @tr("RECORD"); hue: Theme.text-body; }
         }
         if !root.card.has-record: Cell {
-            width: 76px;
+            base-width: 76px;
             value: root.card.week-value;
             unit: @tr("unit" => "h");
             label: @tr("THIS WEEK");

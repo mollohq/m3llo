@@ -440,7 +440,8 @@ component GifPopover inherits Rectangle {
                 // Retry is an action, so the button is graphite, not white:
                 // one white button per surface, and the search field has focus.
                 Rectangle {
-                    width: 110px;
+                    // 110px, or wider for a longer translation.
+                    width: max(110px, retry-label.preferred-width + 2 * Theme.spacing-md);
                     height: 32px;
                     background: transparent;
 
@@ -458,7 +459,7 @@ component GifPopover inherits Rectangle {
                         clicked => { root.search(gif-search.text); }
                     }
 
-                    Text {
+                    retry-label := Text {
                         font-family: Theme.font-label;
                         font-weight: Theme.weight-label;
                         letter-spacing: Theme.track-label;
@@ -1721,12 +1722,13 @@ export component ChatPanel inherits Rectangle {
                 }
 
                 Rectangle {
-                    width: 56px;
+                    // 56px, or wider for a longer translation.
+                    width: max(56px, del-cancel-label.preferred-width + 2 * Theme.spacing-sm);
                     height: 24px;
                     border-radius: 4px;
                     background: del-cancel-touch.has-hover ? Theme.graphic-light : transparent;
 
-                    Text {
+                    del-cancel-label := Text {
                         font-weight: Theme.weight-sentence;
                         font-family: Theme.font-body;
                         text: @tr("Cancel");
@@ -1744,12 +1746,13 @@ export component ChatPanel inherits Rectangle {
                 }
 
                 Rectangle {
-                    width: 56px;
+                    // 56px, or wider for a longer translation.
+                    width: max(56px, del-ok-label.preferred-width + 2 * Theme.spacing-sm);
                     height: 24px;
                     border-radius: 4px;
                     background: del-ok-touch.has-hover ? Theme.live : Theme.live;
 
-                    Text {
+                    del-ok-label := Text {
                         font-family: Theme.font-display;
                         text: @tr("Delete");
                         font-size: Theme.font-xs;
