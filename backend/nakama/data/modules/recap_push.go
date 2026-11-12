@@ -12,7 +12,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"time"
 
@@ -90,15 +89,15 @@ func heldCount(r WeeklyRecapData, userID string) int {
 	return 0
 }
 
-// recapPushBody is the one line a member gets, from the belts of the recap.
-// It is empty when the crew has no belts.
+// recapPushBody is the one line a member gets, from the belts of the recap,
+// in the language lang. It is empty when the crew has no belts.
 //
 //  1. A belt moved and the member lost it: "<Name> took <Title>. You hold <n>."
 //  2. The member took a belt: "You took <Title> from <Name>. You hold <n>."
 //  3. The crew has belts: "Week <n> recap. <Leader> leads with <n>."
 //
 // With several moves in one rule the newest move wins.
-func recapPushBody(r WeeklyRecapData, userID string) string {
+func recapPushBody(lang string, r WeeklyRecapData, userID string) string {
 	var lost, took *RecapBeltMoved
 	for i := range r.BeltsMoved {
 		m := &r.BeltsMoved[i]
@@ -111,20 +110,20 @@ func recapPushBody(r WeeklyRecapData, userID string) string {
 	}
 	switch {
 	case lost != nil:
-		return truncateRunes(fmt.Sprintf("%s took %s. You hold %d.",
-			cleanPushName(lost.HolderName), beltTitleLabel(lost.TitleID), heldCount(r, userID)), pushBodyMaxRunes)
+		return truncateRunes(pushText(lang, "recap_took",
+			cleanPushName(lost.HolderName), pushBeltLabel(lang, lost.TitleID), heldCount(r, userID)), pushBodyMaxRunes)
 	case took != nil:
 		from := cleanPushName(took.PreviousName)
 		if from == "" {
-			return truncateRunes(fmt.Sprintf("You took %s. You hold %d.",
-				beltTitleLabel(took.TitleID), heldCount(r, userID)), pushBodyMaxRunes)
+			return truncateRunes(pushText(lang, "recap_you_took",
+				pushBeltLabel(lang, took.TitleID), heldCount(r, userID)), pushBodyMaxRunes)
 		}
-		return truncateRunes(fmt.Sprintf("You took %s from %s. You hold %d.",
-			beltTitleLabel(took.TitleID), from, heldCount(r, userID)), pushBodyMaxRunes)
+		return truncateRunes(pushText(lang, "recap_you_took_from",
+			pushBeltLabel(lang, took.TitleID), from, heldCount(r, userID)), pushBodyMaxRunes)
 	case len(r.BeltsHeld) > 0:
 		lead := r.BeltsHeld[0]
 		_, week := time.UnixMilli(r.WeekStart).UTC().ISOWeek()
-		return truncateRunes(fmt.Sprintf("Week %d recap. %s leads with %d.",
+		return truncateRunes(pushText(lang, "recap_week_lead",
 			week, cleanPushName(lead.DisplayName), lead.Count), pushBodyMaxRunes)
 	}
 	return ""
@@ -142,11 +141,12 @@ func recapPushAt(weekEnd time.Time, tz *int) int64 {
 }
 
 // buildRecapPushItems builds the queue of a recap. tzs maps a member to the
-// offset on the activity doc. A member with an empty line gets no item.
-func buildRecapPushItems(r WeeklyRecapData, memberIDs []string, tzs map[string]*int) []RecapPushItem {
+// offset on the activity doc. langs maps a member to the account language
+// (nil: English). A member with an empty line gets no item.
+func buildRecapPushItems(r WeeklyRecapData, memberIDs []string, tzs map[string]*int, langs map[string]string) []RecapPushItem {
 	var items []RecapPushItem
 	for _, uid := range memberIDs {
-		body := recapPushBody(r, uid)
+		body := recapPushBody(langs[uid], r, uid)
 		if body == "" {
 			continue
 		}
@@ -208,7 +208,8 @@ func scheduleRecapPushes(ctx context.Context, nk runtime.NakamaModule, logger ru
 	for uid, a := range readAllUserActivityStats(ctx, nk, ids) {
 		tzs[uid] = validTzOffset(a.TzOffsetMin)
 	}
-	items := buildRecapPushItems(r, ids, tzs)
+	_, langs := pushUsers(ctx, nk, ids)
+	items := buildRecapPushItems(r, ids, tzs, langs)
 	if len(items) == 0 {
 		return
 	}

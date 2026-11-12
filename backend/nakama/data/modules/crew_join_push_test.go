@@ -22,11 +22,11 @@ func TestCrewJoinPushBodyCopy(t *testing.T) {
 		{nil, false, ""},
 	}
 	for _, c := range cases {
-		if got := crewJoinPushBody(c.names, "Night Owls", c.hi); got != c.want {
+		if got := crewJoinPushBody("", c.names, "Night Owls", c.hi); got != c.want {
 			t.Errorf("got %q want %q", got, c.want)
 		}
 	}
-	if strings.ContainsAny(crewJoinPushBody([]string{cleanPushName("Jo!nas")}, "Crew", true), "!—") {
+	if strings.ContainsAny(crewJoinPushBody("", []string{cleanPushName("Jo!nas")}, "Crew", true), "!—") {
 		t.Fatal("copy rules")
 	}
 }

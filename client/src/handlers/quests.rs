@@ -166,7 +166,7 @@ pub(crate) fn handle(ctx: &crate::app_context::AppContext, event: mello_core::ev
             log::warn!("[gifts] {gift} failed for crew {crew_id}: {reason:?}");
             let text = {
                 use slint::ComponentHandle as _;
-                crate::callbacks::gift_failure_text(&ctx.app.global::<crate::Tr>(), &reason)
+                crate::callbacks::gift_failure_text(&ctx.app.global::<crate::Tr>(), &gift, &reason)
             };
             crate::callbacks::on_gift_result(ctx, &gift, Some(&text));
         }
