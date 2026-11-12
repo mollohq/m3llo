@@ -12,7 +12,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -127,7 +126,8 @@ func (l *pushLimiter) sweepLocked(now time.Time) {
 }
 
 // coalesceHeld builds the one push that replaces the held mentions. The tap
-// target is the crew with the newest mention.
+// target is the crew with the newest mention. The text is in the account
+// language of the recipient (pushAlert.Lang).
 func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 	if len(held) == 0 {
 		return pushAlert{}, false
@@ -147,7 +147,7 @@ func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 	out := newest.alert
 	if len(held) == 1 {
 		// Title stays the crew name.
-		out.Body = fmt.Sprintf("%d new mentions", total)
+		out.Body = truncateRunes(pushText(out.Lang, "mentions_new", total), pushBodyMaxRunes)
 		return out, true
 	}
 	// Crew names in arrival order of their newest mention, newest first.
@@ -160,8 +160,9 @@ func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 	for _, h := range crews {
 		names = append(names, h.alert.Title)
 	}
-	out.Title = "Mello"
-	out.Body = truncateRunes(fmt.Sprintf("%d new mentions in %s", total, strings.Join(names, ", ")), pushBodyMaxRunes)
+	out.Title = truncateRunes(pushText(out.Lang, "push_title_fallback"), pushTitleMaxRunes)
+	out.Body = truncateRunes(pushText(out.Lang, "mentions_new_in", total,
+		strings.Join(names, pushText(out.Lang, "mention_crews_sep"))), pushBodyMaxRunes)
 	return out, true
 }
 

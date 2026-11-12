@@ -56,7 +56,7 @@ func giftOpen(q *CrewQuests, gift string) bool {
 func requireGift(ctx context.Context, nk runtime.NakamaModule, crewID, gift string) error {
 	q, _ := readCrewQuests(ctx, nk, crewID)
 	if !giftOpen(q, gift) {
-		return runtime.NewError("gift not unlocked", 9)
+		return errGiftLocked
 	}
 	return nil
 }
@@ -205,30 +205,30 @@ type MediaUploadURLResponse struct {
 func CrewBannerUploadURLRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req MediaUploadURLRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	if req.Mime != "image/jpeg" {
-		return "", runtime.NewError("a banner is a JPEG", 3)
+		return "", errBannerNotJPEG
 	}
 	if req.Bytes <= 0 || req.Bytes > maxBannerBytes {
-		return "", runtime.NewError("banner too large", 3)
+		return "", errBannerTooLarge
 	}
 	if !isCrewOwner(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("only the owner sets the banner", 7)
+		return "", errOwnerOnly
 	}
 	id, err := newMediaID()
 	if err != nil {
-		return "", runtime.NewError("failed to generate upload URL", 13)
+		return "", rpcFail(logger, errInternal, "media id: %v", err)
 	}
 	key := bannerKeyPrefix + req.CrewID + "/" + id + ".jpg"
 	url, err := presignMedia(ctx, key, req.Mime, req.Bytes)
 	if err != nil {
 		logger.Error("crew_banner_upload_url: %v", err)
-		return "", runtime.NewError("failed to generate upload URL", 13)
+		return "", errInternal
 	}
 	data, _ := json.Marshal(MediaUploadURLResponse{UploadURL: url, Key: key})
 	return string(data), nil
@@ -241,25 +241,27 @@ type SetCrewBannerRequest struct {
 	Key    string `json:"key,omitempty"`
 }
 
-// bannerFor validates a request and returns the banner it sets.
+// bannerFor validates a request and returns the banner it sets. A request
+// that a correct client never sends gives a plain error; the RPC logs it and
+// answers BAD_REQUEST.
 func bannerFor(req SetCrewBannerRequest, nowMs int64) (*CrewBanner, error) {
 	switch req.Kind {
 	case "game":
 		if !bannerGameIDRe.MatchString(req.GameID) {
-			return nil, runtime.NewError("invalid game_id", 3)
+			return nil, fmt.Errorf("invalid game_id %q", req.GameID)
 		}
 		return &CrewBanner{Kind: "game", GameID: req.GameID, URL: artBase() + "/" + req.GameID + "/hero", Version: nowMs}, nil
 	case "upload":
 		if !mediaKeyOf(req.Key, bannerKeyPrefix, req.CrewID, "jpg") {
-			return nil, runtime.NewError("invalid key", 3)
+			return nil, fmt.Errorf("invalid key %q", req.Key)
 		}
 		url := mediaURLFor(req.Key)
 		if url == "" {
-			return nil, runtime.NewError("media bucket not configured", 9)
+			return nil, errMediaOff
 		}
 		return &CrewBanner{Kind: "upload", Key: req.Key, URL: url, Version: nowMs}, nil
 	}
-	return nil, runtime.NewError("kind must be game or upload", 3)
+	return nil, fmt.Errorf("kind must be game or upload, not %q", req.Kind)
 }
 
 // SetCrewBannerRPC sets the banner. Owner only. An uploaded banner it
@@ -267,18 +269,22 @@ func bannerFor(req SetCrewBannerRequest, nowMs int64) (*CrewBanner, error) {
 func SetCrewBannerRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req SetCrewBannerRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	banner, err := bannerFor(req, time.Now().UnixMilli())
 	if err != nil {
-		return "", err
+		if rerr, ok := err.(*runtime.Error); ok {
+			logger.Warn("set_crew_banner: crew %s: media bucket not configured", req.CrewID)
+			return "", rerr
+		}
+		return "", rpcFail(logger, errBadRequest, "set_crew_banner: crew %s: %v", req.CrewID, err)
 	}
 	if !isCrewOwner(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("only the owner sets the banner", 7)
+		return "", errOwnerOnly
 	}
 	if err := requireGift(ctx, nk, req.CrewID, giftBanner); err != nil {
 		return "", err
@@ -290,16 +296,16 @@ func SetCrewBannerRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 func ClearCrewBannerRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	if !isCrewOwner(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("only the owner sets the banner", 7)
+		return "", errOwnerOnly
 	}
 	return storeBanner(ctx, logger, nk, req.CrewID, nil)
 }
@@ -318,7 +324,7 @@ func storeBanner(ctx context.Context, logger runtime.Logger, nk runtime.NakamaMo
 	})
 	if err != nil {
 		logger.Error("crew banner: %v", err)
-		return "", runtime.NewError("failed to store banner", 13)
+		return "", errInternal
 	}
 	if oldKey != "" && (banner == nil || banner.Key != oldKey) && ChatImagesConfigured() {
 		if err := DeleteChatObjects(ctx, []string{oldKey}); err != nil {
@@ -402,17 +408,17 @@ func inviteNameState(ctx context.Context, nk runtime.NakamaModule, crewID, name 
 func CheckInviteNameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
 		Name   string `json:"name"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("not a crew member", 7)
+		return "", errNotAMember
 	}
 	state, _ := inviteNameState(ctx, nk, req.CrewID, normalizeInviteName(req.Name), time.Now().UnixMilli())
 	data, _ := json.Marshal(map[string]string{"state": state})
@@ -424,18 +430,18 @@ func CheckInviteNameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 func SetInviteNameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
 		Name   string `json:"name"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	name := normalizeInviteName(req.Name)
 	if !isCrewOwner(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("only the owner sets the invite link", 7)
+		return "", errOwnerOnly
 	}
 	if err := requireGift(ctx, nk, req.CrewID, giftLink); err != nil {
 		return "", err
@@ -444,16 +450,17 @@ func SetInviteNameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	state, version := inviteNameState(ctx, nk, req.CrewID, name, nowMs)
 	switch state {
 	case "not_allowed":
-		return "", runtime.NewError("name not allowed", 3)
+		return "", errNameNotAllowed
 	case "taken":
-		return "", runtime.NewError("name taken", 6)
+		return "", errNameTaken
 	}
 	value, _ := json.Marshal(inviteCodeObject{CrewID: req.CrewID, Custom: true})
 	if _, err := nk.StorageWrite(ctx, []*runtime.StorageWrite{{
 		Collection: InviteCodeCollection, Key: strings.ToUpper(name), UserID: SystemUserID,
 		Value: string(value), Version: version, PermissionRead: 2, PermissionWrite: 0,
 	}}); err != nil {
-		return "", runtime.NewError("name taken", 6)
+		logger.Info("set_invite_name: crew %s name %q lost the write race: %v", req.CrewID, name, err)
+		return "", errNameTaken
 	}
 	old := ""
 	if _, err := updateCrewProfile(ctx, nk, req.CrewID, func(p *CrewProfile) error {
@@ -462,7 +469,7 @@ func SetInviteNameRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 		return nil
 	}); err != nil {
 		logger.Error("set_invite_name: %v", err)
-		return "", runtime.NewError("failed to store invite link", 13)
+		return "", errInternal
 	}
 	if old != "" && old != name {
 		holdInviteName(ctx, logger, nk, req.CrewID, old, nowMs+inviteNameHoldMs)
@@ -589,37 +596,37 @@ func (d *CrewEmojiDoc) has(name string) bool {
 func CrewEmojiUploadURLRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req MediaUploadURLRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	ext, ok := chatImageExt(req.Mime)
 	if !ok {
-		return "", runtime.NewError("unsupported image type", 3)
+		return "", errImageTypeUnsupported
 	}
 	if req.Bytes <= 0 || req.Bytes > maxCrewEmojiBytes {
-		return "", runtime.NewError("emoji too large", 3)
+		return "", errEmojiTooLarge
 	}
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("not a crew member", 7)
+		return "", errNotAMember
 	}
 	if err := requireGift(ctx, nk, req.CrewID, giftEmoji); err != nil {
 		return "", err
 	}
 	if d, _ := readCrewEmoji(ctx, nk, req.CrewID); len(d.Emoji) >= crewEmojiSlots {
-		return "", runtime.NewError("no free emoji slot", 9)
+		return "", errNoFreeEmojiSlot
 	}
 	id, err := newMediaID()
 	if err != nil {
-		return "", runtime.NewError("failed to generate upload URL", 13)
+		return "", rpcFail(logger, errInternal, "media id: %v", err)
 	}
 	key := emojiKeyPrefix + req.CrewID + "/" + id + "." + ext
 	url, err := presignMedia(ctx, key, req.Mime, req.Bytes)
 	if err != nil {
 		logger.Error("crew_emoji_upload_url: %v", err)
-		return "", runtime.NewError("failed to generate upload URL", 13)
+		return "", errInternal
 	}
 	data, _ := json.Marshal(MediaUploadURLResponse{UploadURL: url, Key: key})
 	return string(data), nil
@@ -629,7 +636,7 @@ func CrewEmojiUploadURLRPC(ctx context.Context, logger runtime.Logger, db *sql.D
 func CrewEmojiAddRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
@@ -637,36 +644,36 @@ func CrewEmojiAddRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 		Key    string `json:"key"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	name := strings.ToLower(strings.TrimSpace(req.Name))
 	if !crewEmojiNameRe.MatchString(name) {
-		return "", runtime.NewError("name is 2 to 24 letters, digits or underscores", 3)
+		return "", errEmojiNameInvalid
 	}
 	if !mediaKeyOf(req.Key, emojiKeyPrefix, req.CrewID, "jpg", "png", "gif") {
-		return "", runtime.NewError("invalid key", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_emoji_add: invalid key %q", req.Key)
 	}
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("not a crew member", 7)
+		return "", errNotAMember
 	}
 	if err := requireGift(ctx, nk, req.CrewID, giftEmoji); err != nil {
 		return "", err
 	}
 	url := mediaURLFor(req.Key)
 	if url == "" {
-		return "", runtime.NewError("media bucket not configured", 9)
+		return "", rpcFail(logger, errMediaOff, "crew_emoji_add: media bucket not configured")
 	}
 	id, err := newMediaID()
 	if err != nil {
-		return "", runtime.NewError("failed to add emoji", 13)
+		return "", rpcFail(logger, errInternal, "crew_emoji_add: media id: %v", err)
 	}
 	e := CrewEmoji{ID: id, Name: name, URL: url, Key: req.Key, AddedBy: userID, AddedByName: resolveUsername(ctx, nk, userID), AddedMs: time.Now().UnixMilli()}
 	d, err := updateCrewEmoji(ctx, nk, req.CrewID, func(d *CrewEmojiDoc) error {
 		if len(d.Emoji) >= crewEmojiSlots {
-			return runtime.NewError("no free emoji slot", 9)
+			return errNoFreeEmojiSlot
 		}
 		if d.has(name) {
-			return runtime.NewError("name taken", 6)
+			return errNameTaken
 		}
 		d.Emoji = append(d.Emoji, e)
 		return nil
@@ -676,7 +683,7 @@ func CrewEmojiAddRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 			return "", err
 		}
 		logger.Error("crew_emoji_add: %v", err)
-		return "", runtime.NewError("failed to add emoji", 13)
+		return "", errInternal
 	}
 	InvalidateCrewState(req.CrewID)
 	pushCrewGiftsChanged(ctx, logger, nk, req.CrewID, "emoji")
@@ -688,14 +695,14 @@ func CrewEmojiAddRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 func CrewEmojiRemoveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
 		Name   string `json:"name"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	name := strings.ToLower(strings.TrimSpace(req.Name))
 	owner := isCrewOwner(ctx, nk, req.CrewID, userID)
@@ -706,20 +713,20 @@ func CrewEmojiRemoveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 				continue
 			}
 			if e.AddedBy != userID && !owner {
-				return runtime.NewError("only the adder or the owner removes an emoji", 7)
+				return errEmojiRemoveForbidden
 			}
 			removedKey = e.Key
 			d.Emoji = append(d.Emoji[:i], d.Emoji[i+1:]...)
 			return nil
 		}
-		return runtime.NewError("no such emoji", 5)
+		return errEmojiNotFound
 	})
 	if err != nil {
 		if _, ok := err.(*runtime.Error); ok {
 			return "", err
 		}
 		logger.Error("crew_emoji_remove: %v", err)
-		return "", runtime.NewError("failed to remove emoji", 13)
+		return "", errInternal
 	}
 	if removedKey != "" && ChatImagesConfigured() {
 		if err := DeleteChatObjects(ctx, []string{removedKey}); err != nil {
@@ -845,14 +852,14 @@ func ReportCrewMediaRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		Name   string `json:"name,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	r := MediaReport{CrewID: req.CrewID, Kind: req.Kind, ReporterID: userID, Ts: time.Now().UnixMilli()}
 	switch req.Kind {
 	case "banner":
 		p, _ := readCrewProfile(ctx, nk, req.CrewID)
 		if p.Banner == nil || p.Banner.Kind != "upload" {
-			return "", runtime.NewError("no uploaded banner", 5)
+			return "", errBannerNotFound
 		}
 		r.URL = p.Banner.URL
 	case "emoji":
@@ -864,14 +871,14 @@ func ReportCrewMediaRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 			}
 		}
 		if r.URL == "" {
-			return "", runtime.NewError("no such emoji", 5)
+			return "", errEmojiNotFound
 		}
 	default:
-		return "", runtime.NewError("kind must be banner or emoji", 3)
+		return "", rpcFail(logger, errBadRequest, "report_crew_media: kind must be banner or emoji, not %q", req.Kind)
 	}
 	id, err := newMediaID()
 	if err != nil {
-		return "", runtime.NewError("failed to store report", 13)
+		return "", rpcFail(logger, errInternal, "report_crew_media: media id: %v", err)
 	}
 	data, _ := json.Marshal(r)
 	if _, err := nk.StorageWrite(ctx, []*runtime.StorageWrite{{
@@ -879,7 +886,7 @@ func ReportCrewMediaRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 		Value: string(data), PermissionRead: 0, PermissionWrite: 0,
 	}}); err != nil {
 		logger.Error("report_crew_media: %v", err)
-		return "", runtime.NewError("failed to store report", 13)
+		return "", errInternal
 	}
 	logger.Info("media report %s: crew %s %s", id, req.CrewID, req.Kind)
 	return `{"success":true}`, nil
@@ -890,16 +897,16 @@ func ReportCrewMediaRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 func ReportInviteCopiedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	var req struct {
 		CrewID string `json:"crew_id"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
-		return "", runtime.NewError("crew_id required", 3)
+		return "", rpcFail(logger, errBadRequest, "crew_id required")
 	}
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
-		return "", runtime.NewError("not a crew member", 7)
+		return "", errNotAMember
 	}
 	nowMs := time.Now().UnixMilli()
 	questsMark(ctx, logger, nk, req.CrewID, "invite_copied", func(q *CrewQuests) bool {

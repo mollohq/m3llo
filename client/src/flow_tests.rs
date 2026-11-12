@@ -10854,3 +10854,30 @@ fn a_sign_in_sends_the_ui_language_to_the_account() {
     });
     assert_eq!(account_languages(&h.commands()), ["en"]);
 }
+
+/// A failed Riot link shows the message of the server code. An unknown code,
+/// or none, shows the generic message, never the error JSON.
+#[test]
+fn a_riot_link_error_reads_from_the_server_code() {
+    let mut h = Harness::new();
+    let failed = |h: &mut Harness, code: &str| {
+        h.emit(Event::RiotLinkFailed {
+            reason: format!(r#"Server error: {{"code":8,"message":"{code}"}}"#),
+            code: code.into(),
+        });
+        h.app().get_riot_dialog_error().to_string()
+    };
+    assert_eq!(
+        failed(&mut h, "RIOT_RATE_LIMITED"),
+        "Riot is busy. Try again in a minute."
+    );
+    assert_eq!(
+        failed(&mut h, "RIOT_REGION_INVALID"),
+        "Pick the region your account plays in."
+    );
+    assert_eq!(
+        failed(&mut h, "RIOT_SOMETHING_NEW"),
+        "Something went wrong. Try again."
+    );
+    assert_eq!(failed(&mut h, ""), "Something went wrong. Try again.");
+}

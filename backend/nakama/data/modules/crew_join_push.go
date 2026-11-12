@@ -12,7 +12,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -34,23 +33,27 @@ const (
 	crewJoinPushKeepMs = 24 * 60 * 60 * 1000
 )
 
-// crewJoinPushBody is the line of a join push. names holds the joiners, the
-// newest last. sayHi adds "Say hi." and applies to a single joiner only.
-func crewJoinPushBody(names []string, crew string, sayHi bool) string {
+// crewJoinPushBody is the line of a join push in the language lang. names
+// holds the joiners, the newest last. An empty name shows as "A new member".
+// sayHi adds "Say hi." and applies to a single joiner only.
+func crewJoinPushBody(lang string, names []string, crew string, sayHi bool) string {
 	if len(names) == 0 {
 		return ""
 	}
 	last := names[len(names)-1]
+	if last == "" {
+		last = pushText(lang, "join_name_fallback")
+	}
 	var s string
 	switch more := len(names) - 1; {
 	case more == 0 && sayHi:
-		s = fmt.Sprintf("%s joined %s. Say hi.", last, crew)
+		s = pushText(lang, "join_one_say_hi", last, crew)
 	case more == 0:
-		s = fmt.Sprintf("%s joined %s.", last, crew)
+		s = pushText(lang, "join_one", last, crew)
 	case more == 1:
-		s = fmt.Sprintf("%s and 1 other joined %s.", last, crew)
+		s = pushText(lang, "join_one_other", last, crew)
 	default:
-		s = fmt.Sprintf("%s and %d others joined %s.", last, more, crew)
+		s = pushText(lang, "join_others", last, more, crew)
 	}
 	return truncateRunes(s, pushBodyMaxRunes)
 }
@@ -61,8 +64,9 @@ func crewJoinMessageID(crewID string, now time.Time) string {
 }
 
 // addCrewJoinPushes folds one joiner into the queue of a crew. members is the
-// crew after the join, the joiner included. It returns whether the doc changed.
-func addCrewJoinPushes(doc *RecapPushDoc, crewID, crewName, joinerID, joinerName string, members []string, tzs map[string]*int, now time.Time) bool {
+// crew after the join, the joiner included. langs maps a member to the account
+// language of the body (nil: English). It returns whether the doc changed.
+func addCrewJoinPushes(doc *RecapPushDoc, crewID, crewName, joinerID, joinerName string, members []string, tzs map[string]*int, langs map[string]string, now time.Time) bool {
 	nowMs := now.UnixMilli()
 	// Drop old sent pushes that need no memory. A coalescing item stays: it
 	// holds the time of its last send.
@@ -85,7 +89,7 @@ func addCrewJoinPushes(doc *RecapPushDoc, crewID, crewName, joinerID, joinerName
 		if sayHi {
 			doc.Items = append(doc.Items, RecapPushItem{
 				UserID: uid, Type: crewJoinPushType, MessageID: crewJoinMessageID(crewID, now),
-				Body:     crewJoinPushBody([]string{joinerName}, crewName, true),
+				Body:     crewJoinPushBody(langs[uid], []string{joinerName}, crewName, true),
 				SendAtMs: pushQuietAdjust(now, tzs[uid]).UnixMilli(),
 			})
 			continue
@@ -109,7 +113,7 @@ func addCrewJoinPushes(doc *RecapPushDoc, crewID, crewName, joinerID, joinerName
 		for i, e := range it.Events {
 			names[i] = e.Name
 		}
-		it.Body = crewJoinPushBody(names, crewName, false)
+		it.Body = crewJoinPushBody(langs[uid], names, crewName, false)
 		it.MessageID = crewJoinMessageID(crewID, now)
 		it.SendAtMs = pushSendAt(now, it.LastSentMs, crewJoinPushWindow, tzs[uid]).UnixMilli()
 	}
@@ -132,10 +136,10 @@ func queueCrewJoinPush(ctx context.Context, logger runtime.Logger, nk runtime.Na
 	if !joined || len(ids) < 2 {
 		return
 	}
-	name := pushDisplayNames(ctx, nk, []string{joinerID})[joinerID]
-	if name == "" {
-		name = "A new member"
-	}
+	// One batched read gives the joiner's name and the account language of
+	// each member. An empty name shows as "A new member" in each language.
+	names, langs := pushUsers(ctx, nk, ids)
+	name := names[joinerID]
 	crewName := pushCrewName(ctx, nk, crewID)
 	tzs := map[string]*int{}
 	for uid, a := range readAllUserActivityStats(ctx, nk, ids) {
@@ -144,7 +148,7 @@ func queueCrewJoinPush(ctx context.Context, logger runtime.Logger, nk runtime.Na
 	key := crewJoinPushKey + crewID
 	now := eventPushClock()
 	if updatePushQueue(ctx, nk, logger, key, crewID, func(q *RecapPushDoc) bool {
-		return addCrewJoinPushes(q, crewID, crewName, joinerID, name, ids, tzs, now)
+		return addCrewJoinPushes(q, crewID, crewName, joinerID, name, ids, tzs, langs, now)
 	}) {
 		logger.Info("crew join push: queued for crew %s (%d members)", crewID, len(ids))
 		flushPushQueueAsync(nk, logger, key)

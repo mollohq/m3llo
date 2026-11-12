@@ -18,27 +18,24 @@ struct UploadSlot {
     key: String,
 }
 
-/// The message of a Nakama RPC error, for the UI: "Name taken." from
-/// `{"code":6,"message":"name taken"}`. Anything else is `NoAnswer`.
+/// The reason of a failed gift RPC. The stable error code of the server
+/// (`{"code":6,"message":"NAME_TAKEN"}`) is `Code`. The English message of an
+/// old server is `Server`, as one sentence. Anything else is `NoAnswer`.
 fn server_reason(e: &crate::Error) -> GiftFailure {
-    if let crate::Error::Server(text) = e {
-        if let Ok(v) = serde_json::from_str::<serde_json::Value>(text) {
-            if let Some(m) = v.get("message").and_then(|m| m.as_str()) {
-                if !m.is_empty() {
-                    let mut c = m.chars();
-                    let first = c
-                        .next()
-                        .map(|f| f.to_uppercase().collect::<String>())
-                        .unwrap_or_default();
-                    return GiftFailure::Server(format!(
-                        "{first}{}.",
-                        c.as_str().trim_end_matches('.')
-                    ));
-                }
-            }
-        }
+    if let Some(token) = e.server_token() {
+        return GiftFailure::Code(token);
     }
-    GiftFailure::NoAnswer
+    match e.server_message() {
+        Some(m) if !m.is_empty() => {
+            let mut c = m.chars();
+            let first = c
+                .next()
+                .map(|f| f.to_uppercase().collect::<String>())
+                .unwrap_or_default();
+            GiftFailure::Server(format!("{first}{}.", c.as_str().trim_end_matches('.')))
+        }
+        _ => GiftFailure::NoAnswer,
+    }
 }
 
 impl super::Client {
@@ -238,12 +235,26 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_server_error_reads_as_one_sentence() {
+    fn a_server_token_is_a_code() {
+        let e = crate::Error::Server(
+            r#"{"code":6,"message":"NAME_TAKEN","error":"NAME_TAKEN"}"#.into(),
+        );
+        assert_eq!(server_reason(&e), GiftFailure::Code("NAME_TAKEN".into()));
+    }
+
+    #[test]
+    fn an_old_server_message_reads_as_one_sentence() {
         let e = crate::Error::Server(
             r#"{"code":6,"message":"name taken","error":"name taken"}"#.into(),
         );
         assert_eq!(server_reason(&e), GiftFailure::Server("Name taken.".into()));
         let e = crate::Error::Server("<html>bad gateway</html>".into());
         assert_eq!(server_reason(&e), GiftFailure::NoAnswer);
+    }
+
+    #[test]
+    fn a_code_keeps_its_json_shape() {
+        let json = serde_json::to_string(&GiftFailure::Code("NAME_TAKEN".into())).unwrap();
+        assert_eq!(json, r#"{"kind":"code","value":"NAME_TAKEN"}"#);
     }
 }

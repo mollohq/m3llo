@@ -57,4 +57,36 @@ impl Error {
             .as_str()
             .map(str::to_string)
     }
+
+    /// The stable error code of a Nakama error response: a `message` that is
+    /// an upper-case token, such as `NAME_TAKEN` or `SFU_UNAVAILABLE`. The
+    /// client maps the token to a message in the UI language. `None` for any
+    /// other error, and for the English message of an old server.
+    pub fn server_token(&self) -> Option<String> {
+        self.server_message().filter(|m| is_server_token(m))
+    }
+}
+
+/// Whether `message` is a stable server error token: upper-case ASCII
+/// letters, digits and underscores, with a letter first.
+pub fn is_server_token(message: &str) -> bool {
+    let mut chars = message.chars();
+    chars.next().is_some_and(|c| c.is_ascii_uppercase())
+        && chars.all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == '_')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_token_message_is_a_server_token() {
+        let e = Error::Server(r#"{"code":6,"message":"NAME_TAKEN"}"#.into());
+        assert_eq!(e.server_token().as_deref(), Some("NAME_TAKEN"));
+        let old = Error::Server(r#"{"code":6,"message":"name taken"}"#.into());
+        assert_eq!(old.server_token(), None, "the English of an old server");
+        assert_eq!(Error::Server("<html>".into()).server_token(), None);
+        assert!(is_server_token("SFU_UNAVAILABLE"));
+        assert!(!is_server_token("_X") && !is_server_token("") && !is_server_token("A B"));
+    }
 }

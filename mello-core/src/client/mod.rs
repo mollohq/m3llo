@@ -1573,6 +1573,7 @@ impl Client {
                         log::warn!("riot_link failed: {e}");
                         let _ = self.event_tx.send(Event::RiotLinkFailed {
                             reason: e.to_string(),
+                            code: e.server_token().unwrap_or_default(),
                         });
                     }
                 }

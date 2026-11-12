@@ -651,10 +651,6 @@ export global Tr {
     out property <string> riot-id-not-found: @tr("Riot ID not found. Check the spelling â€” it looks like GameName#TAG.");
     /// The server needs the region of the Riot account.
     out property <string> riot-pick-region: @tr("Pick the region your account plays in.");
-    /// The link failed. The value is the reason from the server.
-    pure public function riot-link-failed(reason: string) -> string {
-        @tr("Couldn't link right now: {}", reason)
-    }
 
 
     // --- Crew invites (src/handlers/crew.rs) ---
@@ -1213,6 +1209,51 @@ export global Tr {
 
     /// The server did not answer a gift change.
     out property <string> gift-no-answer: @tr("The server did not answer.");
+
+    // --- Server error codes: an RPC error that the user sees is a stable
+    //     code from the server (NAME_TAKEN). Rust maps each code to one
+    //     member (src/callbacks/quests.rs, src/handlers/games.rs). ---
+
+    /// A server error with no message of its own: an unknown code, or an
+    /// old server that sends no code.
+    out property <string> server-error-generic: @tr("Something went wrong. Try again.");
+    /// A crew banner upload is not a JPEG image.
+    out property <string> gift-error-banner-not-jpeg: @tr("A banner is a JPEG.");
+    /// A crew banner image is larger than the server takes.
+    out property <string> gift-error-banner-too-large: @tr("Banner too large.");
+    /// Only the crew owner can change the crew banner.
+    out property <string> gift-error-owner-only-banner: @tr("Only the owner sets the banner.");
+    /// Only the crew owner can change the custom invite link.
+    out property <string> gift-error-owner-only-link: @tr("Only the owner sets the invite link.");
+    /// The crew has not unlocked this gift with its quests yet.
+    out property <string> gift-error-locked: @tr("Gift not unlocked.");
+    /// The invite link name is reserved or has a wrong form.
+    out property <string> gift-error-name-not-allowed: @tr("Name not allowed.");
+    /// Another crew has the invite link name, or the crew has an emoji
+    /// with the name.
+    out property <string> gift-error-name-taken: @tr("Name taken.");
+    /// A crew emoji image is not a JPEG, PNG or GIF.
+    out property <string> gift-error-image-type: @tr("Unsupported image type.");
+    /// A crew emoji image is larger than the server takes.
+    out property <string> gift-error-emoji-too-large: @tr("Emoji too large.");
+    /// The user is not a member of the crew any more.
+    out property <string> gift-error-not-a-member: @tr("Not a crew member.");
+    /// The crew has used all of its emoji slots.
+    out property <string> gift-error-no-free-emoji-slot: @tr("No free emoji slot.");
+    /// The rule for a crew emoji name. Keep the numbers 2 and 24.
+    out property <string> gift-error-emoji-name-invalid: @tr("Name is 2 to 24 letters, digits or underscores.");
+    /// Only the member who added an emoji, or the crew owner, can remove it.
+    out property <string> gift-error-emoji-remove-forbidden: @tr("Only the adder or the owner removes an emoji.");
+    /// The crew has no emoji with this name.
+    out property <string> gift-error-emoji-not-found: @tr("No such emoji.");
+    /// The server has no Riot API key, so a Riot account cannot be linked.
+    out property <string> riot-error-not-configured: @tr("Riot linking is not available right now.");
+    /// The server could not reach the Riot API.
+    out property <string> riot-error-unreachable: @tr("Could not reach Riot. Try again.");
+    /// The Riot API refused too many requests.
+    out property <string> riot-error-rate-limited: @tr("Riot is busy. Try again in a minute.");
+    /// The Riot API sent an error.
+    out property <string> riot-error-api: @tr("Riot sent an error. Try again.");
 
     // --- Game clips: the clip player (src/game_clip_player.rs) ---
 

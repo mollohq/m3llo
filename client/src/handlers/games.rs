@@ -42,10 +42,11 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 }
             }
         }
-        Event::RiotLinkFailed { reason } => {
+        Event::RiotLinkFailed { reason, code } => {
             ctx.app.set_riot_dialog_busy(false);
             ctx.app.set_riot_dialog_error(friendly_link_error(
                 &ctx.app.global::<crate::Tr>(),
+                &code,
                 &reason,
             ));
         }
@@ -166,15 +167,20 @@ pub(super) fn on_icon_art_loaded(ctx: &AppContext, art_id: &str) {
     }
 }
 
-/// Map raw RPC errors to something a user can act on.
-fn friendly_link_error(tr: &crate::Tr<'_>, reason: &str) -> slint::SharedString {
-    let lower = reason.to_lowercase();
-    if lower.contains("riot id must") || lower.contains("not found") {
-        tr.get_riot_id_not_found()
-    } else if lower.contains("region") {
-        tr.get_riot_pick_region()
-    } else {
-        // The reason is server text.
-        tr.invoke_riot_link_failed(reason.into())
+/// The message of a failed Riot link. `code` is the stable error code of
+/// the server (`riot.go`). An unknown code, or no code, shows the generic
+/// message, and the log gets the code and the error text.
+fn friendly_link_error(tr: &crate::Tr<'_>, code: &str, reason: &str) -> slint::SharedString {
+    match code {
+        "RIOT_ID_FORMAT" | "RIOT_ID_NOT_FOUND" => tr.get_riot_id_not_found(),
+        "RIOT_REGION_INVALID" => tr.get_riot_pick_region(),
+        "RIOT_NOT_CONFIGURED" => tr.get_riot_error_not_configured(),
+        "RIOT_UNREACHABLE" => tr.get_riot_error_unreachable(),
+        "RIOT_RATE_LIMITED" => tr.get_riot_error_rate_limited(),
+        "RIOT_API_ERROR" => tr.get_riot_error_api(),
+        _ => {
+            log::warn!("[riot] no message for server code {code:?}: {reason}");
+            tr.get_server_error_generic()
+        }
     }
 }
