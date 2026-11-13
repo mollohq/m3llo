@@ -698,6 +698,39 @@ the crew channel when events occur:
 Use `nk.ChannelMessageSend()` with the system user context. Set
 `persistent: true` so system messages appear in history.
 
+### 10.3 Phone push
+
+A crew message sends a phone push to the members who cannot see it
+(`message_push.go`). The mention push of section 7.2 stays as it is.
+
+| Rule | Value |
+|---|---|
+| Messages | `text`, `gif` and `image`. A system message sends none. |
+| Members | Every member but the sender, with the Messages setting of the crew on. A member that the message mentions gets the mention push and not this one. |
+| When | The activity rule of the mention push. No push while a session of the member is active. After the grace period when only an inactive desktop is connected. At once in every other case. |
+| Text | The title is the crew name. The body is "Leo: the text", "Leo sent a GIF" or "Leo sent an image". |
+| One notification for each crew | Every message push of a crew has the collapse id `msg-<crew>`. A new push replaces the one before on the lock screen. |
+| Bursts | The first message goes at once. More messages in the next 30 seconds leave as one push when the 30 seconds end: one message as it is, several as "3 new messages". |
+
+**Notification settings.** A member has two settings for each crew, Messages
+and Looking to play (`push_prefs.go`).
+
+- `push_prefs_get {crew_id}` and `push_prefs_set {crew_id, messages?, looking_to_play?}`
+  return `{crew_id, messages, looking_to_play}` with the defaults filled in. A
+  setting that a set leaves out keeps its value. The caller must be a member.
+- Only a choice that the member made is stored: collection `push_prefs`, one
+  doc for each user, not readable by a client.
+- Messages starts on in a crew of up to 10 members and off in a larger crew.
+  Looking to play starts on.
+- A mention push ignores both settings.
+- mello-core: `Command::LoadPushPrefs`, `Command::SetPushPrefs`,
+  `Event::PushPrefsLoaded`, `Event::PushPrefsFailed`.
+- Desktop: the NOTIFICATIONS tab of crew settings. Every member opens it from
+  the Notifications item of the crew menu. A plain member sees that tab only.
+  The settings are disabled until the server answers, and a set that fails
+  puts them back.
+- iOS: the Notifications section of the crew sheet.
+
 ---
 
 ## 11. Message History & Pagination

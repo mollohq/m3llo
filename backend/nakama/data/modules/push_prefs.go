@@ -159,7 +159,8 @@ func PushPrefsSetRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 	var doc pushPrefsDoc
 	for try := 0; ; try++ {
 		doc = pushPrefsDoc{}
-		version := "*" // create only
+		// No version check for the first write, as chat_reactions.go does.
+		version := ""
 		objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{{
 			Collection: PushPrefsCollection, Key: pushPrefsKey, UserID: userID,
 		}})
