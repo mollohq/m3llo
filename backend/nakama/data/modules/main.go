@@ -27,13 +27,14 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	globalDb = db
 
 	// The durable crew ledger (plans/DURABLE-LEDGER.md). Without its tables
-	// the module still runs on the legacy ledger document alone.
-	if err := ensureLedgerSchema(ctx, db); err != nil {
-		logger.Error("ledger_schema_failed: %v. Crew events go to the legacy document only", err)
-	} else {
-		setLedger(newSQLLedgerStore(db))
-		logger.Info("Crew ledger tables ready")
-	}
+	// the module still runs on the legacy ledger document alone, and the
+	// schema setup is tried again in the background.
+	startLedgerStore(ctx, logger, ledgerSchemaRetry, func(ctx context.Context) (ledgerStore, error) {
+		if err := ensureLedgerSchema(ctx, db); err != nil {
+			return nil, err
+		}
+		return newSQLLedgerStore(db), nil
+	})
 
 	// SFU auth init (non-fatal — SFU features are just unavailable if not configured)
 	if err := initSFUAuth(); err != nil {

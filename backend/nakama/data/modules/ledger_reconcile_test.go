@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -688,5 +690,51 @@ func TestReconcileWithoutAStoreDoesNothing(t *testing.T) {
 	}
 	if st, _, _ := readLedgerMigrationState(context.Background(), nk); st != nil {
 		t.Fatalf("state document made with no store: %+v", st)
+	}
+}
+
+// A failed schema setup is tried again until it works.
+func TestStartLedgerStoreRetriesTheSchema(t *testing.T) {
+	useLedger(t, nil)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	store := newMemLedgerStore()
+	ready := make(chan struct{})
+	var once sync.Once
+	var calls atomic.Int32
+	setup := func(context.Context) (ledgerStore, error) {
+		if calls.Add(1) < 3 {
+			return nil, errors.New("database not ready")
+		}
+		once.Do(func() { close(ready) })
+		return store, nil
+	}
+	startLedgerStore(ctx, testLogger(), time.Millisecond, setup)
+	if currentLedger() != nil {
+		t.Fatal("the store is set after a failed setup")
+	}
+	select {
+	case <-ready:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the schema setup was not tried again")
+	}
+	// setLedger runs right after the setup returns.
+	deadline := time.Now().Add(3 * time.Second)
+	for currentLedger() == nil {
+		if time.Now().After(deadline) {
+			t.Fatal("the store was not set after the setup succeeded")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if currentLedger() != ledgerStore(store) {
+		t.Fatal("another store is set")
+	}
+
+	// A setup that works at once sets the store before it returns.
+	setLedger(nil)
+	startLedgerStore(ctx, testLogger(), time.Millisecond, func(context.Context) (ledgerStore, error) { return store, nil })
+	if currentLedger() == nil {
+		t.Fatal("the store is not set after a setup that worked")
 	}
 }

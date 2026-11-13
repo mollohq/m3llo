@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -72,17 +73,39 @@ var ledgerSchema = []string{
 	)`,
 }
 
+// ledgerSchemaLockWait is how long the schema setup waits for the advisory
+// lock. Another node holds it only while it runs the same statements.
+const ledgerSchemaLockWait = 30 * time.Second
+
 // ensureLedgerSchema makes the ledger tables. It holds an advisory lock on
-// one connection for the whole run.
+// one connection for the whole run, and gives up when it does not get the
+// lock within ledgerSchemaLockWait.
 func ensureLedgerSchema(ctx context.Context, db *sql.DB) error {
+	ctx, cancel := context.WithTimeout(ctx, 2*ledgerSchemaLockWait)
+	defer cancel()
 	conn, err := db.Conn(ctx)
 	if err != nil {
 		return fmt.Errorf("ledger schema: connection: %w", err)
 	}
 	defer conn.Close()
 
-	if _, err := conn.ExecContext(ctx, `SELECT pg_advisory_lock($1)`, ledgerSchemaLockKey); err != nil {
-		return fmt.Errorf("ledger schema: lock: %w", err)
+	deadline := time.Now().Add(ledgerSchemaLockWait)
+	for {
+		var locked bool
+		if err := conn.QueryRowContext(ctx, `SELECT pg_try_advisory_lock($1)`, ledgerSchemaLockKey).Scan(&locked); err != nil {
+			return fmt.Errorf("ledger schema: lock: %w", err)
+		}
+		if locked {
+			break
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("ledger schema: no advisory lock after %s", ledgerSchemaLockWait)
+		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("ledger schema: lock: %w", ctx.Err())
+		case <-time.After(500 * time.Millisecond):
+		}
 	}
 	// The unlock must run also when ctx is done, or the lock stays with the
 	// pooled connection.
@@ -94,6 +117,46 @@ func ensureLedgerSchema(ctx context.Context, db *sql.DB) error {
 		}
 	}
 	return nil
+}
+
+// ledgerSchemaRetry is the wait before the first retry of a failed schema
+// setup. It doubles up to ledgerSchemaRetryMax.
+const (
+	ledgerSchemaRetry    = 5 * time.Second
+	ledgerSchemaRetryMax = 5 * time.Minute
+)
+
+// startLedgerStore makes the schema and sets the durable store. When the
+// schema setup fails it returns at once, so the module starts on the legacy
+// document alone, and retries in the background until the setup succeeds.
+// The reconcile then copies what the store missed.
+func startLedgerStore(ctx context.Context, logger runtime.Logger, wait time.Duration, setup func(context.Context) (ledgerStore, error)) {
+	store, err := setup(ctx)
+	if err == nil {
+		setLedger(store)
+		logger.Info("Crew ledger tables ready")
+		return
+	}
+	logger.Error("ledger_schema_failed: %v. Crew events go to the legacy document only. Retry in %s", err, wait)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(wait):
+			}
+			store, err := setup(ctx)
+			if err == nil {
+				setLedger(store)
+				logger.Info("Crew ledger tables ready after a retry")
+				return
+			}
+			if wait *= 2; wait > ledgerSchemaRetryMax {
+				wait = ledgerSchemaRetryMax
+			}
+			logger.Error("ledger_schema_failed: %v. Retry in %s", err, wait)
+		}
+	}()
 }
 
 type sqlLedgerStore struct {
