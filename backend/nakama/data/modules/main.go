@@ -26,6 +26,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	globalLogger = logger
 	globalDb = db
 
+	// The durable crew ledger (plans/DURABLE-LEDGER.md). Without its tables
+	// the module still runs on the legacy ledger document alone.
+	if err := ensureLedgerSchema(ctx, db); err != nil {
+		logger.Error("ledger_schema_failed: %v. Crew events go to the legacy document only", err)
+	} else {
+		crewLedger = newSQLLedgerStore(db)
+		logger.Info("Crew ledger tables ready")
+	}
+
 	// SFU auth init (non-fatal — SFU features are just unavailable if not configured)
 	if err := initSFUAuth(); err != nil {
 		logger.Error("SFU auth init failed: %v", err)
@@ -447,6 +456,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 	if err := initializer.RegisterRpc("dev_enable_sfu_crew", DevEnableSfuCrewRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("dev_ledger_selftest", DevLedgerSelftestRPC); err != nil {
 		return err
 	}
 

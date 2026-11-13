@@ -887,3 +887,46 @@ fn a_clip_uploads_to_local_storage_and_plays_back_without_credentials() {
         let _ = client.delete_account().await;
     });
 }
+
+/// The SQL crew ledger store keeps the store contract on the real tables.
+/// `dev_ledger_selftest` runs the same conformance function that `go test`
+/// runs on the in-memory store (plans/DURABLE-LEDGER.md section 8). It writes
+/// only to two throwaway crew ids and deletes them at the end.
+///
+/// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+#[test]
+fn the_sql_ledger_store_passes_the_conformance_run() {
+    if !e2e_enabled("the_sql_ledger_store_passes_the_conformance_run") {
+        return;
+    }
+
+    rt().block_on(async {
+        let mut client = NakamaClient::new(e2e_config());
+        client
+            .authenticate_device(&random_device_id())
+            .await
+            .expect("device auth");
+
+        let raw = client
+            .rpc("dev_ledger_selftest", &serde_json::json!({}))
+            .await
+            .unwrap_or_else(|e| {
+                panic!(
+                    "dev_ledger_selftest failed: {e}. If it says disabled, the stack needs \
+                     MELLO_ENABLE_DEV_FAULT=1 (scripts/e2e.sh sets it)"
+                )
+            });
+        let body: serde_json::Value =
+            serde_json::from_str(&raw).expect("dev_ledger_selftest returns JSON");
+        assert_eq!(body["success"], true, "selftest response: {body}");
+        assert_eq!(body["store"], "sql", "selftest response: {body}");
+
+        // A second run finds no rows of the first one in its way.
+        client
+            .rpc("dev_ledger_selftest", &serde_json::json!({}))
+            .await
+            .expect("second dev_ledger_selftest");
+
+        let _ = client.delete_account().await;
+    });
+}

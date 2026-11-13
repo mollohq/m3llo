@@ -125,6 +125,9 @@ services:
       - PUSH_WORKER_URL=${PUSH_WORKER_URL:-}
       - PUSH_WORKER_TOKEN=${PUSH_WORKER_TOKEN:-}
       - PUSH_DESKTOP_GRACE_SECS=${PUSH_DESKTOP_GRACE_SECS:-}
+      # Opens the dev RPCs that write (dev_fault, dev_ledger_selftest). Unset =
+      # they refuse. scripts/e2e.sh sets it for the ledger store selftest.
+      - MELLO_ENABLE_DEV_FAULT=${MELLO_ENABLE_DEV_FAULT:-}
     # Lets the container reach a stub on the host; Docker Desktop has this name
     # already, Linux needs the mapping.
     extra_hosts:
