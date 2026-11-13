@@ -1467,8 +1467,9 @@ func resumeStreamResponse(userID, displayName, sessionID, crewID string, session
 // removeCrewEvent deletes one event from the ledger of a crew, with the same
 // optimistic-concurrency retry as AppendCrewEvent.
 func removeCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string) error {
+	ledgerStoreDelete(ctx, crewID, eventID)
 	for attempt := 0; attempt < 3; attempt++ {
-		ledger, version := readLedger(ctx, nk, crewID)
+		ledger, version := readLedgerDoc(ctx, nk, crewID)
 		kept := make([]CrewEvent, 0, len(ledger.Events))
 		for _, e := range ledger.Events {
 			if e.ID != eventID {

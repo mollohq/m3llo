@@ -370,6 +370,12 @@ func DevSeedStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 		resetDeletes = append(resetDeletes, &runtime.StorageDelete{
 			Collection: CrewEventsCollection, Key: cid, UserID: SystemUserID,
 		})
+		// The durable store holds the same events.
+		if crewLedger != nil {
+			if err := crewLedger.DeleteCrew(ctx, cid); err != nil {
+				logger.Warn("dev_seed: ledger store reset failed for crew %s: %v", cid, err)
+			}
+		}
 	}
 	// Every game id this seed writes stats for (plus the caller's own set).
 	seededGameIDs := []string{

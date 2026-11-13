@@ -154,7 +154,15 @@ func generateEventID() string {
 // Storage helpers
 // ---------------------------------------------------------------------------
 
+// readLedger is the ledger of a crew as readers see it: the events of the
+// 7 days before the last append.
 func readLedger(ctx context.Context, nk runtime.NakamaModule, crewID string) (*CrewEventLedger, string) {
+	return readLedgerDoc(ctx, nk, crewID)
+}
+
+// readLedgerDoc reads the legacy ledger document and its version. The writers
+// of the document use it.
+func readLedgerDoc(ctx context.Context, nk runtime.NakamaModule, crewID string) (*CrewEventLedger, string) {
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{Collection: CrewEventsCollection, Key: crewID, UserID: SystemUserID},
 	})
@@ -225,8 +233,9 @@ func streamSessionDataToObject(data StreamSessionData) (map[string]interface{}, 
 // UpdateLedgerEventSnapshotURLs finds a stream_session event by eventID and updates its SnapshotURLs.
 // Used by the background backfill job when SFU uploads frames after StopStreamRPC completed.
 func UpdateLedgerEventSnapshotURLs(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string, snapshotURLs []string) error {
+	ledgerStoreSetSnapshotURLs(ctx, crewID, eventID, snapshotURLs)
 	for attempt := 0; attempt < 3; attempt++ {
-		ledger, version := readLedger(ctx, nk, crewID)
+		ledger, version := readLedgerDoc(ctx, nk, crewID)
 
 		found := false
 		for i, e := range ledger.Events {
@@ -264,9 +273,14 @@ func UpdateLedgerEventSnapshotURLs(ctx context.Context, nk runtime.NakamaModule,
 var ledgerNow = time.Now
 
 // AppendCrewEvent appends an event to a crew's ledger with optimistic concurrency retry.
+//
+// Dual write (plans/DURABLE-LEDGER.md section 5): the event goes to the durable
+// store first, then to the legacy document with its 7-day trim. The result is
+// the result of the document write, as before the durable store.
 func AppendCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID string, event CrewEvent) error {
+	ledgerStoreAppend(ctx, crewID, event)
 	for attempt := 0; attempt < 3; attempt++ {
-		ledger, version := readLedger(ctx, nk, crewID)
+		ledger, version := readLedgerDoc(ctx, nk, crewID)
 
 		ledger.Events = append(ledger.Events, event)
 
