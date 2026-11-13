@@ -430,11 +430,13 @@ impl super::Client {
                     has_more_history
                 );
                 let ids: Vec<String> = messages.iter().map(|m| m.message_id.clone()).collect();
+                let asks_of = messages.clone();
                 let _ = self.event_tx.send(Event::MessagesLoaded {
                     messages,
                     has_more_history,
                 });
                 self.load_reactions(crew_id, ids).await;
+                self.load_looking_to_play(crew_id, &asks_of).await;
                 let cursor = match self.nakama.read_chat_cursors(&[crew_id.to_string()]).await {
                     Ok(mut rows) => rows.pop().map(|(_, c)| c),
                     Err(e) => {

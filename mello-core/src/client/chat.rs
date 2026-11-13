@@ -274,12 +274,14 @@ impl super::Client {
             Ok((messages, next_cursor)) => {
                 self.history_cursor = next_cursor.clone();
                 let ids: Vec<String> = messages.iter().map(|m| m.message_id.clone()).collect();
+                let asks_of = messages.clone();
                 let _ = self.event_tx.send(Event::HistoryLoaded {
                     messages,
                     cursor: next_cursor,
                 });
                 if let Some(crew_id) = self.nakama.active_crew_id().map(str::to_string) {
                     self.load_reactions(&crew_id, ids).await;
+                    self.load_looking_to_play(&crew_id, &asks_of).await;
                 }
             }
             Err(e) => {

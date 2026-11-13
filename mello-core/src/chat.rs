@@ -477,6 +477,8 @@ pub fn chat_message_from_envelope(
             is_system: false,
             is_edited: false,
             is_deleted: true,
+            event: None,
+            data: None,
         });
     }
 
@@ -506,6 +508,8 @@ pub fn chat_message_from_envelope(
         is_system,
         is_edited,
         is_deleted: false,
+        event: envelope.event,
+        data: envelope.data,
     })
 }
 
@@ -1322,6 +1326,8 @@ mod tests {
             is_system: false,
             is_edited: false,
             is_deleted: false,
+            event: None,
+            data: None,
         }
     }
 
@@ -1635,6 +1641,8 @@ mod tests {
             is_system: false,
             is_edited: false,
             is_deleted: false,
+            event: None,
+            data: None,
         }
     }
 

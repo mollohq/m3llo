@@ -5,6 +5,7 @@ pub(crate) mod clip;
 mod crew;
 mod game;
 pub(crate) mod games;
+mod looking_to_play;
 mod presence;
 mod quests;
 mod stats;
@@ -109,6 +110,11 @@ fn dispatch(ctx: &AppContext, event: Event) {
         | Event::CrewMemberKickFailed { .. }
         | Event::PushPrefsLoaded { .. }
         | Event::PushPrefsFailed { .. } => crew::handle(ctx, event),
+
+        // Looking to play
+        Event::LookingToPlayUpdated { .. }
+        | Event::LookingToPlayLoaded { .. }
+        | Event::LookingToPlayFailed { .. } => looking_to_play::handle(ctx, event),
 
         // Voice
         Event::VoiceStateChanged { .. }

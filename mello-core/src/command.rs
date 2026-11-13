@@ -179,6 +179,26 @@ pub enum Command {
         #[serde(default)]
         environment: Option<String>,
     },
+    /// Looking to play: ask the crew, or the picked members, if they are up
+    /// for a game (plans/LOOKING-TO-PLAY.md section 3). No `member_ids` asks
+    /// everyone. The answer is `Event::LookingToPlayUpdated`, or
+    /// `Event::LookingToPlayFailed`.
+    LookingToPlayAsk {
+        crew_id: String,
+        #[serde(default)]
+        game: Option<crate::looking_to_play::AskGame>,
+        #[serde(default)]
+        member_ids: Vec<String>,
+    },
+    /// Answer an ask: In, In 15, In 30 or Not now.
+    LookingToPlayAnswer {
+        ask_id: String,
+        answer: crate::looking_to_play::Answer,
+    },
+    /// Close the user's own ask.
+    LookingToPlayCancel {
+        ask_id: String,
+    },
     /// Load the user's push switches for a crew (plans/LOOKING-TO-PLAY.md
     /// section 4). The answer is `Event::PushPrefsLoaded`.
     LoadPushPrefs {
@@ -783,6 +803,37 @@ mod tests {
         assert!(matches!(
             cmd,
             Command::RegisterPushToken { environment: Some(ref e), .. } if e == "sandbox"
+        ));
+    }
+
+    /// The shapes that the iOS app sends for Looking to play.
+    #[test]
+    fn looking_to_play_commands_decode() {
+        let cmd: Command =
+            serde_json::from_str(r#"{"type":"LookingToPlayAsk","data":{"crew_id":"c1"}}"#).unwrap();
+        assert!(matches!(
+            cmd,
+            Command::LookingToPlayAsk { ref crew_id, game: None, ref member_ids }
+                if crew_id == "c1" && member_ids.is_empty()
+        ));
+        let cmd: Command = serde_json::from_str(
+            r#"{"type":"LookingToPlayAsk","data":{"crew_id":"c1",
+                "game":{"game_id":"steam-730","name":"Counter-Strike 2"},"member_ids":["u2"]}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            cmd,
+            Command::LookingToPlayAsk { game: Some(ref g), ref member_ids, .. }
+                if g.game_id == "steam-730" && member_ids == &["u2".to_string()]
+        ));
+        let cmd: Command = serde_json::from_str(
+            r#"{"type":"LookingToPlayAnswer","data":{"ask_id":"a1","answer":"in_15"}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            cmd,
+            Command::LookingToPlayAnswer { ref ask_id, answer: crate::looking_to_play::Answer::In15 }
+                if ask_id == "a1"
         ));
     }
 
