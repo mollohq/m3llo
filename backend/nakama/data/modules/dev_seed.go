@@ -371,8 +371,8 @@ func DevSeedStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 			Collection: CrewEventsCollection, Key: cid, UserID: SystemUserID,
 		})
 		// The durable store holds the same events.
-		if crewLedger != nil {
-			if err := crewLedger.DeleteCrew(ctx, cid); err != nil {
+		if store := currentLedger(); store != nil {
+			if err := store.DeleteCrew(ctx, cid); err != nil {
 				logger.Warn("dev_seed: ledger store reset failed for crew %s: %v", cid, err)
 			}
 		}

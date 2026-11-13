@@ -285,11 +285,11 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 		return CrewEvent{ID: id + "_" + run, Type: "member_joined", ActorID: user, Timestamp: ts, Data: MemberJoinedData{Username: "u"}}
 	}
 	doc := []CrewEvent{mkB("b_out", anchor-8*day), mkB("b_late", anchor-1*day), mkB("b_early", anchor-6*day)}
-	n, err := store.Backfill(ctx, crewB, doc, anchor)
+	n, err := store.Backfill(ctx, crewB, doc, anchor, true)
 	if err != nil || n != 3 {
 		return fmt.Errorf("backfill: inserted=%d err=%v, want 3", n, err)
 	}
-	if n, err = store.Backfill(ctx, crewB, doc, anchor); err != nil || n != 0 {
+	if n, err = store.Backfill(ctx, crewB, doc, anchor, true); err != nil || n != 0 {
 		return fmt.Errorf("backfill again: inserted=%d err=%v, want 0", n, err)
 	}
 	if got, err = store.RecentView(ctx, crewB); err != nil {
@@ -306,7 +306,7 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 		return fmt.Errorf("backfill did not set the crew id: %q", got[0].CrewID)
 	}
 	// The anchor does not move back.
-	if _, err = store.Backfill(ctx, crewB, nil, anchor-30*day); err != nil {
+	if _, err = store.Backfill(ctx, crewB, nil, anchor-30*day, true); err != nil {
 		return fmt.Errorf("backfill with an older anchor: %w", err)
 	}
 	if got, err = store.RecentView(ctx, crewB); err != nil {
@@ -328,6 +328,102 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 	}
 	if n, err := store.CountOlder(ctx, crewB, nil, now+1); err != nil || n != 4 {
 		return fmt.Errorf("count of the backfilled crew = %d err=%v, want 4", n, err)
+	}
+
+	// An event that a legacy document held under a type that is not a pulse
+	// type is kept as "ledger_<type>". The view gives it back under its
+	// document type. No counted query sees it.
+	legacy := mkB("b_legacy", now)
+	legacy.CrewID = crewB
+	legacy.Type = ledgerStoredType("weekly_recap")
+	if inserted, err = store.Append(ctx, legacy, ""); err != nil || !inserted {
+		return fmt.Errorf("append of a legacy type: inserted=%v err=%v", inserted, err)
+	}
+	if got, err = store.RecentView(ctx, crewB); err != nil {
+		return fmt.Errorf("recent view with a legacy type: %w", err)
+	} else if err := want("recent view with a legacy type", got, "b_live,b_legacy"); err != nil {
+		return err
+	}
+	if got[1].Type != "weekly_recap" {
+		return fmt.Errorf("recent view gives the legacy event the type %q, want weekly_recap", got[1].Type)
+	}
+	if got, err = store.Between(ctx, crewB, now, now, []string{"ledger_weekly_recap"}); err != nil || len(got) != 1 {
+		return fmt.Errorf("between of the stored legacy type: %d events, err=%v", len(got), err)
+	}
+	if got, err = store.NewestN(ctx, crewB, ledgerCountedTypes, now+day, 10); err != nil || len(got) != 0 {
+		return fmt.Errorf("counted events of crew b: %d, err=%v, want 0", len(got), err)
+	}
+
+	// Backfill puts a new event at its document position. Without
+	// docOrderWins the events the crew holds keep their order.
+	mid, end, first := mkB("b_mid", now), mkB("b_end", now), mkB("b_first", now)
+	live.CrewID, legacy.CrewID = "", ""
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{live, mid, legacy, end}, now, false); err != nil || n != 2 {
+		return fmt.Errorf("backfill of two new events: inserted=%d err=%v, want 2", n, err)
+	}
+	if got, err = store.RecentView(ctx, crewB); err != nil {
+		return fmt.Errorf("recent view after a positional backfill: %w", err)
+	} else if err := want("recent view after a positional backfill", got, "b_live,b_mid,b_legacy,b_end"); err != nil {
+		return err
+	}
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{first, legacy, live}, now, false); err != nil || n != 1 {
+		return fmt.Errorf("backfill of a first event: inserted=%d err=%v, want 1", n, err)
+	}
+	if got, err = store.RecentView(ctx, crewB); err != nil {
+		return fmt.Errorf("recent view after a backfill at the front: %w", err)
+	} else if err := want("recent view after a backfill at the front", got, "b_first,b_live,b_mid,b_legacy,b_end"); err != nil {
+		return err
+	}
+	// With docOrderWins the events of the document take the document order.
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{end, live}, now, true); err != nil || n != 0 {
+		return fmt.Errorf("backfill with the document order: inserted=%d err=%v, want 0", n, err)
+	}
+	if got, err = store.RecentView(ctx, crewB); err != nil {
+		return fmt.Errorf("recent view in document order: %w", err)
+	} else if err := want("recent view in document order", got, "b_first,b_mid,b_legacy,b_end,b_live"); err != nil {
+		return err
+	}
+	// A live append goes after everything, also after a reorder.
+	last := mkB("b_last", now)
+	last.CrewID = crewB
+	if inserted, err = store.Append(ctx, last, ""); err != nil || !inserted {
+		return fmt.Errorf("append after a reorder: inserted=%v err=%v", inserted, err)
+	}
+
+	// Delete remembers the id: a backfill does not bring the event back.
+	// Prune does not remember it. A live append clears the memory.
+	if err = store.Delete(ctx, crewB, mid.ID); err != nil {
+		return fmt.Errorf("delete b_mid: %w", err)
+	}
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{mid}, now, false); err != nil || n != 0 {
+		return fmt.Errorf("backfill of a deleted event: inserted=%d err=%v, want 0", n, err)
+	}
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{mid}, now, true); err != nil || n != 0 {
+		return fmt.Errorf("backfill of a deleted event with the document order: inserted=%d err=%v, want 0", n, err)
+	}
+	if err = store.Prune(ctx, crewB, []string{end.ID, "missing_" + run}); err != nil {
+		return fmt.Errorf("prune b_end: %w", err)
+	}
+	if got, err = store.RecentView(ctx, crewB); err != nil {
+		return fmt.Errorf("recent view after delete and prune: %w", err)
+	} else if err := want("recent view after delete and prune", got, "b_first,b_legacy,b_live,b_last"); err != nil {
+		return err
+	}
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{end}, now, false); err != nil || n != 1 {
+		return fmt.Errorf("backfill of a pruned event: inserted=%d err=%v, want 1", n, err)
+	}
+	mid.CrewID = crewB
+	if inserted, err = store.Append(ctx, mid, ""); err != nil || !inserted {
+		return fmt.Errorf("append of a deleted id: inserted=%v err=%v", inserted, err)
+	}
+	if err = store.Prune(ctx, crewB, []string{mid.ID}); err != nil {
+		return fmt.Errorf("prune b_mid: %w", err)
+	}
+	if n, err = store.Backfill(ctx, crewB, []CrewEvent{mid}, now, false); err != nil || n != 1 {
+		return fmt.Errorf("backfill after a live append cleared the delete: inserted=%d err=%v, want 1", n, err)
+	}
+	if n, err := store.CountOlder(ctx, crewB, nil, now+1); err != nil || n != 9 {
+		return fmt.Errorf("count of crew b at the end = %d err=%v, want 9", n, err)
 	}
 
 	// Crews do not see each other.

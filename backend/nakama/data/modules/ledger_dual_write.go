@@ -4,12 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+
+	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// Dual write to the durable ledger store (plans/DURABLE-LEDGER.md section 5).
-// Each helper is a no-op when the store is not set. A store error is logged
-// and never fails the caller: the legacy document is still written, and the
-// backfill of the next start copies what the store missed.
+// Dual write to the legacy ledger document and the durable ledger store
+// (plans/DURABLE-LEDGER.md section 5).
+//
+// One of the two is the truth: the one the readers use.
+//   - Before the cutover it is the document. The document is written first.
+//     When that fails the caller gets the error and the store is not written.
+//     A store failure is logged, and the reconcile repairs it from the document.
+//   - After the cutover it is the store. The store is written first. When
+//     that fails the caller gets the error and the document is not written.
+//     A document failure is logged only.
+//
+// With no store set, only the document is written.
 
 func ledgerLogError(format string, args ...interface{}) {
 	if globalLogger != nil {
@@ -17,25 +28,50 @@ func ledgerLogError(format string, args ...interface{}) {
 	}
 }
 
-// ledgerStoreAppend writes one event to the durable store.
-func ledgerStoreAppend(ctx context.Context, crewID string, event CrewEvent) {
-	if crewLedger == nil {
-		return
+// ledgerWriteBoth runs one write on both stores in the order of the phase.
+// op names the write in the log lines.
+func ledgerWriteBoth(ctx context.Context, nk runtime.NakamaModule, op, crewID, eventID string, toStore func(ledgerStore) error, toDoc func() error) error {
+	if store := ledgerTruthStore(ctx, nk); store != nil {
+		if err := toStore(store); err != nil {
+			ledgerLogError("ledger_store_write_failed op=%s crew=%s event=%s: %v", op, crewID, eventID, err)
+			return fmt.Errorf("ledger %s failed for crew %s event %s: %w", op, crewID, eventID, err)
+		}
+		if err := toDoc(); err != nil {
+			ledgerLogError("ledger_doc_write_failed op=%s crew=%s event=%s: %v", op, crewID, eventID, err)
+		}
+		return nil
 	}
+	if err := toDoc(); err != nil {
+		return err
+	}
+	if store := currentLedger(); store != nil {
+		if err := toStore(store); err != nil && !errors.Is(err, errLedgerEventNotFound) {
+			// The reconcile copies the document state to the store.
+			ledgerLogError("ledger_store_write_failed op=%s crew=%s event=%s: %v. The reconcile repairs it", op, crewID, eventID, err)
+		}
+	}
+	return nil
+}
+
+// ledgerStoreEvent is an event of the legacy ledger path as the store keeps
+// it: with its crew id, and with a "ledger_" type when the type is not a
+// pulse type (ledgerStoredType).
+func ledgerStoreEvent(crewID string, event CrewEvent) CrewEvent {
 	event.CrewID = crewID
-	if _, err := crewLedger.Append(ctx, event, eventRef(event)); err != nil {
-		ledgerLogError("ledger_store_append_failed crew=%s event=%s type=%s: %v", crewID, event.ID, event.Type, err)
-	}
+	event.Type = ledgerStoredType(event.Type)
+	return event
+}
+
+// ledgerStoreAppend writes one event of the legacy ledger path to the store.
+func ledgerStoreAppend(ctx context.Context, store ledgerStore, crewID string, event CrewEvent) error {
+	_, err := store.Append(ctx, ledgerStoreEvent(crewID, event), eventRef(event))
+	return err
 }
 
 // ledgerStoreSetSnapshotURLs sets the snapshot URLs of a stream_session event
-// in the durable store. An event the store does not hold yet is not an error:
-// the backfill copies it from the document with its URLs.
-func ledgerStoreSetSnapshotURLs(ctx context.Context, crewID, eventID string, snapshotURLs []string) {
-	if crewLedger == nil {
-		return
-	}
-	err := crewLedger.UpdateData(ctx, crewID, eventID, func(raw json.RawMessage) (json.RawMessage, error) {
+// in the store.
+func ledgerStoreSetSnapshotURLs(ctx context.Context, store ledgerStore, crewID, eventID string, snapshotURLs []string) error {
+	return store.UpdateData(ctx, crewID, eventID, func(raw json.RawMessage) (json.RawMessage, error) {
 		data, err := decodeStreamSessionData([]byte(raw))
 		if err != nil {
 			return nil, err
@@ -43,17 +79,4 @@ func ledgerStoreSetSnapshotURLs(ctx context.Context, crewID, eventID string, sna
 		data.SnapshotURLs = snapshotURLs
 		return json.Marshal(data)
 	})
-	if err != nil && !errors.Is(err, errLedgerEventNotFound) {
-		ledgerLogError("ledger_store_update_failed crew=%s event=%s: %v", crewID, eventID, err)
-	}
-}
-
-// ledgerStoreDelete removes one event from the durable store.
-func ledgerStoreDelete(ctx context.Context, crewID, eventID string) {
-	if crewLedger == nil {
-		return
-	}
-	if err := crewLedger.Delete(ctx, crewID, eventID); err != nil {
-		ledgerLogError("ledger_store_delete_failed crew=%s event=%s: %v", crewID, eventID, err)
-	}
 }

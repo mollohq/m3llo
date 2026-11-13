@@ -31,12 +31,15 @@ var ledgerSchema = []string{
 		ref        TEXT   NOT NULL DEFAULT '',
 		data       JSONB,
 		created_ms BIGINT NOT NULL,
+		pos        BIGINT NOT NULL,
 		PRIMARY KEY (crew_id, ts, id)
 	)`,
 	`CREATE UNIQUE INDEX IF NOT EXISTS mello_crew_event_crew_id_key ON mello_crew_event (crew_id, id)`,
 	`CREATE INDEX IF NOT EXISTS mello_crew_event_type_ts_idx ON mello_crew_event (crew_id, type, ts DESC, id)`,
 	`CREATE INDEX IF NOT EXISTS mello_crew_event_ref_idx ON mello_crew_event (crew_id, type, ref) WHERE ref <> ''`,
 	`CREATE INDEX IF NOT EXISTS mello_crew_event_type_idx ON mello_crew_event (type, ts)`,
+	// pos is the append order of a crew. The 7-day view sorts by it.
+	`CREATE INDEX IF NOT EXISTS mello_crew_event_pos_idx ON mello_crew_event (crew_id, pos)`,
 	`CREATE TABLE IF NOT EXISTS mello_crew_event_user (
 		user_id  TEXT NOT NULL,
 		crew_id  TEXT NOT NULL,
@@ -51,11 +54,21 @@ var ledgerSchema = []string{
 		n          INT    NOT NULL,
 		PRIMARY KEY (crew_id, week_start, type)
 	)`,
-	// The time of the last append of a crew. The 7-day view is cut against
-	// it, as the legacy document was trimmed on every append.
+	// The time of the last append of a crew, and the last position given out.
+	// The 7-day view is cut against the time, as the legacy document was
+	// trimmed on every append. Every write that gives out positions updates
+	// this row first, so the writes of one crew run one after the other.
 	`CREATE TABLE IF NOT EXISTS mello_crew_event_anchor (
 		crew_id        TEXT   NOT NULL PRIMARY KEY,
-		last_append_ms BIGINT NOT NULL
+		last_append_ms BIGINT NOT NULL,
+		last_pos       BIGINT NOT NULL DEFAULT 0
+	)`,
+	// Ids that Delete removed. A backfill does not store them again.
+	`CREATE TABLE IF NOT EXISTS mello_crew_event_deleted (
+		crew_id    TEXT   NOT NULL,
+		event_id   TEXT   NOT NULL,
+		deleted_ms BIGINT NOT NULL,
+		PRIMARY KEY (crew_id, event_id)
 	)`,
 }
 
@@ -136,18 +149,18 @@ func (s *sqlLedgerStore) inTx(ctx context.Context, fn func(tx *sql.Tx) error) er
 	return tx.Commit()
 }
 
-// ledgerInsertEvent writes the event row, the user rows and the rollup. It reports
-// false, and writes nothing, when the crew already holds the event id.
-func ledgerInsertEvent(ctx context.Context, tx *sql.Tx, ev CrewEvent, ref string, createdMs int64) (bool, error) {
+// ledgerInsertEvent writes the event row, the user rows and the rollup. It
+// reports false, and writes nothing, when the crew already holds the event id.
+func ledgerInsertEvent(ctx context.Context, tx *sql.Tx, ev CrewEvent, ref string, createdMs, pos int64) (bool, error) {
 	data, err := ledgerEncodeData(ev.Data)
 	if err != nil {
 		return false, err
 	}
 	res, err := tx.ExecContext(ctx,
-		`INSERT INTO mello_crew_event (crew_id, ts, id, type, actor_id, score, ref, data, created_ms)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9)
+		`INSERT INTO mello_crew_event (crew_id, ts, id, type, actor_id, score, ref, data, created_ms, pos)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10)
 		 ON CONFLICT DO NOTHING`,
-		ev.CrewID, ev.Timestamp, ev.ID, ev.Type, ev.ActorID, ev.Score, ref, string(data), createdMs)
+		ev.CrewID, ev.Timestamp, ev.ID, ev.Type, ev.ActorID, ev.Score, ref, string(data), createdMs, pos)
 	if err != nil {
 		return false, err
 	}
@@ -175,13 +188,23 @@ func ledgerInsertEvent(ctx context.Context, tx *sql.Tx, ev CrewEvent, ref string
 	return true, nil
 }
 
-func ledgerMoveAnchor(ctx context.Context, tx *sql.Tx, crewID string, anchorMs int64) error {
-	_, err := tx.ExecContext(ctx,
-		`INSERT INTO mello_crew_event_anchor (crew_id, last_append_ms) VALUES ($1, $2)
+// ledgerTakePositions moves the anchor time of a crew forward to atMs and
+// takes n positions. It returns the last position before the ones it took.
+// The row lock it holds until the end of the transaction makes the writes of
+// one crew run one after the other.
+func ledgerTakePositions(ctx context.Context, tx *sql.Tx, crewID string, atMs int64, n int) (int64, error) {
+	var lastPos int64
+	err := tx.QueryRowContext(ctx,
+		`INSERT INTO mello_crew_event_anchor (crew_id, last_append_ms, last_pos) VALUES ($1, $2, $3)
 		 ON CONFLICT (crew_id) DO UPDATE
-		 SET last_append_ms = GREATEST(mello_crew_event_anchor.last_append_ms, EXCLUDED.last_append_ms)`,
-		crewID, anchorMs)
-	return err
+		 SET last_append_ms = GREATEST(mello_crew_event_anchor.last_append_ms, EXCLUDED.last_append_ms),
+		     last_pos = mello_crew_event_anchor.last_pos + EXCLUDED.last_pos
+		 RETURNING last_pos`,
+		crewID, atMs, n).Scan(&lastPos)
+	if err != nil {
+		return 0, err
+	}
+	return lastPos - int64(n), nil
 }
 
 func (s *sqlLedgerStore) Append(ctx context.Context, ev CrewEvent, ref string) (bool, error) {
@@ -191,11 +214,16 @@ func (s *sqlLedgerStore) Append(ctx context.Context, ev CrewEvent, ref string) (
 	nowMs := ledgerNow().UnixMilli()
 	inserted := false
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
-		var err error
-		if inserted, err = ledgerInsertEvent(ctx, tx, ev, ref, nowMs); err != nil {
+		base, err := ledgerTakePositions(ctx, tx, ev.CrewID, nowMs, 1)
+		if err != nil {
 			return err
 		}
-		return ledgerMoveAnchor(ctx, tx, ev.CrewID, nowMs)
+		if inserted, err = ledgerInsertEvent(ctx, tx, ev, ref, nowMs, base+1); err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx,
+			`DELETE FROM mello_crew_event_deleted WHERE crew_id = $1 AND event_id = $2`, ev.CrewID, ev.ID)
+		return err
 	})
 	if err != nil {
 		return false, err
@@ -203,36 +231,107 @@ func (s *sqlLedgerStore) Append(ctx context.Context, ev CrewEvent, ref string) (
 	return inserted, nil
 }
 
-func (s *sqlLedgerStore) Backfill(ctx context.Context, crewID string, events []CrewEvent, anchorMs int64) (int, error) {
+// ledgerViewWhere is the WHERE clause of the 7-day view and its arguments
+// after the crew id, which is $1: the events of the legacy ledger path (pulse
+// types and "ledger_" types) of the 7 days before the last append.
+func ledgerViewWhere() (string, []interface{}) {
+	args := []interface{}{ledgerRecentWindowMs}
+	marks := make([]string, 0, len(ledgerPulseTypes))
+	for _, t := range ledgerPulseTypes {
+		args = append(args, t)
+		marks = append(marks, fmt.Sprintf("$%d", len(args)+1))
+	}
+	// The backslash makes the underscore of the prefix a plain character.
+	where := `crew_id = $1
+		AND ts >= (SELECT last_append_ms FROM mello_crew_event_anchor WHERE crew_id = $1) - $2
+		AND (type LIKE '` + strings.ReplaceAll(ledgerLegacyTypePrefix, "_", `\_`) + `%' OR type IN (` + strings.Join(marks, ", ") + `))`
+	return where, args
+}
+
+func (s *sqlLedgerStore) Backfill(ctx context.Context, crewID string, docEvents []CrewEvent, anchorMs int64, docOrderWins bool) (int, error) {
 	inserted := 0
 	err := s.inTx(ctx, func(tx *sql.Tx) error {
 		inserted = 0
-		// The backfilled events are older than every event the store already
-		// holds, so they sort before them and keep their own order.
-		var minCreated sql.NullInt64
-		if err := tx.QueryRowContext(ctx,
-			`SELECT MIN(created_ms) FROM mello_crew_event WHERE crew_id = $1`, crewID).Scan(&minCreated); err != nil {
+		base, err := ledgerTakePositions(ctx, tx, crewID, anchorMs, len(docEvents))
+		if err != nil {
 			return err
 		}
-		base := anchorMs
-		if minCreated.Valid && minCreated.Int64 < base {
-			base = minCreated.Int64
+		deleted := map[string]bool{}
+		rows, err := tx.QueryContext(ctx, `SELECT event_id FROM mello_crew_event_deleted WHERE crew_id = $1`, crewID)
+		if err != nil {
+			return err
 		}
-		base -= int64(len(events))
-		for i, ev := range events {
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			deleted[id] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+
+		isNew := map[string]bool{}
+		docIDs := make([]string, 0, len(docEvents))
+		for i, ev := range docEvents {
 			if ev.ID == "" {
 				continue
 			}
+			docIDs = append(docIDs, ev.ID)
+			if deleted[ev.ID] {
+				continue
+			}
 			ev.CrewID = crewID
-			ok, err := ledgerInsertEvent(ctx, tx, ev, eventRef(ev), base+int64(i))
+			ok, err := ledgerInsertEvent(ctx, tx, ev, eventRef(ev), anchorMs, base+int64(i)+1)
 			if err != nil {
 				return err
 			}
 			if ok {
 				inserted++
+				isNew[ev.ID] = true
 			}
 		}
-		return ledgerMoveAnchor(ctx, tx, crewID, anchorMs)
+
+		// Put the view in the wanted order. Only a changed order is written.
+		where, args := ledgerViewWhere()
+		rows, err = tx.QueryContext(ctx,
+			`SELECT id FROM mello_crew_event WHERE `+where+` ORDER BY pos ASC, id ASC`,
+			append([]interface{}{crewID}, args...)...)
+		if err != nil {
+			return err
+		}
+		var current []string
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return err
+			}
+			current = append(current, id)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		wanted := ledgerMergeOrder(current, docIDs, isNew, docOrderWins)
+		if ledgerSameOrder(current, wanted) {
+			return nil
+		}
+		base, err = ledgerTakePositions(ctx, tx, crewID, anchorMs, len(wanted))
+		if err != nil {
+			return err
+		}
+		for i, id := range wanted {
+			if _, err := tx.ExecContext(ctx,
+				`UPDATE mello_crew_event SET pos = $3 WHERE crew_id = $1 AND id = $2`,
+				crewID, id, base+int64(i)+1); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return 0, err
@@ -263,32 +362,58 @@ func (s *sqlLedgerStore) UpdateData(ctx context.Context, crewID, eventID string,
 	})
 }
 
+// ledgerRemoveEvent deletes the event row, its user rows and its rollup count.
+func ledgerRemoveEvent(ctx context.Context, tx *sql.Tx, crewID, eventID string) error {
+	var typ string
+	var ts int64
+	err := tx.QueryRowContext(ctx,
+		`DELETE FROM mello_crew_event WHERE crew_id = $1 AND id = $2 RETURNING type, ts`,
+		crewID, eventID).Scan(&typ, &ts)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`DELETE FROM mello_crew_event_user WHERE crew_id = $1 AND event_id = $2`, crewID, eventID); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx,
+		`UPDATE mello_crew_event_week SET n = n - 1 WHERE crew_id = $1 AND week_start = $2 AND type = $3`,
+		crewID, weekStartOf(ts), typ); err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx,
+		`DELETE FROM mello_crew_event_week WHERE crew_id = $1 AND week_start = $2 AND type = $3 AND n <= 0`,
+		crewID, weekStartOf(ts), typ)
+	return err
+}
+
 func (s *sqlLedgerStore) Delete(ctx context.Context, crewID, eventID string) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		var typ string
-		var ts int64
-		err := tx.QueryRowContext(ctx,
-			`DELETE FROM mello_crew_event WHERE crew_id = $1 AND id = $2 RETURNING type, ts`,
-			crewID, eventID).Scan(&typ, &ts)
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil
-		}
-		if err != nil {
+		if err := ledgerRemoveEvent(ctx, tx, crewID, eventID); err != nil {
 			return err
 		}
-		if _, err := tx.ExecContext(ctx,
-			`DELETE FROM mello_crew_event_user WHERE crew_id = $1 AND event_id = $2`, crewID, eventID); err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx,
-			`UPDATE mello_crew_event_week SET n = n - 1 WHERE crew_id = $1 AND week_start = $2 AND type = $3`,
-			crewID, weekStartOf(ts), typ); err != nil {
-			return err
-		}
-		_, err = tx.ExecContext(ctx,
-			`DELETE FROM mello_crew_event_week WHERE crew_id = $1 AND week_start = $2 AND type = $3 AND n <= 0`,
-			crewID, weekStartOf(ts), typ)
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO mello_crew_event_deleted (crew_id, event_id, deleted_ms) VALUES ($1, $2, $3)
+			 ON CONFLICT (crew_id, event_id) DO UPDATE SET deleted_ms = EXCLUDED.deleted_ms`,
+			crewID, eventID, ledgerNow().UnixMilli())
 		return err
+	})
+}
+
+func (s *sqlLedgerStore) Prune(ctx context.Context, crewID string, eventIDs []string) error {
+	if len(eventIDs) == 0 {
+		return nil
+	}
+	return s.inTx(ctx, func(tx *sql.Tx) error {
+		for _, id := range eventIDs {
+			if err := ledgerRemoveEvent(ctx, tx, crewID, id); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 }
 
@@ -360,16 +485,21 @@ func (s *sqlLedgerStore) WeeksBefore(ctx context.Context, crewID string, types [
 }
 
 func (s *sqlLedgerStore) RecentView(ctx context.Context, crewID string) ([]CrewEvent, error) {
-	filter, args := ledgerTypeFilter(ledgerPulseTypes, []interface{}{crewID, ledgerRecentWindowMs})
+	where, args := ledgerViewWhere()
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT `+ledgerEventColumns+` FROM mello_crew_event
-		 WHERE crew_id = $1
-		   AND ts >= (SELECT last_append_ms FROM mello_crew_event_anchor WHERE crew_id = $1) - $2`+filter+`
-		 ORDER BY created_ms ASC, id ASC`, args...)
+		`SELECT `+ledgerEventColumns+` FROM mello_crew_event WHERE `+where+` ORDER BY pos ASC, id ASC`,
+		append([]interface{}{crewID}, args...)...)
 	if err != nil {
 		return nil, err
 	}
-	return scanLedgerEvents(rows)
+	events, err := scanLedgerEvents(rows)
+	if err != nil {
+		return nil, err
+	}
+	for i := range events {
+		events[i].Type, _ = ledgerReaderType(events[i].Type)
+	}
+	return events, nil
 }
 
 func (s *sqlLedgerStore) ByType(ctx context.Context, typ string, sinceMs int64) ([]CrewEvent, error) {
@@ -385,7 +515,7 @@ func (s *sqlLedgerStore) ByType(ctx context.Context, typ string, sinceMs int64) 
 
 func (s *sqlLedgerStore) DeleteCrew(ctx context.Context, crewID string) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
-		for _, table := range []string{"mello_crew_event", "mello_crew_event_user", "mello_crew_event_week", "mello_crew_event_anchor"} {
+		for _, table := range []string{"mello_crew_event", "mello_crew_event_user", "mello_crew_event_week", "mello_crew_event_anchor", "mello_crew_event_deleted"} {
 			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE crew_id = $1`, crewID); err != nil {
 				return err
 			}

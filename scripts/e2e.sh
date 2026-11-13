@@ -51,6 +51,11 @@ export MELLO_E2E_PUSH_PORT PUSH_WORKER_URL PUSH_WORKER_TOKEN PUSH_DESKTOP_GRACE_
 MELLO_ENABLE_DEV_FAULT="${MELLO_ENABLE_DEV_FAULT:-1}"
 export MELLO_ENABLE_DEV_FAULT
 
+# No soak time for the crew ledger: the readers move to the durable store at
+# the first clean reconcile, so the suite runs on the store.
+MELLO_LEDGER_SOAK_SECONDS="${MELLO_LEDGER_SOAK_SECONDS:-0}"
+export MELLO_LEDGER_SOAK_SECONDS
+
 # The SFU is the only voice and stream transport: without a signing key,
 # voice_join and start_stream return SFU_UNAVAILABLE. The RPC tests only need
 # the token, not a running SFU, so a stack with no key gets a key for this run.

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // The durable crew ledger (plans/DURABLE-LEDGER.md). Every event is kept. The
@@ -20,6 +22,40 @@ var ledgerPulseTypes = []string{
 
 // ledgerCountedTypes are the event types that count toward the free window.
 var ledgerCountedTypes = []string{"clip", "stream_session", "game_session", "weekly_recap"}
+
+// ledgerLegacyTypePrefix marks an event that a legacy ledger document held
+// under a type that is not a pulse type: the clip and weekly_recap events
+// that old code and the dev seed wrote into the ledger. The store keeps such
+// an event as "ledger_clip" or "ledger_weekly_recap", so it does not mix with
+// the real clip and recap rows of phase 1b and no counted query sees it.
+// RecentView gives it back under its document type.
+const ledgerLegacyTypePrefix = "ledger_"
+
+// ledgerStoredType is the type the store keeps for an event of the legacy
+// ledger path.
+func ledgerStoredType(typ string) string {
+	for _, t := range ledgerPulseTypes {
+		if t == typ {
+			return typ
+		}
+	}
+	return ledgerLegacyTypePrefix + typ
+}
+
+// ledgerReaderType is the document type of a stored type, and whether the
+// 7-day view holds it. A row that is not of the legacy ledger path (a clip
+// row of phase 1b) is not in the view.
+func ledgerReaderType(stored string) (string, bool) {
+	if strings.HasPrefix(stored, ledgerLegacyTypePrefix) {
+		return strings.TrimPrefix(stored, ledgerLegacyTypePrefix), true
+	}
+	for _, t := range ledgerPulseTypes {
+		if t == stored {
+			return stored, true
+		}
+	}
+	return stored, false
+}
 
 // ledgerRecentWindowMs is the length of the 7-day view.
 const ledgerRecentWindowMs = int64(EventRollingWindowDays) * 24 * 60 * 60 * 1000
@@ -36,18 +72,29 @@ type weekCount struct {
 // ledgerStore is the durable store of crew events. An event is identified by
 // its crew and its id. All times are Unix ms.
 type ledgerStore interface {
-	// Append stores one event at the time of ledgerNow. It reports false when
-	// the crew already holds an event with this id. It moves the anchor of
-	// the 7-day view in both cases, as the legacy trim ran on every append.
+	// Append stores one event at the time of ledgerNow, after every event the
+	// crew holds. It reports false when the crew already holds an event with
+	// this id. It moves the anchor of the 7-day view in both cases, as the
+	// legacy trim ran on every append.
 	Append(ctx context.Context, ev CrewEvent, ref string) (inserted bool, err error)
-	// Backfill stores the events of a legacy document in their order and
-	// skips the ones the crew already holds. anchorMs is the time of the last
-	// append of the document. The anchor never moves back.
-	Backfill(ctx context.Context, crewID string, events []CrewEvent, anchorMs int64) (inserted int, err error)
+	// Backfill stores the events of a legacy document that the crew does not
+	// hold, and puts them at their document position in the 7-day view.
+	// docEvents are all events of the document, in document order. anchorMs
+	// is the time of the last append of the document; the anchor never moves
+	// back. An id that Delete removed is not stored again.
+	//
+	// With docOrderWins the view gets the order of the document. Without it
+	// the events the crew already holds keep their order, and each new event
+	// goes after the nearest event that precedes it in the document.
+	Backfill(ctx context.Context, crewID string, docEvents []CrewEvent, anchorMs int64, docOrderWins bool) (inserted int, err error)
 	// UpdateData replaces the data of one event with the result of fn.
 	UpdateData(ctx context.Context, crewID, eventID string, fn func(json.RawMessage) (json.RawMessage, error)) error
-	// Delete removes one event. An unknown event is not an error.
+	// Delete removes one event and remembers the id, so that Backfill does
+	// not bring it back from a document. An unknown event is not an error.
 	Delete(ctx context.Context, crewID, eventID string) error
+	// Prune removes events and does not remember the ids. The reconcile uses
+	// it before the cutover, when the document is the truth.
+	Prune(ctx context.Context, crewID string, eventIDs []string) error
 	// Between returns the events with fromMs <= ts <= toMs, oldest first.
 	// An empty types list means every type.
 	Between(ctx context.Context, crewID string, fromMs, toMs int64, types []string) ([]CrewEvent, error)
@@ -58,8 +105,10 @@ type ledgerStore interface {
 	// WeeksBefore returns the weeks before beforeWeek that hold events,
 	// newest week first, up to limit weeks.
 	WeeksBefore(ctx context.Context, crewID string, types []string, beforeWeek int64, limit int) ([]weekCount, error)
-	// RecentView returns what the legacy document held: the pulse events of
-	// the 7 days before the last append of the crew, in append order.
+	// RecentView returns what the legacy document held: the events of the
+	// legacy ledger path (pulse types and "ledger_" types, under their
+	// document type) of the 7 days before the last append of the crew, in
+	// append order.
 	RecentView(ctx context.Context, crewID string) ([]CrewEvent, error)
 	// ByType returns the events of one type with ts >= sinceMs in every crew,
 	// ordered by crew and time.
@@ -70,10 +119,86 @@ type ledgerStore interface {
 	EventsNamingUser(ctx context.Context, userID string) ([]CrewEvent, error)
 }
 
-// crewLedger is the durable store. InitModule sets it. It is nil when the
-// schema could not be made, and in tests that do not set it: the module then
-// uses only the legacy document.
-var crewLedger ledgerStore
+// crewLedger holds the durable store. It is empty until the schema is ready,
+// and in tests that do not set it: the module then uses only the legacy
+// document. The schema retry sets it from another goroutine, so every use
+// goes through currentLedger.
+var crewLedger atomic.Pointer[ledgerStoreBox]
+
+type ledgerStoreBox struct{ store ledgerStore }
+
+// currentLedger returns the durable store, or nil when there is none.
+func currentLedger() ledgerStore {
+	if box := crewLedger.Load(); box != nil {
+		return box.store
+	}
+	return nil
+}
+
+// setLedger sets the durable store. nil removes it.
+func setLedger(store ledgerStore) {
+	if store == nil {
+		crewLedger.Store(nil)
+		return
+	}
+	crewLedger.Store(&ledgerStoreBox{store: store})
+}
+
+// ledgerMergeOrder is the order of the 7-day view after a backfill. view is
+// the current order, with the new events at the end. doc is the order of the
+// document.
+//
+// With docOrderWins the events of the document take the document order, after
+// the events the document does not hold. Without it the old events keep their
+// order, and each new event goes right after the nearest event that precedes
+// it in the document, or to the front when there is none.
+func ledgerMergeOrder(view, doc []string, isNew map[string]bool, docOrderWins bool) []string {
+	inView := make(map[string]bool, len(view))
+	for _, id := range view {
+		inView[id] = true
+	}
+	// The document order, without repeats and without ids the view lacks.
+	seen := map[string]bool{}
+	docOrder := make([]string, 0, len(doc))
+	for _, id := range doc {
+		if inView[id] && !seen[id] {
+			seen[id] = true
+			docOrder = append(docOrder, id)
+		}
+	}
+	out := make([]string, 0, len(view))
+	if docOrderWins {
+		for _, id := range view {
+			if !seen[id] {
+				out = append(out, id)
+			}
+		}
+		return append(out, docOrder...)
+	}
+	for _, id := range view {
+		if !isNew[id] || !seen[id] {
+			out = append(out, id)
+		}
+	}
+	for i, id := range docOrder {
+		if !isNew[id] {
+			continue
+		}
+		at := 0
+		for j := i - 1; j >= 0 && at == 0; j-- {
+			for k, placed := range out {
+				if placed == docOrder[j] {
+					at = k + 1
+					break
+				}
+			}
+		}
+		out = append(out, "")
+		copy(out[at+1:], out[at:])
+		out[at] = id
+	}
+	return out
+}
 
 // eventUserIDs lists every user an event names: the actor, the participants,
 // players and viewers, the streamer, the inviter and the clip participants.
@@ -167,21 +292,29 @@ type memLedgerRow struct {
 	data      json.RawMessage
 	ref       string
 	createdMs int64
+	pos       int64 // order of the 7-day view
 	users     []string
+}
+
+type memLedgerAnchor struct {
+	lastAppendMs int64
+	lastPos      int64
 }
 
 type memLedgerStore struct {
 	mu      sync.Mutex
 	rows    map[string][]*memLedgerRow          // crew id -> rows
-	anchors map[string]int64                    // crew id -> time of the last append
+	anchors map[string]*memLedgerAnchor         // crew id -> last append and last position
 	weeks   map[string]map[int64]map[string]int // crew id -> week start -> type -> count
+	deleted map[string]map[string]bool          // crew id -> ids that Delete removed
 }
 
 func newMemLedgerStore() *memLedgerStore {
 	return &memLedgerStore{
 		rows:    map[string][]*memLedgerRow{},
-		anchors: map[string]int64{},
+		anchors: map[string]*memLedgerAnchor{},
 		weeks:   map[string]map[int64]map[string]int{},
+		deleted: map[string]map[string]bool{},
 	}
 }
 
@@ -210,7 +343,20 @@ func (m *memLedgerStore) bumpWeek(crewID string, ev CrewEvent, delta int) {
 	}
 }
 
-func (m *memLedgerStore) insert(ev CrewEvent, ref string, createdMs int64) (bool, error) {
+// anchor returns the anchor of a crew and moves its time forward to atMs.
+func (m *memLedgerStore) anchor(crewID string, atMs int64) *memLedgerAnchor {
+	a, ok := m.anchors[crewID]
+	if !ok {
+		a = &memLedgerAnchor{lastAppendMs: atMs}
+		m.anchors[crewID] = a
+	}
+	if atMs > a.lastAppendMs {
+		a.lastAppendMs = atMs
+	}
+	return a
+}
+
+func (m *memLedgerStore) insert(ev CrewEvent, ref string, createdMs, pos int64) (bool, error) {
 	if m.find(ev.CrewID, ev.ID) >= 0 {
 		return false, nil
 	}
@@ -220,7 +366,7 @@ func (m *memLedgerStore) insert(ev CrewEvent, ref string, createdMs int64) (bool
 	}
 	users := eventUserIDs(ev)
 	ev.Data = nil
-	m.rows[ev.CrewID] = append(m.rows[ev.CrewID], &memLedgerRow{ev: ev, data: data, ref: ref, createdMs: createdMs, users: users})
+	m.rows[ev.CrewID] = append(m.rows[ev.CrewID], &memLedgerRow{ev: ev, data: data, ref: ref, createdMs: createdMs, pos: pos, users: users})
 	m.bumpWeek(ev.CrewID, ev, 1)
 	return true, nil
 }
@@ -238,44 +384,68 @@ func (m *memLedgerStore) Append(_ context.Context, ev CrewEvent, ref string) (bo
 	nowMs := ledgerNow().UnixMilli()
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	inserted, err := m.insert(ev, ref, nowMs)
+	a := m.anchor(ev.CrewID, nowMs)
+	a.lastPos++
+	inserted, err := m.insert(ev, ref, nowMs, a.lastPos)
 	if err != nil {
 		return false, err
 	}
-	if nowMs > m.anchors[ev.CrewID] {
-		m.anchors[ev.CrewID] = nowMs
-	}
+	delete(m.deleted[ev.CrewID], ev.ID)
 	return inserted, nil
 }
 
-func (m *memLedgerStore) Backfill(_ context.Context, crewID string, events []CrewEvent, anchorMs int64) (int, error) {
+// viewRows returns the rows of the 7-day view of a crew, in view order.
+func (m *memLedgerStore) viewRows(crewID string) []*memLedgerRow {
+	a, ok := m.anchors[crewID]
+	if !ok {
+		return nil
+	}
+	cutoff := a.lastAppendMs - ledgerRecentWindowMs
+	return m.selectRows(crewID, func(r *memLedgerRow) bool {
+		_, inView := ledgerReaderType(r.ev.Type)
+		return inView && r.ev.Timestamp >= cutoff
+	}, func(a, b *memLedgerRow) bool { return a.pos < b.pos })
+}
+
+func (m *memLedgerStore) Backfill(_ context.Context, crewID string, docEvents []CrewEvent, anchorMs int64, docOrderWins bool) (int, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// The backfilled events are older than every event the store already
-	// holds, so they sort before them and keep their own order.
-	base := anchorMs
-	for _, r := range m.rows[crewID] {
-		if r.createdMs < base {
-			base = r.createdMs
-		}
-	}
-	base -= int64(len(events))
+	a := m.anchor(crewID, anchorMs)
 	inserted := 0
-	for i, ev := range events {
+	isNew := map[string]bool{}
+	docIDs := make([]string, 0, len(docEvents))
+	for _, ev := range docEvents {
 		if ev.ID == "" {
 			continue
 		}
+		docIDs = append(docIDs, ev.ID)
+		if m.deleted[crewID][ev.ID] {
+			continue
+		}
 		ev.CrewID = crewID
-		ok, err := m.insert(ev, eventRef(ev), base+int64(i))
+		a.lastPos++
+		ok, err := m.insert(ev, eventRef(ev), anchorMs, a.lastPos)
 		if err != nil {
 			return inserted, err
 		}
 		if ok {
 			inserted++
+			isNew[ev.ID] = true
 		}
 	}
-	if anchorMs > m.anchors[crewID] {
-		m.anchors[crewID] = anchorMs
+	view := m.viewRows(crewID)
+	current := make([]string, 0, len(view))
+	byID := make(map[string]*memLedgerRow, len(view))
+	for _, r := range view {
+		current = append(current, r.ev.ID)
+		byID[r.ev.ID] = r
+	}
+	wanted := ledgerMergeOrder(current, docIDs, isNew, docOrderWins)
+	if !ledgerSameOrder(current, wanted) {
+		for _, id := range wanted {
+			a.lastPos++
+			byID[id].pos = a.lastPos
+		}
 	}
 	return inserted, nil
 }
@@ -296,16 +466,33 @@ func (m *memLedgerStore) UpdateData(_ context.Context, crewID, eventID string, f
 	return nil
 }
 
-func (m *memLedgerStore) Delete(_ context.Context, crewID, eventID string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+func (m *memLedgerStore) remove(crewID, eventID string) {
 	i := m.find(crewID, eventID)
 	if i < 0 {
-		return nil
+		return
 	}
 	rows := m.rows[crewID]
 	m.bumpWeek(crewID, rows[i].ev, -1)
 	m.rows[crewID] = append(rows[:i:i], rows[i+1:]...)
+}
+
+func (m *memLedgerStore) Delete(_ context.Context, crewID, eventID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.remove(crewID, eventID)
+	if m.deleted[crewID] == nil {
+		m.deleted[crewID] = map[string]bool{}
+	}
+	m.deleted[crewID][eventID] = true
+	return nil
+}
+
+func (m *memLedgerStore) Prune(_ context.Context, crewID string, eventIDs []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, id := range eventIDs {
+		m.remove(crewID, id)
+	}
 	return nil
 }
 
@@ -419,21 +606,13 @@ func (m *memLedgerStore) WeeksBefore(_ context.Context, crewID string, types []s
 func (m *memLedgerStore) RecentView(_ context.Context, crewID string) ([]CrewEvent, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	anchor, ok := m.anchors[crewID]
-	if !ok {
-		return []CrewEvent{}, nil
+	out := []CrewEvent{}
+	for _, r := range m.viewRows(crewID) {
+		ev := r.event()
+		ev.Type, _ = ledgerReaderType(ev.Type)
+		out = append(out, ev)
 	}
-	cutoff := anchor - ledgerRecentWindowMs
-	set := ledgerTypeSet(ledgerPulseTypes)
-	rows := m.selectRows(crewID, func(r *memLedgerRow) bool {
-		return r.ev.Timestamp >= cutoff && set[r.ev.Type]
-	}, func(a, b *memLedgerRow) bool {
-		if a.createdMs != b.createdMs {
-			return a.createdMs < b.createdMs
-		}
-		return a.ev.ID < b.ev.ID
-	})
-	return memLedgerEvents(rows), nil
+	return out, nil
 }
 
 func (m *memLedgerStore) ByType(_ context.Context, typ string, sinceMs int64) ([]CrewEvent, error) {
@@ -460,6 +639,7 @@ func (m *memLedgerStore) DeleteCrew(_ context.Context, crewID string) error {
 	delete(m.rows, crewID)
 	delete(m.anchors, crewID)
 	delete(m.weeks, crewID)
+	delete(m.deleted, crewID)
 	return nil
 }
 
@@ -484,4 +664,16 @@ func (m *memLedgerStore) EventsNamingUser(_ context.Context, userID string) ([]C
 		out = append(out, memLedgerEvents(rows)...)
 	}
 	return out, nil
+}
+
+func ledgerSameOrder(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

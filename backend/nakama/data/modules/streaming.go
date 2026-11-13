@@ -1467,7 +1467,13 @@ func resumeStreamResponse(userID, displayName, sessionID, crewID string, session
 // removeCrewEvent deletes one event from the ledger of a crew, with the same
 // optimistic-concurrency retry as AppendCrewEvent.
 func removeCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string) error {
-	ledgerStoreDelete(ctx, crewID, eventID)
+	return ledgerWriteBoth(ctx, nk, "remove", crewID, eventID,
+		func(store ledgerStore) error { return store.Delete(ctx, crewID, eventID) },
+		func() error { return removeLedgerDocEvent(ctx, nk, crewID, eventID) })
+}
+
+// removeLedgerDocEvent deletes one event from the legacy document.
+func removeLedgerDocEvent(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		ledger, version := readLedgerDoc(ctx, nk, crewID)
 		kept := make([]CrewEvent, 0, len(ledger.Events))
@@ -1553,13 +1559,17 @@ func StartSnapshotBackfillJob(ctx context.Context, nk runtime.NakamaModule, logg
 
 const snapshotBackfillWindowHours = 24
 
+// listSnapshotURLs lists the snapshot URLs of a stream session for the
+// snapshot backfill. Tests replace it.
+var listSnapshotURLs = ListSnapshotURLs
+
 func snapshotBackfill(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger) {
 	cutoff := time.Now().Add(-time.Duration(snapshotBackfillWindowHours) * time.Hour).UnixMilli()
 
 	// After the ledger cutover the durable store lists the stream sessions of
 	// every crew in one read.
-	if ledgerReadsStore(ctx, nk) {
-		events, err := crewLedger.ByType(ctx, "stream_session", cutoff)
+	if store := ledgerTruthStore(ctx, nk); store != nil {
+		events, err := store.ByType(ctx, "stream_session", cutoff)
 		if err != nil {
 			logger.Warn("SnapshotBackfill: ledger store read failed: %v", err)
 			return
@@ -1616,7 +1626,7 @@ func backfillStreamSessionEvents(ctx context.Context, nk runtime.NakamaModule, l
 			continue
 		}
 
-		urls, err := ListSnapshotURLs(crewID, data.SessionID)
+		urls, err := listSnapshotURLs(crewID, data.SessionID)
 		if err != nil || len(urls) == 0 {
 			continue
 		}

@@ -128,6 +128,11 @@ services:
       # Opens the dev RPCs that write (dev_fault, dev_ledger_selftest). Unset =
       # they refuse. scripts/e2e.sh sets it for the ledger store selftest.
       - MELLO_ENABLE_DEV_FAULT=${MELLO_ENABLE_DEV_FAULT:-}
+      # Seconds of dual write before the crew ledger readers move to the
+      # durable store (plans/DURABLE-LEDGER.md section 5). Unset = 24 hours.
+      - MELLO_LEDGER_SOAK_SECONDS=${MELLO_LEDGER_SOAK_SECONDS:-}
+      # "doc" keeps the crew ledger readers on the legacy document.
+      - MELLO_LEDGER_READ=${MELLO_LEDGER_READ:-}
     # Lets the container reach a stub on the host; Docker Desktop has this name
     # already, Linux needs the mapping.
     extra_hosts:
