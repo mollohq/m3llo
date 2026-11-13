@@ -117,7 +117,32 @@ type ledgerStore interface {
 	DeleteCrew(ctx context.Context, crewID string) error
 	// EventsNamingUser returns every event that names the user.
 	EventsNamingUser(ctx context.Context, userID string) ([]CrewEvent, error)
+
+	// Put stores rows that do not come from the legacy ledger document: a
+	// clip, a weekly recap, a stream session of the durable copy. Such a row
+	// is not in the 7-day view, and Put does not move the anchor of the view.
+	// A row whose id the crew holds, or whose id Delete removed, is skipped.
+	// It returns the number of rows it stored.
+	Put(ctx context.Context, crewID string, rows []ledgerRow) (inserted int, err error)
+	// PutUnique stores one such row, unless the crew holds a row of the same
+	// type with the same ref. It then stores nothing and returns the rows
+	// that hold the ref, oldest first. Two calls at once store one row.
+	PutUnique(ctx context.Context, crewID string, row ledgerRow) (held []CrewEvent, err error)
+	// ByRef returns the rows of one type with one ref, oldest first.
+	ByRef(ctx context.Context, crewID, typ, ref string) ([]CrewEvent, error)
+	// ByIDs returns the rows with these ids, in no order.
+	ByIDs(ctx context.Context, crewID string, ids []string) ([]CrewEvent, error)
 }
+
+// ledgerRow is an event and its ref, for Put.
+type ledgerRow struct {
+	Event CrewEvent
+	Ref   string
+}
+
+// errLedgerIDTaken is the error of PutUnique when the ref is free and the id
+// of the row is not.
+var errLedgerIDTaken = errors.New("ledger event id is taken")
 
 // crewLedger holds the durable store. It is empty until the schema is ready,
 // and in tests that do not set it: the module then uses only the legacy
@@ -292,7 +317,7 @@ type memLedgerRow struct {
 	data      json.RawMessage
 	ref       string
 	createdMs int64
-	pos       int64 // order of the 7-day view
+	pos       int64 // order of the 7-day view. 0: the row is not in the view
 	users     []string
 }
 
@@ -403,7 +428,7 @@ func (m *memLedgerStore) viewRows(crewID string) []*memLedgerRow {
 	cutoff := a.lastAppendMs - ledgerRecentWindowMs
 	return m.selectRows(crewID, func(r *memLedgerRow) bool {
 		_, inView := ledgerReaderType(r.ev.Type)
-		return inView && r.ev.Timestamp >= cutoff
+		return inView && r.pos > 0 && r.ev.Timestamp >= cutoff
 	}, func(a, b *memLedgerRow) bool { return a.pos < b.pos })
 }
 
@@ -430,6 +455,13 @@ func (m *memLedgerStore) Backfill(_ context.Context, crewID string, docEvents []
 		}
 		if ok {
 			inserted++
+			isNew[ev.ID] = true
+			continue
+		}
+		// A row that Put stored is not in the view. The document holds the
+		// event, so it now gets a position.
+		if i := m.find(crewID, ev.ID); i >= 0 && m.rows[crewID][i].pos == 0 && m.rows[crewID][i].ev.Type == ev.Type {
+			m.rows[crewID][i].pos = a.lastPos
 			isNew[ev.ID] = true
 		}
 	}
@@ -664,6 +696,77 @@ func (m *memLedgerStore) EventsNamingUser(_ context.Context, userID string) ([]C
 		out = append(out, memLedgerEvents(rows)...)
 	}
 	return out, nil
+}
+
+func (m *memLedgerStore) Put(_ context.Context, crewID string, rows []ledgerRow) (int, error) {
+	nowMs := ledgerNow().UnixMilli()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	inserted := 0
+	for _, row := range rows {
+		ev := row.Event
+		if ev.ID == "" {
+			return inserted, errors.New("ledger put needs an event id")
+		}
+		if m.deleted[crewID][ev.ID] {
+			continue
+		}
+		ev.CrewID = crewID
+		ok, err := m.insert(ev, row.Ref, nowMs, 0)
+		if err != nil {
+			return inserted, err
+		}
+		if ok {
+			inserted++
+		}
+	}
+	return inserted, nil
+}
+
+func (m *memLedgerStore) byRef(crewID, typ, ref string) []*memLedgerRow {
+	if ref == "" {
+		return nil
+	}
+	return m.selectRows(crewID, func(r *memLedgerRow) bool { return r.ev.Type == typ && r.ref == ref }, memByTsAsc)
+}
+
+func (m *memLedgerStore) PutUnique(_ context.Context, crewID string, row ledgerRow) ([]CrewEvent, error) {
+	ev := row.Event
+	if ev.ID == "" || row.Ref == "" {
+		return nil, errors.New("ledger put needs an event id and a ref")
+	}
+	nowMs := ledgerNow().UnixMilli()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if held := m.byRef(crewID, ev.Type, row.Ref); len(held) > 0 {
+		return memLedgerEvents(held), nil
+	}
+	ev.CrewID = crewID
+	ok, err := m.insert(ev, row.Ref, nowMs, 0)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, errLedgerIDTaken
+	}
+	delete(m.deleted[crewID], ev.ID)
+	return nil, nil
+}
+
+func (m *memLedgerStore) ByRef(_ context.Context, crewID, typ, ref string) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return memLedgerEvents(m.byRef(crewID, typ, ref)), nil
+}
+
+func (m *memLedgerStore) ByIDs(_ context.Context, crewID string, ids []string) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	return memLedgerEvents(m.selectRows(crewID, func(r *memLedgerRow) bool { return want[r.ev.ID] }, memByTsAsc)), nil
 }
 
 func ledgerSameOrder(a, b []string) bool {

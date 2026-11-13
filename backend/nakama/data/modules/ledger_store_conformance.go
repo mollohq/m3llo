@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 )
 
 // ledgerStoreConformance checks that a ledgerStore keeps the contract of the
@@ -19,11 +20,12 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 	run := generateEventID()
 	crewA := "selftest_a_" + run
 	crewB := "selftest_b_" + run
+	crewC := "selftest_c_" + run
 	user := "selftest_user_" + run
 	now := ledgerNow().UnixMilli()
 
 	defer func() {
-		for _, crewID := range []string{crewA, crewB} {
+		for _, crewID := range []string{crewA, crewB, crewC} {
 			if delErr := store.DeleteCrew(ctx, crewID); delErr != nil && err == nil {
 				err = fmt.Errorf("cleanup of %s: %w", crewID, delErr)
 			}
@@ -433,6 +435,11 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 		return err
 	}
 
+	// The rows that are not of the legacy ledger path (phase 1b).
+	if err := ledgerPutConformance(ctx, store, crewC, run, now); err != nil {
+		return err
+	}
+
 	// DeleteCrew removes everything.
 	if err = store.DeleteCrew(ctx, crewB); err != nil {
 		return fmt.Errorf("delete crew: %w", err)
@@ -450,4 +457,240 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 		return fmt.Errorf("count after delete crew = %d err=%v", n, err)
 	}
 	return nil
+}
+
+// ledgerPutConformance checks Put, PutUnique, ByRef and ByIDs: the rows of
+// the clips, the weekly recaps and the stream sessions of the durable copy.
+// It writes only to crewID.
+func ledgerPutConformance(ctx context.Context, store ledgerStore, crewID, run string, now int64) error {
+	const day = int64(24 * 60 * 60 * 1000)
+	user := "selftest_putter_" + run
+	id := func(name string) string { return name + "_" + run }
+	names := func(events []CrewEvent) string {
+		out := make([]string, 0, len(events))
+		for _, e := range events {
+			out = append(out, strings.TrimSuffix(e.ID, "_"+run))
+		}
+		return strings.Join(out, ",")
+	}
+	view := func(what, wantIDs string) error {
+		got, err := store.RecentView(ctx, crewID)
+		if err != nil {
+			return fmt.Errorf("%s: recent view: %w", what, err)
+		}
+		if names(got) != wantIDs {
+			return fmt.Errorf("%s: recent view = [%s], want [%s]", what, names(got), wantIDs)
+		}
+		return nil
+	}
+
+	// A dormant crew: its last append was 20 days ago.
+	anchor := now - 20*day
+	old := CrewEvent{ID: id("p_old"), Type: "voice_session", ActorID: user, Timestamp: anchor - day, Data: VoiceSessionData{DurationMin: 5}}
+	if n, err := store.Backfill(ctx, crewID, []CrewEvent{old}, anchor, true); err != nil || n != 1 {
+		return fmt.Errorf("put: backfill of the dormant crew: inserted=%d err=%v", n, err)
+	}
+
+	clip := ledgerRow{Ref: id("cid"), Event: CrewEvent{ID: id("p_clip"), Type: "clip", ActorID: user, Timestamp: now - day, Score: 50,
+		Data: map[string]interface{}{"clip_id": id("cid"), "participants": []string{"friend_" + run}}}}
+	recap := ledgerRow{Event: CrewEvent{ID: id("p_recap"), Type: "weekly_recap", Timestamp: weekStartOf(now - 14*day), Score: 30,
+		Data: map[string]interface{}{"week_start": weekStartOf(now - 14*day)}}}
+	stream := ledgerRow{Ref: id("sess"), Event: CrewEvent{ID: id("p_stream"), Type: "stream_session", ActorID: user, Timestamp: now - 60*60*1000, Score: 30,
+		Data: StreamSessionData{SessionID: id("sess"), StreamerID: user, Title: "Put", SnapshotURLs: []string{"https://cdn.example/p.jpg"}}}}
+	rows := []ledgerRow{clip, recap, stream}
+	if n, err := store.Put(ctx, crewID, rows); err != nil || n != 3 {
+		return fmt.Errorf("put: inserted=%d err=%v, want 3", n, err)
+	}
+	if n, err := store.Put(ctx, crewID, rows); err != nil || n != 0 {
+		return fmt.Errorf("put again: inserted=%d err=%v, want 0", n, err)
+	}
+	if n, err := store.Put(ctx, crewID, nil); err != nil || n != 0 {
+		return fmt.Errorf("put of no rows: inserted=%d err=%v", n, err)
+	}
+	if _, err := store.Put(ctx, crewID, []ledgerRow{{Event: CrewEvent{Type: "clip", Timestamp: now}}}); err == nil {
+		return errors.New("put of a row with no id: no error")
+	}
+
+	// Put does not move the anchor: the event of 21 days ago is still the
+	// view. The stream session of one hour ago is a pulse type, and it is
+	// not in the view.
+	if err := view("after put", "p_old"); err != nil {
+		return err
+	}
+	// The counted queries see the rows, newest first, with their fields.
+	got, err := store.NewestN(ctx, crewID, ledgerCountedTypes, now+1, 10)
+	if err != nil {
+		return fmt.Errorf("put: newest: %w", err)
+	}
+	if names(got) != "p_stream,p_clip,p_recap" {
+		return fmt.Errorf("put: newest counted = [%s], want [p_stream,p_clip,p_recap]", names(got))
+	}
+	if got[1].CrewID != crewID || got[1].ActorID != user || got[1].Score != 50 || got[1].Type != "clip" {
+		return fmt.Errorf("put: fields of the clip did not survive: %+v", got[1])
+	}
+	if got[2].ActorID != "" {
+		return fmt.Errorf("put: the recap has the actor %q", got[2].ActorID)
+	}
+	for _, cut := range []int64{now + 1, now - 2*day, weekStartOf(now), weekStartOf(now - 14*day), weekStartOf(now-14*day) + 1} {
+		n, err := store.CountOlder(ctx, crewID, ledgerCountedTypes, cut)
+		if err != nil {
+			return fmt.Errorf("put: count older: %w", err)
+		}
+		recount, err := store.Between(ctx, crewID, -1<<62, cut-1, ledgerCountedTypes)
+		if err != nil {
+			return fmt.Errorf("put: recount: %w", err)
+		}
+		if n != len(recount) {
+			return fmt.Errorf("put: count older than %d = %d, recount = %d", cut, n, len(recount))
+		}
+	}
+	weeks, err := store.WeeksBefore(ctx, crewID, []string{"weekly_recap"}, now, 10)
+	if err != nil || len(weeks) != 1 || weeks[0].WeekStart != weekStartOf(now-14*day) || weeks[0].N != 1 {
+		return fmt.Errorf("put: weeks of the recap = %+v err=%v", weeks, err)
+	}
+	if got, err = store.EventsNamingUser(ctx, "friend_"+run); err != nil || names(got) != "p_clip" {
+		return fmt.Errorf("put: events naming a clip participant = [%s] err=%v", names(got), err)
+	}
+
+	// ByRef and ByIDs.
+	if got, err = store.ByRef(ctx, crewID, "clip", clip.Ref); err != nil || names(got) != "p_clip" {
+		return fmt.Errorf("by ref: [%s] err=%v, want [p_clip]", names(got), err)
+	}
+	if obj, ok := got[0].Data.(map[string]interface{}); !ok || obj["clip_id"] != clip.Ref {
+		return fmt.Errorf("by ref: data = %#v", got[0].Data)
+	}
+	if got, err = store.ByRef(ctx, crewID, "stream_session", clip.Ref); err != nil || len(got) != 0 {
+		return fmt.Errorf("by ref of another type: %d rows err=%v", len(got), err)
+	}
+	if got, err = store.ByRef(ctx, crewID, "weekly_recap", ""); err != nil || len(got) != 0 {
+		return fmt.Errorf("by ref with no ref: %d rows err=%v", len(got), err)
+	}
+	// More ids than one query holds, most of them unknown.
+	ids := []string{clip.Event.ID, stream.Event.ID}
+	for i := 0; i < 2*ledgerByIDsChunk+5; i++ {
+		ids = append(ids, fmt.Sprintf("missing_%d_%s", i, run))
+	}
+	ids = append(ids, recap.Event.ID)
+	if got, err = store.ByIDs(ctx, crewID, ids); err != nil || len(got) != 3 {
+		return fmt.Errorf("by ids: %d rows err=%v, want 3", len(got), err)
+	}
+	if got, err = store.ByIDs(ctx, crewID, nil); err != nil || len(got) != 0 {
+		return fmt.Errorf("by ids of no ids: %d rows err=%v", len(got), err)
+	}
+
+	// UpdateData works on a row of Put.
+	err = store.UpdateData(ctx, crewID, clip.Event.ID, func(raw json.RawMessage) (json.RawMessage, error) {
+		var d map[string]interface{}
+		if err := json.Unmarshal(raw, &d); err != nil {
+			return nil, err
+		}
+		d["media_url"] = "https://cdn.example/clip.mp4"
+		return json.Marshal(d)
+	})
+	if err != nil {
+		return fmt.Errorf("put: update data: %w", err)
+	}
+	if got, err = store.ByRef(ctx, crewID, "clip", clip.Ref); err != nil || len(got) != 1 {
+		return fmt.Errorf("put: read back the clip: %d rows err=%v", len(got), err)
+	}
+	if obj, _ := got[0].Data.(map[string]interface{}); obj["media_url"] != "https://cdn.example/clip.mp4" || obj["clip_id"] != clip.Ref {
+		return fmt.Errorf("put: update data did not hold: %#v", got[0].Data)
+	}
+
+	// A legacy document that holds the stream session gives the row its
+	// place in the view. Nothing is stored twice.
+	doc := stream.Event
+	doc.CrewID = ""
+	if n, err := store.Backfill(ctx, crewID, []CrewEvent{old, doc}, now, true); err != nil || n != 0 {
+		return fmt.Errorf("backfill of a put row: inserted=%d err=%v, want 0", n, err)
+	}
+	if err := view("after the document took the stream session", "p_stream"); err != nil {
+		return err
+	}
+	if n, err := store.CountOlder(ctx, crewID, []string{"stream_session"}, now+1); err != nil || n != 1 {
+		return fmt.Errorf("stream sessions after the backfill = %d err=%v, want 1", n, err)
+	}
+	// A document event of another type with the id of a put row does not
+	// take the row.
+	wrong := clip.Event
+	wrong.Type = ledgerStoredType("clip")
+	if n, err := store.Backfill(ctx, crewID, []CrewEvent{doc, wrong}, now, true); err != nil || n != 0 {
+		return fmt.Errorf("backfill of an id of another type: inserted=%d err=%v, want 0", n, err)
+	}
+	if err := view("after a document event with the id of a clip row", "p_stream"); err != nil {
+		return err
+	}
+
+	// Put does not bring back an id that Delete removed.
+	if err := store.Delete(ctx, crewID, recap.Event.ID); err != nil {
+		return fmt.Errorf("put: delete: %w", err)
+	}
+	if n, err := store.Put(ctx, crewID, rows); err != nil || n != 0 {
+		return fmt.Errorf("put of a deleted id: inserted=%d err=%v, want 0", n, err)
+	}
+
+	// PutUnique: one row for a ref of a type.
+	uniq := func(name, typ, ref string, ts int64) ledgerRow {
+		return ledgerRow{Ref: ref, Event: CrewEvent{ID: id(name), Type: typ, ActorID: user, Timestamp: ts, Data: map[string]interface{}{"name": name}}}
+	}
+	ref := id("uref")
+	held, err := store.PutUnique(ctx, crewID, uniq("u_first", "clip", ref, now-3*day))
+	if err != nil || len(held) != 0 {
+		return fmt.Errorf("put unique: held=%d err=%v", len(held), err)
+	}
+	held, err = store.PutUnique(ctx, crewID, uniq("u_second", "clip", ref, now-2*day))
+	if err != nil || names(held) != "u_first" {
+		return fmt.Errorf("put unique of a held ref: held=[%s] err=%v, want [u_first]", names(held), err)
+	}
+	if obj, _ := held[0].Data.(map[string]interface{}); obj["name"] != "u_first" || held[0].ActorID != user {
+		return fmt.Errorf("put unique: the held row = %+v", held[0])
+	}
+	// The same ref of another type is free. The id of a held row is not.
+	if held, err = store.PutUnique(ctx, crewID, uniq("u_stream", "stream_session", ref, now-2*day)); err != nil || len(held) != 0 {
+		return fmt.Errorf("put unique of another type: held=%d err=%v", len(held), err)
+	}
+	if _, err = store.PutUnique(ctx, crewID, uniq("u_first", "clip", id("uref2"), now)); !errors.Is(err, errLedgerIDTaken) {
+		return fmt.Errorf("put unique with a taken id: err=%v, want errLedgerIDTaken", err)
+	}
+	if _, err = store.PutUnique(ctx, crewID, uniq("u_noref", "clip", "", now)); err == nil {
+		return errors.New("put unique with no ref: no error")
+	}
+	// Put does not check the ref: a legacy document can hold a clip_id twice.
+	if n, err := store.Put(ctx, crewID, []ledgerRow{uniq("u_dup", "clip", ref, now-4*day)}); err != nil || n != 1 {
+		return fmt.Errorf("put of a second row of a ref: inserted=%d err=%v", n, err)
+	}
+	if got, err = store.ByRef(ctx, crewID, "clip", ref); err != nil || names(got) != "u_dup,u_first" {
+		return fmt.Errorf("by ref of a ref with two rows: [%s] err=%v, want [u_dup,u_first]", names(got), err)
+	}
+
+	// Eight calls at once for one new ref store one row.
+	const racers = 8
+	raceRef := id("race")
+	stored := make([]bool, racers)
+	errs := make([]error, racers)
+	var wg sync.WaitGroup
+	for i := 0; i < racers; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			held, err := store.PutUnique(ctx, crewID, uniq(fmt.Sprintf("u_race%d", i), "clip", raceRef, now-int64(i)))
+			stored[i], errs[i] = err == nil && len(held) == 0, err
+		}(i)
+	}
+	wg.Wait()
+	winners := 0
+	for i := range stored {
+		if errs[i] != nil {
+			return fmt.Errorf("put unique race: call %d: %w", i, errs[i])
+		}
+		if stored[i] {
+			winners++
+		}
+	}
+	if got, err = store.ByRef(ctx, crewID, "clip", raceRef); err != nil || len(got) != 1 || winners != 1 {
+		return fmt.Errorf("put unique race: %d rows, %d calls stored a row, err=%v, want 1 and 1", len(got), winners, err)
+	}
+
+	// None of this moved the view.
+	return view("at the end of put", "p_stream")
 }

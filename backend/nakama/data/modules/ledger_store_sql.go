@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"os"
 	"strings"
 	"time"
@@ -305,7 +306,9 @@ func ledgerViewWhere() (string, []interface{}) {
 		marks = append(marks, fmt.Sprintf("$%d", len(args)+1))
 	}
 	// The backslash makes the underscore of the prefix a plain character.
+	// pos is 0 for a row that Put stored: it is not in the view.
 	where := `crew_id = $1
+		AND pos > 0
 		AND ts >= (SELECT last_append_ms FROM mello_crew_event_anchor WHERE crew_id = $1) - $2
 		AND (type LIKE '` + strings.ReplaceAll(ledgerLegacyTypePrefix, "_", `\_`) + `%' OR type IN (` + strings.Join(marks, ", ") + `))`
 	return where, args
@@ -319,21 +322,8 @@ func (s *sqlLedgerStore) Backfill(ctx context.Context, crewID string, docEvents 
 		if err != nil {
 			return err
 		}
-		deleted := map[string]bool{}
-		rows, err := tx.QueryContext(ctx, `SELECT event_id FROM mello_crew_event_deleted WHERE crew_id = $1`, crewID)
+		deleted, err := ledgerDeletedIDs(ctx, tx, crewID)
 		if err != nil {
-			return err
-		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return err
-			}
-			deleted[id] = true
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
 			return err
 		}
 
@@ -355,12 +345,26 @@ func (s *sqlLedgerStore) Backfill(ctx context.Context, crewID string, docEvents 
 			if ok {
 				inserted++
 				isNew[ev.ID] = true
+				continue
+			}
+			// A row that Put stored is not in the view. The document holds
+			// the event, so it now gets a position.
+			res, err := tx.ExecContext(ctx,
+				`UPDATE mello_crew_event SET pos = $3 WHERE crew_id = $1 AND id = $2 AND pos = 0 AND type = $4`,
+				crewID, ev.ID, base+int64(i)+1, ev.Type)
+			if err != nil {
+				return err
+			}
+			if n, err := res.RowsAffected(); err != nil {
+				return err
+			} else if n > 0 {
+				isNew[ev.ID] = true
 			}
 		}
 
 		// Put the view in the wanted order. Only a changed order is written.
 		where, args := ledgerViewWhere()
-		rows, err = tx.QueryContext(ctx,
+		rows, err := tx.QueryContext(ctx,
 			`SELECT id FROM mello_crew_event WHERE `+where+` ORDER BY pos ASC, id ASC`,
 			append([]interface{}{crewID}, args...)...)
 		if err != nil {
@@ -400,6 +404,162 @@ func (s *sqlLedgerStore) Backfill(ctx context.Context, crewID string, docEvents 
 		return 0, err
 	}
 	return inserted, nil
+}
+
+// ledgerDeletedIDs returns the ids of a crew that Delete removed.
+func ledgerDeletedIDs(ctx context.Context, tx *sql.Tx, crewID string) (map[string]bool, error) {
+	deleted := map[string]bool{}
+	rows, err := tx.QueryContext(ctx, `SELECT event_id FROM mello_crew_event_deleted WHERE crew_id = $1`, crewID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		deleted[id] = true
+	}
+	return deleted, rows.Err()
+}
+
+func (s *sqlLedgerStore) Put(ctx context.Context, crewID string, rows []ledgerRow) (int, error) {
+	if len(rows) == 0 {
+		return 0, nil
+	}
+	nowMs := ledgerNow().UnixMilli()
+	inserted := 0
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		inserted = 0
+		deleted, err := ledgerDeletedIDs(ctx, tx, crewID)
+		if err != nil {
+			return err
+		}
+		for _, row := range rows {
+			ev := row.Event
+			if ev.ID == "" {
+				return errors.New("ledger put needs an event id")
+			}
+			if deleted[ev.ID] {
+				continue
+			}
+			ev.CrewID = crewID
+			// Position 0: the row is not in the 7-day view. The anchor row
+			// is not touched.
+			ok, err := ledgerInsertEvent(ctx, tx, ev, row.Ref, nowMs, 0)
+			if err != nil {
+				return err
+			}
+			if ok {
+				inserted++
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return inserted, nil
+}
+
+// ledgerRefLockKey is the pg_advisory_xact_lock key of one ref of one type of
+// one crew. Two keys that collide only make two writes wait for each other.
+func ledgerRefLockKey(crewID, typ, ref string) int64 {
+	h := fnv.New64a()
+	for _, part := range []string{crewID, typ, ref} {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return int64(h.Sum64())
+}
+
+const ledgerByRefQuery = `SELECT ` + ledgerEventColumns + ` FROM mello_crew_event
+	 WHERE crew_id = $1 AND type = $2 AND ref = $3 AND ref <> ''
+	 ORDER BY ts ASC, id ASC`
+
+func (s *sqlLedgerStore) PutUnique(ctx context.Context, crewID string, row ledgerRow) ([]CrewEvent, error) {
+	ev := row.Event
+	if ev.ID == "" || row.Ref == "" {
+		return nil, errors.New("ledger put needs an event id and a ref")
+	}
+	ev.CrewID = crewID
+	nowMs := ledgerNow().UnixMilli()
+	var held []CrewEvent
+	err := s.inTx(ctx, func(tx *sql.Tx) error {
+		held = nil
+		// The lock is held until the transaction ends, so the check and the
+		// insert of two calls for one ref do not interleave.
+		if _, err := tx.ExecContext(ctx, `SELECT pg_advisory_xact_lock($1)`, ledgerRefLockKey(crewID, ev.Type, row.Ref)); err != nil {
+			return err
+		}
+		rows, err := tx.QueryContext(ctx, ledgerByRefQuery, crewID, ev.Type, row.Ref)
+		if err != nil {
+			return err
+		}
+		if held, err = scanLedgerEvents(rows); err != nil {
+			return err
+		}
+		if len(held) > 0 {
+			return nil
+		}
+		ok, err := ledgerInsertEvent(ctx, tx, ev, row.Ref, nowMs, 0)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return errLedgerIDTaken
+		}
+		_, err = tx.ExecContext(ctx,
+			`DELETE FROM mello_crew_event_deleted WHERE crew_id = $1 AND event_id = $2`, crewID, ev.ID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return held, nil
+}
+
+func (s *sqlLedgerStore) ByRef(ctx context.Context, crewID, typ, ref string) ([]CrewEvent, error) {
+	if ref == "" {
+		return []CrewEvent{}, nil
+	}
+	rows, err := s.db.QueryContext(ctx, ledgerByRefQuery, crewID, typ, ref)
+	if err != nil {
+		return nil, err
+	}
+	return scanLedgerEvents(rows)
+}
+
+// ledgerByIDsChunk bounds the placeholders of one ByIDs query.
+const ledgerByIDsChunk = 200
+
+func (s *sqlLedgerStore) ByIDs(ctx context.Context, crewID string, ids []string) ([]CrewEvent, error) {
+	out := []CrewEvent{}
+	for start := 0; start < len(ids); start += ledgerByIDsChunk {
+		end := start + ledgerByIDsChunk
+		if end > len(ids) {
+			end = len(ids)
+		}
+		args := []interface{}{crewID}
+		marks := make([]string, 0, end-start)
+		for _, id := range ids[start:end] {
+			args = append(args, id)
+			marks = append(marks, fmt.Sprintf("$%d", len(args)))
+		}
+		rows, err := s.db.QueryContext(ctx,
+			`SELECT `+ledgerEventColumns+` FROM mello_crew_event
+			 WHERE crew_id = $1 AND id IN (`+strings.Join(marks, ", ")+`)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		events, err := scanLedgerEvents(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, events...)
+	}
+	return out, nil
 }
 
 func (s *sqlLedgerStore) UpdateData(ctx context.Context, crewID, eventID string, fn func(json.RawMessage) (json.RawMessage, error)) error {
