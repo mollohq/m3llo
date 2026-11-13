@@ -128,8 +128,9 @@ component CrewCard inherits Rectangle {
             }
 
             Rectangle {
-                width: 80px;
-                Text {
+                // 80px, or wider for a longer translation.
+                width: max(80px, card-action-label.preferred-width + 2 * Theme.spacing-sm);
+                card-action-label := Text {
                     letter-spacing: Theme.track-label;
                     text: root.is-full
                         ? @tr("FULL")
@@ -209,7 +210,7 @@ component CreateCrewCard inherits Rectangle {
             font-size: 14px;
             color: Theme.text-secondary;
             horizontal-alignment: center;
-            letter-spacing: 1.5px;
+            letter-spacing: Theme.track-label;
         }
     }
 }
@@ -255,7 +256,7 @@ component InviteCodeCard inherits Rectangle {
             font-size: 14px;
             font-weight: Theme.weight-label;
             color: Theme.text-secondary;
-            letter-spacing: 1.5px;
+            letter-spacing: Theme.track-label;
         }
 
         Rectangle {
@@ -583,6 +584,8 @@ component AccentButton inherits Rectangle {
     callback clicked();
 
     height: 52px;
+    // The label and the arrow always fit.
+    min-width: content.preferred-width + 2 * Theme.spacing-lg;
     background: enabled ? Theme.confirm : Theme.graphic-med;
     border-radius: Theme.r-inner;
 
@@ -597,7 +600,7 @@ component AccentButton inherits Rectangle {
         }
     }
 
-    HorizontalLayout {
+    content := HorizontalLayout {
         alignment: center;
         spacing: 12px;
 
@@ -996,7 +999,8 @@ export component Onboarding inherits Rectangle {
                         }
 
                         Rectangle {
-                            width: 96px;
+                            // 96px, or wider for a longer translation.
+                            width: max(96px, retry-label.preferred-width + 2 * Theme.spacing-md);
                             height: 36px;
                             horizontal-stretch: 0;
                             background: retry-touch.has-hover ? Theme.surface-hover : Theme.surface;
@@ -1005,7 +1009,7 @@ export component Onboarding inherits Rectangle {
                             border-color: Theme.card-border;
                             opacity: retry-touch.pressed ? 0.7 : 1.0;
 
-                            Text {
+                            retry-label := Text {
                                 font-family: Theme.font-display;
                                 text: @tr("Retry");
                                 font-size: 14px;
@@ -1756,7 +1760,8 @@ export component Onboarding inherits Rectangle {
 
                 AccentButton {
                     horizontal-stretch: 0;
-                    width: 200px;
+                    // 200px, or wider for a longer translation.
+                    width: max(200px, self.min-width);
                     label: root.busy ? @tr("Setting up…") : @tr("Continue");
                     enabled: nickname != "" && root.selected-avatar >= 0 && !root.busy;
                     clicked => {

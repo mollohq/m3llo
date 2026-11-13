@@ -200,10 +200,14 @@ export global Theme {
     out property <int>    weight-display-bold: 700;
     out property <int>    weight-sentence: 300;
     out property <int>    weight-label: 600;
+    //  Set from Rust at startup: the UI language is Chinese, Japanese or
+    //  Korean. These scripts have no case, and wide letter spacing breaks
+    //  the rhythm of the glyphs, so the label tracking is 0 for them.
+    in-out property <bool> cjk: false;
     //  Slint letter-spacing is absolute, not em-relative: these are the
     //  .16em / .20em of the design system resolved at label sizes.
-    out property <length> track-label:  1.5px;   // 9.5px label
-    out property <length> track-kicker: 1.9px;   // 9.5px kicker, wider
+    out property <length> track-label:  cjk ? 0px : 1.5px;   // 9.5px label
+    out property <length> track-kicker: cjk ? 0px : 1.9px;   // 9.5px kicker, wider
 
     // --- Font sizes ------------------------------------------------------
     out property <length> font-xs:  10px;   // label

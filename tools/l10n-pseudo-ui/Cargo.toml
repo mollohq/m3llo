@@ -1,0 +1,11 @@
+[package]
+name = "l10n-pseudo-ui"
+version = "0.0.0-DEV"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+# Writes a copy of the client UI with each @tr() text in the pseudo language,
+# so that slint-viewer can render it (specs/features/LOCALIZATION.md, "The
+# pseudo render"). No dependencies: it reuses client/build_l10n.rs by path.
+[dependencies]

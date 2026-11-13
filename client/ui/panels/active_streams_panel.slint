@@ -1516,7 +1516,8 @@ export component StreamSettingsPopover inherits Rectangle {
 
             // The viewer: the stats strip on the card.
             if !root.hosting: Rectangle {
-                height: 52px;
+                // 52px, or taller when a translation wraps the description.
+                height: max(52px, stats-row.preferred-height + 2 * Theme.spacing-sm);
                 background: stats-ta.has-hover ? Theme.surface-hover : transparent;
 
                 stats-ta := TouchArea {
@@ -1524,7 +1525,7 @@ export component StreamSettingsPopover inherits Rectangle {
                     clicked => { root.stats-toggled(!root.stats-shown); }
                 }
 
-                HorizontalLayout {
+                stats-row := HorizontalLayout {
                     padding-left: 14px;
                     padding-right: 14px;
                     spacing: 10px;
@@ -1549,7 +1550,7 @@ export component StreamSettingsPopover inherits Rectangle {
                             font-weight: Theme.weight-sentence;
                             font-size: 11px;
                             color: Theme.text-secondary;
-                            overflow: elide;
+                            wrap: word-wrap;
                         }
                     }
 

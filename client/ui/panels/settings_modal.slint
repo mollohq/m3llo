@@ -504,6 +504,7 @@ component SensitivitySlider inherits Rectangle {
                 color: Theme.text-primary;
                 horizontal-stretch: 1;
                 vertical-alignment: center;
+                wrap: word-wrap;
             }
 
             HorizontalLayout {
@@ -517,6 +518,8 @@ component SensitivitySlider inherits Rectangle {
                     font-size: 11px;
                     color: Theme.text-secondary;
                     vertical-alignment: center;
+                    // A long translation wraps; it does not push the toggle out.
+                    wrap: word-wrap;
                 }
 
                 SmallToggle {
@@ -1309,6 +1312,10 @@ component AudioTab inherits VerticalLayout {
                                         : Theme.text-tertiary;
                                     horizontal-stretch: 1;
                                     vertical-alignment: center;
+                                    // A long translation wraps to two lines and
+                                    // does not run under the key icon.
+                                    wrap: word-wrap;
+                                    overflow: elide;
                                 }
 
                                 Image {
@@ -1390,7 +1397,8 @@ component AudioTab inherits VerticalLayout {
             spacing: 16px;
 
             Rectangle {
-                width: 140px;
+                // 140px, or wider for a longer translation.
+                width: max(140px, mic-test-label.preferred-width + 2 * Theme.spacing-md);
                 height: 40px;
                 background: transparent;
 
@@ -1412,7 +1420,7 @@ component AudioTab inherits VerticalLayout {
                 border-width: 1px;
                 border-color: root.mic-testing ? Theme.accent : Theme.graphic-light;
 
-                Text {
+                mic-test-label := Text {
                     letter-spacing: Theme.track-label;
                     text: root.mic-testing ? @tr("Stop Testing") : @tr("Start Test");
                     font-family: Theme.font-label;
@@ -1503,7 +1511,8 @@ component ProfileAvatarSlot inherits Rectangle {
         }
 
         Rectangle {
-            width: 52px;
+            // 52px, or wider for a longer translation.
+            width: max(52px, use-label.preferred-width + 2 * Theme.spacing-sm);
             height: 26px;
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
@@ -1516,7 +1525,7 @@ component ProfileAvatarSlot inherits Rectangle {
                 fill: use-ta.has-hover ? Theme.confirm-press : Theme.confirm;
             }
 
-            Text {
+            use-label := Text {
                 text: @tr("Use");
                 font-family: Theme.font-label;
                 font-size: 11px;
@@ -1604,7 +1613,8 @@ component ProfileTab inherits VerticalLayout {
             }
 
             Rectangle {
-                width: 96px;
+                // 96px, or wider for a longer translation.
+                width: max(96px, change-label.preferred-width + 2 * Theme.spacing-sm);
                 height: 28px;
                 background: transparent;
 
@@ -1626,7 +1636,7 @@ component ProfileTab inherits VerticalLayout {
                     }
                 }
 
-                Text {
+                change-label := Text {
                     font-weight: Theme.weight-label;
                     text: avatar-grid-expanded ? @tr("Hide") : @tr("Change");
                     font-family: Theme.font-label;
@@ -1808,7 +1818,8 @@ component ProfileTab inherits VerticalLayout {
                     }
 
                     Rectangle {
-                        width: 52px;
+                        // 52px, or wider for a longer translation.
+                        width: max(52px, upload-use-label.preferred-width + 2 * Theme.spacing-sm);
                         height: 26px;
                         x: (parent.width - self.width) / 2;
                         y: (parent.height - self.height) / 2;
@@ -1821,7 +1832,7 @@ component ProfileTab inherits VerticalLayout {
                             fill: upload-use-ta.has-hover ? Theme.confirm-press : Theme.confirm;
                         }
 
-                        Text {
+                        upload-use-label := Text {
                             text: @tr("Use");
                             font-family: Theme.font-label;
                             font-size: 11px;
@@ -2421,7 +2432,7 @@ component NoticeEntry inherits VerticalLayout {
         font-family: Theme.font-label;
         font-size: 10px;
         font-weight: Theme.weight-label;
-        letter-spacing: 1.5px;
+        letter-spacing: Theme.track-label;
         color: Theme.text-tertiary;
         wrap: word-wrap;
     }
@@ -2522,14 +2533,18 @@ component NoticesView inherits Rectangle {
 component AboutRow inherits Rectangle {
     in property <string> label;
     in property <string> value;
+    /// The width of the label column. The rows of a group share one width.
+    in property <length> label-width: 96px;
+    /// The width that the label needs on one line.
+    out property <length> label-preferred-width: label-text.preferred-width;
 
     height: 24px;
 
     HorizontalLayout {
         spacing: 16px;
 
-        Text {
-            width: 96px;
+        label-text := Text {
+            width: root.label-width;
             text: root.label;
             font-family: Theme.font-label;
             font-size: 10px;
@@ -2736,18 +2751,23 @@ component AboutTab inherits VerticalLayout {
             }
         }
 
-        VerticalLayout {
+        about-rows := VerticalLayout {
+            // The label column: 96px, or the longest label when a
+            // translation is longer. All rows use it, so the values align.
+            property <length> label-width: max(96px, version-row.label-preferred-width,
+                build-row.label-preferred-width, built-row.label-preferred-width,
+                copyright-row.label-preferred-width, created-label.preferred-width);
             spacing: 4px;
-            AboutRow { label: @tr("VERSION"); value: root.version; }
-            AboutRow { label: @tr("BUILD"); value: root.commit; }
-            AboutRow { label: @tr("BUILT"); value: root.built; }
-            AboutRow { label: @tr("COPYRIGHT"); value: @tr("© 2026 Mollo Tech AB, Göteborg, Sweden"); }
+            version-row := AboutRow { label: @tr("VERSION"); value: root.version; label-width: about-rows.label-width; }
+            build-row := AboutRow { label: @tr("BUILD"); value: root.commit; label-width: about-rows.label-width; }
+            built-row := AboutRow { label: @tr("BUILT"); value: root.built; label-width: about-rows.label-width; }
+            copyright-row := AboutRow { label: @tr("COPYRIGHT"); value: @tr("© 2026 Mollo Tech AB, Göteborg, Sweden"); label-width: about-rows.label-width; }
             Rectangle {
                 height: 24px;
                 HorizontalLayout {
                     spacing: 16px;
-                    Text {
-                        width: 96px;
+                    created-label := Text {
+                        width: about-rows.label-width;
                         text: @tr("CREATED BY");
                         font-family: Theme.font-label;
                         font-size: 10px;
@@ -2858,7 +2878,8 @@ component AboutTab inherits VerticalLayout {
                 alignment: start;
 
                 Rectangle {
-                    width: 200px;
+                    // 200px, or wider for a longer translation.
+                    width: max(200px, notices-label.preferred-width + 2 * Theme.spacing-md);
                     height: 40px;
 
                     CutButtonShape {
@@ -2875,7 +2896,7 @@ component AboutTab inherits VerticalLayout {
                         fill: notices-ta.has-hover ? Theme.surface-hover : Theme.surface;
                     }
 
-                    Text {
+                    notices-label := Text {
                         text: @tr("Third-party notices");
                         font-family: Theme.font-label;
                         font-size: 12px;
@@ -3022,6 +3043,10 @@ component KeybindRow inherits Rectangle {
                             : Theme.text-tertiary;
                         horizontal-stretch: 1;
                         vertical-alignment: center;
+                        // A long translation wraps to two lines and does
+                        // not run under the key icon.
+                        wrap: word-wrap;
+                        overflow: elide;
                     }
 
                     Image {
@@ -4046,7 +4071,7 @@ export component SettingsModal inherits Rectangle {
                     letter-spacing: Theme.track-label;
                     font-weight: Theme.weight-label;
                     visible: root.show-saved;
-                    x: parent.width - 32px - 120px - 16px - self.preferred-width;
+                    x: parent.width - 32px - close-button.width - 16px - self.preferred-width;
                     y: (parent.height - self.preferred-height) / 2;
                     text: @tr("Saved");
                     font-family: Theme.font-label;
@@ -4055,10 +4080,11 @@ export component SettingsModal inherits Rectangle {
                 }
 
                 // Close button (absolutely positioned, vertically centered)
-                Rectangle {
+                close-button := Rectangle {
                     x: parent.width - self.width - 32px;
                     y: (parent.height - self.height) / 2;
-                    width: 120px;
+                    // 120px, or wider for a longer translation.
+                    width: max(120px, close-label.preferred-width + 2 * Theme.spacing-md);
                     height: 40px;
                     background: transparent;
                     border-width: 0px;
@@ -4078,7 +4104,7 @@ export component SettingsModal inherits Rectangle {
                     }
                     border-color: Theme.graphic-light;
 
-                    Text {
+                    close-label := Text {
                         text: @tr("Close");
                         font-family: Theme.font-label;
                         font-size: 13px;

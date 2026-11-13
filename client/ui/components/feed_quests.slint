@@ -156,6 +156,8 @@ component GiftColumn inherits Rectangle {
         font-weight: Theme.weight-label;
         font-size: 9px;
         letter-spacing: Theme.track-kicker;
+        // A long translation wraps to two lines inside the column.
+        wrap: word-wrap;
         color: root.gift.state == "ready" ? Theme.text-primary
             : root.gift.state == "open" ? Theme.text-body : Theme.text-tertiary;
     }
@@ -231,13 +233,16 @@ component QuestRowView inherits Rectangle {
                 colorize: Theme.on-action;
             }
         }
+        // 132px, or wider for a longer translation; then two lines.
         Text {
-            width: 132px;
+            min-width: 132px;
+            horizontal-stretch: 0;
             text: root.step.name;
             font-family: Theme.font-display;
             font-weight: Theme.weight-display;
             font-size: 14px;
             color: root.step.done ? Theme.text-body : Theme.text-primary;
+            wrap: word-wrap;
             overflow: elide;
         }
         HorizontalLayout {
