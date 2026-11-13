@@ -879,6 +879,12 @@ export component CrewSettingsModal inherits Rectangle {
         crew-scroll.scroll-y = 0px;
     }
 
+    // A plain member opens this window from the Notifications item of the
+    // crew menu. The member has the NOTIFICATIONS tab only: the other tabs
+    // change the crew.
+    property <bool> can-manage: my-role <= 1;
+    property <int> shown-tab: can-manage ? active-tab : 3;
+
     in-out property <bool> show-saved: false;
 
     callback close-requested();
@@ -1019,17 +1025,17 @@ export component CrewSettingsModal inherits Rectangle {
                             spacing: 6px;
 
                             // Overview
-                            Rectangle {
+                            if can-manage: Rectangle {
                                 height: 40px;
                                 background: transparent;
 
-                                if active-tab == 0 || overview-ta.has-hover: CutButtonShape {
+                                if shown-tab == 0 || overview-ta.has-hover: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
-                                    fill: active-tab == 0 ? Theme.graphic-light : Theme.surface-hover;
+                                    fill: shown-tab == 0 ? Theme.graphic-light : Theme.surface-hover;
                                 }
-                                if active-tab == 0: CutButtonShape {
+                                if shown-tab == 0: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
@@ -1041,7 +1047,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     source: @image-url("../icons/settings.svg");
                                     width: 16px;
                                     height: 16px;
-                                    colorize: active-tab == 0 ? Theme.text-primary : Theme.text-secondary;
+                                    colorize: shown-tab == 0 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px;
                                     y: (parent.height - self.height) / 2;
                                     opacity: 0.8;
@@ -1053,7 +1059,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
                                     letter-spacing: 0.6px;
-                                    color: active-tab == 0 ? Theme.text-primary : Theme.text-secondary;
+                                    color: shown-tab == 0 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px + 16px + 12px;
                                     y: (parent.height - self.preferred-height) / 2;
                                 }
@@ -1066,17 +1072,17 @@ export component CrewSettingsModal inherits Rectangle {
                             }
 
                             // Voice Channels
-                            Rectangle {
+                            if can-manage: Rectangle {
                                 height: 40px;
                                 background: transparent;
 
-                                if active-tab == 1 || channels-ta.has-hover: CutButtonShape {
+                                if shown-tab == 1 || channels-ta.has-hover: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
-                                    fill: active-tab == 1 ? Theme.graphic-light : Theme.surface-hover;
+                                    fill: shown-tab == 1 ? Theme.graphic-light : Theme.surface-hover;
                                 }
-                                if active-tab == 1: CutButtonShape {
+                                if shown-tab == 1: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
@@ -1088,7 +1094,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     source: @image-url("../icons/mic.svg");
                                     width: 16px;
                                     height: 16px;
-                                    colorize: active-tab == 1 ? Theme.text-primary : Theme.text-secondary;
+                                    colorize: shown-tab == 1 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px;
                                     y: (parent.height - self.height) / 2;
                                     opacity: 0.8;
@@ -1100,7 +1106,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
                                     letter-spacing: 0.6px;
-                                    color: active-tab == 1 ? Theme.text-primary : Theme.text-secondary;
+                                    color: shown-tab == 1 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px + 16px + 12px;
                                     y: (parent.height - self.preferred-height) / 2;
                                 }
@@ -1113,17 +1119,17 @@ export component CrewSettingsModal inherits Rectangle {
                             }
 
                             // Members
-                            Rectangle {
+                            if can-manage: Rectangle {
                                 height: 40px;
                                 background: transparent;
 
-                                if active-tab == 2 || members-ta.has-hover: CutButtonShape {
+                                if shown-tab == 2 || members-ta.has-hover: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
-                                    fill: active-tab == 2 ? Theme.graphic-light : Theme.surface-hover;
+                                    fill: shown-tab == 2 ? Theme.graphic-light : Theme.surface-hover;
                                 }
-                                if active-tab == 2: CutButtonShape {
+                                if shown-tab == 2: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
@@ -1135,7 +1141,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     source: @image-url("../icons/user.svg");
                                     width: 16px;
                                     height: 16px;
-                                    colorize: active-tab == 2 ? Theme.text-primary : Theme.text-secondary;
+                                    colorize: shown-tab == 2 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px;
                                     y: (parent.height - self.height) / 2;
                                     opacity: 0.8;
@@ -1147,7 +1153,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
                                     letter-spacing: 0.6px;
-                                    color: active-tab == 2 ? Theme.text-primary : Theme.text-secondary;
+                                    color: shown-tab == 2 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px + 16px + 12px;
                                     y: (parent.height - self.preferred-height) / 2;
                                 }
@@ -1164,13 +1170,13 @@ export component CrewSettingsModal inherits Rectangle {
                                 height: 40px;
                                 background: transparent;
 
-                                if active-tab == 3 || notifications-ta.has-hover: CutButtonShape {
+                                if shown-tab == 3 || notifications-ta.has-hover: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
-                                    fill: active-tab == 3 ? Theme.graphic-light : Theme.surface-hover;
+                                    fill: shown-tab == 3 ? Theme.graphic-light : Theme.surface-hover;
                                 }
-                                if active-tab == 3: CutButtonShape {
+                                if shown-tab == 3: CutButtonShape {
                                     width: parent.width;
                                     height: parent.height;
                                     n: Theme.cut;
@@ -1182,7 +1188,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     source: @image-url("../icons/bell.svg");
                                     width: 16px;
                                     height: 16px;
-                                    colorize: active-tab == 3 ? Theme.text-primary : Theme.text-secondary;
+                                    colorize: shown-tab == 3 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px;
                                     y: (parent.height - self.height) / 2;
                                     opacity: 0.8;
@@ -1194,7 +1200,7 @@ export component CrewSettingsModal inherits Rectangle {
                                     font-size: 12px;
                                     font-weight: Theme.weight-label;
                                     letter-spacing: 0.6px;
-                                    color: active-tab == 3 ? Theme.text-primary : Theme.text-secondary;
+                                    color: shown-tab == 3 ? Theme.text-primary : Theme.text-secondary;
                                     x: 12px + 16px + 12px;
                                     y: (parent.height - self.preferred-height) / 2;
                                 }
@@ -1222,10 +1228,10 @@ export component CrewSettingsModal inherits Rectangle {
                     crew-scroll := MelloScrollArea {
                         width: parent.width;
                         height: parent.height;
-                        content-height: active-tab == 0 ? overview-tab.preferred-height : (active-tab == 1 ? channels-tab.preferred-height : (active-tab == 2 ? members-tab.preferred-height : notifications-tab.preferred-height));
+                        content-height: shown-tab == 0 ? overview-tab.preferred-height : (shown-tab == 1 ? channels-tab.preferred-height : (shown-tab == 2 ? members-tab.preferred-height : notifications-tab.preferred-height));
 
                         overview-tab := OverviewTab {
-                            visible: active-tab == 0;
+                            visible: shown-tab == 0;
                             width: parent.width;
                             crew-name-value <=> root.crew-name-value;
                             crew-description-value <=> root.crew-description-value;
@@ -1239,7 +1245,7 @@ export component CrewSettingsModal inherits Rectangle {
                         }
 
                         channels-tab := VoiceChannelsTab {
-                            visible: active-tab == 1;
+                            visible: shown-tab == 1;
                             width: parent.width;
                             channels: root.channels;
                             new-channel-name <=> root.new-channel-name;
@@ -1249,7 +1255,7 @@ export component CrewSettingsModal inherits Rectangle {
                         }
 
                         members-tab := MembersTab {
-                            visible: active-tab == 2;
+                            visible: shown-tab == 2;
                             width: parent.width;
                             members: root.members;
                             my-role: root.my-role;
@@ -1259,7 +1265,7 @@ export component CrewSettingsModal inherits Rectangle {
                         }
 
                         notifications-tab := NotificationsTab {
-                            visible: active-tab == 3;
+                            visible: shown-tab == 3;
                             width: parent.width;
                             messages <=> root.push-messages;
                             looking-to-play <=> root.push-looking-to-play;
@@ -1311,7 +1317,7 @@ export component CrewSettingsModal inherits Rectangle {
 
                 // Save. Only the overview tab has anything to save, and a
                 // dialog has one commit, bottom-right.
-                if root.active-tab == 0: Rectangle {
+                if root.shown-tab == 0: Rectangle {
                     x: parent.width - self.width - 32px - 120px - 12px;
                     y: (parent.height - self.height) / 2;
                     width: 120px;
@@ -1410,6 +1416,7 @@ export component CrewSettingsModal inherits Rectangle {
 //     client/ui/panels/crew_settings_modal.slint
 component CrewSettingsPreview inherits Rectangle {
     in property <int> tab: 0;
+    in property <int> role: 0;
 
     width: 1000px;
     height: 720px;
@@ -1422,7 +1429,7 @@ component CrewSettingsPreview inherits Rectangle {
         crew-name: "M3LLO CREW";
         crew-description: "Crew for m3llo lovers <3";
         crew-initials: "M3";
-        my-role: 0;
+        my-role: root.role;
         push-messages: true;
         push-looking-to-play: false;
         push-ready: true;
@@ -1445,3 +1452,5 @@ export component Preview inherits CrewSettingsPreview { tab: 0; }
 export component PreviewChannels inherits CrewSettingsPreview { tab: 1; }
 export component PreviewMembers inherits CrewSettingsPreview { tab: 2; }
 export component PreviewNotifications inherits CrewSettingsPreview { tab: 3; }
+// What a plain member sees: the NOTIFICATIONS tab only.
+export component PreviewNotificationsMember inherits CrewSettingsPreview { tab: 0; role: 2; }

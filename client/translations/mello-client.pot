@@ -1088,6 +1088,10 @@ msgid "YOUR GAMES"
 msgstr ""
 
 #: client/ui/panels/crew_panel.slint
+msgid "Notifications"
+msgstr ""
+
+#: client/ui/panels/crew_panel.slint
 msgid "Reconnecting"
 msgstr ""
 

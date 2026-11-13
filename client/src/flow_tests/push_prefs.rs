@@ -219,3 +219,50 @@ fn opening_crew_settings_again_disables_the_push_switches_until_the_answer() {
     assert!(!state(&h, "Messages").0, "disabled until the answer");
     assert_eq!(push_commands(&mut h).len(), 1, "the open asks again");
 }
+
+/// The Notifications item of the crew menu opens crew settings on the
+/// NOTIFICATIONS tab and loads the switches.
+#[test]
+fn the_notifications_item_opens_the_notifications_tab() {
+    let mut h = crew_menu_open();
+    h.commands();
+
+    press_menu_item(&mut h, "Notifications");
+
+    assert!(h.app().get_crew_settings_open(), "crew settings are open");
+    assert_eq!(h.app().get_crew_settings_active_tab(), 3);
+    let sent = push_commands(&mut h);
+    assert!(
+        matches!(sent.as_slice(), [Command::LoadPushPrefs { crew_id }] if crew_id == "crew-1"),
+        "the way in loads the switches of the crew, sent: {sent:?}"
+    );
+}
+
+/// A plain member cannot change the crew, so the crew menu has no Crew
+/// settings item. The Notifications item is there, and the window it opens
+/// has the NOTIFICATIONS tab only.
+#[test]
+fn a_plain_member_gets_the_notifications_tab_only() {
+    let mut h = crew_menu_open();
+    h.app().set_can_manage_channels(false);
+    h.app().set_crew_settings_my_role(2);
+    h.pump();
+    assert!(
+        h.controls_labelled("Crew settings").is_empty(),
+        "a plain member has no Crew settings item"
+    );
+
+    press_menu_item(&mut h, "Notifications");
+
+    assert!(h.app().get_crew_settings_open(), "crew settings are open");
+    for tab in ["OVERVIEW", "CHANNELS", "MEMBERS"] {
+        assert!(
+            h.controls_labelled(tab).is_empty(),
+            "a plain member has no {tab} tab"
+        );
+    }
+    assert_eq!(h.controls_labelled("NOTIFICATIONS").len(), 1);
+    // The switches are on screen: the tab shows whatever the active tab is.
+    switch(&h, "Messages");
+    switch(&h, "Looking to play");
+}

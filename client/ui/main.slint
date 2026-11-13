@@ -1109,6 +1109,9 @@ export component MainWindow inherits Window {
                 crew-edit-requested => {
                     root.open-crew-settings(0);
                 }
+                crew-notifications-requested => {
+                    root.open-crew-settings(3);
+                }
                 crew-leave-requested => {
                     root.crew-context-leave();
                 }

@@ -242,8 +242,9 @@ each change, as reactions do.
   Looking to play. Looking to play is on at the start. Messages is on at the start in a
   crew of up to 10 members and off in a larger crew (3.8). Only a choice the member made
   is stored. RPCs to read and set them. The mute is read
-  before the send in `push_remote.go`. The switches are in crew settings on desktop and
-  in the crew sheet on iOS. A mention push ignores the Messages switch.
+  before the send in `push_remote.go`. On desktop the switches are the NOTIFICATIONS tab of crew settings. Every
+  member opens it from the Notifications item of the crew menu, and a plain member sees
+  that tab only. On iOS they are in the crew sheet. A mention push ignores the Messages switch.
 - **Privacy.** The message text goes through the push Worker and Apple, as a mention does
   today. Nothing new is stored.
 
