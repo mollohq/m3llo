@@ -260,6 +260,9 @@ func UpdateLedgerEventSnapshotURLs(ctx context.Context, nk runtime.NakamaModule,
 	return fmt.Errorf("UpdateLedgerEventSnapshotURLs failed after 3 retries for crew %s event %s", crewID, eventID)
 }
 
+// ledgerNow is the clock of the ledger trim. Tests replace it.
+var ledgerNow = time.Now
+
 // AppendCrewEvent appends an event to a crew's ledger with optimistic concurrency retry.
 func AppendCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID string, event CrewEvent) error {
 	for attempt := 0; attempt < 3; attempt++ {
@@ -268,7 +271,7 @@ func AppendCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID string
 		ledger.Events = append(ledger.Events, event)
 
 		// Trim events older than the rolling window
-		cutoff := time.Now().Add(-time.Duration(EventRollingWindowDays) * 24 * time.Hour).UnixMilli()
+		cutoff := ledgerNow().Add(-time.Duration(EventRollingWindowDays) * 24 * time.Hour).UnixMilli()
 		trimmed := make([]CrewEvent, 0, len(ledger.Events))
 		for _, e := range ledger.Events {
 			if e.Timestamp >= cutoff {
