@@ -85,6 +85,9 @@ type ltpAsk struct {
 	ClosedReason string               `json:"closed_reason,omitempty"`
 	ClosedAt     int64                `json:"closed_at,omitempty"`
 	Answers      map[string]ltpAnswer `json:"answers"`
+	// SecondCallAt is when the Second call push went out, else 0. It goes
+	// once for an ask.
+	SecondCallAt int64 `json:"second_call_at,omitempty"`
 }
 
 // newLtpAsk makes an open ask. The asker counts as in from the start.

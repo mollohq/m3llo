@@ -52,6 +52,16 @@ var (
 	errBannerNotFound       = runtime.NewError("BANNER_NOT_FOUND", 5)
 )
 
+// Looking to play (looking_to_play_rpc.go).
+var (
+	errAskNotFound   = runtime.NewError("ASK_NOT_FOUND", 5)
+	errAskClosed     = runtime.NewError("ASK_CLOSED", 9)
+	errAskNotAsker   = runtime.NewError("ASK_NOT_ASKER", 7)
+	errAskHasOpen    = runtime.NewError("ASK_HAS_OPEN", 9)
+	errAskTooSoon    = runtime.NewError("ASK_TOO_SOON", 9)
+	errAskNobodyWait = runtime.NewError("ASK_NOBODY_WAIT", 9)
+)
+
 // The Riot link (riot.go).
 var (
 	errRiotNotConfigured = runtime.NewError("RIOT_NOT_CONFIGURED", 9)

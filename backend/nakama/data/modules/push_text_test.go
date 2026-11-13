@@ -32,6 +32,16 @@ func pushTextSamples() map[string][]any {
 		"messages_new_in":     {999, crew + ", " + crew},
 		"message_sent_gif":    {name},
 		"message_sent_image":  {name},
+		"ltp_ask":             {name},
+		"ltp_ask_game":        {name, strings.Repeat("G", 64)},
+		"ltp_in":              {name},
+		"ltp_in_due":          {name, 30},
+		"ltp_two_in":          {name, name},
+		"ltp_many_in":         {999},
+		"ltp_playing":         {name, name},
+		"ltp_nobody":          {},
+		"ltp_called_off":      {name},
+		"ltp_name_fallback":   {},
 	}
 }
 

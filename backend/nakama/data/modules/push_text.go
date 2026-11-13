@@ -55,6 +55,19 @@ var pushTextEnglish = map[string]string{
 	"message_sent_image":      "%s sent an image",
 	"message_sender_fallback": "Someone",
 
+	// Looking to play (looking_to_play_push.go). Values: name, then the game,
+	// the minutes or a second name.
+	"ltp_ask":           "%s is looking to play",
+	"ltp_ask_game":      "%s is looking to play %s",
+	"ltp_in":            "%s is in",
+	"ltp_in_due":        "%s is in, %d min",
+	"ltp_two_in":        "%s and %s are in",
+	"ltp_many_in":       "%d are in",
+	"ltp_playing":       "%s and %s are playing",
+	"ltp_nobody":        "No one this time",
+	"ltp_called_off":    "%s called it off",
+	"ltp_name_fallback": "A crew member",
+
 	// Belt labels, by the title_id that the client uses (client/src/head2head.rs).
 	titleTheCarry:   "The Carry",
 	titleLockedIn:   "Locked In",

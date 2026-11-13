@@ -25,6 +25,9 @@ const (
 	// NotifyChatReaction carries one message's reactions after a change
 	// (chat_reactions.go).
 	NotifyChatReaction = 117
+	// NotifyLookingToPlay carries the full state of one Looking to play ask
+	// after a change (looking_to_play_store.go).
+	NotifyLookingToPlay = 118
 )
 
 // Priority events are always pushed immediately to all subscribers.

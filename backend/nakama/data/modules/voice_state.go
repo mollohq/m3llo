@@ -387,6 +387,12 @@ func joinVoiceRoom(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 		questsMarkCall(ctx, logger, nk, p.CrewID, call)
 	}
 
+	// A member who joins voice is in on the open Looking to play ask of the
+	// crew, or is marked as arrived (looking_to_play_rpc.go). A guest is not.
+	if !p.IsGuest {
+		queueLtpVoiceJoin(logger, nk, p.CrewID, p.UserID)
+	}
+
 	return GetVoiceChannelSnapshot(p.ChannelID), nil
 }
 
