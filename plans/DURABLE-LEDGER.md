@@ -1,6 +1,8 @@
 # Durable crew ledger
 
-Status: in build on `feat/durable-ledger`. This is a plan. Specs change when the code ships.
+Status: in build on `feat/durable-ledger`. Phase 1a (steps 1 to 6) and phase 1b
+(steps 9 to 13) are built. Steps 7, 8 and 14 are open. This is a plan. Specs
+change when the code ships.
 
 Paths are relative to `backend/nakama/data/modules/` unless stated.
 
@@ -80,6 +82,9 @@ mello_crew_event_deleted(crew_id TEXT, event_id TEXT, deleted_ms BIGINT,
   this row first, so the writes of one crew run one after the other.
 - `pos` is the append order of a crew. `created_ms` is only the time the row
   was written.
+- `pos = 0` is a row that did not come through the legacy ledger path (`Put`,
+  phase 1b). It is not in the 7-day view. `Backfill` gives it a position when
+  a ledger document holds the event.
 - `mello_crew_event_deleted` holds the ids that `Delete` removed. `Backfill`
   does not store such an id again. A live `Append` of the id clears it.
 - `eventUserIDs(event)` lists every user an event names: actor,
@@ -115,8 +120,16 @@ type ledgerStore interface {
     ByType(ctx, typ string, sinceMs int64) ([]CrewEvent, error)
     DeleteCrew(ctx, crewID string) error
     EventsNamingUser(ctx, userID string) ([]CrewEvent, error)
+    // Phase 1b: rows outside the 7-day view. They do not move the anchor.
+    Put(ctx, crewID string, rows []ledgerRow) (inserted int, err error)        // skips a held id and a deleted id
+    PutUnique(ctx, crewID string, row ledgerRow) (held []CrewEvent, err error) // one row for a ref of a type
+    ByRef(ctx, crewID, typ, ref string) ([]CrewEvent, error)
+    ByIDs(ctx, crewID string, ids []string) ([]CrewEvent, error)
 }
 ```
+
+`PutUnique` takes `pg_advisory_xact_lock` on the crew, the type and the ref,
+then checks and inserts in one transaction.
 
 `RecentView` is what the legacy document held:
 
@@ -208,6 +221,10 @@ Rollback:
 - Known gap: after the cutover a document write that fails is only logged.
   The document then lacks that event until the legacy document is removed.
 - Dual write and the legacy doc go one release after cutover.
+- Phase 1b: `MELLO_LEDGER_HISTORY_READ=doc` puts its readers back on the
+  documents. A crew over an old cap then sees its capped document again.
+- Phase 1b known gap: after its cutover a clip whose document write failed is
+  missing on a rollback to the documents.
 
 ## 6. Readers
 
@@ -227,6 +244,142 @@ the document.
 | `removeCrewEvent` (`streaming.go`) | `ledgerStore.Delete`, write order of section 5 |
 | `snapshotBackfill` (`streaming.go`) | `ByType("stream_session", cutoff)`, grouped by crew, one session per crew per tick as today |
 | `dev_seed.go` | Reset also calls `DeleteCrew` |
+
+## 6a. Phase 1b: clips, stream sessions, recaps
+
+Built. Code: `ledger_history.go`, `ledger_migration.go`, `admin_media_orphans.go`.
+
+### Rows
+
+| Thing | Type | Row id | Ref | Time | Data |
+|---|---|---|---|---|---|
+| Clip | `clip` | `clip_{event_id}` | `clip_id` | `ts` of the clip | The stored clip |
+| Stream session | `stream_session` | Id of the ledger event | `session_id` | `ts` of the event | `StreamSessionData` |
+| Weekly recap | `weekly_recap` | `recap_{week_start}` | none | `week_start` | The recap |
+
+- `NewestN` and `CountOlder` see these rows. They are the counted types.
+- The prefix `clip_` keeps a clip id apart from the ids of ledger events. One
+  crew holds an id once.
+- The time of a recap is its week start. Crew history files a recap under the
+  week it is about. `generated_at` stays in the data.
+- The store holds one recap for a week start. The first one wins.
+
+### One row for a stream
+
+A stream that ends writes a `stream_session` event to the ledger and a copy to
+`crew_stream_sessions`. The copy holds the id of the event.
+
+| Case | Rule |
+|---|---|
+| The ledger document holds the event | The row is the row of the event (phase 1a). The copy changes nothing |
+| Only the copy holds the session (older than 7 days, or the event write failed) | `Put` stores it under the id of the event, with `pos = 0` |
+| The ledger document later holds the event | `Backfill` gives the row its position. No second row |
+| The stream was resumed (`removeCrewEvent`) | The store remembers the id. The copy does not bring the row back |
+| Two events for one session id (stop and socket drop) | Two ledger rows. The feed lists the newest one, as the copy did |
+
+- `stream_session` is a pulse type. No `ledger_` row exists for a stream.
+- `ledger_clip` and `ledger_weekly_recap` rows are the clip and recap events
+  that a ledger document held. They serve the 7-day view of the guest feed
+  and the invite preview only. They are not clips or recaps of the crew, and
+  no counted query sees them.
+
+### Marker, soak, kill switch
+
+Phase 1b has its own state document, `ledger_migration/history
+{"started_ms", "done_ms"}`, and its own marker.
+
+- Reason 1: a release of phase 1a can be cut over before phase 1b is
+  deployed. With a shared marker the readers of 1b would switch with no copy
+  and no soak.
+- Reason 2: a release of phase 1a rewrites its state document as a whole. It
+  would drop fields of 1b.
+- The marker of 1b needs: a clean pass of both phases, the marker of 1a, and
+  24 hours since `started_ms` (the same `MELLO_LEDGER_SOAK_SECONDS`).
+- An install that jumps from a release before 1a starts both soaks on the
+  first tick. Both markers can be set in the same pass.
+- `MELLO_LEDGER_HISTORY_READ=doc` puts only the readers and the write order
+  of 1b back on the documents. `MELLO_LEDGER_READ=doc` puts both phases back.
+
+### Write order
+
+The same rule as section 5 (`ledgerWriteOrdered`), with the marker of 1b.
+
+| Write | Before the cutover of 1b | After it |
+|---|---|---|
+| `AppendClip` | Document first: it decides if the `clip_id` is free. Then `Put` | `PutUnique` first: it decides. Then the document |
+| Clip media and poster URL (`updateStoredClip`) | Document, then `UpdateData` | `UpdateData`, then the document |
+| `AppendRecap` | Document, then `Put` | `Put`, then the document |
+| Stream session | `AppendCrewEvent` (phase 1a), then the copy, as today | The same. The copy is no longer read |
+
+- The first write of a clips document is now create-only (version `*`). Two
+  uploads at once to a new crew both stay.
+- `UpsertStreamSession` and `capClips` stay as the writers of the legacy
+  documents. They go with the documents.
+
+### The rule for the caps
+
+- A legacy document keeps its cap (250 clips, 150 stream sessions). The store
+  has no cap. So the store holds more than the document.
+- No RPC deletes a clip, a stream session of the copy or a recap. An entry
+  leaves a document only by the cap.
+- So the reconcile of phase 1b never deletes a row. A row that the document
+  does not hold is history that the document trimmed.
+- Parity is: every entry of the document has its row, with the same content.
+
+Reconcile of one document (`reconcileHistoryCrew`):
+
+| | Before the cutover | After the cutover |
+|---|---|---|
+| Entry the store lacks | `Put` | `Put` |
+| Row the document lacks | Keep | Keep |
+| Content differs | Take the document. A stream row keeps its viewers | Keep the store |
+| Id that `Delete` removed | Not stored again | Not stored again |
+| Entry with no event id | Counted (`no_id`), not stored | The same |
+
+- A pass visits the ledger documents, then `crew_stream_sessions`,
+  `crew_clips`, `crew_recaps`.
+- Log line: `ledger_history_pass docs= inserted= updated= no_id= unclean= failed= marker=`.
+  A document that does not converge logs `ledger_history_mismatch kind= crew=`.
+
+### Readers after the cutover
+
+| Reader | Read |
+|---|---|
+| `crew_feed` (`loadZoneHistory`) | The free window (`Between`), the newest recap that is not empty, the newest clip and stream time, and 5 weeks of Crew history from `WeeksBefore`. No whole-crew read |
+| `buildMergedTimeline` | Clips of 7 days (`Between`), the newest recap (`NewestN`) |
+| `crew_catchup` | Clips after `last_seen` (`Between`) |
+| `post_clip`, `clip_upload_url`, `clip_upload_complete` | `ByRef(clip_id)`. Rate limit: clips of the day (`Between`) |
+| Weekly recap job | Clips of the week (`Between`). `recapDue` from the newest recap row |
+| Guest feed | The newest 250 clips (`NewestN`) and the clip count (`CountOlder`) |
+| Invite preview | The ledger only, as before |
+
+A store read that fails falls back to the documents.
+
+### Known differences after the cutover
+
+- A crew over an old cap sees every clip and stream session. This is the goal.
+- A stream that was resumed has no replay entry until it ends again. Before,
+  the copy still listed the interrupted part.
+- A stream session whose copy write failed is now listed as a replay.
+- Two recaps with one week start are one recap.
+- The guest feed counts clips by row above 250 clips.
+
+### admin_media_orphans (step 13)
+
+`http_key` RPC. Request `{delete?, max_objects?, clips_after?, snapshots_after?}`.
+
+- Lists `crews/` in the clips bucket and `snapshots/` in the snapshots bucket.
+- An object is an orphan when no clip (by `clip_id`) and no stream session (by
+  `session_id`) of the crew points at it, and it is older than 24 hours.
+- A crew holds a clip or a session when the legacy document, the ledger
+  document, the live stream record or a store row has it.
+- Reports for each prefix: `scanned, orphans, bytes, too_new, unknown,
+  read_failed, deleted, delete_failed, sample, next_after`.
+- A key that does not follow the layout is `unknown`. A crew that cannot be
+  read is `read_failed`. Neither is deleted.
+- Dry run by default. A delete needs `delete: true`, the env
+  `MELLO_MEDIA_ORPHAN_DELETE=1` and the durable store.
+- The delete was run only against a local fake in tests.
 
 ## 7. Deletion rules (step 7, waits for sign-off)
 
@@ -267,6 +420,19 @@ Open: clip media and stored recap text that hold a deleted user's voice or name.
   `TestReconcile*`, `TestSoakGate`, `TestAfterCutover*`, `TestBeforeCutover*`,
   `TestScrubEventForUser`, `TestPurgeCrewData`, `TestInvitePreviewSeesNoClipRows`.
 - Tests that seed `CrewEventsCollection` directly move to a `seedLedger(t, ...)` helper.
+- Phase 1b. `history_characterisation_test.go` pins the read paths of clips,
+  stream sessions and recaps. It was written against the code before 1b and
+  did not change. Each test runs in three modes (`history_modes_test.go`):
+  `document`, `import` (seed the documents, then reconcile and cut over) and
+  `store` (cut over, then seed).
+- `TestZonesFromTheStoreEqualTheDocuments`: the zone feed JSON of random
+  crews, every page, from the documents and from the store.
+- `TestZonesReadOnePageOfALargeCrew`: rows and queries of one page are bounded.
+- `TestClipIDIsUniqueUnderConcurrentUploads`, `TestConcurrentFirstClipsLoseNothing`,
+  `TestClipReconcileKeepsWhatTheDocumentDropped`, `TestStreamSessionHasOneRow`,
+  `TestHistoryMarkerGate`, `TestAdminMediaOrphans*`.
+- `ledgerPutConformance` runs in the conformance function, so
+  `dev_ledger_selftest` covers `Put`, `PutUnique`, `ByRef` and `ByIDs` on SQL.
 
 ## 9. Build steps
 
@@ -284,11 +450,18 @@ Phase 1a:
 7. Deletion rules (section 7). `go test -run 'TestScrub|TestPurgeCrewData|TestKick' .`
 8. Specs 16 and 04, `TESTING.md`.
 
-Phase 1b, second PR:
+Phase 1b, as built:
 
-9. Stream sessions read from events, import the mirror, remove `UpsertStreamSession` and the cap.
-10. Clips as rows (`type clip`, `ref = clip_id`), import the doc, remove `capClips`.
-11. Recaps as rows (`id = recap_{week_start}`), import the doc.
-12. `zoneHistory` and `crewFeedZones` page from the store. Output shape unchanged.
-13. `admin_media_orphans` with a dry run, for media orphaned by past cap trims.
-14. Specs CLIPS and CREW-FEED-ZONES.
+9. Stream sessions. The reconcile imports `crew_stream_sessions`. The feed
+   reads the rows. Own marker for 1b. `go test -run 'TestHistory|TestStreamSession|TestLedgerDocument|TestChar' .`
+10. Clips as rows (`type clip`, `ref = clip_id`), dual write, import, no cap in the store. `go test -run 'TestClip|TestConcurrent|TestChar' .`
+11. Recaps as rows (`id = recap_{week_start}`), dual write, import. `go test -run 'TestRecap|TestChar' .`
+12. `crew_feed` pages from the store. Output shape unchanged. `go test -run 'TestZones|TestChar' .`
+13. `admin_media_orphans` with a dry run. `go test -run 'TestAdminMediaOrphans|TestMediaObject' .`
+14. Specs CLIPS, CREW-FEED-ZONES and 04 (the `admin_media_orphans` row). Open.
+
+Different from the first plan:
+
+- `UpsertStreamSession` and `capClips` stay until the legacy documents go.
+  The documents must be written while they are the truth and for a rollback.
+- The clip row id is `clip_{event_id}`, not the bare event id.
