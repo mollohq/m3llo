@@ -28,10 +28,23 @@ func ledgerLogError(format string, args ...interface{}) {
 	}
 }
 
-// ledgerWriteBoth runs one write on both stores in the order of the phase.
-// op names the write in the log lines.
+// ledgerWriteBoth runs one write of the legacy ledger path on both stores in
+// the order of the phase. op names the write in the log lines.
 func ledgerWriteBoth(ctx context.Context, nk runtime.NakamaModule, op, crewID, eventID string, toStore func(ledgerStore) error, toDoc func() error) error {
-	if store := ledgerTruthStore(ctx, nk); store != nil {
+	return ledgerWriteOrdered(ledgerTruthStore(ctx, nk), op, crewID, eventID, toStore, toDoc)
+}
+
+// historyWriteBoth is ledgerWriteBoth for the clips and the weekly recaps of
+// phase 1b. Their cutover has its own marker (historyTruthStore).
+func historyWriteBoth(ctx context.Context, nk runtime.NakamaModule, op, crewID, eventID string, toStore func(ledgerStore) error, toDoc func() error) error {
+	return ledgerWriteOrdered(historyTruthStore(ctx, nk), op, crewID, eventID, toStore, toDoc)
+}
+
+// ledgerWriteOrdered runs one write on both stores. truth is the durable
+// store when it is the truth for this write, and nil when the legacy document
+// is. The truth is written first and its error is returned.
+func ledgerWriteOrdered(truth ledgerStore, op, crewID, eventID string, toStore func(ledgerStore) error, toDoc func() error) error {
+	if store := truth; store != nil {
 		if err := toStore(store); err != nil {
 			ledgerLogError("ledger_store_write_failed op=%s crew=%s event=%s: %v", op, crewID, eventID, err)
 			return fmt.Errorf("ledger %s failed for crew %s event %s: %w", op, crewID, eventID, err)

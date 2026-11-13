@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"testing"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -18,10 +20,70 @@ type histMode struct {
 	cutover func(t *testing.T, nk runtime.NakamaModule)
 }
 
-// histModes are the modes. Phase 1b adds the modes that read the durable
-// store.
+// histModes are the modes.
+//
+//   - document: no durable store. Everything is read from the legacy documents.
+//   - import: the crew is seeded on the legacy documents alone, as on a
+//     release before the durable store. Then the store is set, the reconcile
+//     copies the documents and sets both markers, and the test reads.
+//   - store: both cutovers are done before the test seeds. The writes go to
+//     the store first.
 var histModes = []histMode{
 	{name: "document"},
+	{name: "import", cutover: func(t *testing.T, nk runtime.NakamaModule) {
+		t.Helper()
+		useMemLedger(t)
+		resetLedgerCutover(t)
+		resetHistoryCutover(t)
+		noSoak(t)
+		prevRecheck := ledgerMarkerRecheck
+		ledgerMarkerRecheck = 0
+		t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+		r := reconcilePass(t, nk)
+		if !markerSet(nk) || !historyMarkerSet(nk) {
+			t.Fatalf("the reconcile did not set both markers: events %+v %s, history %+v %s", r.last, r.lastMarker, r.lastHist, r.lastHistMarker)
+		}
+		if historyTruthStore(context.Background(), nk) == nil {
+			t.Fatal("the store is not the truth after the markers")
+		}
+	}},
+	{name: "store", setup: func(t *testing.T) {
+		t.Helper()
+		useHistoryStoreReads(t)
+	}},
+}
+
+// resetHistoryCutover clears what the node knows about the marker of phase
+// 1b, now and at the end of the test.
+func resetHistoryCutover(t *testing.T) {
+	t.Helper()
+	reset := func() {
+		historyCutover.mu.Lock()
+		historyCutover.done = false
+		historyCutover.checkedAt = time.Time{}
+		historyCutover.mu.Unlock()
+	}
+	reset()
+	t.Cleanup(reset)
+	t.Setenv("MELLO_LEDGER_HISTORY_READ", "")
+}
+
+// useHistoryStoreReads sets an empty in-memory store and puts the node after
+// both cutovers: the store is the truth for the ledger events and for the
+// clips, stream sessions and recaps.
+func useHistoryStoreReads(t *testing.T) *memLedgerStore {
+	t.Helper()
+	store := useStoreReads(t)
+	resetHistoryCutover(t)
+	historyCutover.mu.Lock()
+	historyCutover.done = true
+	historyCutover.mu.Unlock()
+	return store
+}
+
+func historyMarkerSet(nk runtime.NakamaModule) bool {
+	st, _, err := readHistoryMigrationState(context.Background(), nk)
+	return err == nil && st != nil && st.DoneMs > 0
 }
 
 // forHistModes runs fn once for each mode.

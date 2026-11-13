@@ -617,7 +617,6 @@ func CrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, req FeedRequest, userID string, timeline []TimelineEntry, h2h *Head2headFeedData, joins []FeedJoin, nowMs int64) FeedZones {
 	cfg := readFeedConfig(ctx, logger, nk)
 	clipsDoc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	streamDoc, _ := readStreamSessionsDoc(ctx, nk, req.CrewID)
 	recapsDoc, _ := readRecapsDoc(ctx, nk, req.CrewID)
 	stampRecapWeeks(ctx, nk, req.CrewID, recapsDoc.Recaps)
 	quests, _ := readCrewQuests(ctx, nk, req.CrewID)
@@ -635,7 +634,7 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 		HistoryBefore: req.HistoryBefore,
 		Cards:         dropEmptyCards(mergedToCards(timeline)),
 		Clips:         clipsDoc.Clips,
-		Streams:       streamDoc.Sessions,
+		Streams:       crewStreamSessions(ctx, nk, req.CrewID),
 		Recaps:        recapsDoc.Recaps,
 		H2h:           h2h,
 		Libs:          crewLibraryDocs(ctx, nk, req.CrewID),

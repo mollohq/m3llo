@@ -114,6 +114,90 @@ func ensureLedgerMigrationState(ctx context.Context, nk runtime.NakamaModule) (*
 	return &created, nil
 }
 
+// historyMigrationStateKey is the state document of phase 1b: the clips, the
+// stream sessions of the durable copy and the weekly recaps. It is a document
+// of its own. A release of phase 1a rewrites the state document of 1a as a
+// whole, and would drop fields it does not know.
+const historyMigrationStateKey = "history"
+
+// historyMigrationState is the state document of phase 1b.
+type historyMigrationState struct {
+	// StartedMs is when the dual write of phase 1b first ran on this install.
+	StartedMs int64 `json:"started_ms"`
+	// DoneMs is the marker of phase 1b. The readers of clips, stream sessions
+	// and recaps use the durable store when it is set.
+	DoneMs int64 `json:"done_ms,omitempty"`
+}
+
+func readHistoryMigrationState(ctx context.Context, nk runtime.NakamaModule) (*historyMigrationState, string, error) {
+	var st historyMigrationState
+	found, version, err := readDocStrict(ctx, nk, LedgerMigrationCollection, historyMigrationStateKey, &st)
+	if err != nil {
+		return nil, "", fmt.Errorf("history migration state: %w", err)
+	}
+	if !found {
+		return nil, "", nil
+	}
+	return &st, version, nil
+}
+
+func writeHistoryMigrationState(ctx context.Context, nk runtime.NakamaModule, st historyMigrationState, version string) error {
+	data, err := json.Marshal(st)
+	if err != nil {
+		return err
+	}
+	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+		Collection:      LedgerMigrationCollection,
+		Key:             historyMigrationStateKey,
+		UserID:          SystemUserID,
+		Value:           string(data),
+		Version:         version,
+		PermissionRead:  0,
+		PermissionWrite: 0,
+	}})
+	return err
+}
+
+// ensureHistoryMigrationState returns the state document of phase 1b. The
+// first call on an install creates it with the start time of its dual write.
+func ensureHistoryMigrationState(ctx context.Context, nk runtime.NakamaModule) (*historyMigrationState, error) {
+	st, _, err := readHistoryMigrationState(ctx, nk)
+	if err != nil || st != nil {
+		return st, err
+	}
+	created := historyMigrationState{StartedMs: time.Now().UnixMilli()}
+	if err := writeHistoryMigrationState(ctx, nk, created, "*"); err != nil {
+		// Another node made it first.
+		st, _, readErr := readHistoryMigrationState(ctx, nk)
+		if readErr != nil {
+			return nil, readErr
+		}
+		if st == nil {
+			return nil, err
+		}
+		return st, nil
+	}
+	return &created, nil
+}
+
+// readDocStrict reads one system storage object into out. It reports a read
+// or decode error, which the reconcile must not take for an empty document.
+func readDocStrict(ctx context.Context, nk runtime.NakamaModule, collection, key string, out interface{}) (found bool, version string, err error) {
+	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
+		{Collection: collection, Key: key, UserID: SystemUserID},
+	})
+	if err != nil {
+		return false, "", err
+	}
+	if len(objects) == 0 {
+		return false, "", nil
+	}
+	if err := json.Unmarshal([]byte(objects[0].GetValue()), out); err != nil {
+		return false, "", err
+	}
+	return true, objects[0].GetVersion(), nil
+}
+
 // readLedgerDocStrict reads the legacy document of a crew and reports a read
 // or decode error. readLedgerDoc turns both into an empty ledger, which the
 // reconcile must not take for the truth.
@@ -361,21 +445,45 @@ func (p ledgerPassStats) clean() bool {
 	return p.Unclean == 0 && p.Failed == 0 && !p.ListFailed
 }
 
-// ledgerReconciler runs the reconcile. A pass visits every legacy document.
-// A tick does a bounded part of a pass.
+// ledgerReconcileStep is one collection of legacy documents that a pass
+// visits. history is nil for the ledger documents of phase 1a.
+type ledgerReconcileStep struct {
+	collection string
+	history    *historyKind
+}
+
+// ledgerReconcileSteps are the collections of one pass, in order. The ledger
+// documents come first: the stream sessions of phase 1b read them.
+func ledgerReconcileSteps() []ledgerReconcileStep {
+	steps := []ledgerReconcileStep{{collection: CrewEventsCollection}}
+	for _, kind := range historyKinds {
+		steps = append(steps, ledgerReconcileStep{collection: kind.collection, history: kind})
+	}
+	return steps
+}
+
+// ledgerReconciler runs the reconcile. A pass visits every legacy document:
+// the ledger documents, then the documents of phase 1b. A tick does a bounded
+// part of a pass.
 type ledgerReconciler struct {
 	nk     runtime.NakamaModule
 	logger runtime.Logger
+	// step is the collection the pass is in, cursor the place in its list.
+	step   int
 	cursor string
 	pass   ledgerPassStats
+	hist   historyPassStats
 	// last is the result of the last finished pass, and lastMarker what the
-	// pass did with the marker.
-	last       ledgerPassStats
-	lastMarker string
+	// pass did with the marker. lastHist and lastHistMarker are the same for
+	// phase 1b.
+	last           ledgerPassStats
+	lastMarker     string
+	lastHist       historyPassStats
+	lastHistMarker string
 }
 
-// tick does up to ledgerReconcileCrewsPerTick crews of the current pass. It
-// reports whether the pass ended.
+// tick does up to ledgerReconcileCrewsPerTick documents of the current pass.
+// It reports whether the pass ended.
 func (r *ledgerReconciler) tick(ctx context.Context) bool {
 	store := currentLedger()
 	if store == nil {
@@ -386,52 +494,87 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		r.logger.Error("ledger_reconcile_failed: migration state: %v", err)
 		return false
 	}
+	hist, err := ensureHistoryMigrationState(ctx, r.nk)
+	if err != nil {
+		r.logger.Error("ledger_reconcile_failed: history migration state: %v", err)
+		return false
+	}
 	docWins := st.EventsDoneMs == 0
+	histDocWins := hist.DoneMs == 0
+	steps := ledgerReconcileSteps()
 
 	done := 0
 	for done < ledgerReconcileCrewsPerTick {
-		objects, next, err := r.nk.StorageList(ctx, "", SystemUserID, CrewEventsCollection, 100, r.cursor)
+		step := steps[r.step]
+		objects, next, err := r.nk.StorageList(ctx, "", SystemUserID, step.collection, 100, r.cursor)
 		if err != nil {
-			r.logger.Error("ledger_reconcile_failed: list of ledger documents: %v", err)
+			r.logger.Error("ledger_reconcile_failed: list of %s documents: %v", step.collection, err)
 			r.pass.ListFailed = true
-			r.finishPass(ctx, docWins)
+			r.finishPass(ctx, docWins, histDocWins)
 			return true
 		}
 		for _, obj := range objects {
 			if obj.Key == "" {
 				continue
 			}
-			res := reconcileLedgerCrew(ctx, r.nk, store, obj.Key, docWins)
-			r.pass.Crews++
-			r.pass.Inserted += res.Inserted
-			r.pass.Pruned += res.Pruned
-			r.pass.Updated += res.Updated
-			r.pass.NoID += res.NoID
-			switch {
-			case res.Err != nil:
-				r.pass.Failed++
-				r.logger.Error("ledger_reconcile_crew_failed crew=%s: %v", obj.Key, res.Err)
-			case !res.Clean:
-				r.pass.Unclean++
-				r.logger.Error("ledger_parity_mismatch crew=%s: the store differs from the document after %d rounds", obj.Key, ledgerReconcileRounds)
+			if step.history != nil {
+				r.reconcileHistoryDoc(ctx, store, step.history, obj.Key, histDocWins)
+			} else {
+				r.reconcileLedgerDoc(ctx, store, obj.Key, docWins)
 			}
 			done++
 		}
 		r.cursor = next
 		if next == "" {
-			r.finishPass(ctx, docWins)
-			return true
+			r.step++
+			if r.step >= len(steps) {
+				r.finishPass(ctx, docWins, histDocWins)
+				return true
+			}
 		}
 	}
 	return false
 }
 
-// finishPass logs the pass and sets the marker when the pass was clean and
-// the soak time is over.
-func (r *ledgerReconciler) finishPass(ctx context.Context, docWins bool) {
-	p := r.pass
-	r.pass = ledgerPassStats{}
-	r.cursor = ""
+func (r *ledgerReconciler) reconcileLedgerDoc(ctx context.Context, store ledgerStore, crewID string, docWins bool) {
+	res := reconcileLedgerCrew(ctx, r.nk, store, crewID, docWins)
+	r.pass.Crews++
+	r.pass.Inserted += res.Inserted
+	r.pass.Pruned += res.Pruned
+	r.pass.Updated += res.Updated
+	r.pass.NoID += res.NoID
+	switch {
+	case res.Err != nil:
+		r.pass.Failed++
+		r.logger.Error("ledger_reconcile_crew_failed crew=%s: %v", crewID, res.Err)
+	case !res.Clean:
+		r.pass.Unclean++
+		r.logger.Error("ledger_parity_mismatch crew=%s: the store differs from the document after %d rounds", crewID, ledgerReconcileRounds)
+	}
+}
+
+func (r *ledgerReconciler) reconcileHistoryDoc(ctx context.Context, store ledgerStore, kind *historyKind, crewID string, docWins bool) {
+	res := reconcileHistoryCrew(ctx, r.nk, store, kind, crewID, docWins)
+	r.hist.Docs++
+	r.hist.Inserted += res.Inserted
+	r.hist.Updated += res.Updated
+	r.hist.NoID += res.NoID
+	switch {
+	case res.Err != nil:
+		r.hist.Failed++
+		r.logger.Error("ledger_history_crew_failed kind=%s crew=%s: %v", kind.name, crewID, res.Err)
+	case !res.Clean:
+		r.hist.Unclean++
+		r.logger.Error("ledger_history_mismatch kind=%s crew=%s: the store differs from the document after %d rounds", kind.name, crewID, ledgerReconcileRounds)
+	}
+}
+
+// finishPass logs the pass and sets each marker when the pass was clean and
+// its soak time is over.
+func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histDocWins bool) {
+	p, h := r.pass, r.hist
+	r.pass, r.hist = ledgerPassStats{}, historyPassStats{}
+	r.step, r.cursor = 0, ""
 
 	marker := "set_before"
 	if docWins {
@@ -441,6 +584,19 @@ func (r *ledgerReconciler) finishPass(ctx context.Context, docWins bool) {
 	line := fmt.Sprintf("ledger_reconcile_pass crews=%d inserted=%d pruned=%d updated=%d no_id=%d unclean=%d failed=%d marker=%s",
 		p.Crews, p.Inserted, p.Pruned, p.Updated, p.NoID, p.Unclean, p.Failed, marker)
 	if p.clean() {
+		r.logger.Info("%s", line)
+	} else {
+		r.logger.Error("%s", line)
+	}
+
+	histMarker := "set_before"
+	if histDocWins {
+		histMarker = r.trySetHistoryMarker(ctx, p, h)
+	}
+	r.lastHist, r.lastHistMarker = h, histMarker
+	line = fmt.Sprintf("ledger_history_pass docs=%d inserted=%d updated=%d no_id=%d unclean=%d failed=%d marker=%s",
+		h.Docs, h.Inserted, h.Updated, h.NoID, h.Unclean, h.Failed, histMarker)
+	if h.clean() {
 		r.logger.Info("%s", line)
 	} else {
 		r.logger.Error("%s", line)
@@ -465,6 +621,38 @@ func (r *ledgerReconciler) trySetMarker(ctx context.Context, p ledgerPassStats) 
 	st.EventsDoneMs = now
 	if err := writeLedgerMigrationState(ctx, r.nk, *st, version); err != nil {
 		r.logger.Error("ledger_marker_write_failed: %v", err)
+		return "not_set_write_failed"
+	}
+	return "set"
+}
+
+// trySetHistoryMarker sets the marker of phase 1b. It needs a clean pass of
+// both phases, the marker of phase 1a, and the soak time of phase 1b.
+func (r *ledgerReconciler) trySetHistoryMarker(ctx context.Context, p ledgerPassStats, h historyPassStats) string {
+	if !p.clean() || !h.clean() {
+		return "not_set_pass_not_clean"
+	}
+	events, _, err := readLedgerMigrationState(ctx, r.nk)
+	if err != nil || events == nil {
+		return "not_set_state_unreadable"
+	}
+	if events.EventsDoneMs == 0 {
+		return "not_set_events_marker_not_set"
+	}
+	st, version, err := readHistoryMigrationState(ctx, r.nk)
+	if err != nil || st == nil {
+		return "not_set_state_unreadable"
+	}
+	if st.DoneMs > 0 {
+		return "set_before"
+	}
+	now := time.Now().UnixMilli()
+	if wait := st.StartedMs + ledgerSoak().Milliseconds() - now; wait > 0 {
+		return fmt.Sprintf("not_set_soak_%dmin_left", wait/60_000+1)
+	}
+	st.DoneMs = now
+	if err := writeHistoryMigrationState(ctx, r.nk, *st, version); err != nil {
+		r.logger.Error("ledger_history_marker_write_failed: %v", err)
 		return "not_set_write_failed"
 	}
 	return "set"
@@ -521,6 +709,43 @@ func ledgerTruthStore(ctx context.Context, nk runtime.NakamaModule) ledgerStore 
 	ledgerCutover.checkedAt = time.Now()
 	if st, _, err := readLedgerMigrationState(ctx, nk); err == nil && st != nil && st.EventsDoneMs > 0 {
 		ledgerCutover.done = true
+		return store
+	}
+	return nil
+}
+
+// historyCutover is what this node knows about the marker of phase 1b.
+var historyCutover struct {
+	mu        sync.Mutex
+	done      bool
+	checkedAt time.Time
+}
+
+// historyTruthStore returns the durable store when it is the truth for the
+// clips, the stream sessions and the weekly recaps of a crew: readers read
+// it, and writers write it first. It is when the store is the truth for the
+// ledger events (ledgerTruthStore), the marker of phase 1b exists, and the
+// env MELLO_LEDGER_HISTORY_READ is not "doc". That env is the kill switch of
+// phase 1b alone. MELLO_LEDGER_READ=doc switches both phases back.
+func historyTruthStore(ctx context.Context, nk runtime.NakamaModule) ledgerStore {
+	if os.Getenv("MELLO_LEDGER_HISTORY_READ") == "doc" {
+		return nil
+	}
+	store := ledgerTruthStore(ctx, nk)
+	if store == nil {
+		return nil
+	}
+	historyCutover.mu.Lock()
+	defer historyCutover.mu.Unlock()
+	if historyCutover.done {
+		return store
+	}
+	if !historyCutover.checkedAt.IsZero() && time.Since(historyCutover.checkedAt) < ledgerMarkerRecheck {
+		return nil
+	}
+	historyCutover.checkedAt = time.Now()
+	if st, _, err := readHistoryMigrationState(ctx, nk); err == nil && st != nil && st.DoneMs > 0 {
+		historyCutover.done = true
 		return store
 	}
 	return nil
