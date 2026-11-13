@@ -708,7 +708,7 @@ A crew message sends a phone push to the members who cannot see it
 | Messages | `text`, `gif` and `image`. A system message sends none. |
 | Members | Every member but the sender, with the Messages setting of the crew on. A member that the message mentions gets the mention push and not this one. |
 | When | The activity rule of the mention push. No push while a session of the member is active. After the grace period when only an inactive desktop is connected. At once in every other case. |
-| Text | The title is the crew name. The body is "Leo: the text", "Leo sent a GIF" or "Leo sent an image". |
+| Text | The title is the crew name. The body is "Leo: the text", "Leo sent a GIF" or "Leo sent an image". The text that m3llo writes is in the account language of the recipient (`LOCALIZATION.md` section 9b). |
 | One notification for each crew | Every message push of a crew has the collapse id `msg-<crew>`. A new push replaces the one before on the lock screen. |
 | Bursts | The first message goes at once. More messages in the next 30 seconds leave as one push when the 30 seconds end: one message as it is, several as "3 new messages". |
 
