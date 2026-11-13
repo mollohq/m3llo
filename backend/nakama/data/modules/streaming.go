@@ -1556,6 +1556,20 @@ const snapshotBackfillWindowHours = 24
 func snapshotBackfill(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger) {
 	cutoff := time.Now().Add(-time.Duration(snapshotBackfillWindowHours) * time.Hour).UnixMilli()
 
+	// After the ledger cutover the durable store lists the stream sessions of
+	// every crew in one read.
+	if ledgerReadsStore(ctx, nk) {
+		events, err := crewLedger.ByType(ctx, "stream_session", cutoff)
+		if err != nil {
+			logger.Warn("SnapshotBackfill: ledger store read failed: %v", err)
+			return
+		}
+		for _, crewEvents := range ledgerGroupByCrew(events) {
+			backfillStreamSessionEvents(ctx, nk, logger, crewEvents[0].CrewID, crewEvents, cutoff)
+		}
+		return
+	}
+
 	// Scan crew event ledgers directly so ended streams are still discoverable.
 	cursor := ""
 	for {
@@ -1578,9 +1592,14 @@ func snapshotBackfill(ctx context.Context, nk runtime.NakamaModule, logger runti
 }
 
 func backfillStreamSession(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, crewID string, cutoff int64) {
-	ledger, _ := readLedger(ctx, nk, crewID)
+	ledger, _ := readLedgerDoc(ctx, nk, crewID)
+	backfillStreamSessionEvents(ctx, nk, logger, crewID, ledger.Events, cutoff)
+}
 
-	for _, e := range ledger.Events {
+// backfillStreamSessionEvents handles the first stream session of the events
+// of one crew that needs its snapshot URLs: one session per crew per tick.
+func backfillStreamSessionEvents(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, crewID string, events []CrewEvent, cutoff int64) {
+	for _, e := range events {
 		if e.Type != "stream_session" {
 			continue
 		}

@@ -155,9 +155,35 @@ func generateEventID() string {
 // ---------------------------------------------------------------------------
 
 // readLedger is the ledger of a crew as readers see it: the events of the
-// 7 days before the last append.
+// 7 days before the last append. After the cutover it comes from the durable
+// store (ledgerStore.RecentView), before it from the legacy document. The
+// version is for the writers of the document and is empty after the cutover.
 func readLedger(ctx context.Context, nk runtime.NakamaModule, crewID string) (*CrewEventLedger, string) {
+	if ledgerReadsStore(ctx, nk) {
+		events, err := crewLedger.RecentView(ctx, crewID)
+		if err == nil {
+			return &CrewEventLedger{CrewID: crewID, Events: events}, ""
+		}
+		// The document is current under dual write.
+		ledgerLogError("ledger_store_read_failed crew=%s: %v. Reading the legacy document", crewID, err)
+	}
 	return readLedgerDoc(ctx, nk, crewID)
+}
+
+// readLedgerWindow returns the events of a crew for a reader that wants the
+// time window fromMs..toMs. After the cutover these are all pulse events of
+// the window. Before it, the legacy document is all there is, and the caller
+// filters by time.
+func readLedgerWindow(ctx context.Context, nk runtime.NakamaModule, crewID string, fromMs, toMs int64) *CrewEventLedger {
+	if ledgerReadsStore(ctx, nk) {
+		events, err := crewLedger.Between(ctx, crewID, fromMs, toMs, ledgerPulseTypes)
+		if err == nil {
+			return &CrewEventLedger{CrewID: crewID, Events: events}
+		}
+		ledgerLogError("ledger_store_read_failed crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readLedgerDoc(ctx, nk, crewID)
+	return doc
 }
 
 // readLedgerDoc reads the legacy ledger document and its version. The writers

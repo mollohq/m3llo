@@ -294,11 +294,12 @@ func generateWeeklyRecap(ctx context.Context, nk runtime.NakamaModule, logger ru
 // Events and clips after weekEnd are left out, so a late run (recapLookback)
 // still reports the week that ended on Monday 00:00 UTC.
 func generateWeeklyRecapAt(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, crewID string, weekEnd time.Time) {
-	ledger, _ := readLedger(ctx, nk, crewID)
-
 	weekStart := weekEnd.Add(-7 * 24 * time.Hour)
 	startMs := weekStart.UnixMilli()
 	endMs := weekEnd.UnixMilli()
+
+	// After the ledger cutover a late run still has its full week.
+	ledger := readLedgerWindow(ctx, nk, crewID, startMs, endMs)
 
 	var totalHangoutMin int
 	var totalGameMin int

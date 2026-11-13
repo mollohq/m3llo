@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -258,4 +260,55 @@ func StartLedgerBackfill(ctx context.Context, nk runtime.NakamaModule, logger ru
 		return
 	}
 	runLedgerBackfill(ctx, nk, logger, crewLedger)
+}
+
+// ---------------------------------------------------------------------------
+// Cutover: which store the readers use
+// ---------------------------------------------------------------------------
+
+// ledgerMarkerRecheck is how often a node looks for the marker until it is
+// set. Tests change it.
+var ledgerMarkerRecheck = 30 * time.Second
+
+var ledgerCutover struct {
+	mu        sync.Mutex
+	done      bool
+	checkedAt time.Time
+}
+
+// ledgerReadsStore reports whether readers use the durable store. They do
+// when the store is set, the marker of the backfill exists, and the env
+// MELLO_LEDGER_READ is not "doc" (the rollback switch). Once a node has seen
+// the marker it does not read it again.
+func ledgerReadsStore(ctx context.Context, nk runtime.NakamaModule) bool {
+	if crewLedger == nil || os.Getenv("MELLO_LEDGER_READ") == "doc" {
+		return false
+	}
+	ledgerCutover.mu.Lock()
+	defer ledgerCutover.mu.Unlock()
+	if ledgerCutover.done {
+		return true
+	}
+	if !ledgerCutover.checkedAt.IsZero() && time.Since(ledgerCutover.checkedAt) < ledgerMarkerRecheck {
+		return false
+	}
+	ledgerCutover.checkedAt = time.Now()
+	if readLedgerMigrationState(ctx, nk) != nil {
+		ledgerCutover.done = true
+	}
+	return ledgerCutover.done
+}
+
+// ledgerGroupByCrew splits events that are ordered by crew into one slice
+// per crew.
+func ledgerGroupByCrew(events []CrewEvent) [][]CrewEvent {
+	var out [][]CrewEvent
+	start := 0
+	for i := 1; i <= len(events); i++ {
+		if i == len(events) || events[i].CrewID != events[start].CrewID {
+			out = append(out, events[start:i])
+			start = i
+		}
+	}
+	return out
 }
