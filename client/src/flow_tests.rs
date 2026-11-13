@@ -10282,6 +10282,7 @@ fn the_format_label_follows_the_rung_and_the_decoded_size() {
 }
 
 mod art_worker;
+mod push_prefs;
 mod quests;
 mod sealed;
 mod testers;

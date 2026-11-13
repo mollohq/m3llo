@@ -33,6 +33,7 @@ pub mod names;
 pub mod oauth;
 pub mod pending_session_ends;
 pub mod presence;
+pub mod push_prefs;
 pub mod roblox_names;
 pub mod session;
 pub mod session_store;

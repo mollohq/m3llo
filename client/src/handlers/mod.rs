@@ -106,7 +106,9 @@ fn dispatch(ctx: &AppContext, event: Event) {
         | Event::CrewRoleChanged { .. }
         | Event::CrewRoleChangeFailed { .. }
         | Event::CrewMemberKicked { .. }
-        | Event::CrewMemberKickFailed { .. } => crew::handle(ctx, event),
+        | Event::CrewMemberKickFailed { .. }
+        | Event::PushPrefsLoaded { .. }
+        | Event::PushPrefsFailed { .. } => crew::handle(ctx, event),
 
         // Voice
         Event::VoiceStateChanged { .. }

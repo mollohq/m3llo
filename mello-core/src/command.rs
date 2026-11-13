@@ -179,6 +179,21 @@ pub enum Command {
         #[serde(default)]
         environment: Option<String>,
     },
+    /// Load the user's push switches for a crew (plans/LOOKING-TO-PLAY.md
+    /// section 4). The answer is `Event::PushPrefsLoaded`.
+    LoadPushPrefs {
+        crew_id: String,
+    },
+    /// Set one or both push switches of a crew. A switch that is `None` keeps
+    /// its value. The answer is `Event::PushPrefsLoaded` with the new state,
+    /// or `Event::PushPrefsFailed`.
+    SetPushPrefs {
+        crew_id: String,
+        #[serde(default)]
+        messages: Option<bool>,
+        #[serde(default)]
+        looking_to_play: Option<bool>,
+    },
     /// The app window's state, sent periodically by the UI (spec 23 §6.2). The
     /// core combines it with voice, stream and game state into one "active"
     /// flag and reports changes to the server.
@@ -768,6 +783,20 @@ mod tests {
         assert!(matches!(
             cmd,
             Command::RegisterPushToken { environment: Some(ref e), .. } if e == "sandbox"
+        ));
+    }
+
+    /// The shape that the iOS app sends: one switch, the other left out.
+    #[test]
+    fn set_push_prefs_decodes_with_one_switch() {
+        let cmd: Command = serde_json::from_str(
+            r#"{"type":"SetPushPrefs","data":{"crew_id":"c1","messages":false}}"#,
+        )
+        .unwrap();
+        assert!(matches!(
+            cmd,
+            Command::SetPushPrefs { ref crew_id, messages: Some(false), looking_to_play: None }
+                if crew_id == "c1"
         ));
     }
 

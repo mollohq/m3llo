@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>m3llo, Looking to play mockup</title>
+<style>
+/* Fonts: the four files the client ships. No web font service. */
+@font-face{font-family:'Oxanium';font-weight:600;src:url('../client/ui/fonts/Oxanium-SemiBold.ttf')}
+@font-face{font-family:'Oxanium';font-weight:700;src:url('../client/ui/fonts/Oxanium-Bold.ttf')}
+@font-face{font-family:'Barlow';font-weight:300;src:url('../client/ui/fonts/Barlow-Light.ttf')}
+@font-face{font-family:'Barlow';font-weight:600;src:url('../client/ui/fonts/Barlow-SemiBold.ttf')}
+
+/* Tokens: design-system.html v3.3 graphite. Nothing here invents a colour. */
+:root{
+  --bg-app:#121214; --bg-panel:#17171A; --bg-card:#1C1C20; --bg-raised:#26262B; --raised-hover:#2E2E34;
+  --line:#2F2F35; --line-hi:#42424A;
+  --text-hi:#F3F3F4; --text:#A2A2A8; --text-dim:#6F6F76; --text-faint:#4B4B52;
+  --accent:#FFFFFF; --accent-dim:rgba(255,255,255,.10); --on-accent:#121214;
+  --live:#FF453A; --on-live:#150202; --live-dim:rgba(255,69,58,.14);
+  --id-blue:#6E8FB8; --id-purple:#8E7FB0; --id-teal:#5FA396; --id-amber:#B39158; --id-pink:#B07793;
+  --display:'Oxanium',sans-serif; --sans:'Barlow',sans-serif;
+  --cut:10px; --notch:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg-app);color:var(--text);font-family:var(--sans);font-weight:300;font-size:13px;line-height:1.6;padding:32px}
+h1{font-family:var(--display);font-weight:600;font-size:22px;color:var(--text-hi);margin-bottom:4px}
+h2{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi);margin:36px 0 14px}
+.lede{color:var(--text-dim);max-width:80ch;margin-bottom:8px}
+.kicker{font-weight:600;font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
+.row{display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;gap:10px}
+.note{font-size:12px;color:var(--text-dim);max-width:400px;line-height:1.55}
+.note b{color:var(--text);font-weight:600}
+.lbl{font-weight:600;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim)}
+.num{font-family:var(--display);font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-hi)}
+
+/* ---------- shapes ---------- */
+.card{position:relative;--n:var(--notch);--line-c:var(--line);--fill:var(--bg-card);
+  clip-path:polygon(0 0,calc(100% - var(--n)) 0,100% var(--n),100% 100%,0 100%)}
+.card::before{content:"";position:absolute;inset:0;background:var(--line-c);clip-path:inherit}
+.card::after{content:"";position:absolute;inset:1px;background:var(--fill);clip-path:inherit}
+.card > *{position:relative;z-index:1}
+.av{display:inline-flex;align-items:center;justify-content:center;font-family:var(--display);font-size:10px;font-weight:700;color:#0E0E10;text-transform:uppercase;font-style:normal;width:30px;height:30px;flex-shrink:0;--c:7px;
+  clip-path:polygon(var(--c) 0,calc(100% - var(--c)) 0,100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,0 calc(100% - var(--c)),0 var(--c))}
+.av.s{width:26px;height:26px;font-size:9px;--c:6px}
+.av-blue{background:var(--id-blue)} .av-purple{background:var(--id-purple)} .av-teal{background:var(--id-teal)} .av-amber{background:var(--id-amber)} .av-pink{background:var(--id-pink)}
+.tile{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:40px;height:40px;font-family:var(--display);font-weight:700;font-size:9px;color:#0E0E10;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+.art-cs{background:radial-gradient(40px 30px at 70% 30%,#c9892b 0,transparent 70%),linear-gradient(160deg,#27384f,#101820)}
+.art-drg{background:radial-gradient(40px 30px at 30% 60%,#d0612a 0,transparent 70%),linear-gradient(160deg,#3b2a1c,#14100c)}
+.art-val{background:radial-gradient(40px 30px at 60% 40%,#5c8f5a 0,transparent 70%),linear-gradient(160deg,#1f3327,#0d1510)}
+.btn{font-family:var(--sans);font-weight:600;font-size:10px;letter-spacing:.18em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;padding:10px 12px;background:var(--bg-raised);color:var(--text-hi);white-space:nowrap;
+  clip-path:polygon(var(--cut) 0,100% 0,100% calc(100% - var(--cut)),calc(100% - var(--cut)) 100%,0 100%,0 var(--cut))}
+.btn.go{background:var(--live);color:var(--on-live)}
+.btn.quiet{background:transparent;color:var(--text-dim)}
+.pip{width:6px;height:6px;border-radius:50%;background:var(--live);flex-shrink:0}
+.tag{font-weight:600;font-size:9px;letter-spacing:.18em;text-transform:uppercase;padding:2px 7px;background:var(--live);color:var(--on-live)}
+
+/* ---------- chat panel (from chat-v2.html) ---------- */
+.panel{width:400px;height:620px;background:var(--bg-panel);border:1px solid var(--line);display:flex;flex-direction:column;position:relative;overflow:hidden}
+.head{height:48px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line);flex-shrink:0}
+.head .t{font-family:var(--display);font-weight:600;font-size:15px;color:var(--text-hi)}
+.feed{flex:1;overflow:hidden;padding:8px 0 8px;display:flex;flex-direction:column;justify-content:flex-end}
+.msg{display:grid;grid-template-columns:30px 1fr;column-gap:10px;padding:12px 16px 2px;position:relative}
+.who{display:flex;align-items:baseline;gap:8px}
+.who .n{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.who .ts{margin-left:auto;font-weight:600;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+.body{color:var(--text);font-size:13px;line-height:1.6}
+.sys{text-align:center;font-size:12px;color:var(--text-dim);padding:10px 16px 4px}
+.composer{border-top:1px solid var(--line);padding:8px 12px 12px;flex-shrink:0;background:var(--bg-panel)}
+.pills{display:flex;align-items:center;gap:2px;height:28px;padding:0 2px 4px}
+.pl{position:relative;display:inline-flex;align-items:center;justify-content:center;width:28px;height:26px;color:var(--text-dim)}
+.pl svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pl.on{color:var(--accent);background:var(--accent-dim);clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px)}
+.pl .pip{position:absolute;right:2px;top:2px}
+.inputwrap{display:flex;align-items:flex-end;gap:8px;background:var(--bg-app);border:1px solid var(--line);min-height:40px;padding:5px 5px 5px 12px}
+.inputwrap .in{flex:1;font-size:13px;color:var(--text-faint);padding:3px 0;line-height:1.5}
+.send{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;background:var(--bg-raised);flex-shrink:0;
+  clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.send svg{width:14px;height:14px;stroke:var(--text-faint);fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- ask popover ---------- */
+.pop{position:absolute;left:12px;right:12px;bottom:92px;background:var(--bg-card);box-shadow:0 0 0 1px var(--line),0 18px 40px rgba(0,0,0,.5);padding:14px;
+  clip-path:polygon(0 0,calc(100% - var(--notch)) 0,100% var(--notch),100% 100%,0 100%)}
+.pop .lbl{display:block;margin-bottom:8px}
+.now{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.now .r{display:flex;align-items:center;gap:10px}
+.now .n{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.now .w{margin-left:auto;font-size:12px;color:var(--text)}
+.now.pick .r .bx{margin-left:auto}
+.now.pick .r .w{margin-left:auto}
+.now.pick .r .w + .bx{margin-left:12px}
+.bx{width:16px;height:16px;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px var(--line-hi)}
+.bx.on{background:var(--accent);box-shadow:none}
+.bx svg{width:12px;height:12px;stroke:var(--on-accent);fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.tile.ct{width:26px;height:26px;font-size:8px;background:var(--id-purple);clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.find{background:var(--bg-app);border:1px solid var(--line);height:32px;display:flex;align-items:center;padding:0 10px;font-size:13px;color:var(--text-faint);margin-bottom:10px}
+.games{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.gm{display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px 4px 6px;font-size:11px;line-height:1.2;color:var(--text-dim);text-align:center}
+.gm.sel{color:var(--text-hi);box-shadow:inset 0 0 0 1px rgba(255,255,255,.45)}
+.gm .tile.any{background:var(--bg-raised);color:var(--text)}
+.gm .tile.any svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pop .btn{width:100%;padding:13px 12px}
+
+/* ---------- the ask card ---------- */
+.chk{margin:10px 16px 4px;padding:14px 14px 12px}
+.chk .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.chk .top .left{margin-left:auto;margin-right:12px;font-size:11px}
+.chk .top .left .lbl{margin-left:3px}
+.chk h3{font-family:var(--display);font-weight:600;font-size:15px;line-height:1.3;color:var(--text-hi)}
+.chk .game{display:flex;align-items:center;gap:10px;margin-top:10px}
+.chk .game .gn{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.rows{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.rows .r{display:flex;align-items:center;gap:10px;height:28px}
+.rows .n{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.rows .st{margin-left:auto;display:flex;align-items:baseline;gap:4px}
+.rows .st .lbl.hi{color:var(--text-hi)}
+.rows .st .num{font-size:15px}
+.rows .r.no .av,.rows .r.no .n{opacity:.4}
+.rows .r.wait .lbl{color:var(--text-faint)}
+.foot{display:flex;justify-content:space-between;gap:12px;margin-top:8px}
+.foot .lbl.hi{color:var(--text-hi)}
+.foot .lbl:only-child{margin-left:auto}
+.open-r{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.open-r .tile{width:28px;height:28px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.open-r .n{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.open-r .w{margin-left:auto;display:flex;align-items:baseline;gap:4px}
+.open-r .w .num{font-size:14px}
+.open-r .w .lbl{color:var(--text-hi)}
+.open-r:last-of-type{margin-bottom:16px}
+.now .lbl.more{margin:0}
+.ans{display:flex;gap:6px;margin-top:12px}
+.ans .btn{flex:1}
+.ans .btn.go{flex:1.3}
+.chk.closed{--fill:var(--bg-panel)}
+.chk.closed h3{color:var(--text)}
+.chk .line{font-size:13px;color:var(--text-dim);margin-top:2px}
+.chk .who-in{display:flex;flex-wrap:wrap;gap:8px 14px;margin-top:10px}
+.chk .who-in span{display:inline-flex;align-items:center;gap:7px;font-family:var(--display);font-weight:600;font-size:12px;color:var(--text)}
+
+/* ---------- desktop window and popup ---------- */
+.win{width:980px;height:560px;background:var(--bg-app);border:1px solid var(--line);position:relative;overflow:hidden;display:grid;grid-template-columns:200px 1fr 300px}
+.win .side,.win .mid,.win .chat{border-right:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:10px}
+.win .chat{border-right:0;background:var(--bg-panel)}
+.win .side{background:var(--bg-panel)}
+.stub{background:var(--bg-card);height:14px}
+.stub.h{height:120px}
+.tst-wrap{position:absolute;right:16px;top:16px;width:330px;filter:drop-shadow(0 16px 28px rgba(0,0,0,.6))}
+.tst-wrap.static{position:relative;right:auto;top:auto}
+.tst{padding:14px 14px 12px;--fill:var(--bg-raised);--line-c:var(--line-hi)}
+.tst .top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.tst .top .tile{width:22px;height:22px;font-size:7px;background:var(--id-purple);clip-path:polygon(5px 0,100% 0,100% calc(100% - 5px),calc(100% - 5px) 100%,0 100%,0 5px)}
+.tst .top .left{margin-left:auto;font-size:11px}
+.tst .top .left .lbl{margin-left:3px}
+.tst .top .x{width:14px;height:14px;margin:0 12px 0 6px;display:inline-flex}
+.tst .top .x svg{width:14px;height:14px;stroke:var(--text-dim);fill:none;stroke-width:2;stroke-linecap:round}
+.tst h3{font-family:var(--display);font-weight:600;font-size:15px;line-height:1.3;color:var(--text-hi)}
+.tst .game{display:flex;align-items:center;gap:10px;margin-top:8px}
+.tst .game .tile{width:28px;height:28px;clip-path:polygon(6px 0,100% 0,100% calc(100% - 6px),calc(100% - 6px) 100%,0 100%,0 6px)}
+.tst .game .gn{font-family:var(--display);font-weight:600;font-size:13px;color:var(--text-hi)}
+.tst .game .w{margin-left:auto;display:flex;align-items:baseline;gap:4px}
+.tst .game .w .num{font-size:14px}
+.tst .game .w .lbl{color:var(--text-hi)}
+.tst .ans .btn{background:var(--bg-card)}
+.tst .ans .btn.go{background:var(--live)}
+.tst .ans .btn.quiet{background:transparent}
+.toast{width:340px;background:#2a2a2e;padding:12px 14px;display:flex;gap:12px;align-items:flex-start;font-family:-apple-system,'Segoe UI',sans-serif;border-radius:8px}
+.toast .ic{width:32px;height:32px;background:#121214;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:12px;color:#F3F3F4;flex-shrink:0}
+.toast .ic b{color:var(--live);font-weight:700}
+.toast .tt{font-size:13px;font-weight:600;color:#fff;line-height:1.3}
+.toast .tb{font-size:13px;font-weight:400;color:#c8c8cc;line-height:1.35}
+
+/* ---------- phone ---------- */
+.phone{width:300px;height:620px;background:var(--bg-app);border:1px solid var(--line-hi);border-radius:38px;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.phone .status{height:40px;flex-shrink:0;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font-family:-apple-system,sans-serif;font-weight:600;font-size:13px;color:var(--text-hi)}
+.phone .nav{height:46px;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;padding:0 16px;border-bottom:1px solid var(--line)}
+.phone .nav .t{font-family:var(--display);font-weight:600;font-size:15px;line-height:1.2;color:var(--text-hi)}
+.phone .feed{padding-bottom:6px}
+.phone .msg{padding:10px 14px 2px}
+.phone .chk{margin:10px 12px 4px;padding:12px 12px 12px}
+.phone .ans{flex-wrap:wrap}
+.phone .ans .btn{flex:1 1 30%}
+.phone .ans .btn.go{flex:1 1 100%;padding:14px 12px}
+.phone .composer{padding:8px 10px 22px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
+.phone .composer .pl{width:32px;height:32px}
+.phone .composer .inputwrap{flex:1;min-height:36px;align-items:center}
+.lock{background:linear-gradient(180deg,#1a2230 0,#0c0e12 70%)}
+.lock .clock{text-align:center;font-family:-apple-system,sans-serif;color:#fff;margin:26px 0 22px}
+.lock .clock .d{font-size:13px;font-weight:500;opacity:.8}
+.lock .clock .h{font-size:64px;font-weight:600;line-height:1.05;letter-spacing:-.02em}
+.ios{font-family:-apple-system,'SF Pro Text',sans-serif;margin:0 10px;background:rgba(70,72,80,.72);border-radius:20px;padding:12px 12px;display:flex;gap:10px;color:#fff}
+.ios .ic{width:36px;height:36px;border-radius:9px;background:#121214;display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:13px;color:#F3F3F4;flex-shrink:0}
+.ios .ic b{color:var(--live);font-weight:700}
+.ios .tt{display:flex;font-size:13.5px;font-weight:600;line-height:1.3}
+.ios .tt span{margin-left:auto;font-weight:400;font-size:12px;opacity:.6}
+.ios .tb{font-size:13.5px;font-weight:400;line-height:1.3;opacity:.95}
+.ios-acts{font-family:-apple-system,'SF Pro Text',sans-serif;margin:8px 10px 0;background:rgba(70,72,80,.72);border-radius:16px;overflow:hidden;color:#fff}
+.ios-acts div{padding:12px 16px;font-size:15px;font-weight:400;border-top:1px solid rgba(255,255,255,.12)}
+.ios-acts div:first-child{border-top:0}
+.sheet-dim{position:absolute;inset:0;background:rgba(0,0,0,.6)}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--bg-card);border-top:1px solid var(--line);padding:16px 14px 26px}
+.sheet .lbl{display:block;margin-bottom:8px}
+.sheet .games{gap:4px}
+.sheet .btn{width:100%;padding:15px 12px}
+.stack{display:flex;flex-direction:column;gap:18px;width:300px}
+.stack .lock{height:auto;border-radius:24px;padding:16px 0}
+</style>
+</head>
+<body>
+
+<h1>Looking to play</h1>
+<p class="lede">Mockup for <code>plans/LOOKING-TO-PLAY.md</code>, phase 0. An ask is a message in crew chat. Red is state (the open pip, the ON tag) and the fill of the two buttons that commit: Ask the crew, and In. White is the selected game. Identity hues are on people and the crew only. Game art keeps its colour. Names and games are sample data.</p>
+
+<h2>Desktop, the chat panel</h2>
+<div class="row">
+
+<!-- ============ 1. ASK ============ -->
+<div class="col">
+<div class="kicker">1 · The button and the ask popover</div>
+<div class="panel">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed">
+    <div class="msg">
+      <span class="av av-purple">OW</span>
+      <div><div class="who"><span class="n">oweboweob</span><span class="ts">19:52</span></div>
+      <div class="body">gg, that last round</div></div>
+    </div>
+  </div>
+  <div class="pop">
+    <span class="lbl">Ask</span>
+    <div class="now pick">
+      <div class="r"><span class="tile ct">NS</span><span class="n">Everyone</span><span class="bx on"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span></div>
+      <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="w">Counter-Strike 2, 40 min</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="w">In voice</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-pink">FR</span><span class="n">frasse</span><span class="bx"></span></div>
+    </div>
+    <span class="lbl">Game</span>
+    <div class="games">
+      <div class="gm sel"><span class="tile any"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg></span>Any game</div>
+      <div class="gm"><span class="tile art-cs"></span>Counter-Strike 2</div>
+      <div class="gm"><span class="tile art-drg"></span>Deep Rock Galactic</div>
+      <div class="gm"><span class="tile art-val"></span>Valheim</div>
+    </div>
+    <span class="btn go">Ask the crew</span>
+  </div>
+  <div class="composer">
+    <div class="pills">
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></span>
+      <span class="pl on"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg></span>
+    </div>
+    <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
+  </div>
+</div>
+<p class="note"><b>Ask.</b> A fourth button after Attach, GIF and Emoji. The popover lists the crew with what each member does now, so you may not need to ask. Leave Everyone, or pick members: only the picked members get the push. Then the game, with no game as the default. One red button sends it. Escape closes.</p>
+</div>
+
+<!-- ============ 2. OPEN ============ -->
+<div class="col">
+<div class="kicker">2 · The card, open. You have not answered</div>
+<div class="panel">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed">
+    <div class="msg">
+      <span class="av av-purple">OW</span>
+      <div><div class="who"><span class="n">oweboweob</span><span class="ts">19:52</span></div>
+      <div class="body">gg, that last round</div></div>
+    </div>
+    <div class="card chk">
+      <div class="top"><span class="pip"></span><span class="lbl">Looking to play</span><span class="left"><span class="num">28</span><span class="lbl">min</span></span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span></div>
+      <div class="rows">
+        <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="st"><span class="lbl hi">In</span></span></div>
+        <div class="r wait"><span class="av s av-blue">BO</span><span class="n">bobdev</span><span class="st"><span class="lbl">No answer</span></span></div>
+        <div class="r wait"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="st"><span class="lbl">No answer</span></span></div>
+        <div class="r no"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="st"><span class="lbl">Not now</span></span></div>
+      </div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="pills">
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg><i class="pip"></i></span>
+    </div>
+    <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
+  </div>
+</div>
+<p class="note"><b>Open.</b> The card is a message in the feed. One row for each asked member, because this ask goes to 10 members or fewer. The red pip and the minutes left show it is open. In is the red button: on desktop it also joins voice. The button in the composer carries the pip while the crew has an open ask.</p>
+</div>
+
+<!-- ============ 3. ON ============ -->
+<div class="col">
+<div class="kicker">3 · The card, on. You answered In 15</div>
+<div class="panel">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed">
+    <div class="card chk">
+      <div class="top"><span class="tag">On</span><span class="lbl">Looking to play</span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span></div>
+      <div class="rows">
+        <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-blue">BO</span><span class="n">bobdev</span><span class="st"><span class="num">12</span><span class="lbl hi">min</span></span></div>
+        <div class="r wait"><span class="av s av-pink">FR</span><span class="n">frasse</span><span class="st"><span class="lbl">No answer</span></span></div>
+        <div class="r no"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="st"><span class="lbl">Not now</span></span></div>
+      </div>
+      <div class="ans"><span class="btn go">In</span><span class="btn quiet">Change</span></div>
+    </div>
+    <div class="msg">
+      <span class="av av-blue">BO</span>
+      <div><div class="who"><span class="n">bobdev</span><span class="ts">20:06</span></div>
+      <div class="body">eating, then I am there</div></div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="pills">
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg><i class="pip"></i></span>
+    </div>
+    <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
+  </div>
+</div>
+<p class="note"><b>On.</b> A second member is in, so the pip becomes the red ON tag. A member who is due shows the minutes left, counted down. A member in voice shows that. You can still press In to join now, or change the answer. People talk under the card as in any chat.</p>
+</div>
+
+<!-- ============ 4. CLOSED ============ -->
+<div class="col">
+<div class="kicker">4 · Closed cards, and a build that does not know the ask</div>
+<div class="panel" style="height:auto">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed" style="justify-content:flex-start">
+    <div class="card chk closed">
+      <div class="top"><span class="lbl">Looking to play</span><span class="left"><span class="lbl">Tue 20:02</span></span></div>
+      <h3>k0ji was looking to play</h3>
+      <div class="who-in"><span><i class="av s av-teal">K0</i>k0ji</span><span><i class="av s av-purple">OW</i>oweboweob</span><span><i class="av s av-blue">BO</i>bobdev</span></div>
+    </div>
+    <div class="card chk closed">
+      <div class="top"><span class="lbl">Looking to play</span><span class="left"><span class="lbl">Wed 21:40</span></span></div>
+      <h3>bobdev was looking to play</h3>
+      <div class="line">No one this time</div>
+    </div>
+    <div class="card chk closed">
+      <div class="top"><span class="lbl">Looking to play</span><span class="left"><span class="lbl">Thu 18:15</span></span></div>
+      <h3>sannah was looking to play</h3>
+      <div class="line">sannah called it off</div>
+    </div>
+    <div class="sys">k0ji is looking to play Counter-Strike 2</div>
+  </div>
+</div>
+<p class="note"><b>Closed.</b> The card stays in the history, flat and without buttons: who was in, or "No one this time", or that the asker called it off. The last line is what an older build shows for the same message: a plain system line.</p>
+</div>
+
+</div>
+
+<h2>Desktop, when someone else asks</h2>
+<div class="row">
+
+<!-- ============ 5. POPUP ============ -->
+<div class="col">
+<div class="kicker">5 · The toast, window visible</div>
+<div class="win">
+  <div class="side"><div class="stub" style="width:60%"></div><div class="stub"></div><div class="stub" style="width:80%"></div><div class="stub" style="width:50%"></div></div>
+  <div class="mid"><div class="stub h"></div><div class="stub h"></div><div class="stub h"></div></div>
+  <div class="chat"><div class="stub" style="width:40%"></div><div class="stub"></div><div class="stub" style="width:70%"></div><div class="stub" style="width:55%"></div></div>
+  <div class="tst-wrap"><div class="card tst">
+      <div class="top"><span class="tile">NS</span><span class="lbl">Night Shift</span><span class="left"><span class="num">28</span><span class="lbl">min</span></span><span class="x"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span><span class="w"><span class="num">2</span><span class="lbl">in</span></span></div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div></div>
+</div>
+<p class="note" style="max-width:980px"><b>Toast.</b> A small card in the top right corner. It does not dim or block the window and does not take the keyboard. It shows once for an ask, with its sound, and closes after 12 seconds, on its close button or on an answer. It names the crew, because the ask can come from a crew you do not have open. It does not show when the card is on screen already. A member can ask once in 10 minutes, so nobody can fire it again and again.</p>
+</div>
+
+<!-- ============ 6. OS NOTIFICATION ============ -->
+<div class="col">
+<div class="kicker">6 · Window hidden: the OS notification</div>
+<div class="toast"><span class="ic">m<b>3</b></span><div><div class="tt">Night Shift</div><div class="tb">k0ji is looking to play Counter-Strike 2</div></div></div>
+<p class="note" style="max-width:340px"><b>No buttons.</b> The OS draws this one. The notification library gives no buttons on Windows and macOS. A click brings the window up at the card in chat. The sound plays with it.</p>
+</div>
+
+</div>
+
+<h2>Phone</h2>
+<div class="row">
+
+<!-- ============ 7. PUSH ============ -->
+<div class="col">
+<div class="kicker">7 · The push, held down on the lock screen</div>
+<div class="phone lock">
+  <div class="status"><span>20:02</span><span></span></div>
+  <div class="clock"><div class="d">Thursday 12 November</div><div class="h">20:02</div></div>
+  <div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">k0ji is looking to play Counter-Strike 2</div></div></div>
+  <div class="ios-acts"><div>In</div><div>In 15</div><div>In 30</div><div>Not now</div></div>
+</div>
+<p class="note" style="max-width:300px"><b>Answer without the app.</b> iOS draws this. The four answers are notification actions. Whether an answer can go out with the phone locked is the first thing the iOS phase tests.</p>
+</div>
+
+<!-- ============ 8. PHONE CHAT ============ -->
+<div class="col">
+<div class="kicker">8 · The card in the phone chat</div>
+<div class="phone">
+  <div class="status"><span>20:03</span><span></span></div>
+  <div class="nav"><span class="t">Night Shift</span><span class="lbl">1 in voice now</span></div>
+  <div class="feed">
+    <div class="msg">
+      <span class="av av-purple">OW</span>
+      <div><div class="who"><span class="n">oweboweob</span><span class="ts">19:52</span></div>
+      <div class="body">gg, that last round</div></div>
+    </div>
+    <div class="card chk">
+      <div class="top"><span class="pip"></span><span class="lbl">Looking to play</span><span class="left"><span class="num">27</span><span class="lbl">min</span></span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span></div>
+      <div class="rows">
+        <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r wait"><span class="av s av-blue">BO</span><span class="n">bobdev</span><span class="st"><span class="lbl">No answer</span></span></div>
+        <div class="r wait"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="st"><span class="lbl">No answer</span></span></div>
+      </div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div>
+  </div>
+  <div class="composer">
+    <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+    <span class="pl"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg><i class="pip"></i></span>
+    <div class="inputwrap"><div class="in">Message</div></div>
+  </div>
+</div>
+<p class="note" style="max-width:300px"><b>Same card.</b> In is full width on the phone. From the phone it means "on my way": the row shows In until you join voice.</p>
+</div>
+
+<!-- ============ 9. PHONE ASK ============ -->
+<div class="col">
+<div class="kicker">9 · Asking from the phone</div>
+<div class="phone">
+  <div class="status"><span>21:40</span><span></span></div>
+  <div class="nav"><span class="t">Night Shift</span><span class="lbl">2 online</span></div>
+  <div class="feed"></div>
+  <div class="sheet-dim"></div>
+  <div class="sheet">
+    <span class="lbl">Ask</span>
+    <div class="now pick">
+      <div class="r"><span class="tile ct">NS</span><span class="n">Everyone</span><span class="bx on"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span></div>
+      <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="w">In voice</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-pink">FR</span><span class="n">frasse</span><span class="bx"></span></div>
+    </div>
+    <span class="lbl">Game</span>
+    <div class="games">
+      <div class="gm"><span class="tile any"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg></span>Any game</div>
+      <div class="gm sel"><span class="tile art-cs"></span>Counter-Strike 2</div>
+      <div class="gm"><span class="tile art-drg"></span>Deep Rock Galactic</div>
+      <div class="gm"><span class="tile art-val"></span>Valheim</div>
+    </div>
+    <span class="btn go">Ask the crew</span>
+  </div>
+</div>
+<p class="note" style="max-width:300px"><b>The sheet.</b> The same list, game chips and button as the desktop popover. The phone knows who is in voice today, not who is in a game. That comes later.</p>
+</div>
+
+<!-- ============ 10. RESULT PUSHES ============ -->
+<div class="col">
+<div class="kicker">10 · What the asker gets back</div>
+<div class="stack">
+  <div class="phone lock"><div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">oweboweob is in, 15 min</div></div></div></div>
+  <div class="phone lock"><div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">No one this time</div></div></div></div>
+  <div class="phone lock"><div class="ios"><span class="ic">m<b>3</b></span><div style="flex:1"><div class="tt">Night Shift<span>now</span></div><div class="tb">k0ji and oweboweob are playing</div></div></div></div>
+</div>
+<p class="note" style="max-width:300px"><b>Three pushes.</b> Someone is in: your reason to go to the PC. Nobody is: you can stop checking. The third goes once to members who did not answer, when two of the crew are in voice together. Each push of an ask replaces the one before.</p>
+</div>
+
+</div>
+
+<h2>A crew of 50</h2>
+<div class="row">
+
+<!-- ============ 11. BIG CARD ============ -->
+<div class="col">
+<div class="kicker">11 · An ask to everyone, 14 members in</div>
+<div class="panel">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed">
+    <div class="card chk">
+      <div class="top"><span class="tag">On</span><span class="lbl">Looking to play</span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span></div>
+      <div class="rows">
+        <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-pink">FR</span><span class="n">frasse</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="st"><span class="lbl hi">In</span></span></div>
+        <div class="r"><span class="av s av-blue">VI</span><span class="n">vilse</span><span class="st"><span class="num">4</span><span class="lbl hi">min</span></span></div>
+        <div class="r"><span class="av s av-teal">MO</span><span class="n">morran</span><span class="st"><span class="num">11</span><span class="lbl hi">min</span></span></div>
+      </div>
+      <div class="foot"><span class="lbl hi">8 more in</span><span class="lbl">12 not now</span></div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div>
+  </div>
+  <div class="composer">
+    <div class="pills">
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg><i class="pip"></i></span>
+    </div>
+    <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
+  </div>
+</div>
+<p class="note"><b>More than 10 asked.</b> Rows only for members who are in or due, six at most: in voice first, then in, then due with the soonest first. "8 more in" opens the full list. The other 24 members have no answer and take no space.</p>
+</div>
+
+<!-- ============ 12. BIG ASK ============ -->
+<div class="col">
+<div class="kicker">12 · The ask popover, three members picked</div>
+<div class="panel" style="height:760px">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed"></div>
+  <div class="pop">
+    <span class="lbl">Open</span>
+    <div class="open-r"><span class="tile art-cs"></span><span class="n">Counter-Strike 2</span><span class="w"><span class="num">14</span><span class="lbl">in</span></span></div>
+    <div class="open-r"><span class="tile art-val"></span><span class="n">Valheim</span><span class="w"><span class="num">3</span><span class="lbl">in</span></span></div>
+    <span class="lbl">Ask</span>
+    <div class="find">Find a member</div>
+    <div class="now pick">
+      <div class="r"><span class="av s av-teal">K0</span><span class="av s av-purple">OW</span><span class="av s av-pink">FR</span><span class="w">Last time</span><span class="bx on"><svg viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span></div>
+      <div class="r"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="w">Valheim, 2 h 10</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-blue">VI</span><span class="n">vilse</span><span class="w">In voice</span><span class="bx"></span></div>
+      <div class="r"><span class="av s av-teal">MO</span><span class="n">morran</span><span class="w">Counter-Strike 2, 12 min</span><span class="bx"></span></div>
+      <div class="r"><span class="tile ct">NS</span><span class="n">Everyone</span><span class="w">49</span><span class="bx"></span></div>
+    </div>
+    <span class="lbl">Game</span>
+    <div class="games">
+      <div class="gm"><span class="tile any"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg></span>Any game</div>
+      <div class="gm"><span class="tile art-cs"></span>Counter-Strike 2</div>
+      <div class="gm sel"><span class="tile art-drg"></span>Deep Rock Galactic</div>
+      <div class="gm"><span class="tile art-val"></span>Valheim</div>
+    </div>
+    <span class="btn go">Ask 3</span>
+  </div>
+  <div class="composer">
+    <div class="pills">
+      <span class="pl"><svg viewBox="0 0 24 24"><path d="m21 12-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L16 7"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></svg></span>
+      <span class="pl"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><circle cx="9" cy="10" r=".6"/><circle cx="15" cy="10" r=".6"/></svg></span>
+      <span class="pl on"><svg viewBox="0 0 24 24"><path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4a2 2 0 0 1 1.4-.6h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.4A4 4 0 0 0 17.3 5z"/></svg><i class="pip"></i></span>
+    </div>
+    <div class="inputwrap"><div class="in">Message crewmates</div><span class="send"><svg viewBox="0 0 24 24"><path d="M12 19V5"/><path d="m6 11 6-6 6 6"/></svg></span></div>
+  </div>
+</div>
+<p class="note"><b>Several asks.</b> A crew has one open ask for each game, and one with no game. The popover lists them first: a press goes to the card. Then who to ask. A large crew starts with your last picks, and offers a field to find a member, the members who are on now, and Everyone. The button says how many you ask.</p>
+</div>
+
+<!-- ============ 13. BIG POPUP ============ -->
+<div class="col">
+<div class="kicker">13 · The toast with 14 members in</div>
+<div class="tst-wrap static"><div class="card tst">
+      <div class="top"><span class="tile">NS</span><span class="lbl">Night Shift</span><span class="left"><span class="num">21</span><span class="lbl">min</span></span><span class="x"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-cs"></span><span class="gn">Counter-Strike 2</span><span class="w"><span class="num">14</span><span class="lbl">in</span></span></div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div></div>
+<p class="note" style="max-width:330px"><b>Who gets it.</b> In a crew of more than 10, an ask to everyone that names a game goes to the members who have that game. With no game it goes to everyone. The toast shows a count, not names. In joins the voice channel where most of them are.</p>
+</div>
+
+<!-- ============ 14. PICKED ============ -->
+<div class="col">
+<div class="kicker">14 · An ask to three members</div>
+<div class="panel" style="height:auto">
+  <div class="head"><span class="t">Crew chat</span></div>
+  <div class="feed" style="justify-content:flex-start">
+    <div class="card chk">
+      <div class="top"><span class="tag">On</span><span class="lbl">Looking to play</span></div>
+      <h3>k0ji is looking to play</h3>
+      <div class="game"><span class="tile art-drg"></span><span class="gn">Deep Rock Galactic</span></div>
+      <div class="rows">
+        <div class="r"><span class="av s av-teal">K0</span><span class="n">k0ji</span><span class="st"><span class="lbl hi">In voice</span></span></div>
+        <div class="r"><span class="av s av-blue">VI</span><span class="n">vilse</span><span class="st"><span class="lbl hi">In</span></span></div>
+        <div class="r"><span class="av s av-purple">OW</span><span class="n">oweboweob</span><span class="st"><span class="num">9</span><span class="lbl hi">min</span></span></div>
+        <div class="r wait"><span class="av s av-pink">FR</span><span class="n">frasse</span><span class="st"><span class="lbl">No answer</span></span></div>
+        <div class="r no"><span class="av s av-amber">SA</span><span class="n">sannah</span><span class="st"><span class="lbl">Not now</span></span></div>
+      </div>
+      <div class="ans"><span class="btn go">In</span><span class="btn">In 15</span><span class="btn">In 30</span><span class="btn quiet">Not now</span></div>
+    </div>
+  </div>
+</div>
+<p class="note"><b>Picked members.</b> k0ji asked oweboweob, frasse and sannah. Only those three got the push, the toast and the sound. Each has a row, with no answer and not now shown, so the asker sees who is left. The card is in crew chat for all 50, so vilse saw it and pressed In.</p>
+</div>
+
+</div>
+
+
+</body>
+</html>

@@ -1,8 +1,12 @@
-//! Remote push: device registration (spec 23 §3) and the activity report the
-//! server uses to hold phone pushes while the user is at this app (§6.2).
-//! Best-effort: a failed call is logged, never surfaced, and retried later.
+//! Remote push: device registration (spec 23 §3), the activity report the
+//! server uses to hold phone pushes while the user is at this app (§6.2), and
+//! the push switches of a crew (plans/LOOKING-TO-PLAY.md section 4).
+//! Registration and the report are best-effort: a failed call is logged, never
+//! surfaced, and retried later. A failed switch call is reported, so the UI
+//! can put the switch back.
 
 use crate::activity::{self, ActivityInputs};
+use crate::events::Event;
 
 impl super::Client {
     pub(super) async fn handle_register_push_token(
@@ -31,6 +35,49 @@ impl super::Client {
         match self.nakama.unregister_push_token(&token).await {
             Ok(()) => log::info!("[push] unregistered token on logout"),
             Err(e) => log::warn!("[push] unregister_push_token failed: {}", e),
+        }
+    }
+
+    pub(super) async fn handle_load_push_prefs(&self, crew_id: &str) {
+        match self.nakama.push_prefs_get(crew_id).await {
+            Ok(prefs) => {
+                let _ = self.event_tx.send(Event::PushPrefsLoaded { prefs });
+            }
+            Err(e) => {
+                log::warn!("[push] push_prefs_get for {} failed: {}", crew_id, e);
+                let _ = self.event_tx.send(Event::PushPrefsFailed {
+                    crew_id: crew_id.to_string(),
+                });
+            }
+        }
+    }
+
+    pub(super) async fn handle_set_push_prefs(
+        &self,
+        crew_id: &str,
+        messages: Option<bool>,
+        looking_to_play: Option<bool>,
+    ) {
+        match self
+            .nakama
+            .push_prefs_set(crew_id, messages, looking_to_play)
+            .await
+        {
+            Ok(prefs) => {
+                log::info!(
+                    "[push] switches set for {}: messages={} looking_to_play={}",
+                    crew_id,
+                    prefs.messages,
+                    prefs.looking_to_play
+                );
+                let _ = self.event_tx.send(Event::PushPrefsLoaded { prefs });
+            }
+            Err(e) => {
+                log::warn!("[push] push_prefs_set for {} failed: {}", crew_id, e);
+                let _ = self.event_tx.send(Event::PushPrefsFailed {
+                    crew_id: crew_id.to_string(),
+                });
+            }
         }
     }
 

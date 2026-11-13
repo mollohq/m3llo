@@ -7,6 +7,9 @@ package main
 // a single held mention unchanged, several mentions as "N new mentions". A busy
 // crew therefore buzzes a phone at most once per window.
 //
+// The message push uses the same limiter with its own window, the noun
+// "messages" and one key for each member and crew (message_push.go).
+//
 // State lives in memory on the single Nakama instance; a restart drops held
 // pushes (best-effort, spec §6.4).
 
@@ -41,16 +44,20 @@ type userPushState struct {
 type pushLimiter struct {
 	mu     sync.Mutex
 	window time.Duration
-	now    func() time.Time
-	after  func(time.Duration, func())
-	send   func(userID string, a pushAlert)
-	users  map[string]*userPushState
-	seq    uint64
+	// noun names what is held and picks the text keys of the coalesced
+	// push: "mentions" or "messages" (push_text.go).
+	noun  string
+	now   func() time.Time
+	after func(time.Duration, func())
+	send  func(userID string, a pushAlert)
+	users map[string]*userPushState
+	seq   uint64
 }
 
-func newPushLimiter(window time.Duration, now func() time.Time, after func(time.Duration, func()), send func(string, pushAlert)) *pushLimiter {
+func newPushLimiter(window time.Duration, noun string, now func() time.Time, after func(time.Duration, func()), send func(string, pushAlert)) *pushLimiter {
 	return &pushLimiter{
 		window: window,
+		noun:   noun,
 		now:    now,
 		after:  after,
 		send:   send,
@@ -101,7 +108,7 @@ func (l *pushLimiter) flush(userID string) {
 		l.mu.Unlock()
 		return
 	}
-	alert, ok := coalesceHeld(st.held)
+	alert, ok := coalesceHeld(st.held, l.noun)
 	st.held = map[string]*heldMention{}
 	st.heldTotal = 0
 	st.flushDue = false
@@ -127,8 +134,9 @@ func (l *pushLimiter) sweepLocked(now time.Time) {
 
 // coalesceHeld builds the one push that replaces the held mentions. The tap
 // target is the crew with the newest mention. The text is in the account
-// language of the recipient (pushAlert.Lang).
-func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
+// language of the recipient (pushAlert.Lang). noun picks the text keys:
+// "mentions" gives mentions_new and mentions_new_in (push_text.go).
+func coalesceHeld(held map[string]*heldMention, noun string) (pushAlert, bool) {
 	if len(held) == 0 {
 		return pushAlert{}, false
 	}
@@ -147,7 +155,7 @@ func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 	out := newest.alert
 	if len(held) == 1 {
 		// Title stays the crew name.
-		out.Body = truncateRunes(pushText(out.Lang, "mentions_new", total), pushBodyMaxRunes)
+		out.Body = truncateRunes(pushText(out.Lang, noun+"_new", total), pushBodyMaxRunes)
 		return out, true
 	}
 	// Crew names in arrival order of their newest mention, newest first.
@@ -161,7 +169,7 @@ func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 		names = append(names, h.alert.Title)
 	}
 	out.Title = truncateRunes(pushText(out.Lang, "push_title_fallback"), pushTitleMaxRunes)
-	out.Body = truncateRunes(pushText(out.Lang, "mentions_new_in", total,
+	out.Body = truncateRunes(pushText(out.Lang, noun+"_new_in", total,
 		strings.Join(names, pushText(out.Lang, "mention_crews_sep"))), pushBodyMaxRunes)
 	return out, true
 }
@@ -170,6 +178,7 @@ func coalesceHeld(held map[string]*heldMention) (pushAlert, bool) {
 // its own context: a flush fires after the fan-out that held it has returned.
 var mentionPushes = newPushLimiter(
 	pushWindow,
+	"mentions",
 	time.Now,
 	func(d time.Duration, f func()) { afterFunc(d, f) },
 	func(userID string, a pushAlert) {

@@ -618,7 +618,12 @@ async fn joined_member(code: &str, token: &str) -> (NakamaClient, String) {
 /// 2. A mention of a member whose desktop is open but inactive is held for the
 ///    grace period (`PUSH_DESKTOP_GRACE_SECS`, 2 s under `scripts/e2e.sh`).
 ///
-/// One test, because both scenarios share the stub's fixed port.
+/// 3. A plain message is posted to the Worker for an offline member, with one
+///    collapse id for the crew. A member who turned Messages off for the crew
+///    gets none (plans/LOOKING-TO-PLAY.md section 4). The notification
+///    settings keep a choice across a second write.
+///
+/// One test, because the scenarios share the stub's fixed port.
 #[test]
 fn mention_pushes_follow_the_delivery_rules() {
     if !e2e_enabled("mention_pushes_follow_the_delivery_rules") {
@@ -686,7 +691,65 @@ fn mention_pushes_follow_the_delivery_rules() {
             "the push must wait for the grace period ({grace:?}), came after {waited:?}"
         );
 
-        for c in [offline, away, owner] {
+        // 3. A plain message: pushed to a member with Messages on, not to a
+        // member who turned it off.
+        let (listener, _listener_id) = joined_member(&code, "feedface03").await;
+        let (muted, _muted_id) = joined_member(&code, "feedface04").await;
+        let prefs = muted
+            .push_prefs_get(&crew_id)
+            .await
+            .expect("push_prefs_get");
+        assert!(
+            prefs.messages && prefs.looking_to_play,
+            "a small crew starts with both settings on: {prefs:?}"
+        );
+        let prefs = muted
+            .push_prefs_set(&crew_id, Some(false), None)
+            .await
+            .expect("push_prefs_set messages");
+        assert!(!prefs.messages && prefs.looking_to_play, "{prefs:?}");
+        // The second write changes the other setting and keeps the first.
+        let prefs = muted
+            .push_prefs_set(&crew_id, None, Some(false))
+            .await
+            .expect("push_prefs_set looking_to_play");
+        assert!(!prefs.messages && !prefs.looking_to_play, "{prefs:?}");
+        let prefs = muted
+            .push_prefs_get(&crew_id)
+            .await
+            .expect("push_prefs_get after the writes");
+        assert!(!prefs.messages && !prefs.looking_to_play, "{prefs:?}");
+
+        owner
+            .send_chat_message("anyone up for a game?")
+            .await
+            .expect("plain message");
+        // The first two members had a message push in the last seconds, so
+        // theirs is held. The new member gets this one at once.
+        let got = loop {
+            let got = next_send_of_type(&captured, "message", "plain message to an offline member").await;
+            if got.body["tokens"][0]["token"] == "feedface03" {
+                break got;
+            }
+        };
+        let n = &got.body["notification"];
+        assert_eq!(n["crew_id"], crew_id.as_str());
+        assert!(
+            n["message_id"].as_str().unwrap_or_default().starts_with("msg-"),
+            "a message push carries the collapse id of the crew: {n}"
+        );
+        let text = n["body"].as_str().unwrap_or_default();
+        // An e2e account has no display name, so the body is the text alone.
+        assert!(text.ends_with("anyone up for a game?"), "body = {text}");
+
+        let rest = common::drain_sends(&captured, std::time::Duration::from_secs(2)).await;
+        assert!(
+            rest.iter().all(|s| s.body["notification"]["type"] != "message"
+                || s.body["tokens"][0]["token"] != "feedface04"),
+            "a member who turned Messages off gets no push"
+        );
+
+        for c in [offline, away, listener, muted, owner] {
             let _ = c.delete_account().await;
         }
     });

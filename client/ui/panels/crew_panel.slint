@@ -684,6 +684,7 @@ component ActiveCrewCard inherits Rectangle {
     callback member-volume-requested(VoiceChannelMember, string, length);
     callback invite-clicked();
     callback crew-edit-requested();
+    callback crew-notifications-requested();
     callback crew-leave-requested();
     callback crew-add-channel-requested();
 
@@ -999,6 +1000,47 @@ component ActiveCrewCard inherits Rectangle {
                         }
                     }
 
+                    // Every member has this item: the notification settings of
+                    // the crew are the member's own (plans/LOOKING-TO-PLAY.md
+                    // section 4).
+                    Rectangle {
+                        height: 32px;
+                        border-radius: 6px;
+                        background: ctx-notif-ta.has-hover ? Theme.hover-overlay : transparent;
+
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 8px;
+
+                            Image {
+                                source: @image-url("../icons/bell.svg");
+                                width: 14px;
+                                height: 14px;
+                                colorize: Theme.text-secondary;
+                                y: (parent.height - self.height) / 2;
+                            }
+
+                            Text {
+                                text: @tr("Notifications");
+                                font-size: 13px;
+                                color: Theme.text-primary;
+                                vertical-alignment: center;
+                            }
+                        }
+
+                        ctx-notif-ta := TouchArea {
+                            accessible-role: button;
+                            accessible-label: @tr("Notifications");
+                            mouse-cursor: pointer;
+                            accessible-action-default => {
+                                root.crew-notifications-requested();
+                                crew-context-popup.close();
+                            }
+                            clicked => { root.crew-notifications-requested(); }
+                        }
+                    }
+
                     Rectangle {
                         height: 32px;
                         border-radius: 6px;
@@ -1261,6 +1303,7 @@ export component CrewPanel inherits Rectangle {
     callback join-voice-channel(string);
     callback invite-clicked();
     callback crew-edit-requested();
+    callback crew-notifications-requested();
     callback crew-leave-requested();
     callback crew-add-channel-requested();
 
@@ -1310,6 +1353,9 @@ export component CrewPanel inherits Rectangle {
                             }
                             invite-clicked => {
                                 root.invite-clicked();
+                            }
+                            crew-notifications-requested => {
+                                root.crew-notifications-requested();
                             }
                             crew-edit-requested => {
                                 root.crew-edit-requested();

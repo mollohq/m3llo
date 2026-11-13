@@ -19,6 +19,17 @@ use mello_core::chat::UnreadTracker;
 /// (user_id, display_name, is_friend)
 pub type InvitedUserList = Vec<(String, String, bool)>;
 
+/// The push switches of the crew whose settings are open (crew settings,
+/// NOTIFICATIONS tab; plans/LOOKING-TO-PLAY.md section 4).
+#[derive(Default)]
+pub struct CrewSettingsPush {
+    /// The crew whose settings were opened last. Empty before the first open.
+    pub crew_id: String,
+    /// The switches as the server last gave them, for a set that fails.
+    /// `None` until the load answers.
+    pub server: Option<mello_core::push_prefs::PushPrefs>,
+}
+
 /// Shared state threaded through all callback and handler modules.
 /// Created once in `run()`, passed by reference everywhere.
 ///
@@ -45,6 +56,8 @@ pub struct AppContext {
     pub member_audio: Rc<RefCell<crate::member_audio::MemberAudioTable>>,
     pub new_crew_avatar_b64: Arc<Mutex<Option<String>>>,
     pub crew_settings_avatar_b64: Arc<Mutex<Option<String>>>,
+    /// The push switches of the crew whose settings are open.
+    pub crew_settings_push: Rc<RefCell<CrewSettingsPush>>,
     pub invited_users: Rc<RefCell<InvitedUserList>>,
     pub discover_cursor: Rc<RefCell<Option<String>>>,
     pub discover_loading: Rc<RefCell<bool>>,
@@ -215,6 +228,7 @@ impl AppContext {
             member_audio: Rc::new(RefCell::new(Default::default())),
             new_crew_avatar_b64: Arc::new(Mutex::new(None)),
             crew_settings_avatar_b64: Arc::new(Mutex::new(None)),
+            crew_settings_push: Rc::new(RefCell::new(Default::default())),
             invited_users: Rc::new(RefCell::new(Vec::new())),
             discover_cursor: Rc::new(RefCell::new(None)),
             discover_loading: Rc::new(RefCell::new(false)),
@@ -301,6 +315,7 @@ impl Clone for AppContext {
             member_audio: self.member_audio.clone(),
             new_crew_avatar_b64: self.new_crew_avatar_b64.clone(),
             crew_settings_avatar_b64: self.crew_settings_avatar_b64.clone(),
+            crew_settings_push: self.crew_settings_push.clone(),
             invited_users: self.invited_users.clone(),
             discover_cursor: self.discover_cursor.clone(),
             discover_loading: self.discover_loading.clone(),
