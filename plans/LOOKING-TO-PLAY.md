@@ -1,8 +1,9 @@
 # Looking to play
 
-> Status: direction and mockup approved by Bob, 12 Nov 2026. Nothing built.
-> Branch: `feat/looking-to-play` (worktree `mello-wt-looking-to-play`). The iOS app and the
-> push Worker get a branch of the same name in their own repos.
+> Status: direction and mockup approved by Bob, 12 Nov 2026. Phase 1 merged (#260, 13 Nov 2026).
+> Phase 2 built on `feat/looking-to-play-ask`. Phases 3 and 4 not started.
+> Branch: `feat/looking-to-play-ask` (worktree `mello-wt-looking-to-play`) for phases 2 to 4. The
+> iOS app and the push Worker get a branch of the same name in their own repos.
 > Mockup: `designs/looking-to-play.html` (phase 0, approved 12 Nov 2026).
 > Specs to write or update after it ships: `specs/features/LOOKING-TO-PLAY.md` (new),
 > `specs/features/TEXT-CHAT.md` (message push, the `looking_to_play` system event),
@@ -82,7 +83,7 @@ crew member as a notification.
 
 - **State**: collection `looking_to_play`, key `{ask_id}`, owned by the system user.
   Fields: `ask_id`, `crew_id`, `message_id`, `asker_id`, `asked` (the picked user ids,
-  empty when the ask goes to everyone), `game` (`igdb_id`, `name`,
+  empty when the ask goes to everyone), `game` (`game_id`, `name`: the id is the stable id of the library report, for example `steam-730`,
   optional), `opened_at`, `state`, `closed_reason`, `answers` (user id to `answer`,
   `at`, `due_at`, `arrived_at`).
 - **Open asks of a crew**: collection `looking_to_play_open`, key `{crew_id}`, value the
@@ -90,7 +91,8 @@ crew member as a notification.
   like `StartMessageThrottleLoop`. This is state on one node, the same as voice state.
 - **The chat message**: the backend posts it with `SendSystemMessage`, event `looking_to_play`,
   body "Leo is looking to play" or "Leo is looking to play Counter-Strike 2", data
-  `ask_id`, `asker_id`, `game`. A client that does not know the event shows the body as
+  `ask_id`, `asker_id`, `game`. The sender is the system user: Nakama stores the sender as a UUID, so an empty
+  sender cannot be stored, and no member can edit the message. A client that does not know the event shows the body as
   a system line, so no build shows nothing. `chat_validation.go` needs no new type.
 - **RPCs**
   - `looking_to_play_ask {crew_id, game?, member_ids?}`: makes the ask and posts the message.
@@ -250,10 +252,14 @@ each change, as reactions do.
 
 ## 5. Push Worker
 
-- New types: `message`, `looking_to_play`, `looking_to_play_result`. It rejects an unknown type today.
-- New optional fields that it passes to APNs: `category`, `sound`, a collapse id that is
-  not the message id, and a time to live. It sets none of these today.
-- The custom data gets `ask_id`.
+- `message` (phase 1, deployed). `looking_to_play` for a push with the answer buttons (New
+  ask, Second call). `looking_to_play_result` for a push with no buttons (Answer, Nobody,
+  Called off).
+- Optional fields that it passes to APNs: `category` (the answer buttons), `silent` (no
+  sound), `ttl_seconds` (the push expires when the ask closes) and `ask_id` (custom data,
+  for the answer that a button sends).
+- The collapse id stays `message_id`. Every push of one ask sends `ltp-<ask>` there.
+- Built on `feat/looking-to-play-ask` in the Worker repo. Deploy it before the backend.
 
 ## 6. Phases
 
@@ -293,9 +299,9 @@ the HUD is back, Android.
    10 turns it off for each member who never set the switch.
 6. **In from the phone has no time.** It means "on my way". The card shows "in" until the
    member joins voice.
-7. **Who has a game.** Not checked: that the backend can tell which members have a game.
-   The feed's installed list is sorted by owner count, so the data exists in some form.
-   Phase 2 starts with this check. Without it a large crew gets every New ask push.
+7. **Who has a game.** Closed. Each member has a library doc (`user_library`, written by
+   `library_report`) with the stable id of each installed game, and `readLibraryDocs` reads
+   them in one call. A member with no library doc counts as "not known" and gets the push.
 8. **The number 10.** Closed. Bob confirmed 10 on 12 Nov 2026, for "large crew" and for
    the card with a row for each asked member.
 9. **Who to offer in a large crew.** The first version offers the recent picks and who is

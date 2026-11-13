@@ -102,7 +102,10 @@ func sendLtpMessage(ctx context.Context, nk runtime.NakamaModule, a *ltpAsk, ask
 	if err := json.Unmarshal(raw, &content); err != nil {
 		return "", err
 	}
-	ack, err := nk.ChannelMessageSend(ctx, channelID, content, "", "", true)
+	// The sender is the system user. Nakama stores the sender as a UUID, so an
+	// empty id fails ("invalid input syntax for type uuid"). With the system
+	// user as the sender, no member can edit or remove the message of an ask.
+	ack, err := nk.ChannelMessageSend(ctx, channelID, content, SystemUserID, "", true)
 	if err != nil {
 		return "", err
 	}

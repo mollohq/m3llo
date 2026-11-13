@@ -31,7 +31,11 @@ type ltpNote struct {
 	Content map[string]interface{}
 }
 
-func (f *ltpFakeNk) ChannelMessageSend(_ context.Context, _ string, content map[string]interface{}, _, _ string, _ bool) (*rtapi.ChannelMessageAck, error) {
+func (f *ltpFakeNk) ChannelMessageSend(_ context.Context, _ string, content map[string]interface{}, senderID, _ string, _ bool) (*rtapi.ChannelMessageAck, error) {
+	// As the real module: the sender is stored as a UUID.
+	if len(senderID) != 36 {
+		return nil, errors.New(`invalid input syntax for type uuid: "` + senderID + `"`)
+	}
 	f.messages = append(f.messages, content)
 	return &rtapi.ChannelMessageAck{MessageId: fmt.Sprintf("msg-%d", len(f.messages))}, nil
 }
@@ -160,6 +164,13 @@ func TestAnAskPostsTheMessageNotifiesTheCrewAndPushes(t *testing.T) {
 	}
 	if data, _ := msg["data"].(map[string]interface{}); data["ask_id"] != a.AskID || data["asker_id"] != "u1" {
 		t.Fatalf("message data = %v", msg["data"])
+	}
+	// The reply is what a client decodes: no picked member is an empty list.
+	raw, _ := json.Marshal(a)
+	var wire map[string]interface{}
+	_ = json.Unmarshal(raw, &wire)
+	if list, ok := wire["asked"].([]interface{}); !ok || len(list) != 0 {
+		t.Fatalf(`"asked" must be [] on the wire, got %v`, wire["asked"])
 	}
 	// Notification 118 with the state, to every member.
 	var noted []string

@@ -92,6 +92,9 @@ type ltpAsk struct {
 
 // newLtpAsk makes an open ask. The asker counts as in from the start.
 func newLtpAsk(askID, crewID, askerID string, asked []string, game *ltpGame, nowMs int64) *ltpAsk {
+	if asked == nil {
+		asked = []string{} // "asked": [] in the JSON that clients decode, not null
+	}
 	return &ltpAsk{
 		AskID:    askID,
 		CrewID:   crewID,
