@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"strings"
@@ -469,8 +470,7 @@ func CrewCatchupRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	// Clips are durable and no longer in the ledger. Merge recent clips into the
 	// candidate set as synthetic events so high-value moments still surface.
 	events := ledger.Events
-	clipsDoc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	for _, c := range clipsDoc.Clips {
+	for _, c := range crewClipsBetween(ctx, nk, req.CrewID, lastSeen+1, math.MaxInt64) {
 		if c.Ts <= lastSeen {
 			continue
 		}

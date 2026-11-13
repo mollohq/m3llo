@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -48,7 +51,7 @@ type historyKind struct {
 
 // historyKinds are the documents the reconcile visits after the ledger
 // documents.
-var historyKinds = []*historyKind{streamSessionHistoryKind}
+var historyKinds = []*historyKind{streamSessionHistoryKind, clipHistoryKind}
 
 // historyPassStats are the totals of phase 1b of one pass.
 type historyPassStats struct {
@@ -320,4 +323,215 @@ func crewStreamSessions(ctx context.Context, nk runtime.NakamaModule, crewID str
 	}
 	doc, _ := readStreamSessionsDoc(ctx, nk, crewID)
 	return doc.Sessions
+}
+
+// ---------------------------------------------------------------------------
+// Clips
+// ---------------------------------------------------------------------------
+//
+// A clip is one row of type clip. Its id is "clip_" and the event id of the
+// clip, its ref the clip_id, and its data the stored clip. The prefix keeps
+// the id apart from the ids of ledger events: one crew holds an id once.
+//
+// A legacy ledger document can also hold clip events (the dev seed writes
+// them, old crews have them). The store keeps those as "ledger_clip" rows,
+// for the 7-day view of the public surfaces only. They are not clips of the
+// crew, and no counted query sees them.
+
+// clipRowID is the row id of the clip with an event id.
+func clipRowID(eventID string) string {
+	return "clip_" + eventID
+}
+
+// clipRow is a stored clip as a row.
+func clipRow(c StoredClip) ledgerRow {
+	return ledgerRow{
+		Ref: c.ClipID,
+		Event: CrewEvent{
+			ID:        clipRowID(c.EventID),
+			Type:      ledgerTypeClip,
+			ActorID:   c.ActorID,
+			Timestamp: c.Ts,
+			Score:     c.Score,
+			Data:      c,
+		},
+	}
+}
+
+// clipFromRow is the stored clip of a row.
+func clipFromRow(ev CrewEvent) (StoredClip, bool) {
+	raw, err := json.Marshal(ev.Data)
+	if err != nil {
+		return StoredClip{}, false
+	}
+	var c StoredClip
+	if err := json.Unmarshal(raw, &c); err != nil {
+		return StoredClip{}, false
+	}
+	return c, true
+}
+
+func clipsFromRows(rows []CrewEvent) []StoredClip {
+	out := make([]StoredClip, 0, len(rows))
+	for _, ev := range rows {
+		if c, ok := clipFromRow(ev); ok {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+var clipHistoryKind = &historyKind{
+	name:       "clips",
+	collection: CrewClipsCollection,
+	plan: func(ctx context.Context, nk runtime.NakamaModule, crewID string) ([]ledgerRow, int, error) {
+		var doc CrewClipsDoc
+		if _, _, err := readDocStrict(ctx, nk, CrewClipsCollection, crewID, &doc); err != nil {
+			return nil, 0, err
+		}
+		rows := make([]ledgerRow, 0, len(doc.Clips))
+		noID := 0
+		for _, c := range doc.Clips {
+			if c.EventID == "" {
+				noID++
+				continue
+			}
+			rows = append(rows, clipRow(c))
+		}
+		return rows, noID, nil
+	},
+	same: func(doc, stored CrewEvent) bool {
+		c, ok := clipFromRow(stored)
+		return ok && stored.Type == ledgerTypeClip && historySameJSON(doc.Data, c)
+	},
+	merge: func(doc CrewEvent, _ json.RawMessage) (json.RawMessage, error) {
+		return json.Marshal(doc.Data)
+	},
+}
+
+// crewClipsBetween returns the clips of a crew with fromMs <= ts <= toMs,
+// oldest first: the rows of the store after the cutover of phase 1b, the
+// document crew_clips before it. A store read that fails falls back to the
+// document, which is still written.
+func crewClipsBetween(ctx context.Context, nk runtime.NakamaModule, crewID string, fromMs, toMs int64) []StoredClip {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.Between(ctx, crewID, fromMs, toMs, []string{ledgerTypeClip})
+		if err == nil {
+			return clipsFromRows(rows)
+		}
+		ledgerLogError("ledger_store_read_failed kind=clips crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readClipsDoc(ctx, nk, crewID)
+	out := make([]StoredClip, 0, len(doc.Clips))
+	for _, c := range doc.Clips {
+		if c.Ts >= fromMs && c.Ts <= toMs {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// crewClipsWithID returns the clips of a crew that have one clip_id.
+func crewClipsWithID(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string) []StoredClip {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.ByRef(ctx, crewID, ledgerTypeClip, clipID)
+		if err == nil {
+			return clipsFromRows(rows)
+		}
+		ledgerLogError("ledger_store_read_failed kind=clips crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readClipsDoc(ctx, nk, crewID)
+	out := []StoredClip{}
+	for _, c := range doc.Clips {
+		if c.ClipID == clipID {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// crewClipsForGuestFeed returns the clips the guest feed projects, oldest
+// first, and the number of clips of the crew that are not in the list. The
+// list holds what the document held: at most the newest CrewClipsMaxRetained
+// clips. more is 0 before the cutover and for a crew with fewer clips.
+func crewClipsForGuestFeed(ctx context.Context, nk runtime.NakamaModule, crewID string) (clips []StoredClip, more int) {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64, CrewClipsMaxRetained)
+		if err == nil {
+			total, err := store.CountOlder(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64)
+			if err == nil {
+				for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
+					rows[i], rows[j] = rows[j], rows[i]
+				}
+				if total > len(rows) {
+					more = total - len(rows)
+				}
+				return clipsFromRows(rows), more
+			}
+		}
+		ledgerLogError("ledger_store_read_failed kind=clips crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readClipsDoc(ctx, nk, crewID)
+	return doc.Clips, 0
+}
+
+// updateStoredClip changes one clip of a crew in both stores, in the order of
+// the phase (ledgerWriteOrdered). find picks the clip from the clips of the
+// crew. set changes it.
+func updateStoredClip(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string, find func([]StoredClip) *StoredClip, set func(*StoredClip)) error {
+	truth := historyTruthStore(ctx, nk)
+	eventID := ""
+	return ledgerWriteOrdered(truth, "clip_update", crewID, clipID,
+		func(store ledgerStore) error {
+			if truth != nil {
+				rows, err := store.ByRef(ctx, crewID, ledgerTypeClip, clipID)
+				if err != nil {
+					return err
+				}
+				clip := find(clipsFromRows(rows))
+				if clip == nil {
+					return fmt.Errorf("clip %s not found in crew %s", clipID, crewID)
+				}
+				eventID = clip.EventID
+			}
+			if eventID == "" {
+				return errLedgerEventNotFound
+			}
+			return store.UpdateData(ctx, crewID, clipRowID(eventID), func(raw json.RawMessage) (json.RawMessage, error) {
+				var c StoredClip
+				if err := json.Unmarshal(raw, &c); err != nil {
+					return nil, err
+				}
+				set(&c)
+				return json.Marshal(c)
+			})
+		},
+		func() error {
+			id, err := updateClipDoc(ctx, nk, crewID, clipID, find, set)
+			if truth == nil {
+				eventID = id
+			}
+			return err
+		})
+}
+
+// updateClipDoc changes one clip of the legacy clips document, with the
+// version retry of the other document writers. It returns the event id of
+// the clip.
+func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string, find func([]StoredClip) *StoredClip, set func(*StoredClip)) (string, error) {
+	for attempt := 0; attempt < 3; attempt++ {
+		doc, version := readClipsDoc(ctx, nk, crewID)
+		clip := find(doc.Clips)
+		if clip == nil {
+			return "", fmt.Errorf("clip %s not found in crew %s", clipID, crewID)
+		}
+		set(clip)
+		doc.UpdatedAt = time.Now().UnixMilli()
+		if err := writeClipsDoc(ctx, nk, crewID, doc, version); err == nil {
+			return clip.EventID, nil
+		}
+		jitter, _ := rand.Int(rand.Reader, big.NewInt(50))
+		time.Sleep(time.Duration(50*(attempt+1)+int(jitter.Int64())) * time.Millisecond)
+	}
+	return "", fmt.Errorf("crew_clips write failed after 3 retries for crew %s", crewID)
 }

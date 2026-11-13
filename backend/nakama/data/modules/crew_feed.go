@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -616,7 +616,6 @@ func CrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 // is per viewer: IsUserPremium decides if Crew history is open.
 func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, req FeedRequest, userID string, timeline []TimelineEntry, h2h *Head2headFeedData, joins []FeedJoin, nowMs int64) FeedZones {
 	cfg := readFeedConfig(ctx, logger, nk)
-	clipsDoc, _ := readClipsDoc(ctx, nk, req.CrewID)
 	recapsDoc, _ := readRecapsDoc(ctx, nk, req.CrewID)
 	stampRecapWeeks(ctx, nk, req.CrewID, recapsDoc.Recaps)
 	quests, _ := readCrewQuests(ctx, nk, req.CrewID)
@@ -633,7 +632,7 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 		Plus:          IsUserPremium(ctx, nk, userID),
 		HistoryBefore: req.HistoryBefore,
 		Cards:         dropEmptyCards(mergedToCards(timeline)),
-		Clips:         clipsDoc.Clips,
+		Clips:         crewClipsBetween(ctx, nk, req.CrewID, math.MinInt64, math.MaxInt64),
 		Streams:       crewStreamSessions(ctx, nk, req.CrewID),
 		Recaps:        recapsDoc.Recaps,
 		H2h:           h2h,

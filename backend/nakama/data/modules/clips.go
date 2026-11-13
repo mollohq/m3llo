@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"math/big"
 	"sort"
 	"time"
@@ -24,11 +25,10 @@ const (
 	ClipMaxPerUserPerDay = 50
 
 	CrewClipsCollection = "crew_clips"
-	// CrewClipsMaxRetained caps the per-crew clips document. Clips live in a
-	// single Nakama storage object which is hard-limited to 256KB. A StoredClip
-	// with participant arrays and a waveform serializes to roughly 500-700
-	// bytes, so 250 entries keeps a safe margin under the limit (~175KB worst
-	// case). Older clips are trimmed; unbounded history is future m3llo+ work.
+	// CrewClipsMaxRetained caps the legacy clips document of a crew, which is
+	// one storage object. The durable store has no cap: after the cutover of
+	// phase 1b every clip is kept and read (plans/DURABLE-LEDGER.md section
+	// 6a). The document keeps its cap until it is removed.
 	CrewClipsMaxRetained = 250
 	clipWaveformBytes    = 64
 
@@ -168,13 +168,65 @@ func ownVoiceClip(clips []StoredClip, clipID, userID string) (*StoredClip, error
 	return clip, nil
 }
 
-// AppendClip appends a clip to the durable clips doc, trims to the most-recent
-// cap, and retries on version conflict. When the doc already holds the
-// clip_id of the same actor, it appends nothing and returns that clip, so a
-// retried post_clip stores one clip. Another actor's clip_id returns
-// errClipIDTaken. The check runs on each attempt, so two concurrent retries
-// also store one clip.
+// AppendClip stores a clip of a crew. When the crew already holds the clip_id
+// of the same actor, it stores nothing and returns that clip, so a retried
+// post_clip stores one clip. Another actor's clip_id returns errClipIDTaken.
+//
+// Dual write (plans/DURABLE-LEDGER.md section 6a). The store that is the
+// truth is written first, and it decides if the clip_id is free: the legacy
+// document before the cutover of phase 1b, the durable store after it. A
+// failure of the other store is logged.
 func AppendClip(ctx context.Context, nk runtime.NakamaModule, crewID string, clip StoredClip) (*StoredClip, error) {
+	truth := historyTruthStore(ctx, nk)
+	var prev *StoredClip
+	taken := false
+	err := ledgerWriteOrdered(truth, "clip", crewID, clip.EventID,
+		func(store ledgerStore) error {
+			if truth == nil {
+				if prev != nil {
+					return nil
+				}
+				_, err := store.Put(ctx, crewID, []ledgerRow{clipRow(clip)})
+				return err
+			}
+			held, err := store.PutUnique(ctx, crewID, clipRow(clip))
+			if err != nil || len(held) == 0 {
+				return err
+			}
+			if found, _ := existingClip(clipsFromRows(held), clip.ClipID, clip.ActorID); found != nil {
+				prev = found
+			} else {
+				taken = true
+			}
+			return nil
+		},
+		func() error {
+			if truth != nil {
+				if prev != nil || taken {
+					return nil
+				}
+				_, err := appendClipDoc(ctx, nk, crewID, clip)
+				return err
+			}
+			found, err := appendClipDoc(ctx, nk, crewID, clip)
+			prev = found
+			return err
+		})
+	if err != nil {
+		return nil, err
+	}
+	if taken {
+		return nil, errClipIDTaken
+	}
+	return prev, nil
+}
+
+// appendClipDoc appends a clip to the legacy clips document, trims the
+// document to its cap, and retries on version conflict. The check for the
+// clip_id runs on each attempt, so two concurrent retries also store one
+// clip. The first write of a document is create-only: a second writer does
+// not replace the document of the first.
+func appendClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID string, clip StoredClip) (*StoredClip, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		doc, version := readClipsDoc(ctx, nk, crewID)
 		prev, taken := existingClip(doc.Clips, clip.ClipID, clip.ActorID)
@@ -186,6 +238,9 @@ func AppendClip(ctx context.Context, nk runtime.NakamaModule, crewID string, cli
 		}
 		doc.Clips = capClips(append(doc.Clips, clip))
 		doc.UpdatedAt = time.Now().UnixMilli()
+		if version == "" {
+			version = "*"
+		}
 		if err := writeClipsDoc(ctx, nk, crewID, doc, version); err == nil {
 			return nil, nil
 		}
@@ -283,8 +338,7 @@ func PostClipRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 
 	// A retry of a stored clip answers as the first call did. It runs before
 	// the rate limit, so a retry never counts against it.
-	clipsDoc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	prev, taken := existingClip(clipsDoc.Clips, req.ClipID, userID)
+	prev, taken := existingClip(crewClipsWithID(ctx, nk, req.CrewID, req.ClipID), req.ClipID, userID)
 	if prev != nil {
 		logger.Info("post_clip retry: crew=%s clip_id=%s, returning the stored clip", req.CrewID, req.ClipID)
 		return postClipResponse(prev.EventID, prev.ClipID), nil
@@ -293,10 +347,10 @@ func PostClipRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 		return "", runtime.NewError("clip_id already exists", 6)
 	}
 
-	// Rate limit: max clips per user per day, counted from the durable clips doc
+	// Rate limit: max clips per user per day, counted from the stored clips
 	dayStart := time.Now().Truncate(24 * time.Hour).UnixMilli()
 	clipCount := 0
-	for _, c := range clipsDoc.Clips {
+	for _, c := range crewClipsBetween(ctx, nk, req.CrewID, dayStart, math.MaxInt64) {
 		if c.ActorID == userID && c.Ts >= dayStart {
 			clipCount++
 		}
@@ -393,8 +447,7 @@ func buildMergedTimeline(ctx context.Context, nk runtime.NakamaModule, crewID st
 	}
 
 	clipCutoff := time.Now().Add(-time.Duration(EventRollingWindowDays) * 24 * time.Hour).UnixMilli()
-	clipsDoc, _ := readClipsDoc(ctx, nk, crewID)
-	for _, c := range clipsDoc.Clips {
+	for _, c := range crewClipsBetween(ctx, nk, crewID, clipCutoff, math.MaxInt64) {
 		if c.Ts < clipCutoff {
 			continue
 		}
@@ -478,8 +531,7 @@ func ClipUploadURLRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not a crew member", 7)
 	}
-	doc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	if _, err := ownVoiceClip(doc.Clips, req.ClipID, userID); err != nil {
+	if _, err := ownVoiceClip(crewClipsWithID(ctx, nk, req.CrewID, req.ClipID), req.ClipID, userID); err != nil {
 		return "", err
 	}
 
@@ -550,23 +602,16 @@ func ClipUploadCompleteRPC(ctx context.Context, logger runtime.Logger, db *sql.D
 	key := fmt.Sprintf("crews/%s/%s.mp4", req.CrewID, req.ClipID)
 	mediaURL := S3PublicURL(key)
 
-	for attempt := 0; attempt < 3; attempt++ {
-		doc, version := readClipsDoc(ctx, nk, req.CrewID)
-		clip, err := ownVoiceClip(doc.Clips, req.ClipID, userID)
-		if err != nil {
-			return "", err
-		}
-		clip.MediaURL = mediaURL
-		doc.UpdatedAt = time.Now().UnixMilli()
-		if err := writeClipsDoc(ctx, nk, req.CrewID, doc, version); err == nil {
-			break
-		}
-		if attempt == 2 {
-			logger.Error("clip_upload_complete: writeClipsDoc failed after 3 retries")
-			return "", runtime.NewError("failed to update clip media url", 13)
-		}
-		jitter, _ := rand.Int(rand.Reader, big.NewInt(50))
-		time.Sleep(time.Duration(50*(attempt+1)+int(jitter.Int64())) * time.Millisecond)
+	own := func(clips []StoredClip) *StoredClip {
+		clip, _ := ownVoiceClip(clips, req.ClipID, userID)
+		return clip
+	}
+	if _, err := ownVoiceClip(crewClipsWithID(ctx, nk, req.CrewID, req.ClipID), req.ClipID, userID); err != nil {
+		return "", err
+	}
+	if err := updateStoredClip(ctx, nk, req.CrewID, req.ClipID, own, func(c *StoredClip) { c.MediaURL = mediaURL }); err != nil {
+		logger.Error("clip_upload_complete: %v", err)
+		return "", runtime.NewError("failed to update clip media url", 13)
 	}
 
 	logger.Info("Clip upload complete: crew=%s clip=%s media_url=%s", req.CrewID, req.ClipID, mediaURL)

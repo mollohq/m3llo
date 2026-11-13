@@ -392,15 +392,15 @@ func generateWeeklyRecapAt(ctx context.Context, nk runtime.NakamaModule, logger 
 		}
 	}
 
-	// Clips are durable and no longer in the ledger; count them from the clips doc.
-	clipsDoc, _ := readClipsDoc(ctx, nk, crewID)
-	for _, c := range clipsDoc.Clips {
+	// Clips are not in the ledger. Count the stored clips of the week.
+	weekClips := crewClipsBetween(ctx, nk, crewID, startMs, endMs)
+	for _, c := range weekClips {
 		if c.Ts >= startMs && c.Ts <= endMs {
 			clipCount++
 			actorClips[c.ActorID]++
 		}
 	}
-	clipOfWeek := pickClipOfWeek(clipsDoc.Clips, startMs, endMs)
+	clipOfWeek := pickClipOfWeek(weekClips, startMs, endMs)
 
 	topGame := ""
 	topGameMin := 0

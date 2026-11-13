@@ -2,10 +2,8 @@ package main
 
 import (
 	"context"
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"regexp"
 	"sort"
 	"strings"
@@ -229,8 +227,7 @@ func gameClipUploadURL(ctx context.Context, logger runtime.Logger, nk runtime.Na
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not a crew member", 7)
 	}
-	doc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	if _, err := ownGameClip(doc.Clips, req.ClipID, userID); err != nil {
+	if _, err := ownGameClip(crewClipsWithID(ctx, nk, req.CrewID, req.ClipID), req.ClipID, userID); err != nil {
 		return "", err
 	}
 
@@ -315,8 +312,7 @@ func gameClipUploadComplete(ctx context.Context, logger runtime.Logger, nk runti
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not a crew member", 7)
 	}
-	doc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	if _, err := ownGameClip(doc.Clips, req.ClipID, userID); err != nil {
+	if _, err := ownGameClip(crewClipsWithID(ctx, nk, req.CrewID, req.ClipID), req.ClipID, userID); err != nil {
 		return "", err
 	}
 	if !S3IsConfigured() {
@@ -388,28 +384,20 @@ func gameClipUploadComplete(ctx context.Context, logger runtime.Logger, nk runti
 	return string(resp), nil
 }
 
-// setGameClipURL sets poster_url or media_url on the caller's clip, with the
-// same version-retry loop as the voice clip path.
+// setGameClipURL sets poster_url or media_url on the caller's clip, in both
+// stores (updateStoredClip).
 func setGameClipURL(ctx context.Context, nk runtime.NakamaModule, crewID, clipID, userID, part, url string) error {
-	for attempt := 0; attempt < 3; attempt++ {
-		doc, version := readClipsDoc(ctx, nk, crewID)
-		clip, _ := existingClip(doc.Clips, clipID, userID)
-		if clip == nil {
-			return fmt.Errorf("clip %s not found in crew %s", clipID, crewID)
-		}
-		if part == gameClipPartPoster {
-			clip.PosterURL = url
-		} else {
-			clip.MediaURL = url
-		}
-		doc.UpdatedAt = time.Now().UnixMilli()
-		if err := writeClipsDoc(ctx, nk, crewID, doc, version); err == nil {
-			return nil
-		}
-		jitter, _ := rand.Int(rand.Reader, big.NewInt(50))
-		time.Sleep(time.Duration(50*(attempt+1)+int(jitter.Int64())) * time.Millisecond)
+	own := func(clips []StoredClip) *StoredClip {
+		clip, _ := existingClip(clips, clipID, userID)
+		return clip
 	}
-	return fmt.Errorf("crew_clips write failed after 3 retries for crew %s", crewID)
+	return updateStoredClip(ctx, nk, crewID, clipID, own, func(c *StoredClip) {
+		if part == gameClipPartPoster {
+			c.PosterURL = url
+		} else {
+			c.MediaURL = url
+		}
+	})
 }
 
 // ---------------------------------------------------------------------------
