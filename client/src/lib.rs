@@ -638,6 +638,7 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
         member_audio: Rc::new(RefCell::new(Default::default())),
         new_crew_avatar_b64: std::sync::Arc::new(std::sync::Mutex::new(None)),
         crew_settings_avatar_b64: std::sync::Arc::new(std::sync::Mutex::new(None)),
+        crew_settings_push: Rc::new(RefCell::new(Default::default())),
         invited_users: Rc::new(RefCell::new(Vec::new())),
         discover_cursor: Rc::new(RefCell::new(None)),
         discover_loading: Rc::new(RefCell::new(false)),

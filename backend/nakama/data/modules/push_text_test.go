@@ -28,6 +28,10 @@ func pushTextSamples() map[string][]any {
 		"join_others":         {name, 999, crew},
 		"mentions_new":        {999},
 		"mentions_new_in":     {999, crew + ", " + crew},
+		"messages_new":        {999},
+		"messages_new_in":     {999, crew + ", " + crew},
+		"message_sent_gif":    {name},
+		"message_sent_image":  {name},
 	}
 }
 
@@ -69,7 +73,7 @@ func checkPushTable(t *testing.T, lang string, table map[string]string) {
 func TestEnglishPushTextFitsTheLimitsWithLongValues(t *testing.T) {
 	checkPushTable(t, "en", pushTextEnglish)
 	for key := range pushTextEnglish {
-		if _, ok := pushTextSamples()[key]; !ok && !pushTitleKey(key) && key != "join_name_fallback" && key != "mention_crews_sep" {
+		if _, ok := pushTextSamples()[key]; !ok && !pushTitleKey(key) && key != "join_name_fallback" && key != "mention_crews_sep" && key != "message_sender_fallback" {
 			t.Errorf("%s: no sample values in the test", key)
 		}
 	}
@@ -215,12 +219,12 @@ func TestCoalescedMentionsUseTheRecipientsLanguage(t *testing.T) {
 		"c1": {alert: pushAlert{CrewID: "c1", Title: "Retro", Lang: "sv"}, count: 2, seq: 1},
 		"c2": {alert: pushAlert{CrewID: "c2", Title: "Devz", Lang: "sv"}, count: 1, seq: 2},
 	}
-	got, ok := coalesceHeld(held)
+	got, ok := coalesceHeld(held, "mentions")
 	if !ok || got.Title != "Mello SV" || got.Body != "3 nya omnämnanden i Devz, Retro" {
 		t.Fatalf("got %+v", got)
 	}
 	delete(held, "c2")
-	got, _ = coalesceHeld(held)
+	got, _ = coalesceHeld(held, "mentions")
 	if got.Body != "2 new mentions" || got.Title != "Retro" {
 		t.Fatalf("a missing message is English: %+v", got)
 	}

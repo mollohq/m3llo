@@ -15,7 +15,7 @@ type limiterHarness struct {
 
 func newLimiterHarness() *limiterHarness {
 	h := &limiterHarness{clock: time.Unix(1_790_000_000, 0)}
-	h.limiter = newPushLimiter(pushWindow,
+	h.limiter = newPushLimiter(pushWindow, "mentions",
 		func() time.Time { return h.clock },
 		func(d time.Duration, f func()) { h.waits = append(h.waits, d); h.timers = append(h.timers, f) },
 		func(_ string, a pushAlert) { h.sent = append(h.sent, a) })

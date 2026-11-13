@@ -4,6 +4,67 @@ use slint::ComponentHandle;
 use crate::app_context::AppContext;
 
 pub fn wire(ctx: &AppContext) {
+    // --- Crew settings opened: load the push switches of the crew ---
+    // `open-crew-settings` in main.slint calls this for every way in. The
+    // switches stay disabled until `PushPrefsLoaded` (handlers/crew.rs).
+    {
+        let cmd = ctx.cmd_tx.clone();
+        let app_weak = ctx.app.as_weak();
+        let push = ctx.crew_settings_push.clone();
+        ctx.app.on_crew_settings_opened(move || {
+            let Some(app) = app_weak.upgrade() else {
+                return;
+            };
+            let crew_id = app.get_active_crew_id().to_string();
+            app.set_crew_settings_push_ready(false);
+            {
+                let mut push = push.borrow_mut();
+                push.crew_id = crew_id.clone();
+                push.server = None;
+            }
+            if crew_id.is_empty() {
+                return;
+            }
+            log::debug!("[push-prefs] crew settings opened, load crew={}", crew_id);
+            let _ = cmd.send(Command::LoadPushPrefs { crew_id });
+        });
+    }
+
+    // --- Push switches: the UI changed the switch already; send only it ---
+    {
+        let cmd = ctx.cmd_tx.clone();
+        let push = ctx.crew_settings_push.clone();
+        ctx.app.on_crew_settings_push_messages_toggled(move |on| {
+            let crew_id = push.borrow().crew_id.clone();
+            if crew_id.is_empty() {
+                return;
+            }
+            log::info!("[push-prefs] set messages={} crew={}", on, crew_id);
+            let _ = cmd.send(Command::SetPushPrefs {
+                crew_id,
+                messages: Some(on),
+                looking_to_play: None,
+            });
+        });
+    }
+    {
+        let cmd = ctx.cmd_tx.clone();
+        let push = ctx.crew_settings_push.clone();
+        ctx.app
+            .on_crew_settings_push_looking_to_play_toggled(move |on| {
+                let crew_id = push.borrow().crew_id.clone();
+                if crew_id.is_empty() {
+                    return;
+                }
+                log::info!("[push-prefs] set looking_to_play={} crew={}", on, crew_id);
+                let _ = cmd.send(Command::SetPushPrefs {
+                    crew_id,
+                    messages: None,
+                    looking_to_play: Some(on),
+                });
+            });
+    }
+
     // --- Save crew (name + description + optional avatar) ---
     {
         let cmd = ctx.cmd_tx.clone();
@@ -234,8 +295,7 @@ pub fn wire(ctx: &AppContext) {
             let Some(app) = app_weak.upgrade() else {
                 return;
             };
-            app.set_crew_settings_active_tab(1);
-            app.set_crew_settings_open(true);
+            app.invoke_open_crew_settings(1);
         });
     }
 

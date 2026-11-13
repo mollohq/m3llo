@@ -850,6 +850,17 @@ impl Client {
                 self.handle_register_push_token(token, &platform, environment)
                     .await;
             }
+            Command::LoadPushPrefs { crew_id } => {
+                self.handle_load_push_prefs(&crew_id).await;
+            }
+            Command::SetPushPrefs {
+                crew_id,
+                messages,
+                looking_to_play,
+            } => {
+                self.handle_set_push_prefs(&crew_id, messages, looking_to_play)
+                    .await;
+            }
             Command::SetWindowActivity {
                 foreground,
                 input_idle_secs,

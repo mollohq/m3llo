@@ -591,6 +591,41 @@ pub fn handle(ctx: &AppContext, event: Event) {
         Event::CrewMemberKickFailed { reason } => {
             log::error!("[crew] kick failed: {}", reason);
         }
+        // The push switches of crew settings (NOTIFICATIONS tab). The answer
+        // of another crew is a late one, from settings that are closed now.
+        Event::PushPrefsLoaded { prefs } => {
+            if ctx.crew_settings_push.borrow().crew_id != prefs.crew_id {
+                log::debug!("[push-prefs] ignore the state of crew={}", prefs.crew_id);
+                return;
+            }
+            log::info!(
+                "[push-prefs] crew={} messages={} looking_to_play={}",
+                prefs.crew_id,
+                prefs.messages,
+                prefs.looking_to_play
+            );
+            ctx.app.set_crew_settings_push_messages(prefs.messages);
+            ctx.app
+                .set_crew_settings_push_looking_to_play(prefs.looking_to_play);
+            ctx.app.set_crew_settings_push_ready(true);
+            ctx.crew_settings_push.borrow_mut().server = Some(prefs);
+        }
+        Event::PushPrefsFailed { crew_id } => {
+            log::warn!("[push-prefs] load or set failed: crew={}", crew_id);
+            let server = {
+                let push = ctx.crew_settings_push.borrow();
+                if push.crew_id != crew_id {
+                    return;
+                }
+                push.server.clone()
+            };
+            // A load that failed gave no state: the switches stay disabled.
+            if let Some(prefs) = server {
+                ctx.app.set_crew_settings_push_messages(prefs.messages);
+                ctx.app
+                    .set_crew_settings_push_looking_to_play(prefs.looking_to_play);
+            }
+        }
         _ => {}
     }
 }

@@ -1088,6 +1088,10 @@ msgid "YOUR GAMES"
 msgstr ""
 
 #: client/ui/panels/crew_panel.slint
+msgid "Notifications"
+msgstr ""
+
+#: client/ui/panels/crew_panel.slint
 msgid "Reconnecting"
 msgstr ""
 
@@ -1261,6 +1265,26 @@ msgstr ""
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "MEMBERS"
+msgstr ""
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "NOTIFICATIONS"
+msgstr ""
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Messages"
+msgstr ""
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A phone push for each new message in this crew"
+msgstr ""
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Looking to play"
+msgstr ""
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A push, a toast and a sound when a crew member asks"
 msgstr ""
 
 #: client/ui/panels/crew_settings_modal.slint

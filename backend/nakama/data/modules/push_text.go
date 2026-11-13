@@ -48,6 +48,13 @@ var pushTextEnglish = map[string]string{
 	"mention_crews_sep":   ", ",
 	"push_title_fallback": "Mello",
 
+	// Plain messages (message_push.go, push_coalesce.go). Values: name.
+	"messages_new":            "%d new messages",
+	"messages_new_in":         "%d new messages in %s",
+	"message_sent_gif":        "%s sent a GIF",
+	"message_sent_image":      "%s sent an image",
+	"message_sender_fallback": "Someone",
+
 	// Belt labels, by the title_id that the client uses (client/src/head2head.rs).
 	titleTheCarry:   "The Carry",
 	titleLockedIn:   "Locked In",
