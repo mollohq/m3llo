@@ -30,8 +30,19 @@ type histMode struct {
 //     the store first.
 var histModes = []histMode{
 	{name: "document"},
-	{name: "import", cutover: func(t *testing.T, nk runtime.NakamaModule) {
+	{name: "import", cutover: importAndCutOver},
+	{name: "store", setup: func(t *testing.T) {
 		t.Helper()
+		useHistoryStoreReads(t)
+	}},
+}
+
+// importAndCutOver sets an empty store on an install that so far wrote the
+// legacy documents alone, runs the reconcile, and checks that both markers
+// are set and the store is the truth.
+func importAndCutOver(t *testing.T, nk runtime.NakamaModule) {
+	t.Helper()
+	{
 		useMemLedger(t)
 		resetLedgerCutover(t)
 		resetHistoryCutover(t)
@@ -46,11 +57,7 @@ var histModes = []histMode{
 		if historyTruthStore(context.Background(), nk) == nil {
 			t.Fatal("the store is not the truth after the markers")
 		}
-	}},
-	{name: "store", setup: func(t *testing.T) {
-		t.Helper()
-		useHistoryStoreReads(t)
-	}},
+	}
 }
 
 // resetHistoryCutover clears what the node knows about the marker of phase

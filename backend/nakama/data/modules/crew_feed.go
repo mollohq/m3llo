@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"math"
+
 	"sort"
 	"strings"
 	"time"
@@ -616,8 +616,17 @@ func CrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 // is per viewer: IsUserPremium decides if Crew history is open.
 func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, req FeedRequest, userID string, timeline []TimelineEntry, h2h *Head2headFeedData, joins []FeedJoin, nowMs int64) FeedZones {
 	cfg := readFeedConfig(ctx, logger, nk)
-	recaps := crewRecaps(ctx, nk, req.CrewID)
-	stampRecapWeeks(ctx, nk, req.CrewID, recaps)
+	in := zonesInput{
+		ViewerID:      userID,
+		NowMs:         nowMs,
+		FreeDays:      cfg.FreeDays,
+		HistoryBefore: req.HistoryBefore,
+	}
+	// The clips, the stream sessions and the recaps of this page: the legacy
+	// documents before the cutover of phase 1b, a paged read of the durable
+	// store after it.
+	hist := loadZoneHistory(ctx, nk, req.CrewID, in.windowStart(), req.HistoryBefore)
+	stampRecapWeeks(ctx, nk, req.CrewID, hist.Recaps)
 	quests, _ := readCrewQuests(ctx, nk, req.CrewID)
 	var profile *CrewProfile
 	var emoji *CrewEmojiDoc
@@ -625,24 +634,21 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 		profile, _ = readCrewProfile(ctx, nk, req.CrewID)
 		emoji, _ = readCrewEmoji(ctx, nk, req.CrewID)
 	}
-	return buildFeedZones(zonesInput{
-		ViewerID:      userID,
-		NowMs:         nowMs,
-		FreeDays:      cfg.FreeDays,
-		Plus:          IsUserPremium(ctx, nk, userID),
-		HistoryBefore: req.HistoryBefore,
-		Cards:         dropEmptyCards(mergedToCards(timeline)),
-		Clips:         crewClipsBetween(ctx, nk, req.CrewID, math.MinInt64, math.MaxInt64),
-		Streams:       crewStreamSessions(ctx, nk, req.CrewID),
-		Recaps:        recaps,
-		H2h:           h2h,
-		Libs:          crewLibraryDocs(ctx, nk, req.CrewID),
-		Joins:         joins,
-		Belts:         crewBeltsMovedSince(ctx, nk, req.CrewID, nowMs-int64(feedDailyRecapDays)*dayMs),
-		Quests:        quests,
-		Profile:       profile,
-		Emoji:         emoji,
-	})
+	in.Plus = IsUserPremium(ctx, nk, userID)
+	in.Cards = dropEmptyCards(mergedToCards(timeline))
+	in.Clips = hist.Clips
+	in.Streams = hist.Streams
+	in.Recaps = hist.Recaps
+	in.LastClipMs = hist.LastClipMs
+	in.LastStreamMs = hist.LastStreamMs
+	in.H2h = h2h
+	in.Libs = crewLibraryDocs(ctx, nk, req.CrewID)
+	in.Joins = joins
+	in.Belts = crewBeltsMovedSince(ctx, nk, req.CrewID, nowMs-int64(feedDailyRecapDays)*dayMs)
+	in.Quests = quests
+	in.Profile = profile
+	in.Emoji = emoji
+	return buildFeedZones(in)
 }
 
 // crewBeltsMovedSince reads the holders doc of the crew and returns the belts

@@ -24,6 +24,12 @@ func histRows(t *testing.T, store ledgerStore, crewID, typ string) []CrewEvent {
 	return rows
 }
 
+// feedStreams is every stream session the zone feed reads for a crew, with
+// the whole time as its free window.
+func feedStreams(nk runtime.NakamaModule, crewID string) []StoredStreamSession {
+	return loadZoneHistory(context.Background(), nk, crewID, math.MinInt64, 0).Streams
+}
+
 func histIDs(events []CrewEvent) []string {
 	ids := make([]string, 0, len(events))
 	for _, e := range events {
@@ -203,7 +209,7 @@ func TestStreamSessionHasOneRow(t *testing.T) {
 	if r = reconcilePass(t, nk); r.lastHist.Inserted != 0 || r.last.Inserted != 0 || r.last.Pruned != 0 || !historyMarkerSet(nk) {
 		t.Fatalf("second pass: events %+v history %+v marker=%s", r.last, r.lastHist, r.lastHistMarker)
 	}
-	if got := crewStreamSessions(ctx, nk, "crew"); len(got) != 2 || !historySameJSON(got, []StoredStreamSession{old, recent}) {
+	if got := feedStreams(nk, "crew"); len(got) != 2 || !historySameJSON(got, []StoredStreamSession{old, recent}) {
 		t.Fatalf("sessions after the cutover = %+v", got)
 	}
 }
@@ -242,7 +248,7 @@ func TestStreamSessionOfTheCopyAloneIsNotInTheSevenDayView(t *testing.T) {
 	if historyTruthStore(ctx, nk) == nil {
 		t.Fatal("no cutover")
 	}
-	if got := crewStreamSessions(ctx, nk, "crew"); len(got) != 1 || got[0].EventID != "only_copy" {
+	if got := feedStreams(nk, "crew"); len(got) != 1 || got[0].EventID != "only_copy" {
 		t.Fatalf("sessions after the cutover = %+v", got)
 	}
 	if got := ledgerIDsOf(nk, "crew"); !charSameIDs(got, "game") {
@@ -431,7 +437,7 @@ func TestStreamSessionReconcileKeepsWhatTheCopyDropped(t *testing.T) {
 	if historyTruthStore(ctx, nk) == nil {
 		t.Fatal("no cutover")
 	}
-	if got := crewStreamSessions(ctx, nk, "crew"); len(got) != total || got[0].EventID != charID(0) {
+	if got := feedStreams(nk, "crew"); len(got) != total || got[0].EventID != charID(0) {
 		t.Fatalf("sessions after the cutover: %d, first %+v", len(got), got[0])
 	}
 }
@@ -452,7 +458,7 @@ func TestStreamSessionsFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 	useLedger(t, failingBetween{newMemLedgerStore()})
 	nk := newFakeGuestNk()
 	putStreamsDoc(nk, "crew", histSession("in_doc", time.Now()))
-	if got := crewStreamSessions(context.Background(), nk, "crew"); len(got) != 1 || got[0].EventID != "in_doc" {
+	if got := feedStreams(nk, "crew"); len(got) != 1 || got[0].EventID != "in_doc" {
 		t.Fatalf("sessions = %+v, want the one of the document", got)
 	}
 }

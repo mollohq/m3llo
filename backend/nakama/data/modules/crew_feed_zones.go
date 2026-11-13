@@ -129,14 +129,22 @@ type zonesInput struct {
 	// the first page.
 	HistoryBefore int64
 	// Cards is the merged timeline as feed cards, empty ones dropped.
-	Cards   []feedCard
+	Cards []feedCard
+	// Clips, Streams and Recaps hold what this page shows (loadZoneHistory):
+	// every one of the crew, or the ones of the free window, of the board and
+	// of the weeks of this page of Crew history.
 	Clips   []StoredClip
 	Streams []StoredStreamSession
 	Recaps  []WeeklyRecapData
-	H2h     *Head2headFeedData
-	Libs    map[string]*LibraryDoc
-	Joins   []FeedJoin
-	Belts   []RecapBeltMoved
+	// LastClipMs and LastStreamMs are the times of the newest clip and the
+	// newest stream session of the crew, for the last activity of the board.
+	// 0 when Clips and Streams hold every one.
+	LastClipMs   int64
+	LastStreamMs int64
+	H2h          *Head2headFeedData
+	Libs         map[string]*LibraryDoc
+	Joins        []FeedJoin
+	Belts        []RecapBeltMoved
 	// Quests is the quest record of the crew, nil when it has none.
 	Quests *CrewQuests
 	// Profile and Emoji fill the gifts of the quest card. Nil when the card
@@ -346,6 +354,12 @@ func zoneBoard(in zonesInput) ZoneBoard {
 		if len(s.SnapshotURLs) > 0 && s.Ts > newestStream {
 			newestStream = s.Ts
 		}
+	}
+	if in.LastClipMs > b.LastActivityMs {
+		b.LastActivityMs = in.LastClipMs
+	}
+	if in.LastStreamMs > b.LastActivityMs {
+		b.LastActivityMs = in.LastStreamMs
 	}
 	members := 0
 	if in.H2h != nil {

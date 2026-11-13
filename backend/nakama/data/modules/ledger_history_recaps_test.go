@@ -164,7 +164,7 @@ func TestRecapReconcile(t *testing.T) {
 	if r = reconcilePass(t, nk); r.lastHist.Updated != 0 || !r.lastHist.clean() {
 		t.Fatalf("pass after the cutover = %+v", r.lastHist)
 	}
-	if got := crewRecaps(ctx, nk, "crew"); len(got) != 3 || got[0].TopGame != "CS2" || got[2].TotalHangoutMin != 10 {
+	if got := storeRecaps(t, store, "crew"); len(got) != 3 || got[0].TopGame != "CS2" || got[2].TotalHangoutMin != 10 {
 		t.Fatalf("recaps after the cutover = %+v", got)
 	}
 	if got := crewLatestRecap(ctx, nk, "crew"); got == nil || got.WeekStart != monday.UnixMilli() || got.TotalHangoutMin != 10 {
@@ -183,7 +183,7 @@ func TestRecapReadersFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 	monday := mondayStartUTC(time.Now())
 	nk.put(CrewRecapsCollection, "crew", SystemUserID, CrewRecapsDoc{CrewID: "crew", LastRecapWeek: "2026-W01",
 		Recaps: []WeeklyRecapData{histRecap(monday.Add(-7*24*time.Hour), 10), histRecap(monday.Add(-14*24*time.Hour), 20)}})
-	if got := crewRecaps(ctx, nk, "crew"); len(got) != 2 {
+	if got := loadZoneHistory(ctx, nk, "crew", 0, 0).Recaps; len(got) != 2 {
 		t.Fatalf("recaps = %+v", got)
 	}
 	if got := crewLatestRecap(ctx, nk, "crew"); got == nil || got.TotalHangoutMin != 10 {
