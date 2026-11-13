@@ -361,6 +361,9 @@ A store read that fails falls back to the documents.
 - A stream that was resumed has no replay entry until it ends again. Before,
   the copy still listed the interrupted part.
 - A stream session whose copy write failed is now listed as a replay.
+- A stream session whose ledger event write failed, and that only the copy
+  held, now counts in the weekly recap of its week (`readLedgerWindow` reads
+  every row of the week).
 - Two recaps with one week start are one recap.
 - The guest feed counts clips by row above 250 clips.
 

@@ -442,17 +442,18 @@ func crewClipsWithID(ctx context.Context, nk runtime.NakamaModule, crewID, clipI
 func crewClipsForGuestFeed(ctx context.Context, nk runtime.NakamaModule, crewID string) (clips []StoredClip, more int) {
 	if store := historyTruthStore(ctx, nk); store != nil {
 		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64, CrewClipsMaxRetained)
+		total := 0
 		if err == nil {
-			total, err := store.CountOlder(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64)
-			if err == nil {
-				for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
-					rows[i], rows[j] = rows[j], rows[i]
-				}
-				if total > len(rows) {
-					more = total - len(rows)
-				}
-				return clipsFromRows(rows), more
+			total, err = store.CountOlder(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64)
+		}
+		if err == nil {
+			for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
+				rows[i], rows[j] = rows[j], rows[i]
 			}
+			if total > len(rows) {
+				more = total - len(rows)
+			}
+			return clipsFromRows(rows), more
 		}
 		ledgerLogError("ledger_store_read_failed kind=clips crew=%s: %v. Reading the legacy document", crewID, err)
 	}

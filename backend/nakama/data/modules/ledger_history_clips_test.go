@@ -455,6 +455,52 @@ func TestClipReconcileTakesTheDocumentOnlyBeforeTheCutover(t *testing.T) {
 	}
 }
 
+// After the cutover an instance of an older release, or a rollback period,
+// writes a clip to the document alone. The next pass stores it. A clip that
+// only the store holds stays.
+func TestClipReconcileStoresADocumentOnlyClipAfterTheCutover(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	prevRecheck := ledgerMarkerRecheck
+	ledgerMarkerRecheck = 0
+	t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+	now := time.Now()
+
+	if _, err := AppendClip(ctx, nk, "crew", histClip("first", "u1", now.Add(-time.Hour))); err != nil {
+		t.Fatal(err)
+	}
+	if reconcilePass(t, nk); historyTruthStore(ctx, nk) == nil {
+		t.Fatal("no cutover")
+	}
+	// The store alone: the document write failed.
+	if _, err := AppendClip(ctx, failClipDocNk{nk}, "crew", histClip("store_only", "u1", now.Add(-30*time.Minute))); err != nil {
+		t.Fatal(err)
+	}
+	// The document alone: an older release wrote it.
+	if _, err := appendClipDoc(ctx, nk, "crew", histClip("doc_only", "u2", now)); err != nil {
+		t.Fatal(err)
+	}
+
+	r := reconcilePass(t, nk)
+	if r.lastHist.Inserted != 1 || r.lastHist.Updated != 0 || !r.lastHist.clean() {
+		t.Fatalf("pass = %+v", r.lastHist)
+	}
+	got := crewClipsBetween(ctx, nk, "crew", math.MinInt64, math.MaxInt64)
+	if len(got) != 3 || got[0].ClipID != "first" || got[1].ClipID != "store_only" || got[2].ClipID != "doc_only" {
+		t.Fatalf("clips after the pass = %+v", got)
+	}
+	if r = reconcilePass(t, nk); r.lastHist.Inserted != 0 || !r.lastHist.clean() {
+		t.Fatalf("second pass = %+v", r.lastHist)
+	}
+	if n := len(storeClips(t, store, "crew")); n != 3 {
+		t.Fatalf("the store holds %d clips", n)
+	}
+}
+
 // failingClipReads fails every read of the store that the clip readers use.
 type failingClipReads struct{ *memLedgerStore }
 
