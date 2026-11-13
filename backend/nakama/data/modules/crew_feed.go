@@ -616,8 +616,8 @@ func CrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 // is per viewer: IsUserPremium decides if Crew history is open.
 func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, req FeedRequest, userID string, timeline []TimelineEntry, h2h *Head2headFeedData, joins []FeedJoin, nowMs int64) FeedZones {
 	cfg := readFeedConfig(ctx, logger, nk)
-	recapsDoc, _ := readRecapsDoc(ctx, nk, req.CrewID)
-	stampRecapWeeks(ctx, nk, req.CrewID, recapsDoc.Recaps)
+	recaps := crewRecaps(ctx, nk, req.CrewID)
+	stampRecapWeeks(ctx, nk, req.CrewID, recaps)
 	quests, _ := readCrewQuests(ctx, nk, req.CrewID)
 	var profile *CrewProfile
 	var emoji *CrewEmojiDoc
@@ -634,7 +634,7 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 		Cards:         dropEmptyCards(mergedToCards(timeline)),
 		Clips:         crewClipsBetween(ctx, nk, req.CrewID, math.MinInt64, math.MaxInt64),
 		Streams:       crewStreamSessions(ctx, nk, req.CrewID),
-		Recaps:        recapsDoc.Recaps,
+		Recaps:        recaps,
 		H2h:           h2h,
 		Libs:          crewLibraryDocs(ctx, nk, req.CrewID),
 		Joins:         joins,

@@ -461,15 +461,10 @@ func buildMergedTimeline(ctx context.Context, nk runtime.NakamaModule, crewID st
 		})
 	}
 
-	recapsDoc, _ := readRecapsDoc(ctx, nk, crewID)
-	stampRecapWeeks(ctx, nk, crewID, recapsDoc.Recaps)
-	if len(recapsDoc.Recaps) > 0 {
-		latest := recapsDoc.Recaps[0]
-		for _, r := range recapsDoc.Recaps[1:] {
-			if r.WeekStart > latest.WeekStart {
-				latest = r
-			}
-		}
+	if newest := crewLatestRecap(ctx, nk, crewID); newest != nil {
+		stamp := []WeeklyRecapData{*newest}
+		stampRecapWeeks(ctx, nk, crewID, stamp)
+		latest := stamp[0]
 		all = append(all, TimelineEntry{
 			ID:      fmt.Sprintf("recap_%d", latest.WeekStart),
 			Type:    "weekly_recap",

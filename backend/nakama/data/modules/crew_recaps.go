@@ -112,9 +112,24 @@ func stampRecapWeeks(ctx context.Context, nk runtime.NakamaModule, crewID string
 	}
 }
 
-// AppendRecap appends a recap to the durable recaps doc and retries on version
-// conflict. No cap: recaps are tiny and one per crew per week.
+// AppendRecap stores a weekly recap of a crew.
+//
+// Dual write (plans/DURABLE-LEDGER.md section 6a). The store that is the
+// truth is written first and its error is returned: the legacy document
+// before the cutover of phase 1b, the durable store after it. A failure of
+// the other store is logged. The store holds one recap for a week start.
 func AppendRecap(ctx context.Context, nk runtime.NakamaModule, crewID string, recap WeeklyRecapData) error {
+	return historyWriteBoth(ctx, nk, "recap", crewID, recapEntryID(recap.WeekStart),
+		func(store ledgerStore) error {
+			_, err := store.Put(ctx, crewID, []ledgerRow{recapRow(recap)})
+			return err
+		},
+		func() error { return appendRecapDoc(ctx, nk, crewID, recap) })
+}
+
+// appendRecapDoc appends a recap to the legacy recaps document and retries on
+// version conflict. No cap: recaps are tiny and one per crew per week.
+func appendRecapDoc(ctx context.Context, nk runtime.NakamaModule, crewID string, recap WeeklyRecapData) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		doc, version := readRecapsDoc(ctx, nk, crewID)
 		doc.Recaps = append(doc.Recaps, recap)
@@ -897,8 +912,7 @@ func generateDueRecaps(ctx context.Context, nk runtime.NakamaModule, logger runt
 			return
 		}
 		for _, g := range groups {
-			doc, _ := readRecapsDoc(ctx, nk, g.GetId())
-			if recapDue(doc, now) {
+			if recapDue(crewRecapState(ctx, nk, g.GetId()), now) {
 				generateWeeklyRecapAt(ctx, nk, logger, g.GetId(), mondayStartUTC(now))
 			}
 		}

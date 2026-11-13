@@ -51,7 +51,7 @@ type historyKind struct {
 
 // historyKinds are the documents the reconcile visits after the ledger
 // documents.
-var historyKinds = []*historyKind{streamSessionHistoryKind, clipHistoryKind}
+var historyKinds = []*historyKind{streamSessionHistoryKind, clipHistoryKind, recapHistoryKind}
 
 // historyPassStats are the totals of phase 1b of one pass.
 type historyPassStats struct {
@@ -534,4 +534,138 @@ func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID 
 		time.Sleep(time.Duration(50*(attempt+1)+int(jitter.Int64())) * time.Millisecond)
 	}
 	return "", fmt.Errorf("crew_clips write failed after 3 retries for crew %s", crewID)
+}
+
+// ---------------------------------------------------------------------------
+// Weekly recaps
+// ---------------------------------------------------------------------------
+//
+// A weekly recap is one row of type weekly_recap. Its id is recap_{week_start},
+// the id the feed gives the recap, so a crew holds one recap for a week start.
+// Its time is the week start: Crew history files a recap under the week it
+// is about, and the newest recap is the one of the newest week.
+//
+// A legacy ledger document can also hold weekly_recap events (the dev seed
+// writes them). The store keeps those as "ledger_weekly_recap" rows, for the
+// invite preview only.
+
+// recapRowScore is the score the merged timeline gives a recap.
+const recapRowScore = 30
+
+// recapRow is a weekly recap as a row.
+func recapRow(r WeeklyRecapData) ledgerRow {
+	return ledgerRow{Event: CrewEvent{
+		ID:        recapEntryID(r.WeekStart),
+		Type:      ledgerTypeWeeklyRecap,
+		Timestamp: r.WeekStart,
+		Score:     recapRowScore,
+		Data:      r,
+	}}
+}
+
+// recapFromRow is the weekly recap of a row.
+func recapFromRow(ev CrewEvent) (WeeklyRecapData, bool) {
+	raw, err := json.Marshal(ev.Data)
+	if err != nil {
+		return WeeklyRecapData{}, false
+	}
+	var r WeeklyRecapData
+	if err := json.Unmarshal(raw, &r); err != nil {
+		return WeeklyRecapData{}, false
+	}
+	return r, true
+}
+
+func recapsFromRows(rows []CrewEvent) []WeeklyRecapData {
+	out := make([]WeeklyRecapData, 0, len(rows))
+	for _, ev := range rows {
+		if r, ok := recapFromRow(ev); ok {
+			out = append(out, r)
+		}
+	}
+	return out
+}
+
+var recapHistoryKind = &historyKind{
+	name:       "recaps",
+	collection: CrewRecapsCollection,
+	plan: func(ctx context.Context, nk runtime.NakamaModule, crewID string) ([]ledgerRow, int, error) {
+		var doc CrewRecapsDoc
+		if _, _, err := readDocStrict(ctx, nk, CrewRecapsCollection, crewID, &doc); err != nil {
+			return nil, 0, err
+		}
+		rows := make([]ledgerRow, 0, len(doc.Recaps))
+		for _, r := range doc.Recaps {
+			rows = append(rows, recapRow(r))
+		}
+		return rows, 0, nil
+	},
+	same: func(doc, stored CrewEvent) bool {
+		r, ok := recapFromRow(stored)
+		return ok && stored.Type == ledgerTypeWeeklyRecap && historySameJSON(doc.Data, r)
+	},
+	merge: func(doc CrewEvent, _ json.RawMessage) (json.RawMessage, error) {
+		return json.Marshal(doc.Data)
+	},
+}
+
+// crewRecaps returns the weekly recaps of a crew, oldest week first: the rows
+// of the store after the cutover of phase 1b, the document crew_recaps before
+// it. A store read that fails falls back to the document.
+func crewRecaps(ctx context.Context, nk runtime.NakamaModule, crewID string) []WeeklyRecapData {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.Between(ctx, crewID, math.MinInt64, math.MaxInt64, []string{ledgerTypeWeeklyRecap})
+		if err == nil {
+			return recapsFromRows(rows)
+		}
+		ledgerLogError("ledger_store_read_failed kind=recaps crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readRecapsDoc(ctx, nk, crewID)
+	return doc.Recaps
+}
+
+// crewLatestRecap returns the recap of the newest week of a crew, nil when
+// the crew has none.
+func crewLatestRecap(ctx context.Context, nk runtime.NakamaModule, crewID string) *WeeklyRecapData {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeWeeklyRecap}, math.MaxInt64, 1)
+		if err == nil {
+			if recaps := recapsFromRows(rows); len(recaps) > 0 {
+				return &recaps[0]
+			}
+			return nil
+		}
+		ledgerLogError("ledger_store_read_failed kind=recaps crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readRecapsDoc(ctx, nk, crewID)
+	if len(doc.Recaps) == 0 {
+		return nil
+	}
+	latest := doc.Recaps[0]
+	for _, r := range doc.Recaps[1:] {
+		if r.WeekStart > latest.WeekStart {
+			latest = r
+		}
+	}
+	return &latest
+}
+
+// crewRecapState returns what the recap job reads to decide if a crew is due
+// (recapDue): the week of the last recap. Before the cutover of phase 1b it
+// is the recaps document. After it, it is made from the recap of the newest
+// week in the store.
+func crewRecapState(ctx context.Context, nk runtime.NakamaModule, crewID string) *CrewRecapsDoc {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeWeeklyRecap}, math.MaxInt64, 1)
+		if err == nil {
+			state := &CrewRecapsDoc{CrewID: crewID, Recaps: recapsFromRows(rows)}
+			if len(state.Recaps) > 0 {
+				state.LastRecapWeek = isoWeekKey(time.UnixMilli(state.Recaps[0].WeekEnd))
+			}
+			return state
+		}
+		ledgerLogError("ledger_store_read_failed kind=recaps crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readRecapsDoc(ctx, nk, crewID)
+	return doc
 }
