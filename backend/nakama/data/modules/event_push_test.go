@@ -13,24 +13,24 @@ func utc(d, h, m int) time.Time { return time.Date(2026, 10, d, h, m, 0, 0, time
 
 func TestBeltPushBodyCopy(t *testing.T) {
 	one := []pushEvent{{Name: "Jonas", Title: "The Carry"}}
-	if got := beltPushBody(one, 4); got != "Jonas took The Carry from you. You hold 4." {
+	if got := beltPushBody("", one, 4); got != "Jonas took The Carry from you. You hold 4." {
 		t.Fatalf("one: %q", got)
 	}
 	many := []pushEvent{{Name: "Max", Title: "Marathon"}, {Name: "Max", Title: "Clipper"}, {Name: "Jonas", Title: "The Carry"}}
-	if got := beltPushBody(many, 2); got != "Jonas took The Carry and 2 more. You hold 2." {
+	if got := beltPushBody("", many, 2); got != "Jonas took The Carry and 2 more. You hold 2." {
 		t.Fatalf("many: %q", got)
 	}
 	took := []pushEvent{{Name: "Sara", Title: "Night Owl", Took: true}}
-	if got := beltPushBody(took, 3); got != "You took Night Owl from Sara. You hold 3." {
+	if got := beltPushBody("", took, 3); got != "You took Night Owl from Sara. You hold 3." {
 		t.Fatalf("took: %q", got)
 	}
-	if got := beltPushBody(nil, 1); got != "" {
+	if got := beltPushBody("", nil, 1); got != "" {
 		t.Fatalf("empty: %q", got)
 	}
 }
 
 func TestBeltPushBodyFollowsTheCopyRules(t *testing.T) {
-	got := beltPushBody([]pushEvent{{Name: cleanPushName("Jo!nas — the great"), Title: "The Carry"}}, 1)
+	got := beltPushBody("", []pushEvent{{Name: cleanPushName("Jo!nas — the great"), Title: "The Carry"}}, 1)
 	if strings.ContainsAny(got, "!—–") {
 		t.Fatalf("%q", got)
 	}

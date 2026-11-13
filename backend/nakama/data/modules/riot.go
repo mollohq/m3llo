@@ -202,22 +202,23 @@ type RiotLinkRequest struct {
 func RiotLinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	if riotAPIKey() == "" {
-		return "", runtime.NewError("riot integration not configured", 9)
+		logger.Warn("riot_link: riot integration not configured")
+		return "", errRiotNotConfigured
 	}
 
 	var req RiotLinkRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
-		return "", runtime.NewError("invalid request", 3)
+		return "", rpcFail(logger, errBadRequest, "riot_link: invalid request: %v", err)
 	}
 	game, tag, ok := parseRiotID(req.RiotID)
 	if !ok {
-		return "", runtime.NewError("riot_id must look like GameName#TAG", 3)
+		return "", errRiotIDFormat // the riot_id must look like GameName#TAG
 	}
 	if !riotRegions[req.Region] {
-		return "", runtime.NewError("region must be americas, europe, asia, or sea", 3)
+		return "", errRiotRegionInvalid // americas, europe, asia or sea
 	}
 
 	// Resolve the Riot ID to a PUUID — this both validates the id exists and
@@ -227,16 +228,17 @@ func RiotLinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 	body, status, err := riotGet(req.Region, path)
 	if err != nil {
 		logger.Warn("riot account lookup failed for user %s: %v", userID, err)
-		return "", runtime.NewError("riot api unreachable, try again", 14)
+		return "", errRiotUnreachable
 	}
 	switch {
 	case status == 404:
-		return "", runtime.NewError("riot id not found", 5)
+		return "", errRiotIDNotFound
 	case status == 429:
-		return "", runtime.NewError("riot api rate limited, try again shortly", 8)
+		logger.Warn("riot account lookup rate limited for user %s", userID)
+		return "", errRiotRateLimited
 	case status != 200:
 		logger.Error("riot account lookup status %d for user %s", status, userID)
-		return "", runtime.NewError("riot api error", 13)
+		return "", errRiotAPIError
 	}
 
 	var account struct {
@@ -245,7 +247,7 @@ func RiotLinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 		TagLine  string `json:"tagLine"`
 	}
 	if err := json.Unmarshal(body, &account); err != nil || account.PUUID == "" {
-		return "", runtime.NewError("riot api error", 13)
+		return "", rpcFail(logger, errRiotAPIError, "riot account lookup for user %s: no puuid (%v)", userID, err)
 	}
 
 	link := &RiotAccountLink{
@@ -256,7 +258,7 @@ func RiotLinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 	}
 	if err := writeRiotLink(ctx, nk, userID, link); err != nil {
 		logger.Error("riot link write failed for user %s: %v", userID, err)
-		return "", runtime.NewError("failed to save link", 13)
+		return "", errInternal
 	}
 
 	logger.Info("User %s linked riot account %s (%s)", userID, link.RiotID, link.Region)
@@ -269,14 +271,14 @@ func RiotLinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 func RiotUnlinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	err := nk.StorageDelete(ctx, []*runtime.StorageDelete{
 		{Collection: RiotAccountCollection, Key: riotAccountKey, UserID: userID},
 	})
 	if err != nil {
 		logger.Error("riot unlink failed for user %s: %v", userID, err)
-		return "", runtime.NewError("failed to unlink", 13)
+		return "", errInternal
 	}
 	logger.Info("User %s unlinked riot account", userID)
 	resp, _ := json.Marshal(map[string]interface{}{"success": true})
@@ -286,7 +288,7 @@ func RiotUnlinkRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 func RiotStatusRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
-		return "", runtime.NewError("authentication required", 16)
+		return "", errNoSession
 	}
 	out := map[string]interface{}{
 		"available": riotAPIKey() != "",

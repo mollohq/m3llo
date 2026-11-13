@@ -3558,10 +3558,6 @@ msgstr ""
 msgid "Pick the region your account plays in."
 msgstr ""
 
-#: client/ui/tr.slint
-msgid "Couldn't link right now: {}"
-msgstr ""
-
 #. The invite link that opened the app does not work any more.
 #: client/ui/tr.slint
 msgid "This invite link is no longer valid."
@@ -4374,6 +4370,101 @@ msgstr ""
 #. The server did not answer a gift change.
 #: client/ui/tr.slint
 msgid "The server did not answer."
+msgstr ""
+
+#. old server that sends no code.
+#: client/ui/tr.slint
+msgid "Something went wrong. Try again."
+msgstr ""
+
+#. A crew banner upload is not a JPEG image.
+#: client/ui/tr.slint
+msgid "A banner is a JPEG."
+msgstr ""
+
+#. A crew banner image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Banner too large."
+msgstr ""
+
+#. Only the crew owner can change the crew banner.
+#: client/ui/tr.slint
+msgid "Only the owner sets the banner."
+msgstr ""
+
+#. Only the crew owner can change the custom invite link.
+#: client/ui/tr.slint
+msgid "Only the owner sets the invite link."
+msgstr ""
+
+#. The crew has not unlocked this gift with its quests yet.
+#: client/ui/tr.slint
+msgid "Gift not unlocked."
+msgstr ""
+
+#. The invite link name is reserved or has a wrong form.
+#: client/ui/tr.slint
+msgid "Name not allowed."
+msgstr ""
+
+#. with the name.
+#: client/ui/tr.slint
+msgid "Name taken."
+msgstr ""
+
+#. A crew emoji image is not a JPEG, PNG or GIF.
+#: client/ui/tr.slint
+msgid "Unsupported image type."
+msgstr ""
+
+#. A crew emoji image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Emoji too large."
+msgstr ""
+
+#. The user is not a member of the crew any more.
+#: client/ui/tr.slint
+msgid "Not a crew member."
+msgstr ""
+
+#. The crew has used all of its emoji slots.
+#: client/ui/tr.slint
+msgid "No free emoji slot."
+msgstr ""
+
+#. The rule for a crew emoji name. Keep the numbers 2 and 24.
+#: client/ui/tr.slint
+msgid "Name is 2 to 24 letters, digits or underscores."
+msgstr ""
+
+#. Only the member who added an emoji, or the crew owner, can remove it.
+#: client/ui/tr.slint
+msgid "Only the adder or the owner removes an emoji."
+msgstr ""
+
+#. The crew has no emoji with this name.
+#: client/ui/tr.slint
+msgid "No such emoji."
+msgstr ""
+
+#. The server has no Riot API key, so a Riot account cannot be linked.
+#: client/ui/tr.slint
+msgid "Riot linking is not available right now."
+msgstr ""
+
+#. The server could not reach the Riot API.
+#: client/ui/tr.slint
+msgid "Could not reach Riot. Try again."
+msgstr ""
+
+#. The Riot API refused too many requests.
+#: client/ui/tr.slint
+msgid "Riot is busy. Try again in a minute."
+msgstr ""
+
+#. The Riot API sent an error.
+#: client/ui/tr.slint
+msgid "Riot sent an error. Try again."
 msgstr ""
 
 #: client/ui/tr.slint

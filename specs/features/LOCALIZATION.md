@@ -104,9 +104,32 @@ client writes the message from `Tr`:
 | `ProtocolMismatch { required, actual }` | `handlers::mod` |
 | `CaptureSource { primary, monitor_index }` (a monitor) | `handlers::streaming` ("Display 2") |
 
-A value that holds server text (`AuthFailure::Server`, `GiftFailure::Server`)
-or the error text of a native step (`StreamFailure::Detail`) shows that text
-as it is.
+A value that holds server text (`AuthFailure::Server`) or the error text of a
+native step (`StreamFailure::Detail`) shows that text as it is.
+
+### Server error codes
+
+The rule: an RPC error message that the user sees is an upper-case token
+(`NAME_TAKEN`). The client maps the token to a `Tr` message. The server log
+gets the detail.
+
+- The tokens are named `runtime.Error` values in
+  `backend/nakama/data/modules/rpc_error_codes.go`. The list lives there, not
+  in this spec. `errSFUUnavailable` (`SFU_UNAVAILABLE`) follows the same rule.
+- A token keeps the gRPC code that the RPC used before. A token never changes
+  after a release.
+- An error that a correct client never causes (a bad payload, no session, a
+  storage failure) is `BAD_REQUEST` or `INTERNAL`.
+- `Error::server_token()` in `mello-core` gives the token: a `message` of
+  upper-case letters, digits and underscores. Any other message is not a
+  token.
+- `GiftFailure::Code(token)` carries the token of a crew gift RPC.
+  `Event::RiotLinkFailed` has `code`. The client maps them in
+  `callbacks::gift_failure_text` and `handlers::games::friendly_link_error`.
+  The `Tr` members are in the section "Server error codes" of `tr.slint`.
+- An unknown token, or the English message of an old server
+  (`GiftFailure::Server`), shows `Tr.server-error-generic`. The log gets the
+  token or the text. The client never shows server text or JSON.
 
 ### Server text with a kind and values
 
@@ -272,6 +295,57 @@ MELLO_LANG=qps cargo run -p mello-client
 A string that stays in plain English under `qps` is not in `@tr()`, or the
 `.pot` is stale.
 
+### The pseudo render
+
+`slint-viewer` has no option to select a translation. The tool
+`tools/l10n-pseudo-ui` writes a copy of `client/ui` and `hud/ui` in which
+each `@tr()` text is in the pseudo language (`pseudo` of
+`client/build_l10n.rs`): the plain form, the text of the context form (the
+context stays) and the two forms of a plural. All other bytes stay the same,
+so the relative imports and the preview fixtures work in the copy.
+
+`scripts/l10n-pseudo-shots.sh <out-dir>` runs the tool and renders each
+exported preview (a component whose name starts or ends with `Preview`)
+with `slint-viewer --screenshot`, two times: `<file>.<Component>.en.png`
+from the real tree and `<file>.<Component>.qps.png` from the copy.
+`rejected.txt` lists the files that `slint-viewer --check` rejects alone
+(`feed_board.slint`); these are not rendered.
+
+```bash
+./scripts/l10n-pseudo-shots.sh /tmp/l10n-shots
+```
+
+Look at each `.qps.png` for text that clips, runs out of its box, covers a
+neighbour or pushes a control out of its row. Text that Rust gives at run
+time (`Tr`) comes from the preview fixtures, which are English.
+
+Compare two `.en.png` sets with `cmp` to see that a layout change keeps the
+English UI the same.
+
+The layout rules for a longer translation:
+
+- A label wraps to two lines before it elides. A number does not wrap.
+- A button grows with its text. A button with a fixed width keeps that
+  width as its minimum: `width: max(120px, label.preferred-width + pad)`.
+- A pill or a badge grows with its word.
+- A label column that more rows share (the About rows, the recap people)
+  takes the width of its longest label, so the values stay in line.
+- A font size does not change to make a word fit.
+
+### Label tracking for CJK
+
+The label register has wide letter spacing (`Theme.track-label`,
+`Theme.track-kicker`). Chinese, Japanese and Korean have no case, and wide
+spacing breaks the rhythm of the glyphs. `Theme.cjk` makes both values 0.
+Rust sets it one time at startup, after the main window exists, from the UI
+language (`locale::apply_theme`, `locale::is_cjk`). The UI language, not
+the font language: an English UI on a Japanese OS keeps its tracking. A
+change of the language setting applies at the next start.
+
+A literal `letter-spacing` that is a different size of the label tracking
+(`2px` on a 12px label) stays as it is. Only the values of the tokens
+change for CJK.
+
 ## 9. Language selection
 
 `client/src/locale.rs` chooses the language in this order:
@@ -359,6 +433,33 @@ it, so the server knows the language of the user.
 - The pseudo language goes to the account as `qps`. It is in the private
   use range of BCP 47, and only a debug build has it.
 
+## 9b. Device push text
+
+The server writes the title and the body of a device push. The phone shows
+them as they are. The push uses the account language (`lang_tag`) of the
+recipient.
+
+- `backend/nakama/data/modules/push_text.go` holds a table of the push
+  messages per language. Each message has a stable key (`recap_took`,
+  `join_one_say_hi`, `mentions_new`). The belt labels use the `title_id` keys
+  of the client (`the_carry`).
+- The English table is complete. The other tables (`zh-CN`, `es`, `pt-BR`,
+  `de`, `ja`, `fr`, `sv`) are empty until a translator fills them.
+- The lookup order for a message: the exact tag, then the primary subtag
+  (`pt-BR`, then `pt`), then English. The empty tag is English. The match
+  ignores case, and `_` is the same as `-`.
+- A message is a Go `fmt` pattern. A translation that changes the order of
+  the values uses indexes: `%[2]s ... %[1]s`.
+- A table that has entries must have all the keys of the English table, and
+  each message must fit the limits (title 64 runes, body 178 runes) with long
+  values. `push_text_test.go` checks this.
+- Each queue site reads the `lang_tag` of the recipients in one batched
+  `UsersGetId`. The body is built in the recipient's language when the push
+  is queued.
+- A mention body is user text. Only the title fallback ("Mello") and the
+  coalesced lines ("3 new mentions") use the table.
+- The stored recap text (`crew_recaps.go`) stays English.
+
 ## 10. Add a language
 
 1. Make the catalog from the template. Copy
@@ -382,6 +483,7 @@ translations of the messages that did not change.
 |---|---|---|
 | `slint-tr-extractor` 1.18.1 | Writes the `.pot` from `@tr()` | The Slint licence, the same as the `slint` crate |
 | `client/build_l10n.rs` | Reads the `.pot`, writes `qps` | This repository |
+| `tools/l10n-pseudo-ui`, `scripts/l10n-pseudo-shots.sh` | Renders the previews in English and in `qps` | This repository |
 | The Slint compiler | Reads the catalogs at build time | The Slint licence |
 
 Install the extractor:

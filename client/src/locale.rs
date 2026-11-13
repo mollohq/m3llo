@@ -193,8 +193,7 @@ pub(crate) fn apply(setting: &str) {
 /// language orders the fonts then: a Japanese OS with an English or Swedish
 /// UI keeps the Japanese glyph shapes. Pure, for the tests.
 pub(crate) fn font_language(ui_language: &str, os: Option<&str>) -> String {
-    let lang = normalize(ui_language);
-    if matches!(base(&lang), "ja" | "zh" | "ko") {
+    if is_cjk(ui_language) {
         return ui_language.to_string();
     }
     os.filter(|tag| !tag.trim().is_empty())
@@ -205,6 +204,28 @@ pub(crate) fn font_language(ui_language: &str, os: Option<&str>) -> String {
 /// [`font_language`] for the choice of this run and the OS language.
 pub(crate) fn startup_font_language(choice: &Choice) -> String {
     font_language(&choice.language, sys_locale::get_locale().as_deref())
+}
+
+/// Whether a language tag is Chinese, Japanese or Korean (`zh-*`, `ja`,
+/// `ko`), the languages that the CJK font fallback (`cjk_fonts`) is for.
+pub(crate) fn is_cjk(tag: &str) -> bool {
+    matches!(base(&normalize(tag)), "ja" | "zh" | "ko")
+}
+
+/// Set `Theme.cjk` for a UI language: true for a CJK language, so the label
+/// tracking (`Theme.track-label`, `Theme.track-kicker`) is 0.
+///
+/// The input is the UI language, not [`font_language`]: the tracking is for
+/// the text of the UI. An English UI on a Japanese OS keeps its tracking.
+/// Call it one time after the main window exists. A change of the language
+/// setting applies at the next start, so the value does not change later.
+pub(crate) fn apply_theme(app: &crate::MainWindow, ui_language: &str) {
+    use slint::ComponentHandle;
+    let cjk = is_cjk(ui_language);
+    app.global::<crate::Theme>().set_cjk(cjk);
+    if cjk {
+        log::info!("[locale] {ui_language}: label tracking off (CJK)");
+    }
 }
 
 /// The name of a language in its own script, for the Language dropdown of
@@ -372,6 +393,37 @@ mod tests {
         assert_eq!(font_language("sv", Some("")), "sv");
         assert_eq!(font_language("pt-BR", Some("ja-JP")), "ja-JP");
         assert_eq!(font_language("zh-CN", Some("zh-TW")), "zh-CN");
+    }
+
+    #[test]
+    fn the_cjk_rule_is_true_for_chinese_japanese_and_korean_only() {
+        for tag in ["zh-CN", "zh_TW", "zh-Hant-HK", "ja", "ja-JP", "ko", "ko-KR"] {
+            assert!(is_cjk(tag), "{tag}");
+        }
+        for tag in ["en", "en-US", "de", "sv", "pt-BR", "qps", "qps-ploc", ""] {
+            assert!(!is_cjk(tag), "{tag}");
+        }
+    }
+
+    /// The label tracking: the design system values for every language
+    /// that is not CJK, the pseudo language too, and 0 for CJK.
+    #[test]
+    fn the_label_tracking_is_0_for_cjk_only() {
+        use slint::ComponentHandle;
+        let h = crate::testkit::Harness::new();
+        let theme = h.app().global::<crate::Theme>();
+        for tag in ["en", "de", "qps"] {
+            apply_theme(h.app(), tag);
+            assert!(!theme.get_cjk(), "{tag}");
+            assert_eq!(theme.get_track_label(), 1.5, "{tag}");
+            assert_eq!(theme.get_track_kicker(), 1.9, "{tag}");
+        }
+        for tag in ["zh-CN", "ja", "ko"] {
+            apply_theme(h.app(), tag);
+            assert!(theme.get_cjk(), "{tag}");
+            assert_eq!(theme.get_track_label(), 0.0, "{tag}");
+            assert_eq!(theme.get_track_kicker(), 0.0, "{tag}");
+        }
     }
 
     #[test]

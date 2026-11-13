@@ -15,7 +15,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -45,7 +44,8 @@ type userPushState struct {
 type pushLimiter struct {
 	mu     sync.Mutex
 	window time.Duration
-	// noun names what is held, in the plural: "3 new mentions".
+	// noun names what is held and picks the text keys of the coalesced
+	// push: "mentions" or "messages" (push_text.go).
 	noun  string
 	now   func() time.Time
 	after func(time.Duration, func())
@@ -133,7 +133,9 @@ func (l *pushLimiter) sweepLocked(now time.Time) {
 }
 
 // coalesceHeld builds the one push that replaces the held mentions. The tap
-// target is the crew with the newest mention.
+// target is the crew with the newest mention. The text is in the account
+// language of the recipient (pushAlert.Lang). noun picks the text keys:
+// "mentions" gives mentions_new and mentions_new_in (push_text.go).
 func coalesceHeld(held map[string]*heldMention, noun string) (pushAlert, bool) {
 	if len(held) == 0 {
 		return pushAlert{}, false
@@ -153,7 +155,7 @@ func coalesceHeld(held map[string]*heldMention, noun string) (pushAlert, bool) {
 	out := newest.alert
 	if len(held) == 1 {
 		// Title stays the crew name.
-		out.Body = fmt.Sprintf("%d new %s", total, noun)
+		out.Body = truncateRunes(pushText(out.Lang, noun+"_new", total), pushBodyMaxRunes)
 		return out, true
 	}
 	// Crew names in arrival order of their newest mention, newest first.
@@ -166,8 +168,9 @@ func coalesceHeld(held map[string]*heldMention, noun string) (pushAlert, bool) {
 	for _, h := range crews {
 		names = append(names, h.alert.Title)
 	}
-	out.Title = "Mello"
-	out.Body = truncateRunes(fmt.Sprintf("%d new %s in %s", total, noun, strings.Join(names, ", ")), pushBodyMaxRunes)
+	out.Title = truncateRunes(pushText(out.Lang, "push_title_fallback"), pushTitleMaxRunes)
+	out.Body = truncateRunes(pushText(out.Lang, noun+"_new_in", total,
+		strings.Join(names, pushText(out.Lang, "mention_crews_sep"))), pushBodyMaxRunes)
 	return out, true
 }
 

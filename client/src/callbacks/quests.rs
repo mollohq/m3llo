@@ -316,19 +316,50 @@ fn save_banner(ctx: &AppContext, pending: &PendingJpeg) {
     let _ = ctx.cmd_tx.send(cmd);
 }
 
-/// The text of a failed gift action. Server text is data and stays as it
-/// is.
+/// The text of a failed gift action. `gift` is the gift of the action
+/// (`banner`, `link`, `emoji`). A server code maps to a message from `Tr`.
+/// An unknown code and the English of an old server show the generic
+/// message, never the server text.
 pub(crate) fn gift_failure_text(
     tr: &crate::Tr<'_>,
+    gift: &str,
     failure: &mello_core::events::GiftFailure,
 ) -> String {
     use mello_core::events::GiftFailure;
     match failure {
-        GiftFailure::Server(text) => text.clone(),
+        GiftFailure::Code(code) => gift_error_text(tr, gift, code).into(),
+        GiftFailure::Server(text) => {
+            log::warn!("[gifts] {gift}: the server sent no code: {text}");
+            tr.get_server_error_generic().into()
+        }
         GiftFailure::NoAnswer => tr.get_gift_no_answer().into(),
         GiftFailure::UploadOff => tr.get_image_upload_off().into(),
         GiftFailure::UploadRefused => tr.get_image_upload_refused().into(),
         GiftFailure::UploadIncomplete => tr.get_image_upload_incomplete().into(),
+    }
+}
+
+/// The message of a gift error code (`crew_gifts.go`).
+fn gift_error_text(tr: &crate::Tr<'_>, gift: &str, code: &str) -> slint::SharedString {
+    match code {
+        "BANNER_NOT_JPEG" => tr.get_gift_error_banner_not_jpeg(),
+        "BANNER_TOO_LARGE" => tr.get_gift_error_banner_too_large(),
+        "OWNER_ONLY" if gift == "banner" => tr.get_gift_error_owner_only_banner(),
+        "OWNER_ONLY" if gift == "link" => tr.get_gift_error_owner_only_link(),
+        "GIFT_LOCKED" => tr.get_gift_error_locked(),
+        "NAME_NOT_ALLOWED" => tr.get_gift_error_name_not_allowed(),
+        "NAME_TAKEN" => tr.get_gift_error_name_taken(),
+        "IMAGE_TYPE_UNSUPPORTED" => tr.get_gift_error_image_type(),
+        "EMOJI_TOO_LARGE" => tr.get_gift_error_emoji_too_large(),
+        "NOT_A_MEMBER" => tr.get_gift_error_not_a_member(),
+        "NO_FREE_EMOJI_SLOT" => tr.get_gift_error_no_free_emoji_slot(),
+        "EMOJI_NAME_INVALID" => tr.get_gift_error_emoji_name_invalid(),
+        "EMOJI_REMOVE_FORBIDDEN" => tr.get_gift_error_emoji_remove_forbidden(),
+        "EMOJI_NOT_FOUND" => tr.get_gift_error_emoji_not_found(),
+        _ => {
+            log::warn!("[gifts] {gift}: no message for server code {code}");
+            tr.get_server_error_generic()
+        }
     }
 }
 

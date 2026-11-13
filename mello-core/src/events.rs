@@ -130,7 +130,11 @@ pub enum StreamFailure {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum GiftFailure {
-    /// The message of the server, as one sentence. Data.
+    /// The stable error code of the server, an upper-case token such as
+    /// `NAME_TAKEN`. The client maps it to a message.
+    Code(String),
+    /// The English message of an old server that sends no code, as one
+    /// sentence. The client does not show it.
     Server(String),
     /// The server did not answer.
     NoAnswer,
@@ -1081,7 +1085,12 @@ pub enum Event {
     },
     /// A riot_link attempt failed (bad id, rate limit, server down).
     RiotLinkFailed {
+        /// The error text, for the log.
         reason: String,
+        /// The stable error code of the server (`RIOT_ID_NOT_FOUND`), empty
+        /// when the server sent none.
+        #[serde(default)]
+        code: String,
     },
 
     /// Client-server protocol version mismatch.

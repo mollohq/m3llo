@@ -27,12 +27,12 @@ func TestMessagePushBody(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if got := messagePushBody(c.sender, c.msgType, c.text); got != c.want {
+			if got := messagePushBody("", c.sender, c.msgType, c.text); got != c.want {
 				t.Fatalf("body = %q, want %q", got, c.want)
 			}
 		})
 	}
-	long := messagePushBody("Leo", "text", strings.Repeat("a", 500))
+	long := messagePushBody("", "Leo", "text", strings.Repeat("a", 500))
 	if n := len([]rune(long)); n > pushBodyMaxRunes {
 		t.Fatalf("a long body must fit the lock screen, runes=%d", n)
 	}
@@ -56,6 +56,31 @@ func TestMessagePushEnvelopeTakesOnlyMemberMessages(t *testing.T) {
 				t.Fatalf("ok = %v, want %v", ok, c.want)
 			}
 		})
+	}
+}
+
+// The text that m3llo writes is in the account language of the recipient.
+// The text of the sender is not changed.
+func TestMessagePushTextUsesTheLanguageOfTheRecipient(t *testing.T) {
+	withPushTable(t, "sv", map[string]string{
+		"message_sent_gif": "%s skickade en GIF",
+		"messages_new":     "%d nya meddelanden",
+	})
+	if got := messagePushBody("sv", "Leo", "gif", ""); got != "Leo skickade en GIF" {
+		t.Fatalf("got %q", got)
+	}
+	if got := messagePushBody("sv", "Leo", "image", ""); got != "Leo sent an image" {
+		t.Fatalf("a missing message is English: %q", got)
+	}
+	if got := messagePushBody("sv", "Leo", "text", "hej"); got != "Leo: hej" {
+		t.Fatalf("got %q", got)
+	}
+	held := map[string]*heldMention{
+		"c1": {alert: pushAlert{CrewID: "c1", Title: "Retro", Lang: "sv"}, count: 3, seq: 1},
+	}
+	got, ok := coalesceHeld(held, "messages")
+	if !ok || got.Body != "3 nya meddelanden" || got.Title != "Retro" {
+		t.Fatalf("got %+v", got)
 	}
 }
 

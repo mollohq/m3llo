@@ -67,19 +67,20 @@ func messagePushRecipients(members map[string]bool, senderID string, mentioned [
 	return out
 }
 
-// messagePushBody is the lock screen line of a message. text is the body with
-// the mention tokens resolved.
-func messagePushBody(senderName, msgType, text string) string {
+// messagePushBody is the lock screen line of a message, in the account
+// language lang of the recipient. text is the body with the mention tokens
+// resolved. A message with text shows the text, which has no language.
+func messagePushBody(lang, senderName, msgType, text string) string {
 	if strings.TrimSpace(text) == "" {
 		who := senderName
 		if who == "" {
-			who = "Someone"
+			who = pushText(lang, "message_sender_fallback")
 		}
 		switch msgType {
 		case "gif":
-			return truncateRunes(who+" sent a GIF", pushBodyMaxRunes)
+			return truncateRunes(pushText(lang, "message_sent_gif", who), pushBodyMaxRunes)
 		case "image":
-			return truncateRunes(who+" sent an image", pushBodyMaxRunes)
+			return truncateRunes(pushText(lang, "message_sent_image", who), pushBodyMaxRunes)
 		}
 	}
 	return pushBody(senderName, text)
@@ -166,19 +167,31 @@ func deliverMessagePushes(ctx context.Context, logger runtime.Logger, nk runtime
 		logger.Warn("push: channel id for crew %s: %v", crewID, err)
 		return
 	}
-	n := pushAlert{
-		Type:      pushTypeMessage,
-		CrewID:    crewID,
-		ChannelID: channelID,
-		MessageID: messageCollapseID(crewID),
-		Title:     truncateRunes(pushCrewName(ctx, nk, crewID), pushTitleMaxRunes),
-		Body:      messagePushBody(senderName, env.Type, resolveMentionTokens(ctx, nk, env.Body)),
+	crewName := ""
+	if groups, err := nk.GroupsGetId(ctx, []string{crewID}); err == nil && len(groups) > 0 {
+		crewName = groups[0].GetName()
+	}
+	// One batched read gives the account language of each target. The title
+	// fallback, the body of a GIF or an image and the burst text use it.
+	_, langs := pushUsers(ctx, nk, append(append([]string{}, now...), later...))
+	text := resolveMentionTokens(ctx, nk, env.Body)
+	alertFor := func(uid string) pushAlert {
+		lang := langs[uid]
+		return pushAlert{
+			Type:      pushTypeMessage,
+			CrewID:    crewID,
+			ChannelID: channelID,
+			MessageID: messageCollapseID(crewID),
+			Title:     mentionPushTitle(lang, crewName),
+			Body:      messagePushBody(lang, senderName, env.Type, text),
+			Lang:      lang,
+		}
 	}
 	for _, uid := range now {
-		submitPush(uid, n)
+		submitPush(uid, alertFor(uid))
 	}
 	for _, uid := range later {
-		schedulePushAfterGrace(logger, nk, uid, n)
+		schedulePushAfterGrace(logger, nk, uid, alertFor(uid))
 	}
 }
 

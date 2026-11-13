@@ -255,6 +255,10 @@ type pushAlert struct {
 	MessageID string `json:"message_id"`
 	Title     string `json:"title"`
 	Body      string `json:"body"`
+
+	// Lang is the account language of the recipient. It is not sent: the
+	// limiter uses it for the coalesced text (coalesceHeld).
+	Lang string `json:"-"`
 }
 
 type pushDevice struct {
@@ -410,6 +414,14 @@ func mentionPushTargets(mentions []string, senderID string) []string {
 	return out
 }
 
+// mentionPushTitle is the crew name, else "Mello" in the language lang.
+func mentionPushTitle(lang, crewName string) string {
+	if crewName == "" {
+		crewName = pushText(lang, "push_title_fallback")
+	}
+	return truncateRunes(crewName, pushTitleMaxRunes)
+}
+
 // pushBody is "<sender>: <text>", bounded for the lock screen.
 func pushBody(senderName, text string) string {
 	if senderName == "" {
@@ -464,28 +476,36 @@ func deliverMentionPushes(ctx context.Context, logger runtime.Logger, nk runtime
 		return
 	}
 
-	title := "Mello"
-	if groups, err := nk.GroupsGetId(ctx, []string{crewID}); err == nil && len(groups) > 0 && groups[0].GetName() != "" {
-		title = groups[0].GetName()
+	crewName := ""
+	if groups, err := nk.GroupsGetId(ctx, []string{crewID}); err == nil && len(groups) > 0 {
+		crewName = groups[0].GetName()
 	}
 	channelID, err := nk.ChannelIdBuild(ctx, "", crewID, runtime.Group)
 	if err != nil {
 		logger.Warn("push: channel id for crew %s: %v", crewID, err)
 		return
 	}
-	n := pushAlert{
+	// One batched read gives the account language of each target. The body is
+	// user text: only the title fallback and the coalesced text use the language.
+	_, langs := pushUsers(ctx, nk, append(append([]string{}, now...), later...))
+	base := pushAlert{
 		Type:      "mention",
 		CrewID:    crewID,
 		ChannelID: channelID,
 		MessageID: messageID,
-		Title:     truncateRunes(title, pushTitleMaxRunes),
 		Body:      pushBody(senderName, resolveMentionTokens(ctx, nk, body)),
 	}
+	alertFor := func(uid string) pushAlert {
+		n := base
+		n.Lang = langs[uid]
+		n.Title = mentionPushTitle(n.Lang, crewName)
+		return n
+	}
 	for _, uid := range now {
-		mentionPushes.submit(uid, n) // rate limit + coalescing (spec §6.3)
+		mentionPushes.submit(uid, alertFor(uid)) // rate limit + coalescing (spec §6.3)
 	}
 	for _, uid := range later {
-		schedulePushAfterGrace(logger, nk, uid, n)
+		schedulePushAfterGrace(logger, nk, uid, alertFor(uid))
 	}
 }
 

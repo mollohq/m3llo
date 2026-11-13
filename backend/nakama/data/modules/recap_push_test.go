@@ -35,13 +35,13 @@ func pushRecap() WeeklyRecapData {
 }
 
 func TestRecapPushBodyForTheMemberWhoLostABelt(t *testing.T) {
-	if got := recapPushBody(pushRecap(), "bob"); got != "Jonas took The Carry. You hold 4." {
+	if got := recapPushBody("", pushRecap(), "bob"); got != "Jonas took The Carry. You hold 4." {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestRecapPushBodyForTheMemberWhoTookABelt(t *testing.T) {
-	if got := recapPushBody(pushRecap(), "max"); got != "You took Marathon from Sara. You hold 5." {
+	if got := recapPushBody("", pushRecap(), "max"); got != "You took Marathon from Sara. You hold 5." {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -50,18 +50,18 @@ func TestRecapPushBodyLostComesBeforeTook(t *testing.T) {
 	r := pushRecap()
 	// Bob also takes a belt from Max, newer than the one he lost.
 	r.BeltsMoved = append(r.BeltsMoved, RecapBeltMoved{TitleID: titleClipper, HolderUserID: "bob", HolderName: "Bob", PreviousUserID: "max", PreviousName: "Max", MovedAtMs: 30})
-	if got := recapPushBody(r, "bob"); got != "Jonas took The Carry. You hold 4." {
+	if got := recapPushBody("", r, "bob"); got != "Jonas took The Carry. You hold 4." {
 		t.Fatalf("got %q", got)
 	}
 }
 
 func TestRecapPushBodyForAMemberWhoNothingMovedFor(t *testing.T) {
-	if got := recapPushBody(pushRecap(), "ann"); got != "Week 43 recap. Max leads with 5." {
+	if got := recapPushBody("", pushRecap(), "ann"); got != "Week 43 recap. Max leads with 5." {
 		t.Fatalf("got %q", got)
 	}
 	r := pushRecap()
 	r.BeltsMoved = nil
-	if got := recapPushBody(r, "bob"); got != "Week 43 recap. Max leads with 5." {
+	if got := recapPushBody("", r, "bob"); got != "Week 43 recap. Max leads with 5." {
 		t.Fatalf("got %q", got)
 	}
 }
@@ -69,10 +69,10 @@ func TestRecapPushBodyForAMemberWhoNothingMovedFor(t *testing.T) {
 func TestRecapPushBodyIsEmptyWithoutBelts(t *testing.T) {
 	r := pushRecap()
 	r.BeltsMoved, r.BeltsHeld = nil, nil
-	if got := recapPushBody(r, "bob"); got != "" {
+	if got := recapPushBody("", r, "bob"); got != "" {
 		t.Fatalf("got %q", got)
 	}
-	if items := buildRecapPushItems(r, []string{"bob", "max"}, nil); len(items) != 0 {
+	if items := buildRecapPushItems(r, []string{"bob", "max"}, nil, nil); len(items) != 0 {
 		t.Fatalf("no belts, no push: %+v", items)
 	}
 }
@@ -80,12 +80,12 @@ func TestRecapPushBodyIsEmptyWithoutBelts(t *testing.T) {
 func TestRecapPushBodyFollowsTheCopyRules(t *testing.T) {
 	r := pushRecap()
 	r.BeltsMoved[0].HolderName = "Jo!nas — the great"
-	got := recapPushBody(r, "bob")
+	got := recapPushBody("", r, "bob")
 	if strings.ContainsAny(got, "!—–") {
 		t.Fatalf("forbidden mark in %q", got)
 	}
 	for _, uid := range []string{"bob", "max", "ann"} {
-		b := recapPushBody(pushRecap(), uid)
+		b := recapPushBody("", pushRecap(), uid)
 		if strings.Contains(b, "!") || strings.Contains(b, "—") {
 			t.Fatalf("%s: %q", uid, b)
 		}
@@ -118,7 +118,7 @@ func TestBuildRecapPushItemsUseEachMembersOffset(t *testing.T) {
 	r := pushRecap()
 	r.WeekEnd = time.Date(2026, 10, 26, 0, 0, 0, 0, time.UTC).UnixMilli()
 	plus2 := 120
-	items := buildRecapPushItems(r, []string{"bob", "max"}, map[string]*int{"bob": &plus2})
+	items := buildRecapPushItems(r, []string{"bob", "max"}, map[string]*int{"bob": &plus2}, nil)
 	if len(items) != 2 {
 		t.Fatalf("items: %+v", items)
 	}

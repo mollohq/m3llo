@@ -525,7 +525,7 @@ fn game_art_opens_the_picker_with_the_crews_games_and_save_sets_it() {
     h.emit(Event::CrewGiftFailed {
         crew_id: "crew-0".into(),
         gift: "banner".into(),
-        reason: mello_core::events::GiftFailure::Server("Only the owner sets the banner.".into()),
+        reason: mello_core::events::GiftFailure::Code("OWNER_ONLY".into()),
     });
     assert!(
         picker(&h).get_open() && !picker(&h).get_busy(),
@@ -702,6 +702,85 @@ fn set_the_link_checks_the_suggested_name_and_saves_a_free_one() {
         gift: "link".into(),
     });
     assert!(!names(&h).get_open(), "a saved name closes the screen");
+}
+
+/// Save a free name in the link screen; the screen waits for the answer.
+fn save_free_link_name(h: &mut Harness) {
+    h.emit(Event::InviteNameChecked {
+        crew_id: "crew-0".into(),
+        name: "crew0".into(),
+        state: "free".into(),
+    });
+    h.click_label("Save");
+    assert!(names(h).get_busy(), "the screen waits for the server");
+}
+
+fn link_failed(h: &mut Harness, reason: mello_core::events::GiftFailure) -> String {
+    h.emit(Event::CrewGiftFailed {
+        crew_id: "crew-0".into(),
+        gift: "link".into(),
+        reason,
+    });
+    names(h).get_error().to_string()
+}
+
+/// A server error is a code. The client writes the message in the UI
+/// language: "Name taken." in English, the pseudo text under qps.
+#[test]
+fn a_taken_name_reads_from_the_server_code_in_the_ui_language() {
+    use crate::build_l10n::{pseudo, PSEUDO};
+    use mello_core::events::GiftFailure;
+    let mut h = Harness::new();
+    on_crew(&mut h);
+    open_link_face(&mut h);
+    save_free_link_name(&mut h);
+    let english = link_failed(&mut h, GiftFailure::Code("NAME_TAKEN".into()));
+    assert_eq!(english, "Name taken.");
+
+    // Save finds its control by the English label: save first.
+    save_free_link_name(&mut h);
+    crate::locale::select(PSEUDO).expect("select qps");
+    let text = link_failed(&mut h, GiftFailure::Code("NAME_TAKEN".into()));
+    crate::locale::select_source_language();
+    assert_eq!(text, pseudo("Name taken."));
+    assert_ne!(text, english);
+}
+
+/// OWNER_ONLY names the gift of the action.
+#[test]
+fn owner_only_on_the_link_names_the_invite_link() {
+    let mut h = Harness::new();
+    on_crew(&mut h);
+    open_link_face(&mut h);
+    save_free_link_name(&mut h);
+    assert_eq!(
+        link_failed(
+            &mut h,
+            mello_core::events::GiftFailure::Code("OWNER_ONLY".into())
+        ),
+        "Only the owner sets the invite link."
+    );
+}
+
+/// An unknown code, and the English of an old server, show the generic
+/// message: never the server text.
+#[test]
+fn an_unknown_code_shows_the_generic_message() {
+    use mello_core::events::GiftFailure;
+    let mut h = Harness::new();
+    on_crew(&mut h);
+    open_link_face(&mut h);
+    save_free_link_name(&mut h);
+    assert_eq!(
+        link_failed(&mut h, GiftFailure::Code("SOMETHING_NEW".into())),
+        "Something went wrong. Try again."
+    );
+    save_free_link_name(&mut h);
+    assert_eq!(
+        link_failed(&mut h, GiftFailure::Server("Name taken.".into())),
+        "Something went wrong. Try again.",
+        "an old server sends English, which the client does not show"
+    );
 }
 
 #[test]

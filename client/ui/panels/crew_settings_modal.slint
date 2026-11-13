@@ -185,7 +185,8 @@ component OverviewTab inherits VerticalLayout {
                 }
 
                 Rectangle {
-                    width: 80px;
+                    // 80px, or wider for a longer translation.
+                    width: max(80px, avatar-change-label.preferred-width + 2 * Theme.spacing-sm);
                     height: 28px;
                     background: transparent;
 
@@ -203,7 +204,7 @@ component OverviewTab inherits VerticalLayout {
                         clicked => { avatar-upload-clicked(); }
                     }
 
-                    Text {
+                    avatar-change-label := Text {
                         font-weight: Theme.weight-label;
                         text: @tr("Change");
                         font-family: Theme.font-label;
@@ -334,13 +335,14 @@ component OverviewTab inherits VerticalLayout {
                 y: (parent.height - self.preferred-height) / 2;
 
                 Rectangle {
-                    width: 80px;
+                    // 80px, or wider for a longer translation.
+                    width: max(80px, inv-everyone-label.preferred-width + 2 * Theme.spacing-sm);
                     height: 30px;
                     background: invite-policy == "everyone" ? Theme.action-dim : (inv-everyone-ta.has-hover ? Theme.surface-hover : transparent);
                     border-width: invite-policy == "everyone" ? 1px : 0px;
                     border-color: Theme.action-line;
 
-                    Text {
+                    inv-everyone-label := Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
                         text: @tr("Everyone");
@@ -360,13 +362,14 @@ component OverviewTab inherits VerticalLayout {
                 }
 
                 Rectangle {
-                    width: 70px;
+                    // 70px, or wider for a longer translation.
+                    width: max(70px, inv-admins-label.preferred-width + 2 * Theme.spacing-sm);
                     height: 30px;
                     background: invite-policy == "admins" ? Theme.action-dim : (inv-admins-ta.has-hover ? Theme.surface-hover : transparent);
                     border-width: invite-policy == "admins" ? 1px : 0px;
                     border-color: Theme.action-line;
 
-                    Text {
+                    inv-admins-label := Text {
                         letter-spacing: Theme.track-label;
                         font-weight: Theme.weight-label;
                         text: @tr("Admins");
@@ -1323,9 +1326,10 @@ export component CrewSettingsModal inherits Rectangle {
                 // Save. Only the overview tab has anything to save, and a
                 // dialog has one commit, bottom-right.
                 if root.shown-tab == 0: Rectangle {
-                    x: parent.width - self.width - 32px - 120px - 12px;
+                    x: parent.width - self.width - 32px - close-button.width - 12px;
                     y: (parent.height - self.height) / 2;
-                    width: 120px;
+                    // 120px, or wider for a longer translation.
+                    width: max(120px, save-label.preferred-width + 2 * Theme.spacing-md);
                     height: 40px;
                     background: transparent;
 
@@ -1336,7 +1340,7 @@ export component CrewSettingsModal inherits Rectangle {
                         fill: save-ta.has-hover ? Theme.confirm-press : Theme.confirm;
                     }
 
-                    Text {
+                    save-label := Text {
                         text: @tr("Save");
                         font-family: Theme.font-label;
                         font-size: 13px;
@@ -1373,10 +1377,11 @@ export component CrewSettingsModal inherits Rectangle {
                 }
 
                 // Close button
-                Rectangle {
+                close-button := Rectangle {
                     x: parent.width - self.width - 32px;
                     y: (parent.height - self.height) / 2;
-                    width: 120px;
+                    // 120px, or wider for a longer translation.
+                    width: max(120px, close-footer-label.preferred-width + 2 * Theme.spacing-md);
                     height: 40px;
                     background: transparent;
 
@@ -1394,7 +1399,7 @@ export component CrewSettingsModal inherits Rectangle {
                         fill: close-footer-ta.has-hover ? Theme.surface-hover : Theme.bg-app;
                     }
 
-                    Text {
+                    close-footer-label := Text {
                         text: @tr("Close");
                         font-family: Theme.font-label;
                         font-size: 13px;

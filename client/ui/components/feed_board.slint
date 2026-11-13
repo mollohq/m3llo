@@ -499,7 +499,8 @@ export component FeedBoard inherits BoardShell {
                 height: 30px;
                 spacing: 6px;
                 cross-axis-alignment: center;
-                Kicker { text: @tr("GAMES PLAYED"); width: 94px; }
+                // 94px, or wider for a longer translation.
+                Kicker { text: @tr("GAMES PLAYED"); min-width: 94px; horizontal-stretch: 0; }
                 for g in root.games-played: ArtTile { art: g; width: 30px; height: 15px; }
                 if root.games-more > 0: Text {
                     text: "+" + root.games-more;
@@ -1086,7 +1087,8 @@ export component PeopleZone inherits BoardShell {
         if root.seats: InviteButton {
             label-text: @tr("INVITE");
             a11y-label: @tr("Invite your crew");
-            width: 112px;
+            // 112px, or wider for a longer translation (min-width is the label).
+            width: max(112px, self.min-width);
             clicked => { root.invite(); }
         }
 

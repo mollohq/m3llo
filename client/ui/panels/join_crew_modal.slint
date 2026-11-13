@@ -125,7 +125,8 @@ export component JoinCrewModal inherits Rectangle {
 
                 Rectangle {
                     height: 44px;
-                    width: 160px;
+                    // 160px, or wider for a longer translation.
+                    width: max(160px, dismiss-label.preferred-width + 2 * Theme.spacing-md);
                     x: (parent.width - self.width) / 2;
                     background: transparent;
 
@@ -136,7 +137,7 @@ export component JoinCrewModal inherits Rectangle {
                         fill: dismiss-touch.has-hover ? Theme.graphic-med : Theme.graphic-light;
                     }
 
-                    Text {
+                    dismiss-label := Text {
                         font-family: Theme.font-display;
                         text: @tr("Dismiss");
                         font-size: Theme.font-md;
@@ -234,7 +235,8 @@ export component JoinCrewModal inherits Rectangle {
                 // Join button
                 Rectangle {
                     height: 48px;
-                    width: 200px;
+                    // 200px, or wider for a longer translation.
+                    width: max(200px, join-label.preferred-width + 2 * Theme.spacing-md);
                     x: (parent.width - self.width) / 2;
                     background: transparent;
 
@@ -245,7 +247,7 @@ export component JoinCrewModal inherits Rectangle {
                         fill: join-touch.has-hover || joining ? Theme.confirm-press : Theme.confirm;
                     }
 
-                    Text {
+                    join-label := Text {
                         font-family: Theme.font-display;
                         text: joining ? @tr("Joining…") : @tr("Join crew");
                         font-size: Theme.font-lg;

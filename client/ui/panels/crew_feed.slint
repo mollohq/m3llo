@@ -364,12 +364,28 @@ component RecapHead inherits Rectangle {
     }
 }
 
+/// The label of a RecapPeople line.
+component RecapPeopleLabel inherits Text {
+    font-family: Theme.font-label;
+    font-weight: Theme.weight-label;
+    font-size: 8.5px;
+    letter-spacing: 1.36px;
+    color: Theme.text-dim;
+    vertical-alignment: center;
+}
+
 /// Most active and Most clipped, one line each: the label, an octagon, the name
 /// and the value at the right (mockup .pm).
 component RecapPeople inherits Rectangle {
     in property <FeedCardData> card;
     in property <bool> rule: true;
     height: col.preferred-height;
+
+    // The label column: 78px, or the longer label when a translation is
+    // longer. Both lines use the same width, so the octagons stay in line.
+    property <length> label-width: max(78px, active-probe.preferred-width, clipped-probe.preferred-width);
+    active-probe := RecapPeopleLabel { visible: false; text: @tr("MOST ACTIVE"); }
+    clipped-probe := RecapPeopleLabel { visible: false; text: @tr("MOST CLIPPED"); }
 
     col := VerticalLayout {
         spacing: 0px;
@@ -379,7 +395,7 @@ component RecapPeople inherits Rectangle {
         if card.recap-active.name != "": HorizontalLayout {
             height: 17px;
             spacing: 8px;
-            Text { width: 78px; text: @tr("MOST ACTIVE"); font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 8.5px; letter-spacing: 1.36px; color: Theme.text-dim; vertical-alignment: center; }
+            RecapPeopleLabel { width: root.label-width; text: @tr("MOST ACTIVE"); }
             UserAvatar { size: 20px; initials: card.recap-active.initials; color-index: card.recap-active.hue; avatar: card.recap-active.avatar; has-avatar: card.recap-active.has-avatar; }
             Text { horizontal-stretch: 1; text: card.recap-active.name; overflow: elide; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
             Text { text: SealedFmt.span(card.recap-active.count); font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 13px; color: Theme.text-body; vertical-alignment: center; }
@@ -388,7 +404,7 @@ component RecapPeople inherits Rectangle {
         if card.recap-clipped.name != "": HorizontalLayout {
             height: 17px;
             spacing: 8px;
-            Text { width: 78px; text: @tr("MOST CLIPPED"); font-family: Theme.font-label; font-weight: Theme.weight-label; font-size: 8.5px; letter-spacing: 1.36px; color: Theme.text-dim; vertical-alignment: center; }
+            RecapPeopleLabel { width: root.label-width; text: @tr("MOST CLIPPED"); }
             UserAvatar { size: 20px; initials: card.recap-clipped.initials; color-index: card.recap-clipped.hue; avatar: card.recap-clipped.avatar; has-avatar: card.recap-clipped.has-avatar; }
             Text { horizontal-stretch: 1; text: card.recap-clipped.name; overflow: elide; font-family: Theme.font-display; font-weight: Theme.weight-display; font-size: 13px; color: Theme.text-primary; vertical-alignment: center; }
             VerticalLayout {

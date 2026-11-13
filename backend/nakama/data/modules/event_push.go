@@ -20,7 +20,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"sort"
 	"sync/atomic"
 	"time"
@@ -46,9 +45,10 @@ const (
 
 // pushEvent is one thing a coalesced push tells about.
 type pushEvent struct {
-	Name  string `json:"name"`            // the other member
-	Title string `json:"title,omitempty"` // belt title label
-	Took  bool   `json:"took,omitempty"`  // belt: the recipient took it
+	Name    string `json:"name"`               // the other member
+	Title   string `json:"title,omitempty"`    // belt title label in English, for a doc without TitleID
+	TitleID string `json:"title_id,omitempty"` // belt title id: the body uses the label in the recipient's language
+	Took    bool   `json:"took,omitempty"`     // belt: the recipient took it
 }
 
 // eventPushClock and eventPushGo are replaced by tests.
@@ -174,27 +174,6 @@ func flushPushQueueAsync(nk runtime.NakamaModule, logger runtime.Logger, key str
 	})
 }
 
-// pushDisplayNames maps user ids to the name shown in a push: the display
-// name, else the username, cleaned for the copy rules.
-func pushDisplayNames(ctx context.Context, nk runtime.NakamaModule, ids []string) map[string]string {
-	out := make(map[string]string, len(ids))
-	if len(ids) == 0 {
-		return out
-	}
-	users, err := nk.UsersGetId(ctx, ids, nil)
-	if err != nil {
-		return out
-	}
-	for _, u := range users {
-		name := cleanPushName(u.GetDisplayName())
-		if name == "" {
-			name = cleanPushName(u.GetUsername())
-		}
-		out[u.GetId()] = name
-	}
-	return out
-}
-
 // pushCrewName is the crew name, "m3llo" when it cannot be read.
 func pushCrewName(ctx context.Context, nk runtime.NakamaModule, crewID string) string {
 	if groups, err := nk.GroupsGetId(ctx, []string{crewID}); err == nil && len(groups) > 0 {
@@ -254,28 +233,33 @@ func heldTitles(doc *Head2headDoc) map[string]int {
 	return out
 }
 
-// beltPushBody is the line of a belt push. The newest event leads.
+// beltPushBody is the line of a belt push in the language lang. The newest
+// event leads.
 //
 //	lost one:   "<Name> took <Title> from you. You hold <n>."
 //	lost many:  "<Name> took <Title> and <m> more. You hold <n>."
 //	took one:   "You took <Title> from <Name>. You hold <n>."
 //	took many:  "You took <Title> and <m> more. You hold <n>."
-func beltPushBody(events []pushEvent, hold int) string {
+func beltPushBody(lang string, events []pushEvent, hold int) string {
 	if len(events) == 0 {
 		return ""
 	}
 	last := events[len(events)-1]
+	title := last.Title
+	if last.TitleID != "" {
+		title = pushBeltLabel(lang, last.TitleID)
+	}
 	more := len(events) - 1
 	var s string
 	switch {
 	case last.Took && more == 0:
-		s = fmt.Sprintf("You took %s from %s. You hold %d.", last.Title, last.Name, hold)
+		s = pushText(lang, "belt_you_took_from", title, last.Name, hold)
 	case last.Took:
-		s = fmt.Sprintf("You took %s and %d more. You hold %d.", last.Title, more, hold)
+		s = pushText(lang, "belt_you_took_more", title, more, hold)
 	case more == 0:
-		s = fmt.Sprintf("%s took %s from you. You hold %d.", last.Name, last.Title, hold)
+		s = pushText(lang, "belt_took_from_you", last.Name, title, hold)
 	default:
-		s = fmt.Sprintf("%s took %s and %d more. You hold %d.", last.Name, last.Title, more, hold)
+		s = pushText(lang, "belt_took_more", last.Name, title, more, hold)
 	}
 	return truncateRunes(s, pushBodyMaxRunes)
 }
@@ -288,10 +272,10 @@ func beltPushEvents(moves []beltMove, names map[string]string, members map[strin
 	for _, m := range moves {
 		label := beltTitleLabel(m.TitleID)
 		if members[m.PreviousID] {
-			out[m.PreviousID] = append(out[m.PreviousID], pushEvent{Name: names[m.HolderID], Title: label})
+			out[m.PreviousID] = append(out[m.PreviousID], pushEvent{Name: names[m.HolderID], Title: label, TitleID: m.TitleID})
 		}
 		if m.HolderID != actor && members[m.HolderID] {
-			out[m.HolderID] = append(out[m.HolderID], pushEvent{Name: names[m.PreviousID], Title: label, Took: true})
+			out[m.HolderID] = append(out[m.HolderID], pushEvent{Name: names[m.PreviousID], Title: label, TitleID: m.TitleID, Took: true})
 		}
 	}
 	return out
@@ -300,7 +284,8 @@ func beltPushEvents(moves []beltMove, names map[string]string, members map[strin
 // addBeltEvents folds new events into the queue of one crew and returns
 // whether the doc changed. One coalescing item per member: a pending item takes
 // the events, a sent item starts a new pending one that waits for the window.
-func addBeltEvents(doc *RecapPushDoc, crewID string, events map[string][]pushEvent, hold map[string]int, tzs map[string]*int, now time.Time) bool {
+// langs maps a member to the account language of the body (nil: English).
+func addBeltEvents(doc *RecapPushDoc, crewID string, events map[string][]pushEvent, hold map[string]int, tzs map[string]*int, langs map[string]string, now time.Time) bool {
 	users := make([]string, 0, len(events))
 	for uid := range events {
 		users = append(users, uid)
@@ -324,7 +309,7 @@ func addBeltEvents(doc *RecapPushDoc, crewID string, events map[string][]pushEve
 		}
 		it.Events = append(it.Events, evs...)
 		it.Hold = hold[uid]
-		it.Body = beltPushBody(it.Events, it.Hold)
+		it.Body = beltPushBody(langs[uid], it.Events, it.Hold)
 		it.MessageID = "belt-" + shortPushID(crewID) + "-" + shortPushID(uid)
 		it.SendAtMs = pushSendAt(now, it.LastSentMs, beltPushWindow, tzs[uid]).UnixMilli()
 	}
@@ -346,15 +331,21 @@ func queueBeltPushes(ctx context.Context, logger runtime.Logger, nk runtime.Naka
 	for _, id := range ids {
 		members[id] = true
 	}
+	// One batched read gives the names of the holders and the account
+	// language of each recipient.
 	want := map[string]bool{}
+	for _, id := range ids {
+		want[id] = true
+	}
 	for _, m := range moves {
 		want[m.HolderID], want[m.PreviousID] = true, true
 	}
-	var nameIDs []string
+	userIDs := make([]string, 0, len(want))
 	for id := range want {
-		nameIDs = append(nameIDs, id)
+		userIDs = append(userIDs, id)
 	}
-	names := pushDisplayNames(ctx, nk, nameIDs)
+	sort.Strings(userIDs)
+	names, langs := pushUsers(ctx, nk, userIDs)
 	events := beltPushEvents(moves, names, members, head2headActor(ctx))
 	if len(events) == 0 {
 		return
@@ -367,7 +358,7 @@ func queueBeltPushes(ctx context.Context, logger runtime.Logger, nk runtime.Naka
 	key := beltPushKey + doc.CrewID
 	now := eventPushClock()
 	if updatePushQueue(ctx, nk, logger, key, doc.CrewID, func(q *RecapPushDoc) bool {
-		return addBeltEvents(q, doc.CrewID, events, held, tzs, now)
+		return addBeltEvents(q, doc.CrewID, events, held, tzs, langs, now)
 	}) {
 		logger.Info("belt push: queued for %d member(s) of crew %s", len(events), doc.CrewID)
 		flushPushQueueAsync(nk, logger, key)
