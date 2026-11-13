@@ -22,6 +22,9 @@ fn press_menu_item(h: &mut Harness, label: &str) {
 /// NOTIFICATIONS tab. The commands of the way in are read and dropped.
 fn notifications_tab() -> Harness {
     let mut h = crew_menu_open();
+    // The Looking to play row is hidden until the feature is built. These
+    // tests cover both rows, so they turn it on.
+    h.app().set_looking_to_play_available(true);
     press_menu_item(&mut h, "Crew settings");
     assert!(h.app().get_crew_settings_open(), "crew settings are open");
     h.click_label("NOTIFICATIONS");
@@ -262,7 +265,23 @@ fn a_plain_member_gets_the_notifications_tab_only() {
         );
     }
     assert_eq!(h.controls_labelled("NOTIFICATIONS").len(), 1);
-    // The switches are on screen: the tab shows whatever the active tab is.
+    // The switch is on screen: the tab shows whatever the active tab is.
     switch(&h, "Messages");
+}
+
+/// Looking to play is not built yet, so its notification setting does
+/// nothing. The row is not shown until the client says the feature is there.
+#[test]
+fn the_looking_to_play_setting_is_hidden_until_the_feature_is_built() {
+    let mut h = crew_menu_open();
+    press_menu_item(&mut h, "Notifications");
+    switch(&h, "Messages");
+    assert!(
+        h.controls_labelled("Looking to play").is_empty(),
+        "no Looking to play row by default"
+    );
+
+    h.app().set_looking_to_play_available(true);
+    h.pump();
     switch(&h, "Looking to play");
 }

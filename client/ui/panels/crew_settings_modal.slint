@@ -820,6 +820,9 @@ component NotificationsTab inherits VerticalLayout {
     in-out property <bool> messages: false;
     in-out property <bool> looking-to-play: false;
     in property <bool> ready: false;
+    // The Looking to play row shows once the feature is built. Until then
+    // the setting has no effect, so the row is not there.
+    in property <bool> looking-to-play-available: false;
 
     callback messages-toggled(bool);
     callback looking-to-play-toggled(bool);
@@ -837,7 +840,7 @@ component NotificationsTab inherits VerticalLayout {
             toggled(on) => { root.messages-toggled(on); }
         }
 
-        SwitchRow {
+        if root.looking-to-play-available: SwitchRow {
             title: @tr("Looking to play");
             description: @tr("A push, a toast and a sound when a crew member asks");
             checked <=> root.looking-to-play;
@@ -871,6 +874,7 @@ export component CrewSettingsModal inherits Rectangle {
     in-out property <bool> push-messages: false;
     in-out property <bool> push-looking-to-play: false;
     in property <bool> push-ready: false;
+    in property <bool> looking-to-play-available: false;
 
     // Tab state: 0 = Overview, 1 = Voice Channels, 2 = Members, 3 = Notifications
     in-out property <int> active-tab: 0;
@@ -1270,6 +1274,7 @@ export component CrewSettingsModal inherits Rectangle {
                             messages <=> root.push-messages;
                             looking-to-play <=> root.push-looking-to-play;
                             ready: root.push-ready;
+                            looking-to-play-available: root.looking-to-play-available;
                             messages-toggled(on) => { root.push-messages-toggled(on); }
                             looking-to-play-toggled(on) => { root.push-looking-to-play-toggled(on); }
                         }

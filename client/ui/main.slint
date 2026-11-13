@@ -551,6 +551,9 @@ export component MainWindow inherits Window {
     in-out property <bool> crew-settings-push-messages: false;
     in-out property <bool> crew-settings-push-looking-to-play: false;
     in property <bool> crew-settings-push-ready: false;
+    // False until Looking to play is built: its notification setting is
+    // hidden (plans/LOOKING-TO-PLAY.md, phase 1 ships alone).
+    in property <bool> looking-to-play-available: false;
     callback crew-settings-opened();
     callback crew-settings-push-messages-toggled(/* on */ bool);
     callback crew-settings-push-looking-to-play-toggled(/* on */ bool);
@@ -2162,6 +2165,7 @@ export component MainWindow inherits Window {
         push-messages <=> root.crew-settings-push-messages;
         push-looking-to-play <=> root.crew-settings-push-looking-to-play;
         push-ready: root.crew-settings-push-ready;
+        looking-to-play-available: root.looking-to-play-available;
         close-requested => {
             root.crew-settings-open = false;
         }

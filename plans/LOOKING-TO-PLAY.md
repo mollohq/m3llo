@@ -268,7 +268,10 @@ of the branch.
 | 3 | Looking to play on desktop | Slint, client | slint-viewer previews of each state with mock data, shown to Bob at each checkpoint. One mello-driver journey with two clients on the local stack and the local SFU: ask, answer In, both in voice |
 | 4 | Looking to play on iOS | iOS app, Worker | The spike of 3.7 first. Then ask from the phone, answer from the lock screen of a second phone, the asker gets "Mia is in" |
 
-Phase 1 can ship alone. Phases 2, 3 and 4 ship together: the ask is of little use
+Phase 1 ships alone (Bob, 13 Nov 2026). The Looking to play notification setting has no
+row in that release: `looking-to-play-available` in `main.slint` is false, and the iOS
+crew sheet has the Messages switch only. Phase 3 and phase 4 bring the row back.
+Phases 2, 3 and 4 ship together: the ask is of little use
 without the phone.
 
 After this plan: the ledger line in Crew history and belts for asks, game presence on

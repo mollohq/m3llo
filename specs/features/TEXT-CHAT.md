@@ -712,8 +712,9 @@ A crew message sends a phone push to the members who cannot see it
 | One notification for each crew | Every message push of a crew has the collapse id `msg-<crew>`. A new push replaces the one before on the lock screen. |
 | Bursts | The first message goes at once. More messages in the next 30 seconds leave as one push when the 30 seconds end: one message as it is, several as "3 new messages". |
 
-**Notification settings.** A member has two settings for each crew, Messages
-and Looking to play (`push_prefs.go`).
+**Notification settings.** The server keeps two settings of a member for each
+crew, Messages and Looking to play (`push_prefs.go`). Looking to play has no
+effect and no row in the UI until that feature ships.
 
 - `push_prefs_get {crew_id}` and `push_prefs_set {crew_id, messages?, looking_to_play?}`
   return `{crew_id, messages, looking_to_play}` with the defaults filled in. A
@@ -725,11 +726,12 @@ and Looking to play (`push_prefs.go`).
 - A mention push ignores both settings.
 - mello-core: `Command::LoadPushPrefs`, `Command::SetPushPrefs`,
   `Event::PushPrefsLoaded`, `Event::PushPrefsFailed`.
-- Desktop: the NOTIFICATIONS tab of crew settings. Every member opens it from
-  the Notifications item of the crew menu. A plain member sees that tab only.
-  The settings are disabled until the server answers, and a set that fails
-  puts them back.
-- iOS: the Notifications section of the crew sheet.
+- Desktop: the NOTIFICATIONS tab of crew settings, with the Messages setting.
+  Every member opens it from the Notifications item of the crew menu. A plain
+  member sees that tab only. The setting is disabled until the server answers,
+  and a set that fails puts it back. The Looking to play row shows when
+  `looking-to-play-available` is true (`main.slint`), which nothing sets yet.
+- iOS: the Notifications section of the crew sheet, with the Messages switch.
 
 ---
 

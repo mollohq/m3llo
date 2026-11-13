@@ -739,7 +739,8 @@ fn mention_pushes_follow_the_delivery_rules() {
             "a message push carries the collapse id of the crew: {n}"
         );
         let text = n["body"].as_str().unwrap_or_default();
-        assert!(text.ends_with(": anyone up for a game?"), "body = {text}");
+        // An e2e account has no display name, so the body is the text alone.
+        assert!(text.ends_with("anyone up for a game?"), "body = {text}");
 
         let rest = common::drain_sends(&captured, std::time::Duration::from_secs(2)).await;
         assert!(
