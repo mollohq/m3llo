@@ -441,6 +441,32 @@ mod tests {
         assert_eq!(native_name("fi-FI"), "fi-FI");
     }
 
+    /// The first catalogue: `zh-CN` is bundled from its folder under
+    /// `client/translations/`, the setting selects it, and the settings show
+    /// its own name.
+    #[test]
+    fn the_setting_selects_the_bundled_chinese_catalogue() {
+        assert!(bundled().contains(&"zh-CN"), "bundled: {:?}", bundled());
+        let from_setting = |setting: &str| choose(None, setting, Some("en-US"), &bundled());
+        for setting in ["zh-CN", "zh_cn", "ZH-cn"] {
+            assert_eq!(
+                from_setting(setting),
+                Choice {
+                    language: "zh-CN".into(),
+                    source: Source::Setting
+                },
+                "{setting}"
+            );
+        }
+        // `MELLO_LANG` comes before the setting. Without it, the setting wins
+        // over the OS language.
+        if std::env::var(LANG_ENV).is_err() {
+            assert_eq!(language_for_setting("zh-CN"), "zh-CN");
+        }
+        assert_eq!(native_name("zh-CN"), "中文（简体）");
+        assert!(setting_choices(&bundled()).contains(&"zh-CN".to_string()));
+    }
+
     /// English is a choice also when it has no catalog, and comes one time.
     #[test]
     fn the_setting_choices_are_english_then_the_bundled_languages() {

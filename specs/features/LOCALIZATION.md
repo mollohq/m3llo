@@ -443,8 +443,8 @@ recipient.
   messages per language. Each message has a stable key (`recap_took`,
   `join_one_say_hi`, `mentions_new`). The belt labels use the `title_id` keys
   of the client (`the_carry`).
-- The English table is complete. The other tables (`zh-CN`, `es`, `pt-BR`,
-  `de`, `ja`, `fr`, `sv`) are empty until a translator fills them.
+- The English and the `zh-CN` tables are complete. The other tables (`es`,
+  `pt-BR`, `de`, `ja`, `fr`, `sv`) are empty until a translator fills them.
 - The lookup order for a message: the exact tag, then the primary subtag
   (`pt-BR`, then `pt`), then English. The empty tag is English. The match
   ignores case, and `_` is the same as `-`.
@@ -476,6 +476,22 @@ recipient.
 When the `.pot` changes, merge it into each catalog with a tool that has a
 compatible licence (for example Poedit or a Rust tool). Keep the
 translations of the messages that did not change.
+
+### The first catalogue
+
+- `zh-CN` (Simplified Chinese) is the first real catalogue:
+  `client/translations/zh-CN/LC_MESSAGES/mello-client.po`. It has one
+  plural form (`nplurals=1; plural=0;`), so each plural message has
+  `msgstr[0]` only.
+- A bundled catalogue is a folder under `client/translations/`. `build.rs`
+  finds each folder and writes `MELLO_BUNDLED_LANGUAGES`. A language is
+  bundled only when its folder is there.
+- The words come from the glossary in `TRANSLATING.md`: one Chinese word for
+  each product word in all messages.
+- The push table `zh-CN` in `push_text.go` (section 9b) uses the same words.
+- The journey `the_feed_reads_in_chinese` (`client/src/flow_tests.rs`)
+  selects `zh-CN` and checks the day of a feed card, the recap title and the
+  catch-up line in Chinese.
 
 ## 11. Tools
 

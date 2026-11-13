@@ -51,11 +51,11 @@ msgstr ""
 msgid "Go head2head with your crew"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
 msgid "MOST ACTIVE"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
 msgid "MOST CLIPPED"
 msgstr ""
 
@@ -265,8 +265,8 @@ msgstr ""
 msgid "~1.5 Mbit/s"
 msgstr ""
 
-A duration: the first value is the hours, the second is the minutes ("6 h 
-40").
+#. A duration: the first value is the hours, the second is the minutes ("6 h 
+#. 40").
 #: client/ui/components/sealed.slint
 msgctxt "unit"
 msgid "{} h {}"
@@ -3006,8 +3006,8 @@ msgctxt "format"
 msgid "{0}:{1}"
 msgstr ""
 
-A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
-or PM.
+#. A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
+#. or PM.
 #: client/ui/tr.slint
 msgctxt "format"
 msgid "{0}:{1} {2}"
@@ -3526,7 +3526,7 @@ msgstr[1] ""
 
 #. The Riot ID is wrong. "GameName#TAG" shows the form of an ID.
 #: client/ui/tr.slint
-msgid "Riot ID not found. Check the spelling â€” it looks like GameName#TAG."
+msgid "Riot ID not found. Check the spelling — it looks like GameName#TAG."
 msgstr ""
 
 #. The server needs the region of the Riot account.
