@@ -443,6 +443,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("admin_media_report_dismiss", AdminMediaReportDismissRPC); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("admin_media_orphans", AdminMediaOrphansRPC); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// RPCs — dev tools
