@@ -97,6 +97,12 @@ var pushTextChinese = map[string]string{
 	"mention_crews_sep":   "、",
 	"push_title_fallback": "Mello",
 
+	"messages_new":            "%d条新消息",
+	"messages_new_in":         "%[2]s中有%[1]d条新消息",
+	"message_sent_gif":        "%s发送了一个GIF",
+	"message_sent_image":      "%s发送了一张图片",
+	"message_sender_fallback": "有人",
+
 	titleTheCarry:   "大腿",
 	titleLockedIn:   "上头",
 	titleHasALife:   "现充",

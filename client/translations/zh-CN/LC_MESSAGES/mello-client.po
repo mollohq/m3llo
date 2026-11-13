@@ -1133,6 +1133,10 @@ msgid "Add channel"
 msgstr "添加频道"
 
 #: client/ui/panels/crew_panel.slint
+msgid "Notifications"
+msgstr "通知"
+
+#: client/ui/panels/crew_panel.slint
 msgid "Leave crew"
 msgstr "退出小队"
 
@@ -1255,6 +1259,26 @@ msgstr "管理员"
 #: client/ui/panels/crew_settings_modal.slint
 msgid "MEMBERS"
 msgstr "成员"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "NOTIFICATIONS"
+msgstr "通知"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Messages"
+msgstr "消息"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A phone push for each new message in this crew"
+msgstr "这个小队的每条新消息都推送到手机"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Looking to play"
+msgstr "找人开黑"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A push, a toast and a sound when a crew member asks"
+msgstr "队友发起时推送、弹窗并提示音"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "CREW SETTINGS"
