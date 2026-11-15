@@ -7111,6 +7111,75 @@ fn the_catchup_line_follows_the_ui_language() {
     assert_ne!(text, english);
 }
 
+/// Selects the source language again when it goes out of scope, also when
+/// the test panics. The next window on this thread then shows English.
+struct SourceLanguageOnDrop;
+
+impl Drop for SourceLanguageOnDrop {
+    fn drop(&mut self) {
+        // No panic here: a second panic during an unwind aborts the run.
+        if let Err(e) = crate::locale::select(crate::locale::SOURCE_LANGUAGE) {
+            log::warn!("select the source language: {e}");
+        }
+    }
+}
+
+/// The first catalogue on the real UI: under `zh-CN` the feed shows the day
+/// of a card, the recap title and the catch-up line in Chinese, with the
+/// names and the numbers in place.
+#[test]
+fn the_feed_reads_in_chinese() {
+    const WEEKDAYS: [&str; 7] = [
+        "星期日",
+        "星期一",
+        "星期二",
+        "星期三",
+        "星期四",
+        "星期五",
+        "星期六",
+    ];
+    let mut h = Harness::new();
+    app_with_crew_of(&mut h, 2);
+    crate::locale::select("zh-CN").expect("select zh-CN");
+    let _english_after = SourceLanguageOnDrop;
+
+    // A clip of three days ago: the card shows the day of the week.
+    let mut clip = clip_entry("clip-zh");
+    clip.ts = now_ms() - 3 * DAY_MS - 3_600_000;
+    let weekday = (clip.ts.div_euclid(DAY_MS) + 4).rem_euclid(7) as usize;
+    let mut week = recap_entry(serde_json::json!({}));
+    week.data["week_number"] = serde_json::json!(4);
+    h.emit(Event::FeedLoaded {
+        response: feed_of(vec![week, clip]),
+    });
+    let cards = zone_cards(&h);
+    let clip_card = cards
+        .iter()
+        .find(|c| c.id == "clip-zh")
+        .expect("the clip card");
+    assert_eq!(clip_card.timestamp.as_str(), WEEKDAYS[weekday]);
+    assert_eq!(first_recap(&h).recap_week.as_str(), "第4周");
+
+    // The catch-up line of the crew, from a win of a member.
+    h.emit(Event::CatchupLoaded {
+        response: mello_core::crew_events::CatchupResponse {
+            crew_id: "crew-0".into(),
+            catchup_text: "Ann had a win in Valorant".into(),
+            event_count: 1,
+            top_events: vec![catchup_event(
+                "moment",
+                Some("Ann"),
+                serde_json::json!({"sentiment": "win", "game_name": "Valorant"}),
+            )],
+            has_events: true,
+        },
+    });
+    assert_eq!(
+        crew_row(&h, "crew-0").catchup_text.as_str(),
+        "Ann在Valorant赢了一局"
+    );
+}
+
 /// ★ Regression (#105): another crew leaves the list. The rows change, and
 /// the active crew card and its menu stay.
 #[test]

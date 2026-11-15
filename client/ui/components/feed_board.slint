@@ -499,8 +499,7 @@ export component FeedBoard inherits BoardShell {
                 height: 30px;
                 spacing: 6px;
                 cross-axis-alignment: center;
-                // 94px, or wider for a longer translation.
-                Kicker { text: @tr("GAMES PLAYED"); min-width: 94px; horizontal-stretch: 0; }
+                Kicker { text: @tr("GAMES PLAYED"); min-width: 94px; horizontal-stretch: 0; } // 94px, or wider for a longer translation
                 for g in root.games-played: ArtTile { art: g; width: 30px; height: 15px; }
                 if root.games-more > 0: Text {
                     text: "+" + root.games-more;

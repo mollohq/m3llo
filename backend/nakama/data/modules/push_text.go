@@ -71,11 +71,58 @@ var pushTextEnglish = map[string]string{
 	titleWinner:     "Winner",
 }
 
+// pushTextChinese is the zh-CN table. The words are the words of the glossary
+// in TRANSLATING.md and of the client catalogue: a belt is 称号, take is 抢走,
+// hold is 持有. A pattern that puts the values in another order than English
+// uses explicit indexes. The push title fallback is the brand and stays.
+var pushTextChinese = map[string]string{
+	"recap_took":          "%s抢走了%s。你持有%d个称号。",
+	"recap_you_took":      "你抢走了%s。你持有%d个称号。",
+	"recap_you_took_from": "你从%[2]s手中抢走了%[1]s。你持有%[3]d个称号。",
+	"recap_week_lead":     "第%d周周报。%s以%d个称号领先。",
+
+	"belt_took_from_you": "%s从你手中抢走了%s。你持有%d个称号。",
+	"belt_took_more":     "%s抢走了%s和另外%d个称号。你持有%d个称号。",
+	"belt_you_took_from": "你从%[2]s手中抢走了%[1]s。你持有%[3]d个称号。",
+	"belt_you_took_more": "你抢走了%s和另外%d个称号。你持有%d个称号。",
+
+	"join_one_say_hi":    "%s加入了%s。打个招呼吧。",
+	"join_one":           "%s加入了%s。",
+	"join_one_other":     "%s和另外1人加入了%s。",
+	"join_others":        "%s和另外%d人加入了%s。",
+	"join_name_fallback": "一位新成员",
+
+	"mentions_new":        "%d条新提及",
+	"mentions_new_in":     "%[2]s中有%[1]d条新提及",
+	"mention_crews_sep":   "、",
+	"push_title_fallback": "Mello",
+
+	"messages_new":            "%d条新消息",
+	"messages_new_in":         "%[2]s中有%[1]d条新消息",
+	"message_sent_gif":        "%s发送了一个GIF",
+	"message_sent_image":      "%s发送了一张图片",
+	"message_sender_fallback": "有人",
+
+	titleTheCarry:   "大腿",
+	titleLockedIn:   "上头",
+	titleHasALife:   "现充",
+	titleNightOwl:   "夜猫子",
+	titleTheCollect: "收藏家",
+	titleSampler:    "尝鲜党",
+	titleOneTrick:   "绝活哥",
+	titleMouth:      "话痨",
+	titleMarathon:   "马拉松",
+	titleLastOneUp:  "守夜人",
+	titleClipper:    "剪辑侠",
+	titleRageQuit:   "怒退",
+	titleWinner:     "赢家",
+}
+
 // pushTexts holds a table per BCP 47 tag. An empty table means "not
 // translated yet": each message then shows in English.
 var pushTexts = map[string]map[string]string{
 	"en":    pushTextEnglish,
-	"zh-CN": {},
+	"zh-CN": pushTextChinese,
 	"es":    {},
 	"pt-BR": {},
 	"de":    {},
