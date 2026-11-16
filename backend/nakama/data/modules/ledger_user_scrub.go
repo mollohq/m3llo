@@ -63,6 +63,20 @@ type scrubMedia struct {
 	Ref    string `json:"ref"`
 }
 
+// scrubSkipped is media of a dropped clip or stream that the scrub does not
+// delete, and why. It stays in the record, so the result of every run names
+// it: an operator must look at it.
+type scrubSkipped struct {
+	scrubMedia
+	Reason string `json:"reason"`
+}
+
+const (
+	scrubSkipUnsafeID  = "the id is not safe in an object key"
+	scrubSkipNoSession = "the stream session has no session id, so no key can be made"
+	scrubSkipHeld      = "the crew still holds a clip or a stream session with this id"
+)
+
 // userScrubRecord is the scrub record of a deleted account.
 type userScrubRecord struct {
 	UserID string `json:"user_id"`
@@ -78,8 +92,11 @@ type userScrubRecord struct {
 	ScanStep   int    `json:"scan_step,omitempty"`
 	ScanCursor string `json:"scan_cursor,omitempty"`
 	// Media is the media of dropped clips and streams that is not deleted yet.
-	Media     []scrubMedia `json:"media,omitempty"`
-	StartedMs int64        `json:"started_ms"`
+	// An entry leaves the list when its delete is complete.
+	Media []scrubMedia `json:"media,omitempty"`
+	// Skipped is the media the scrub does not delete (scrubSkipped).
+	Skipped   []scrubSkipped `json:"skipped,omitempty"`
+	StartedMs int64          `json:"started_ms"`
 	// DeletedMs is when the account was seen to be gone. 0: the record was
 	// written before the delete, and the delete is not confirmed.
 	DeletedMs int64 `json:"deleted_ms,omitempty"`
@@ -146,7 +163,16 @@ func (r *userScrubRecord) addCrews(crews ...string) {
 }
 
 func (r *userScrubRecord) addMedia(m scrubMedia) {
-	if m.Ref == "" || m.CrewID == "" {
+	if m.CrewID == "" {
+		return
+	}
+	if m.Ref == "" {
+		// A voice clip always has a clip_id. A stream session from before
+		// sessions had an id has none: its snapshots, if any, have no key
+		// that can be made from the row.
+		if m.Kind == ledgerTypeStreamSession {
+			r.addSkipped(m, scrubSkipNoSession)
+		}
 		return
 	}
 	for _, have := range r.Media {
@@ -155,6 +181,15 @@ func (r *userScrubRecord) addMedia(m scrubMedia) {
 		}
 	}
 	r.Media = append(r.Media, m)
+}
+
+func (r *userScrubRecord) addSkipped(m scrubMedia, reason string) {
+	for _, have := range r.Skipped {
+		if have.scrubMedia == m {
+			return
+		}
+	}
+	r.Skipped = append(r.Skipped, scrubSkipped{scrubMedia: m, Reason: reason})
 }
 
 // userScrubResult is what one run of a scrub did.
@@ -166,14 +201,17 @@ type userScrubResult struct {
 	Incomplete bool `json:"incomplete"`
 	// Busy is true when another scrub of the user runs in this process. The
 	// run did nothing.
-	Busy          bool     `json:"busy,omitempty"`
-	CrewsScrubbed int      `json:"crews_scrubbed"`
-	CrewsLeft     int      `json:"crews_left"`
-	Dropped       int      `json:"dropped"`
-	Changed       int      `json:"changed"`
-	MediaDeleted  int      `json:"media_deleted"`
-	MediaSkipped  []string `json:"media_skipped,omitempty"`
-	Errors        []string `json:"errors,omitempty"`
+	Busy          bool `json:"busy,omitempty"`
+	CrewsScrubbed int  `json:"crews_scrubbed"`
+	CrewsLeft     int  `json:"crews_left"`
+	Dropped       int  `json:"dropped"`
+	Changed       int  `json:"changed"`
+	MediaDeleted  int  `json:"media_deleted"`
+	// MediaPending is the number of clips and streams whose media is still
+	// to be deleted. MediaSkipped names the media the scrub will not delete.
+	MediaPending int      `json:"media_pending"`
+	MediaSkipped []string `json:"media_skipped,omitempty"`
+	Errors       []string `json:"errors,omitempty"`
 }
 
 func (r *userScrubResult) fail(format string, args ...interface{}) {
@@ -443,9 +481,13 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 	}
 	finish := func() userScrubResult {
 		res.CrewsLeft = len(rec.Crews)
+		res.MediaPending = len(rec.Media)
+		for _, sk := range rec.Skipped {
+			res.MediaSkipped = append(res.MediaSkipped, sk.Kind+" "+sk.CrewID+"/"+sk.Ref+": "+sk.Reason)
+		}
 		line := func() string {
-			return fmt.Sprintf("user=%s crews=%d crews_left=%d dropped=%d changed=%d media=%d incomplete=%t",
-				rec.UserID, res.CrewsScrubbed, res.CrewsLeft, res.Dropped, res.Changed, res.MediaDeleted, res.Incomplete)
+			return fmt.Sprintf("user=%s crews=%d crews_left=%d dropped=%d changed=%d media=%d media_pending=%d media_skipped=%d incomplete=%t",
+				rec.UserID, res.CrewsScrubbed, res.CrewsLeft, res.Dropped, res.Changed, res.MediaDeleted, res.MediaPending, len(rec.Skipped), res.Incomplete)
 		}
 		if lost {
 			logger.Error("user_scrub_failed %s: %s", line(), strings.Join(res.Errors, "; "))
@@ -478,6 +520,10 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 			logger.Error("user_scrub_failed %s: %s", line(), strings.Join(res.Errors, "; "))
 		} else {
 			logger.Info("user_scrub %s", line())
+		}
+		if len(res.MediaSkipped) > 0 {
+			// The record is deleted in the end. The log keeps what was skipped.
+			logger.Error("user_scrub_media_skipped user=%s: %s", rec.UserID, strings.Join(res.MediaSkipped, "; "))
 		}
 		return res
 	}
@@ -526,7 +572,7 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 			return finish()
 		}
 	}
-	deleteScrubMedia(ctx, nk, rec, &res)
+	deleteScrubMedia(ctx, nk, rec, &res, deadline)
 	return finish()
 }
 
@@ -978,18 +1024,22 @@ func (c *crewScrub) recaps(store ledgerStore) error {
 }
 
 // deleteScrubMedia deletes the media of the dropped clips and streams of the
-// user. A delete cannot be undone, so:
+// user, up to the deadline of the run. A delete cannot be undone, so:
 //
 //   - a key is made only from a crew id, a clip_id or a session id that is
-//     safe in a key. Anything else is skipped and named in the result;
+//     safe in a key. Anything else is not deleted. It moves to the skipped
+//     list of the record, with the reason;
 //   - nothing is deleted while the crew still holds a clip with the clip_id
 //     or a stream session with the session id (a document from before
-//     clip_id was checked can hold one clip_id for two actors);
+//     clip_id was checked can hold one clip_id for two actors). Such an entry
+//     moves to the skipped list too;
 //   - a clip is two exact keys (gameClipKeys). A stream is the prefix of its
 //     session.
 //
-// What is deleted or skipped leaves the record. What failed stays.
-func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult) {
+// An entry leaves the record only when its delete is complete. It stays when
+// a delete failed, when the list of a prefix was cut at the deadline, and
+// when its bucket is not configured: the scrub is then not done.
+func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) {
 	if len(rec.Media) == 0 {
 		return
 	}
@@ -999,10 +1049,15 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 	index := newMediaRefIndex(ctx, nk, currentLedger())
 	index.anyCrew = true
 	left := rec.Media[:0:0]
-	for _, m := range rec.Media {
+	for i, m := range rec.Media {
 		name := m.Kind + " " + m.CrewID + "/" + m.Ref
+		if userScrubNow().After(deadline) {
+			res.Incomplete = true
+			left = append(left, rec.Media[i:]...)
+			break
+		}
 		if !validGameClipID(m.CrewID) || !validGameClipID(m.Ref) {
-			res.MediaSkipped = append(res.MediaSkipped, name+": the id is not safe in a key")
+			rec.addSkipped(m, scrubSkipUnsafeID)
 			continue
 		}
 		bucket := clips
@@ -1010,7 +1065,8 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 			bucket = snapshots
 		}
 		if bucket.client == nil || bucket.bucket == "" {
-			res.MediaSkipped = append(res.MediaSkipped, name+": the bucket is not configured")
+			res.fail("media %s: the bucket is not configured. The entry stays in the record", name)
+			left = append(left, m)
 			continue
 		}
 		held, _, err := index.held(m.CrewID, m.Kind, m.Ref)
@@ -1020,7 +1076,7 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 			continue
 		}
 		if held {
-			res.MediaSkipped = append(res.MediaSkipped, name+": the crew still holds it")
+			rec.addSkipped(m, scrubSkipHeld)
 			continue
 		}
 		switch m.Kind {
@@ -1039,12 +1095,23 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 				left = append(left, m)
 			}
 		case ledgerTypeStreamSession:
-			n, _, err := deleteObjectsUnder(ctx, bucket.client, bucket.bucket, snapshotSessionPrefix(m.CrewID, m.Ref), m.Ref, userScrubNow().Add(userScrubBudget))
+			n, incomplete, err := deleteObjectsUnder(ctx, bucket.client, bucket.bucket, snapshotSessionPrefix(m.CrewID, m.Ref), m.Ref, deadline)
 			res.MediaDeleted += n
 			if err != nil {
 				res.fail("media %s: %v", name, err)
+			}
+			if incomplete {
+				// The deadline of the run is over: this entry and every
+				// entry after it stay.
+				res.Incomplete = true
+				rec.Media = append(left, rec.Media[i:]...)
+				return
+			}
+			if err != nil {
 				left = append(left, m)
 			}
+		default:
+			left = append(left, m)
 		}
 	}
 	rec.Media = left

@@ -768,3 +768,134 @@ func TestScrubRecordDeleteIsVersionChecked(t *testing.T) {
 		t.Fatalf("write of a deleted record: %v", err)
 	}
 }
+
+// A media entry stays in the record until its delete is complete. Here the
+// snapshots bucket is not configured: the scrub is not done, and it ends
+// when the bucket is there.
+func TestScrubMediaStaysWhileItsBucketIsNotConfigured(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	withSnapshots := mediaOrphanBuckets
+	mediaOrphanBuckets = func() (mediaBucket, mediaBucket) {
+		clips, snapshots := withSnapshots()
+		snapshots.client, snapshots.bucket = nil, ""
+		return clips, snapshots
+	}
+	res := runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(time.Minute))
+	mediaOrphanBuckets = withSnapshots
+	tag := scrubCrew[:4]
+	want := scrubMedia{Kind: ledgerTypeStreamSession, CrewID: scrubCrew, Ref: "sg" + tag}
+	got := scrubRecordOf(t, nk)
+	if res.Done || res.MediaPending != 1 || got == nil || got.DoneMs != 0 || len(got.Media) != 1 || got.Media[0] != want {
+		t.Fatalf("result = %+v record = %+v", res, got)
+	}
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+	if keys := strings.Join(f.keys("snaps"), ","); !strings.Contains(keys, "/sg"+tag+"/") {
+		t.Fatalf("snapshots = %s", keys)
+	}
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if got := scrubRecordOf(t, nk); got == nil || got.DoneMs == 0 || len(got.Media) != 0 {
+		t.Fatalf("record after the bucket is there = %+v", got)
+	}
+	if keys := strings.Join(f.keys("snaps"), ","); strings.Contains(keys, "/sg"+tag+"/") {
+		t.Fatalf("snapshots after the bucket is there = %s", keys)
+	}
+}
+
+// The media deletes of a run share the one deadline of the run. A stream
+// whose snapshots are not all deleted at the deadline stays in the record,
+// with every entry after it.
+func TestScrubMediaIsCutAtTheDeadlineOfTheRun(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	tag := scrubCrew[:4]
+	base := time.Now()
+	// The media, in this order: a stream with two snapshots, then a clip.
+	rec.Discovered, rec.Crews = true, nil
+	rec.Media = []scrubMedia{
+		{Kind: ledgerTypeStreamSession, CrewID: scrubCrew, Ref: "ghost"},
+		{Kind: ledgerTypeClip, CrewID: scrubCrew, Ref: "ghostclip"},
+	}
+	f.put("snaps", "snapshots/"+scrubCrew+"/ghost/1.jpg", 10, time.Hour)
+	f.put("snaps", "snapshots/"+scrubCrew+"/ghost/2.jpg", 10, time.Hour)
+	f.put("clips", "crews/"+scrubCrew+"/ghostclip.mp4", 10, time.Hour)
+	// The clock of the object deletes moves 40 seconds with each look: the
+	// first snapshot is deleted before the deadline, the second is not.
+	ticks := 0
+	prev := crewPurgeNow
+	crewPurgeNow = func() time.Time { ticks++; return base.Add(time.Duration(ticks) * 40 * time.Second) }
+	res := userScrubResult{}
+	deleteScrubMedia(context.Background(), nk, rec, &res, base.Add(time.Minute))
+	crewPurgeNow = prev
+	if !res.Incomplete || res.MediaDeleted != 1 || len(rec.Media) != 2 || rec.Media[0].Ref != "ghost" || rec.Media[1].Ref != "ghostclip" {
+		t.Fatalf("result = %+v media = %+v", res, rec.Media)
+	}
+	if keys := strings.Join(f.keys("snaps"), ","); !strings.Contains(keys, "ghost/2.jpg") {
+		t.Fatalf("snapshots = %s", keys)
+	}
+	// A run whose deadline is over deletes nothing and keeps every entry.
+	// A clip is first in the list, so the check between two entries decides.
+	rec.Media = append([]scrubMedia{{Kind: ledgerTypeClip, CrewID: scrubCrew, Ref: "cg" + tag}}, rec.Media...)
+	deletes := len(f.deletes)
+	res = userScrubResult{}
+	deleteScrubMedia(context.Background(), nk, rec, &res, time.Now().Add(-time.Second))
+	if !res.Incomplete || len(rec.Media) != 3 || len(f.deletes) != deletes {
+		t.Fatalf("past the deadline: result = %+v media = %+v", res, rec.Media)
+	}
+	// The next run ends the work.
+	res = userScrubResult{}
+	deleteScrubMedia(context.Background(), nk, rec, &res, time.Now().Add(time.Minute))
+	if res.Incomplete || len(rec.Media) != 0 || strings.Contains(strings.Join(f.keys("snaps"), ","), "ghost") {
+		t.Fatalf("the next run: result = %+v media = %+v", res, rec.Media)
+	}
+}
+
+// A clip_id that is not safe in an object key makes no key. The entry is not
+// dropped in silence: it is in the record and in the result of the run.
+func TestScrubReportsMediaItDoesNotDelete(t *testing.T) {
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	ctx := context.Background()
+	if _, err := AppendClip(ctx, nk, scrubCrew, StoredClip{EventID: "ev-unsafe", ClipID: "../up", ActorID: goneUser, Ts: time.Now().UnixMilli(), ClipType: clipTypeVoice}); err != nil {
+		t.Fatal(err)
+	}
+	// A stream session of the user from before sessions had an id.
+	if err := UpsertStreamSession(ctx, nk, scrubCrew, StoredStreamSession{EventID: "ev-noid", StreamerID: goneUser, StreamerName: goneName, Ts: time.Now().Add(-time.Hour).UnixMilli()}); err != nil {
+		t.Fatal(err)
+	}
+	f.put("clips", "crews/"+scrubCrew+"/../up.mp4", 10, time.Hour)
+	deleteAccount(t, nk, goneUser)
+
+	rec := scrubRecordOf(t, nk)
+	if rec == nil || rec.DoneMs == 0 || len(rec.Media) != 0 {
+		t.Fatalf("record = %+v", rec)
+	}
+	reasons := map[string]string{}
+	for _, sk := range rec.Skipped {
+		reasons[sk.Kind+"/"+sk.Ref] = sk.Reason
+	}
+	if reasons["clip/../up"] != scrubSkipUnsafeID || reasons["stream_session/"] != scrubSkipNoSession || len(reasons) != 2 {
+		t.Fatalf("skipped = %+v", rec.Skipped)
+	}
+	if keys := strings.Join(f.keys("clips"), ","); !strings.Contains(keys, "/../up.mp4") {
+		t.Fatalf("the object of the unsafe id was deleted: %s", keys)
+	}
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+	// Every run reports what the record holds as skipped.
+	res, err := scrubRPC(nk, goneUser)
+	if err != nil || len(res.MediaSkipped) != 2 || !res.Done {
+		t.Fatalf("admin_scrub_user = %+v err=%v", res, err)
+	}
+}
