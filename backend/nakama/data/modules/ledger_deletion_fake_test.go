@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"math"
+	"testing"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -71,4 +74,69 @@ func (n *delNk) has(collection, key string) bool {
 	defer n.mu.Unlock()
 	_, ok := n.storage[fakeStorageKey(collection, key, SystemUserID)]
 	return ok
+}
+
+// delPhase is one phase of the migration that a deletion rule must hold in.
+type delPhase struct {
+	name string
+	// setup sets the store and the phase. It runs before the test seeds.
+	setup func(t *testing.T, nk runtime.NakamaModule) *memLedgerStore
+}
+
+// markersInStorage writes both markers, so that the reconcile also knows that
+// the cutovers are done.
+func markersInStorage(t *testing.T, nk runtime.NakamaModule) {
+	t.Helper()
+	setMarker(t, nk)
+	now := time.Now().UnixMilli()
+	if err := writeHistoryMigrationState(context.Background(), nk, historyMigrationState{StartedMs: now, DoneMs: now}, ""); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// delPhases are the phases: before the cutovers (the documents are the
+// truth), after both (the store is the truth), and under each kill switch.
+var delPhases = []delPhase{
+	{name: "before the cutover", setup: func(t *testing.T, _ runtime.NakamaModule) *memLedgerStore {
+		store := useMemLedger(t)
+		resetLedgerCutover(t)
+		resetHistoryCutover(t)
+		return store
+	}},
+	{name: "after the cutover", setup: func(t *testing.T, nk runtime.NakamaModule) *memLedgerStore {
+		store := useHistoryStoreReads(t)
+		markersInStorage(t, nk)
+		return store
+	}},
+	{name: "kill switch of phase 1b", setup: func(t *testing.T, nk runtime.NakamaModule) *memLedgerStore {
+		store := useHistoryStoreReads(t)
+		markersInStorage(t, nk)
+		t.Setenv("MELLO_LEDGER_HISTORY_READ", "doc")
+		return store
+	}},
+	{name: "kill switch of both phases", setup: func(t *testing.T, nk runtime.NakamaModule) *memLedgerStore {
+		store := useHistoryStoreReads(t)
+		markersInStorage(t, nk)
+		t.Setenv("MELLO_LEDGER_READ", "doc")
+		return store
+	}},
+}
+
+func forDelPhases(t *testing.T, fn func(t *testing.T, nk *delNk, store *memLedgerStore)) {
+	for _, p := range delPhases {
+		t.Run(p.name, func(t *testing.T) {
+			nk := newDelNk()
+			fn(t, nk, p.setup(t, nk))
+		})
+	}
+}
+
+// crewRows returns every row the store holds for a crew.
+func crewRows(t *testing.T, store ledgerStore, crewID string) []CrewEvent {
+	t.Helper()
+	rows, err := store.Between(context.Background(), crewID, 0, math.MaxInt64, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rows
 }

@@ -410,6 +410,9 @@ func DeleteCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 
 	InvalidateCrewState(req.CrewID)
 
+	// Everything of the crew goes with it (plans/DURABLE-LEDGER.md section 7).
+	startCrewPurge(ctx, logger, nk, req.CrewID)
+
 	logger.Info("User %s deleted crew %s", userID, req.CrewID)
 	return `{"success":true}`, nil
 }

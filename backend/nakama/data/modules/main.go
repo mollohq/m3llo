@@ -99,6 +99,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterAfterKickGroupUsers(AfterKickCrewMembers); err != nil {
 		return err
 	}
+	if err := initializer.RegisterAfterDeleteGroup(AfterDeleteCrew); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// Chat hooks
@@ -447,6 +450,10 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 	if err := initializer.RegisterRpc("admin_media_orphans", AdminMediaOrphansRPC); err != nil {
+		return err
+	}
+	// The deletion rules of the crew ledger (plans/DURABLE-LEDGER.md section 7).
+	if err := initializer.RegisterRpc("admin_purge_crew", AdminPurgeCrewRPC); err != nil {
 		return err
 	}
 

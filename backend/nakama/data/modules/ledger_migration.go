@@ -506,6 +506,12 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 	histMarkerOpen := hist.DoneMs == 0
 	histDocWins := historyDocumentIsTruth(st, hist)
 	steps := ledgerReconcileSteps()
+	// The crews that were deleted. Nothing of them is imported.
+	purged, err := purgedCrewIDs(ctx, r.nk)
+	if err != nil {
+		r.logger.Error("ledger_reconcile_failed: purge records: %v", err)
+		return false
+	}
 
 	done := 0
 	for done < ledgerReconcileCrewsPerTick {
@@ -519,6 +525,11 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		}
 		for _, obj := range objects {
 			if obj.Key == "" {
+				continue
+			}
+			if purged[obj.Key] {
+				r.dropPurgedDoc(ctx, store, step.collection, obj.Key)
+				done++
 				continue
 			}
 			if step.history != nil {
@@ -538,6 +549,19 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		}
 	}
 	return false
+}
+
+// dropPurgedDoc deletes a legacy document of a crew that was deleted, and the
+// rows of the crew. The purge of the crew did not delete the document, or a
+// late writer made it again. The document is not imported, and it does not
+// count for the marker.
+func (r *ledgerReconciler) dropPurgedDoc(ctx context.Context, store ledgerStore, collection, crewID string) {
+	if err := r.nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: collection, Key: crewID, UserID: SystemUserID}}); err != nil {
+		r.logger.Error("crew_purge_failed crew=%s: delete of the %s document: %v", crewID, collection, err)
+	}
+	if err := store.DeleteCrew(ctx, crewID); err != nil {
+		r.logger.Error("crew_purge_failed crew=%s: store rows: %v", crewID, err)
+	}
 }
 
 func (r *ledgerReconciler) reconcileLedgerDoc(ctx context.Context, store ledgerStore, crewID string, docWins bool) {
