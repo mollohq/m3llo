@@ -46,13 +46,15 @@ const EVENT_TAIL: usize = 200;
 /// The most rows in one list of the snapshot.
 const LIST_LIMIT: usize = 20;
 /// The roles that the driver treats as controls (tools/mello-driver/src/slint.ts).
-const CONTROL_ROLES: [AccessibleRole; 6] = [
+const CONTROL_ROLES: [AccessibleRole; 8] = [
     AccessibleRole::Button,
     AccessibleRole::Switch,
     AccessibleRole::Tab,
     AccessibleRole::Slider,
     AccessibleRole::Combobox,
     AccessibleRole::TextInput,
+    AccessibleRole::Checkbox,
+    AccessibleRole::RadioButton,
 ];
 
 static EVENTS: Mutex<VecDeque<EventRecord>> = Mutex::new(VecDeque::new());

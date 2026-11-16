@@ -78,7 +78,8 @@ export default journey({
       expect(s.looking_to_play.pip, "bob's pill carries the pip");
       expect(s.looking_to_play.toast === null, `no toast with the card on screen, got "${s.looking_to_play.toast}"`);
       for (const label of ANSWERS) await bob.find(label);
-      expect(labelled(await bob.controls(), "In") === 1, "one In on bob's screen: the card, not a toast");
+      const ins = (await bob.controls()).filter((c) => c.label === "In");
+      expect(ins.length === 1, `one In on bob's screen: the card, not a toast. Found: ${JSON.stringify(ins)}`);
       await bob.checkpoint("bob-sees-ask");
     });
 

@@ -208,13 +208,15 @@ mod runtime {
 
     use crate::testkit::{Harness, MainWindow};
 
-    const CONTROL_ROLES: [AccessibleRole; 6] = [
+    const CONTROL_ROLES: [AccessibleRole; 8] = [
         AccessibleRole::Button,
         AccessibleRole::TextInput,
         AccessibleRole::Switch,
         AccessibleRole::Tab,
         AccessibleRole::Slider,
         AccessibleRole::Combobox,
+        AccessibleRole::Checkbox,
+        AccessibleRole::RadioButton,
     ];
 
     fn crews(n: usize) -> Vec<mello_core::crew::Crew> {
