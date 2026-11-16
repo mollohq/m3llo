@@ -1,7 +1,8 @@
 # Looking to play
 
 > Status: direction and mockup approved by Bob, 12 Nov 2026. Phase 1 merged (#260, 13 Nov 2026).
-> Phase 2 built on `feat/looking-to-play-ask`. Phases 3 and 4 not started.
+> Phases 2 and 3 built on `feat/looking-to-play-ask`. Bob approved the phase 3 renders on
+> 16 Nov 2026. The two-client journey is not run yet. Phase 4 not started.
 > Branch: `feat/looking-to-play-ask` (worktree `mello-wt-looking-to-play`) for phases 2 to 4. The
 > iOS app and the push Worker get a branch of the same name in their own repos.
 > Mockup: `designs/looking-to-play.html` (phase 0, approved 12 Nov 2026).
@@ -284,6 +285,36 @@ without the phone.
 After this plan: the ledger line in Crew history and belts for asks, game presence on
 the phone, m3llo asking when two members are online and nobody asked, the HUD toast when
 the HUD is back, Android.
+
+## 6b. As built in phases 2 and 3
+
+These points differ from the sections above, or add to them.
+
+- **Recent picks.** Collection `looking_to_play_picks`, one doc for each member and crew,
+  the last 3 groups. The list and ask replies carry `recent_picks`. The core sends
+  `Event::LookingToPlayPicks`.
+- **Who gets the toast.** Notification 118 of a new ask has `notify` for each member: true
+  for a member who also gets the phone push. The desktop shows the toast and plays the
+  sound only on true. `Event::LookingToPlayUpdated { ask, notify }`.
+- **The name of the asker.** The ask carries `asker_name`. The client has the names of the
+  open crew only, and a toast is mostly for an ask of another crew.
+- **The game of an ask.** The client sends a library id (`steam-730`) when it can map the
+  game, else the id of the game catalogue. In a large crew, a game that no library names
+  goes to every member.
+- **Game chips.** The game of the user, the active games of the crew, then the installed
+  games of the user by name (the client has no play time for them), at most 3.
+- **The toast.** It shows when the window is visible and the card is not on screen: the
+  crew of the ask is the open crew, the chat panel shows, and the feed is at its bottom.
+  A modal covers it. In on the toast of another crew opens that crew and does not join
+  voice.
+- **The sound.** `Sound::LookingToPlay` uses the mention sound until the new file is here
+  (`mello-core/src/sounds.rs`).
+- **A large crew with no recent picks** starts with nothing picked.
+- **A closed card** shows the time in the format of chat ("Yesterday", "23:14", "Oct 27").
+- **A click on the OS notification** does not bring the window up. No notification of
+  the client does that today.
+- **Chinese.** The push lines of an ask are not reviewed by a native reader. The new UI
+  messages have no Chinese text.
 
 ## 7. Open points
 
