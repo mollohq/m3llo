@@ -12,6 +12,7 @@ import (
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // delNk is fakeGuestNk with the calls the deletion rules use: the kick, the
@@ -33,11 +34,19 @@ type delNk struct {
 	onWrite map[string]func()
 	// stale counts the writes that a version check refused.
 	stale int
+	// memberErr makes the member lists of one crew fail.
+	memberErr map[string]error
+	// promoteErr makes every promote fail. promoteNoop makes a promote
+	// change nothing and return no error.
+	promoteErr  error
+	promoteNoop bool
+	// promotes are the promotes that changed a member: "crew user state".
+	promotes []string
 }
 
 func newDelNk() *delNk {
 	return &delNk{fakeGuestNk: newFakeGuestNk(), failDelete: map[string]bool{}, failWrite: map[string]bool{},
-		versions: map[string]int{}, onRead: map[string]func(){}, onWrite: map[string]func(){}}
+		versions: map[string]int{}, onRead: map[string]func(){}, onWrite: map[string]func(){}, memberErr: map[string]error{}}
 }
 
 func (n *delNk) versionOf(k string) string { return fmt.Sprintf("v%d", n.versions[k]) }
@@ -47,6 +56,71 @@ func (n *delNk) GroupsGetId(ctx context.Context, ids []string) ([]*api.Group, er
 		return nil, n.groupErr
 	}
 	return n.fakeGuestNk.GroupsGetId(ctx, ids)
+}
+
+// GroupUsersList lists the members as Nakama does: the members of one state
+// when a state is given, in the order they joined, up to the limit.
+func (n *delNk) GroupUsersList(_ context.Context, id string, limit int, state *int, _ string) ([]*api.GroupUserList_GroupUser, string, error) {
+	if err := n.memberErr[id]; err != nil {
+		return nil, "", err
+	}
+	var out []*api.GroupUserList_GroupUser
+	for _, m := range n.members[id] {
+		if state != nil && int(m.GetState().GetValue()) != *state {
+			continue
+		}
+		out = append(out, m)
+	}
+	if state != nil && limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, "", nil
+}
+
+// UserGroupsList is the list of the base fake, with the state of the user in
+// each crew.
+func (n *delNk) UserGroupsList(_ context.Context, userID string, _ int, _ *int, _ string) ([]*api.UserGroupList_UserGroup, string, error) {
+	var crews []string
+	for crew := range n.members {
+		crews = append(crews, crew)
+	}
+	sort.Strings(crews)
+	var out []*api.UserGroupList_UserGroup
+	for _, crew := range crews {
+		for _, m := range n.members[crew] {
+			if m.GetUser().GetId() == userID {
+				out = append(out, &api.UserGroupList_UserGroup{Group: &api.Group{Id: crew}, State: wrapperspb.Int32(m.GetState().GetValue())})
+			}
+		}
+	}
+	return out, "", nil
+}
+
+// GroupUsersPromote moves each member one rank up, as Nakama does.
+func (n *delNk) GroupUsersPromote(_ context.Context, _ string, groupID string, userIDs []string) error {
+	if n.promoteErr != nil {
+		return n.promoteErr
+	}
+	if n.promoteNoop {
+		return nil
+	}
+	for _, m := range n.members[groupID] {
+		for _, id := range userIDs {
+			if m.GetUser().GetId() == id && m.GetState().GetValue() > 0 {
+				m.State = wrapperspb.Int32(m.GetState().GetValue() - 1)
+				n.promotes = append(n.promotes, fmt.Sprintf("%s %s %d", groupID, id, m.GetState().GetValue()))
+			}
+		}
+	}
+	return nil
+}
+
+// addMemberAs adds a member with a state: 0 superadmin, 1 admin, 2 member,
+// 3 join request. The order of the calls is the order of the joins.
+func (n *delNk) addMemberAs(crewID, userID, name string, state int32) {
+	n.addMember(crewID, userID, name)
+	ms := n.members[crewID]
+	ms[len(ms)-1].State = wrapperspb.Int32(state)
 }
 
 func (n *delNk) GroupUsersKick(_ context.Context, _ string, groupID string, userIDs []string) error {

@@ -86,6 +86,11 @@ type userScrubRecord struct {
 	Names []string `json:"names,omitempty"`
 	// Crews are the crews that are still to be scrubbed.
 	Crews []string `json:"crews,omitempty"`
+	// SoleCrews are the crews the user was the only member of at the last
+	// delete attempt (BeforeDeleteAccount). Nakama deletes such a group with
+	// the account. The scrub purges a crew of this list when its group is
+	// gone, and no other crew.
+	SoleCrews []string `json:"sole_crews,omitempty"`
 	// Discovered is true when the user index of the store and the scan of the
 	// legacy documents have added their crews. ScanStep and ScanCursor are
 	// the place of the scan.
@@ -173,6 +178,17 @@ func (r *userScrubRecord) addCrews(crews ...string) {
 	}
 }
 
+// soleMemberOf reports whether the user was the only member of the crew at
+// the delete.
+func (r *userScrubRecord) soleMemberOf(crewID string) bool {
+	for _, c := range r.SoleCrews {
+		if c == crewID {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *userScrubRecord) addMedia(m scrubMedia) {
 	if m.CrewID == "" {
 		return
@@ -217,10 +233,13 @@ type userScrubResult struct {
 	// the store are not scrubbed, and the scrub is not done.
 	StorePending  bool `json:"store_pending,omitempty"`
 	CrewsScrubbed int  `json:"crews_scrubbed"`
-	CrewsLeft     int  `json:"crews_left"`
-	Dropped       int  `json:"dropped"`
-	Changed       int  `json:"changed"`
-	MediaDeleted  int  `json:"media_deleted"`
+	// CrewsPurged is the number of crews the run started a purge of: the
+	// user was their only member, and their group went with the account.
+	CrewsPurged  int `json:"crews_purged,omitempty"`
+	CrewsLeft    int `json:"crews_left"`
+	Dropped      int `json:"dropped"`
+	Changed      int `json:"changed"`
+	MediaDeleted int `json:"media_deleted"`
 	// MediaPending is the number of clips and streams whose media is still
 	// to be deleted. MediaSkipped names the media the scrub will not delete.
 	MediaPending int      `json:"media_pending"`
@@ -350,7 +369,9 @@ func accountExists(ctx context.Context, nk runtime.NakamaModule, userID string) 
 
 // BeforeDeleteAccount runs before Nakama deletes an account
 // (DELETE /v2/account). After the delete the names and the crews of the user
-// cannot be read, so this hook writes them to the scrub record. It deletes
+// cannot be read, so this hook writes them to the scrub record. A crew whose
+// only owner is the user gets a new owner here (crew_handover.go): Nakama
+// deletes a group whose last superadmin deletes the account. The hook deletes
 // nothing: the delete can still fail. It never fails the delete.
 func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error {
 	userID, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
@@ -359,7 +380,7 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	}
 	// The account is read once. The record is then written with a version
 	// check, and read again when the deletion job wrote it in between.
-	var names, crews []string
+	var names, crews, owned []string
 	if users, err := nk.UsersGetId(ctx, []string{userID}, nil); err != nil {
 		logger.Error("user_scrub_failed user=%s: account read: %v", userID, err)
 	} else {
@@ -376,15 +397,22 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 		}
 		for _, g := range groups {
 			crews = append(crews, g.GetGroup().GetId())
+			if g.GetState().GetValue() == groupStateSuperadmin {
+				owned = append(owned, g.GetGroup().GetId())
+			}
 		}
 		if next == "" {
 			break
 		}
 		cursor = next
 	}
+	soleCrews := handOverOwnedCrews(ctx, nk, logger, userID, owned)
 	_, err := updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
 		rec.addNames(names...)
 		rec.addCrews(crews...)
+		// The list of this attempt replaces the list of an earlier one: a
+		// crew can have a member now that it did not have then.
+		rec.SoleCrews = soleCrews
 		// Each delete attempt starts the wait for the delete again. The job
 		// deletes a record of an account that still exists after
 		// userScrubStale: a record of an earlier attempt must not be cleaned
@@ -762,15 +790,28 @@ func (c *crewScrub) saveRecord() error {
 // scrubCrewForUser scrubs one crew: the legacy documents, the rows of the
 // store, then the recaps. done is false when the deadline cut it.
 func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, res *userScrubResult, crewID string, deadline time.Time) (done bool, err error) {
-	// A crew that is no longer a group is scrubbed as any other crew. The
-	// scrub never purges a crew: what happens to the crew of an owner who
-	// deletes the account is not decided.
+	// A group read that fails is never a group that is gone.
 	exists, err := crewGroupExists(ctx, nk, crewID)
 	if err != nil {
 		return false, fmt.Errorf("group read: %w", err)
 	}
+	if !exists && rec.DeletedMs > 0 && rec.soleMemberOf(crewID) && validPurgeCrewID(crewID) {
+		// The user was the only member, and Nakama deleted the group with
+		// the account. No delete-group hook ran, so the purge starts here.
+		// The purge record is the order: with the record written, the
+		// deletion job and admin_purge_crew end a purge that fails here.
+		if _, err := ensureCrewPurgeRecord(ctx, nk, crewID); err != nil {
+			return false, fmt.Errorf("purge record write: %w", err)
+		}
+		logger.Info("user_scrub user=%s crew=%s: the user was the only member and the group is gone. The crew is purged", rec.UserID, crewID)
+		purgeCrewData(ctx, nk, logger, crewID, deadline)
+		res.CrewsPurged++
+		return true, nil
+	}
 	if !exists {
-		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged", rec.UserID, crewID)
+		// Any other crew with no group is scrubbed as a crew with a group,
+		// and never purged: nothing says here that no member is left.
+		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged. To remove it, run admin_purge_crew", rec.UserID, crewID)
 	}
 
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
