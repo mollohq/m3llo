@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -599,4 +600,171 @@ func TestScrubNeverPurgesACrew(t *testing.T) {
 		runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
 		checkScrubbed(t, nk, store, f, "after a reconcile")
 	})
+}
+
+// scrubReady seeds one crew, runs the before hook and removes the account.
+// It returns the record of an account that is seen to be gone.
+func scrubReady(t *testing.T, nk *delNk, f *fakeS3) *userScrubRecord {
+	t.Helper()
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	removeAccount(nk, goneUser)
+	rec, err := confirmUserScrub(context.Background(), nk, goneUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rec
+}
+
+// Two nodes run the scrub of one user. The node that works on an old copy of
+// the record must not write it: here the other node ended the scrub and
+// deleted the record while this run was in a crew.
+func TestStaleScrubRunDoesNotBringBackADeletedRecord(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	fired := false
+	nk.onRead[CrewRecapsCollection] = func() {
+		if fired {
+			return
+		}
+		fired = true
+		// The other node.
+		if err := nk.StorageDelete(context.Background(), []*runtime.StorageDelete{{Collection: UserScrubCollection, Key: goneUser, UserID: SystemUserID}}); err != nil {
+			t.Error(err)
+		}
+	}
+	res := runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(time.Minute))
+	if !fired {
+		t.Fatal("the test did not reach the recaps of the crew")
+	}
+	if res.Done || len(res.Errors) == 0 {
+		t.Fatalf("a run on an old record = %+v", res)
+	}
+	if got := scrubRecordOf(t, nk); got != nil {
+		t.Fatalf("a stale run wrote the deleted record again: %+v", got)
+	}
+	if nk.stale == 0 {
+		t.Fatal("no write was refused: the record write carries no version")
+	}
+	if len(f.deletes) != 0 {
+		t.Fatalf("a run that lost its record deleted media: %v", f.deletes)
+	}
+}
+
+// The other node wrote the record (it found media to delete) while this run
+// was in a crew. This run must not overwrite it.
+func TestStaleScrubRunDoesNotDropTheMediaOfANewerRecord(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	theirs := scrubMedia{Kind: ledgerTypeClip, CrewID: leftCrew, Ref: "their-clip"}
+	fired := false
+	nk.onRead[CrewRecapsCollection] = func() {
+		if fired {
+			return
+		}
+		fired = true
+		other, err := readUserScrubRecord(context.Background(), nk, goneUser)
+		if err != nil || other == nil {
+			t.Errorf("the other node cannot read the record: %v", err)
+			return
+		}
+		other.addMedia(theirs)
+		if err := writeUserScrubRecord(context.Background(), nk, other); err != nil {
+			t.Error(err)
+		}
+	}
+	res := runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(time.Minute))
+	if res.Done || len(res.Errors) == 0 || !fired {
+		t.Fatalf("a run on an old record = %+v fired=%t", res, fired)
+	}
+	got := scrubRecordOf(t, nk)
+	if got == nil {
+		t.Fatal("the record is gone")
+	}
+	found := false
+	for _, m := range got.Media {
+		found = found || m == theirs
+	}
+	if !found || got.DoneMs != 0 {
+		t.Fatalf("the stale run overwrote the newer record: %+v", got)
+	}
+	// The next run works on the current record and ends the scrub.
+	delete(nk.onRead, CrewRecapsCollection)
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if traces := userTraces(t, nk, currentLedger(), scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+	if got := scrubRecordOf(t, nk); got == nil || got.DoneMs == 0 {
+		t.Fatalf("scrub record = %+v", got)
+	}
+}
+
+// One scrub of a user runs at a time in a process: the hook, the job and the
+// RPC can all start one.
+func TestOneScrubOfAUserAtATime(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	inside, release := make(chan struct{}), make(chan struct{})
+	first := true
+	nk.onRead[CrewRecapsCollection] = func() {
+		if first {
+			first = false
+			close(inside)
+			<-release
+		}
+	}
+	done := make(chan userScrubResult)
+	go func() { done <- runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(time.Minute)) }()
+	<-inside
+	second, err := scrubRPC(nk, goneUser)
+	if err != nil || !second.Busy || second.Done || second.Dropped != 0 {
+		t.Fatalf("a second scrub while the first runs = %+v err=%v", second, err)
+	}
+	close(release)
+	if res := <-done; !res.Done {
+		t.Fatalf("the first scrub = %+v", res)
+	}
+	if again, err := scrubRPC(nk, goneUser); err != nil || again.Busy || !again.Done {
+		t.Fatalf("a scrub after the first ended = %+v err=%v", again, err)
+	}
+}
+
+// The delete of a record carries the version too: a run that ends on an old
+// copy does not delete the record of a newer run.
+func TestScrubRecordDeleteIsVersionChecked(t *testing.T) {
+	nk := newDelNk()
+	ctx := context.Background()
+	mine, err := confirmUserScrub(ctx, nk, goneUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, _ := readUserScrubRecord(ctx, nk, goneUser)
+	other.addCrews(scrubCrew)
+	if err := writeUserScrubRecord(ctx, nk, other); err != nil {
+		t.Fatal(err)
+	}
+	if err := deleteUserScrubRecord(ctx, nk, mine); !errors.Is(err, errScrubRecordLost) {
+		t.Fatalf("delete on an old copy: %v", err)
+	}
+	if got := scrubRecordOf(t, nk); got == nil || len(got.Crews) != 1 {
+		t.Fatalf("the record of the newer run = %+v", got)
+	}
+	if err := writeUserScrubRecord(ctx, nk, mine); !errors.Is(err, errScrubRecordLost) {
+		t.Fatalf("write on an old copy: %v", err)
+	}
+	if err := deleteUserScrubRecord(ctx, nk, other); err != nil {
+		t.Fatal(err)
+	}
+	// A copy of a record that is gone does not make it again.
+	if err := writeUserScrubRecord(ctx, nk, other); !errors.Is(err, errScrubRecordLost) || scrubRecordOf(t, nk) != nil {
+		t.Fatalf("write of a deleted record: %v", err)
+	}
 }

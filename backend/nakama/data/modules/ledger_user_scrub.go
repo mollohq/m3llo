@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -87,6 +88,11 @@ type userScrubRecord struct {
 	DoneMs    int64  `json:"done_ms,omitempty"`
 	SecondRun bool   `json:"second_run,omitempty"`
 	LastError string `json:"last_error,omitempty"`
+
+	// version is the storage version this copy of the record was read or
+	// written at. Every write and the delete carry it, so a run that works on
+	// an old copy cannot overwrite the record of a newer run.
+	version string
 }
 
 // idle reports whether the record has no work left.
@@ -157,7 +163,10 @@ type userScrubResult struct {
 	// Done is true when the run left nothing to do.
 	Done bool `json:"done"`
 	// Incomplete is true when the run was cut at its time budget.
-	Incomplete    bool     `json:"incomplete"`
+	Incomplete bool `json:"incomplete"`
+	// Busy is true when another scrub of the user runs in this process. The
+	// run did nothing.
+	Busy          bool     `json:"busy,omitempty"`
 	CrewsScrubbed int      `json:"crews_scrubbed"`
 	CrewsLeft     int      `json:"crews_left"`
 	Dropped       int      `json:"dropped"`
@@ -178,35 +187,100 @@ var userScrubNow = time.Now
 // test runs it inline.
 var userScrubAsync = func(fn func()) { go fn() }
 
+// errScrubRecordLost is the error of a write or a delete of a scrub record
+// that the storage refused. The copy of the record is then not the current
+// one (another run wrote it, on this node or on another), or the storage
+// failed. In both cases the run that holds the copy must stop: the record in
+// storage is the truth, and the deletion job continues from it.
+var errScrubRecordLost = errors.New("the scrub record was not written")
+
 func readUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, userID string) (*userScrubRecord, error) {
 	var rec userScrubRecord
-	found, _, err := readDocStrict(ctx, nk, UserScrubCollection, userID, &rec)
+	found, version, err := readDocStrict(ctx, nk, UserScrubCollection, userID, &rec)
 	if err != nil || !found {
 		return nil, err
 	}
 	rec.UserID = userID
+	rec.version = version
 	return &rec, nil
 }
 
+// writeUserScrubRecord writes the record when storage holds the version of
+// this copy. A new record is written only when storage holds none.
 func writeUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord) error {
 	data, err := json.Marshal(rec)
 	if err != nil {
 		return err
 	}
-	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+	version := rec.version
+	if version == "" {
+		version = "*"
+	}
+	acks, err := nk.StorageWrite(ctx, []*runtime.StorageWrite{{
 		Collection:      UserScrubCollection,
 		Key:             rec.UserID,
 		UserID:          SystemUserID,
 		Value:           string(data),
+		Version:         version,
 		PermissionRead:  0,
 		PermissionWrite: 0,
 	}})
-	return err
+	if err != nil {
+		return fmt.Errorf("%w: %v", errScrubRecordLost, err)
+	}
+	if len(acks) == 0 || acks[0].GetVersion() == "" {
+		return fmt.Errorf("%w: the write returned no version", errScrubRecordLost)
+	}
+	rec.version = acks[0].GetVersion()
+	return nil
 }
 
-func deleteUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, userID string) error {
-	return nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: UserScrubCollection, Key: userID, UserID: SystemUserID}})
+// deleteUserScrubRecord deletes the record when storage holds the version of
+// this copy.
+func deleteUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord) error {
+	if rec.version == "" {
+		return fmt.Errorf("%w: the record was never read", errScrubRecordLost)
+	}
+	err := nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: UserScrubCollection, Key: rec.UserID, UserID: SystemUserID, Version: rec.version}})
+	if err != nil {
+		return fmt.Errorf("%w: %v", errScrubRecordLost, err)
+	}
+	return nil
 }
+
+// updateUserScrubRecord reads the record, changes it with fn and writes it.
+// When another writer was first it reads again. A record that does not exist
+// is made. It returns the record as written.
+func updateUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, userID string, fn func(rec *userScrubRecord)) (*userScrubRecord, error) {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		rec, err := readUserScrubRecord(ctx, nk, userID)
+		if err != nil {
+			return nil, err
+		}
+		before := []byte(nil)
+		if rec == nil {
+			rec = &userScrubRecord{UserID: userID, StartedMs: userScrubNow().UnixMilli()}
+		} else {
+			before, _ = json.Marshal(rec)
+		}
+		fn(rec)
+		// A record that fn did not change is not written: a write would take
+		// the record from the run that works on it.
+		if after, _ := json.Marshal(rec); before != nil && string(after) == string(before) {
+			return rec, nil
+		}
+		if lastErr = writeUserScrubRecord(ctx, nk, rec); lastErr == nil {
+			return rec, nil
+		}
+	}
+	return nil, lastErr
+}
+
+// userScrubRunning holds the user ids whose scrub runs in this process. One
+// scrub of a user runs at a time: the hook, the job and the RPC can all
+// start one. Two nodes are kept apart by the version of the record.
+var userScrubRunning sync.Map
 
 // accountExists reports whether the user is an account on this install.
 func accountExists(ctx context.Context, nk runtime.NakamaModule, userID string) (bool, error) {
@@ -231,18 +305,14 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	if userID == "" {
 		return nil
 	}
-	rec, err := readUserScrubRecord(ctx, nk, userID)
-	if err != nil {
-		logger.Error("user_scrub_failed user=%s: scrub record read: %v", userID, err)
-	}
-	if rec == nil {
-		rec = &userScrubRecord{UserID: userID, StartedMs: userScrubNow().UnixMilli()}
-	}
+	// The account is read once. The record is then written with a version
+	// check, and read again when the deletion job wrote it in between.
+	var names, crews []string
 	if users, err := nk.UsersGetId(ctx, []string{userID}, nil); err != nil {
 		logger.Error("user_scrub_failed user=%s: account read: %v", userID, err)
 	} else {
 		for _, u := range users {
-			rec.addNames(u.GetDisplayName(), u.GetUsername())
+			names = append(names, u.GetDisplayName(), u.GetUsername())
 		}
 	}
 	cursor := ""
@@ -253,14 +323,18 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 			break
 		}
 		for _, g := range groups {
-			rec.addCrews(g.GetGroup().GetId())
+			crews = append(crews, g.GetGroup().GetId())
 		}
 		if next == "" {
 			break
 		}
 		cursor = next
 	}
-	if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+	_, err := updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
+		rec.addNames(names...)
+		rec.addCrews(crews...)
+	})
+	if err != nil {
 		logger.Error("user_scrub_failed user=%s: scrub record write: %v. Run admin_scrub_user after the delete", userID, err)
 	}
 	return nil
@@ -292,21 +366,11 @@ func AfterDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 // the time it was seen to be gone. It makes the record when there is none:
 // the names and the crews then come only from the data.
 func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID string) (*userScrubRecord, error) {
-	rec, err := readUserScrubRecord(ctx, nk, userID)
-	if err != nil {
-		return nil, err
-	}
-	now := userScrubNow().UnixMilli()
-	if rec == nil {
-		rec = &userScrubRecord{UserID: userID, StartedMs: now}
-	}
-	if rec.DeletedMs == 0 {
-		rec.DeletedMs = now
-		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
-			return nil, err
+	return updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
+		if rec.DeletedMs == 0 {
+			rec.DeletedMs = userScrubNow().UnixMilli()
 		}
-	}
-	return rec, nil
+	})
 }
 
 // scrubScanCollections are the legacy documents the scrub scans for the id of
@@ -317,25 +381,25 @@ var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, C
 // crews of the user index of the store, and the crews whose legacy documents
 // hold the id of the user. The crews the user was a member of at the delete
 // are in the record already. It returns false when the deadline cut the scan.
-func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) bool {
+func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) (bool, error) {
 	if store := currentLedger(); store != nil && rec.ScanStep == 0 && rec.ScanCursor == "" {
 		crews, err := store.UserCrews(ctx, rec.UserID)
 		if err != nil {
 			res.fail("user index: %v", err)
-			return false
+			return false, nil
 		}
 		rec.addCrews(crews...)
 	}
 	for rec.ScanStep < len(scrubScanCollections) {
 		if userScrubNow().After(deadline) {
 			res.Incomplete = true
-			return false
+			return false, nil
 		}
 		collection := scrubScanCollections[rec.ScanStep]
 		objects, next, err := nk.StorageList(ctx, "", SystemUserID, collection, 100, rec.ScanCursor)
 		if err != nil {
 			res.fail("scan of %s: %v", collection, err)
-			return false
+			return false, nil
 		}
 		for _, obj := range objects {
 			// The id of the user anywhere in the document, in any field.
@@ -348,12 +412,11 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 			rec.ScanStep++
 		}
 		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
-			res.fail("scrub record write: %v", err)
-			return false
+			return false, err
 		}
 	}
 	rec.Discovered = true
-	return true
+	return true, nil
 }
 
 // runUserScrub runs the scrub of a deleted account once, up to the deadline.
@@ -361,8 +424,33 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 // or as it was.
 func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, deadline time.Time) userScrubResult {
 	res := userScrubResult{UserID: rec.UserID}
+	if _, busy := userScrubRunning.LoadOrStore(rec.UserID, true); busy {
+		res.Busy = true
+		res.fail("a scrub of this user runs in this process")
+		return res
+	}
+	defer userScrubRunning.Delete(rec.UserID)
+
+	// lost is true when a write of the record was refused. This run then
+	// stops and writes nothing more: its copy of the record is old.
+	lost := false
+	save := func() bool {
+		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+			res.fail("%v. This run stops", err)
+			lost = true
+		}
+		return !lost
+	}
 	finish := func() userScrubResult {
 		res.CrewsLeft = len(rec.Crews)
+		line := func() string {
+			return fmt.Sprintf("user=%s crews=%d crews_left=%d dropped=%d changed=%d media=%d incomplete=%t",
+				rec.UserID, res.CrewsScrubbed, res.CrewsLeft, res.Dropped, res.Changed, res.MediaDeleted, res.Incomplete)
+		}
+		if lost {
+			logger.Error("user_scrub_failed %s: %s", line(), strings.Join(res.Errors, "; "))
+			return res
+		}
 		res.Done = len(res.Errors) == 0 && !res.Incomplete && rec.idle()
 		now := userScrubNow().UnixMilli()
 		rec.LastError = strings.Join(res.Errors, "; ")
@@ -377,30 +465,34 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 		}
 		var err error
 		if settled {
-			// The second run is over. The record holds names: it goes.
-			err = deleteUserScrubRecord(ctx, nk, rec.UserID)
+			// The second run is over. The record goes.
+			err = deleteUserScrubRecord(ctx, nk, rec)
 		} else {
 			err = writeUserScrubRecord(ctx, nk, rec)
 		}
 		if err != nil {
-			res.fail("scrub record write: %v", err)
+			res.fail("%v", err)
 			res.Done = false
 		}
-		line := fmt.Sprintf("user=%s crews=%d crews_left=%d dropped=%d changed=%d media=%d incomplete=%t",
-			rec.UserID, res.CrewsScrubbed, res.CrewsLeft, res.Dropped, res.Changed, res.MediaDeleted, res.Incomplete)
 		if len(res.Errors) > 0 {
-			logger.Error("user_scrub_failed %s: %s", line, strings.Join(res.Errors, "; "))
+			logger.Error("user_scrub_failed %s: %s", line(), strings.Join(res.Errors, "; "))
 		} else {
-			logger.Info("user_scrub %s", line)
+			logger.Info("user_scrub %s", line())
 		}
 		return res
 	}
 
-	if !rec.Discovered && !discoverUserCrews(ctx, nk, rec, &res, deadline) {
-		return finish()
+	if !rec.Discovered {
+		ok, err := discoverUserCrews(ctx, nk, rec, &res, deadline)
+		if errors.Is(err, errScrubRecordLost) {
+			res.fail("%v. This run stops", err)
+			lost = true
+		}
+		if !ok {
+			return finish()
+		}
 	}
-	if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
-		res.fail("scrub record write: %v", err)
+	if !save() {
 		return finish()
 	}
 	for len(rec.Crews) > 0 {
@@ -410,6 +502,11 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 		}
 		crewID := rec.Crews[0]
 		done, err := scrubCrewForUser(ctx, nk, logger, rec, &res, crewID, deadline)
+		if errors.Is(err, errScrubRecordLost) {
+			res.fail("crew %s: %v. This run stops", crewID, err)
+			lost = true
+			return finish()
+		}
 		if err != nil {
 			// The crew stays in the record. The other crews still run.
 			res.fail("crew %s: %v", crewID, err)
@@ -425,8 +522,7 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 		}
 		rec.Crews = rec.Crews[1:]
 		res.CrewsScrubbed++
-		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
-			res.fail("scrub record write: %v", err)
+		if !save() {
 			return finish()
 		}
 	}
@@ -513,10 +609,7 @@ func (c *crewScrub) dropEvent(ev CrewEvent) {
 // saveRecord writes the names and the media the scrub found so far. It runs
 // before the data that held them is changed.
 func (c *crewScrub) saveRecord() error {
-	if err := writeUserScrubRecord(c.ctx, c.nk, c.rec); err != nil {
-		return fmt.Errorf("scrub record write: %w", err)
-	}
-	return nil
+	return writeUserScrubRecord(c.ctx, c.nk, c.rec)
 }
 
 // scrubCrewForUser scrubs one crew: the legacy documents, the rows of the
@@ -973,6 +1066,7 @@ func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger r
 				continue
 			}
 			rec.UserID = obj.GetKey()
+			rec.version = obj.GetVersion()
 			now := userScrubNow()
 			if now.After(deadline) {
 				return
@@ -986,7 +1080,7 @@ func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger r
 				if exists {
 					// The delete did not happen, or is not over yet.
 					if now.UnixMilli() >= rec.StartedMs+userScrubStale.Milliseconds() {
-						if err := deleteUserScrubRecord(ctx, nk, rec.UserID); err != nil {
+						if err := deleteUserScrubRecord(ctx, nk, &rec); err != nil {
 							logger.Error("user_scrub_failed user=%s: scrub record delete: %v", rec.UserID, err)
 						}
 					}
@@ -1055,6 +1149,11 @@ func AdminScrubUserRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 	}
 	if exists {
 		return "", runtime.NewError("the account still exists: delete it first", 9)
+	}
+	if _, busy := userScrubRunning.Load(req.UserID); busy {
+		// A scrub of the user runs in this process. Its record is not touched.
+		out, _ := json.Marshal(userScrubResult{UserID: req.UserID, Busy: true, Errors: []string{"a scrub of this user runs in this process"}})
+		return string(out), nil
 	}
 	rec, err := confirmUserScrub(ctx, nk, req.UserID)
 	if err != nil {
