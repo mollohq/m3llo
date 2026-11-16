@@ -240,8 +240,8 @@ func ledgerMergeOrder(view, doc []string, isNew map[string]bool, docOrderWins bo
 }
 
 // eventUserIDs lists every user an event names: the actor, the participants,
-// players and viewers, the streamer, the inviter and the clip participants.
-// The actor comes first. No id repeats.
+// players and viewers, the streamer, the inviter, the clip participants and
+// the members a weekly recap lists. The actor comes first. No id repeats.
 func eventUserIDs(ev CrewEvent) []string {
 	var d struct {
 		ParticipantIDs []string `json:"participant_ids"`
@@ -271,6 +271,13 @@ func eventUserIDs(ev CrewEvent) []string {
 	add(d.ViewerIDs...)
 	add(d.StreamerID, d.InvitedBy)
 	add(d.Participants...)
+	// A weekly recap names its members in lists of its own. The scrub of a
+	// deleted account finds the recap rows of a user through them.
+	if typ, _ := ledgerReaderType(ev.Type); typ == ledgerTypeWeeklyRecap {
+		if r, ok := recapFromRow(ev); ok {
+			add(recapUserIDs(r)...)
+		}
+	}
 	return out
 }
 
