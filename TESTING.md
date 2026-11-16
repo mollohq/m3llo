@@ -157,6 +157,7 @@ set `RUSTC` to the toolchain `rustc.exe`.
 | Nakama `gofmt` / `go vet` | Backend modules | No | ✅ yes | `cd backend/nakama/data/modules && gofmt -l . && go vet ./...` |
 | `dev_fault` RPC | Backend fault injection | Yes (live Nakama) | No (manual/integration) | RPC call, gated by `MELLO_ENABLE_DEV_FAULT=1` |
 | `dev_ledger_selftest` RPC | The SQL crew ledger store against the store contract | Yes (live Nakama) | No (manual) | `./scripts/e2e.sh`, gated by `MELLO_ENABLE_DEV_FAULT=1` |
+| `dev_delete_selftest` RPC | The SQL statements of the deletion rules (chat messages, reactions, membership rows) on the real tables | Yes (live Nakama) | No (manual) | `./scripts/e2e.sh`, gated by `MELLO_ENABLE_DEV_FAULT=1` |
 | `scripts/e2e-head2head.sh` | Head2head feed entry: library_report, crew_feed, belt move, night_owl | Yes (own local Nakama stack) | No (manual, ~70 s) | `./scripts/e2e-head2head.sh` |
 | `mello-driver seed-crew` | Seeds crewmates (library, sessions, clips, belt) into your crew on the local stack | Yes (local Nakama) | No (manual) | `node tools/mello-driver/src/cli.ts seed-crew <invite code> [--members N] [--belts] [--clips N] [--recap]` |
 | `mello-driver run` needs | A journey lists `needs` (`sfu`, `lounge`, `art`); `voice: true` implies `sfu`. `run` checks each need once before the first journey, and only on a local address. `art` is the art Worker health at `MELLO_E2E_ART_BASE` (default `http://127.0.0.1:8787`); start it with `scripts/e2e-art-worker.sh up`. `sfu` is the SFU health at `MELLO_E2E_SFU_HEALTH`. Start it with `docker compose up -d --build` in `mello-sfu`: without `--build`, compose reuses the old `mello-sfu-sfu` image and voice joins fail with `DataChannel open timeout`. | Yes (local stack) | No (manual) | `node tools/mello-driver/src/cli.ts run <journey>` |
@@ -1402,7 +1403,24 @@ The migration and deletion tests (`ledger_*_test.go`) run on the in-memory
 store and a storage fake. Tests of the deletion rules use `delPhases`: each one
 runs before the cutover, after it, and under each kill switch.
 
-Never enable `dev_ledger_selftest` in production.
+The deletion rules use four SQL statements on tables of Nakama (`message`,
+`storage`, `group_edge`). The Go tests run the rules on fakes of those
+tables, so they do not run the statements. The `dev_delete_selftest` RPC
+does (`ledger_delete_selftest.go`): it makes its own rows under new random
+ids, checks that a direct message, another crew and an account that exists
+are not touched, and deletes its rows at the end. It also checks what the
+group update of Nakama does with empty values. A new SQL statement of a
+deletion rule gets its check there.
+
+```bash
+MELLO_E2E=1 CI=true cargo test -p e2e --test backend -- the_sql_of_the_deletion_rules_passes_its_selftest --nocapture
+```
+
+`dev_fault` with `{"action":"fail_next_handover","count":1}` makes the next
+promote of a crew handover fail, so a run against a live stack sees an
+account delete refused (spec 16 section 10.2).
+
+Never enable `dev_ledger_selftest` or `dev_delete_selftest` in production.
 
 ---
 

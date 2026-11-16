@@ -105,7 +105,8 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `ledger_scrub.go` | The scrub rules of a deleted account. Pure functions |
 | `ledger_scrub_leftovers.go` | The scrub rules outside the ledger: the quests record, the crew emoji, the push queues, the invite codes, the creator of the group |
 | `ledger_user_scrub.go` | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub of a deleted account, `StartLedgerDeletionJob`, `AdminScrubUserRPC` |
-| `crew_handover.go` | The new owner of a crew whose only owner deletes the account (`handOverCrew`), and the membership rows that Nakama keeps of a deleted account |
+| `crew_handover.go` | The new owner of a crew whose only owner deletes the account (`handOverCrew`), the repair of a crew with no owner (`repairOwnerlessCrew`), the membership rows that Nakama keeps of a deleted account and their sweep (`sweepGoneMembers`) |
+| `ledger_delete_selftest.go` | `DevDeleteSelftestRPC`: the SQL statements of the deletion rules on the real tables |
 | `ledger_purge.go` | `AfterDeleteCrew`, the purge of a deleted crew, `AdminPurgeCrewRPC` |
 | `ledger_purge_chat.go` | The chat part of the purge: the messages of the group channel and the reactions of the crew |
 | `admin_media_orphans.go` | `AdminMediaOrphansRPC`: server-to-server scan and delete of clip and snapshot objects that no row points at (§4.5) |
@@ -174,6 +175,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_scrub_user` | No (`http_key`, server-to-server only) | `{user_id}`. Runs the scrub of a deleted account again (see §4.6). Refuses while the account exists (FAILED_PRECONDITION, 9). Rejects client sessions. |
 | `admin_purge_crew` | No (`http_key`, server-to-server only) | `{crew_id}`. Runs the purge of a deleted crew (see §4.6). Refuses while the group exists (9), and for a crew id this install holds nothing of (NOT_FOUND, 5). Rejects client sessions. |
 | `dev_ledger_selftest` | Yes, or `http_key` | Dev and test only. Runs the store conformance on the real ledger tables, on throwaway crew ids. Needs `MELLO_ENABLE_DEV_FAULT=1`, else FAILED_PRECONDITION (9). Returns `{"success": true, "store": "sql"}`. |
+| `dev_delete_selftest` | Yes, or `http_key` | Dev and test only. Runs the SQL statements of the deletion rules (chat messages, reactions, membership rows) on the real tables, on rows it makes and deletes itself, and checks the group update of Nakama. Refuses unless `MELLO_ENABLE_DEV_FAULT=1`. |
 
 Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`, `INVALID_ARGUMENT`, `NOT_FOUND`, `PERMISSION_DENIED`, `INTERNAL`).
 
@@ -186,7 +188,7 @@ Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`
 | `BeforeKickGroupUsers` | `BeforeKickCrewMembers` | Notes which ids of the request are members. Never changes or refuses the request |
 | `AfterKickGroupUsers` | `AfterKickCrewMembers` | For each noted id that is no member now: cleans voice, writes `member_left` |
 | `AfterDeleteGroup` | `AfterDeleteCrew` | Starts the purge of the crew (spec 16 section 10.3) |
-| `BeforeDeleteAccount` | `BeforeDeleteAccount` | Hands over a crew whose only owner is the user. Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. Never fails the delete |
+| `BeforeDeleteAccount` | `BeforeDeleteAccount` | Hands over a crew whose only owner is the user. Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. Fails the delete (`UNAVAILABLE`, 14) only when a crew with other members cannot be handed over (spec 16 section 10.2) |
 | `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2). The scrub purges a crew the user was the only member of |
 
 **Background jobs of the durable store.** `StartLedgerReconcile` and `StartLedgerDeletionJob` run at start and every 5 minutes on each node.
@@ -492,8 +494,9 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 | `ledger_migration` | `state` | System user (`""`) | `{dual_write_started_ms, events_done_ms}`: the state and the marker of phase 1a. Read 0, write 0. | The reconcile writes, `ledgerTruthStore` reads |
 | `ledger_migration` | `history` | System user (`""`) | `{started_ms, done_ms}`: the state and the marker of phase 1b. Read 0, write 0. | The reconcile writes, `historyTruthStore` reads |
 | `ledger_migration` | `purge_token` | System user (`""`) | A token that changes with every write of a purge record. A node lists the purge records again only when it changed. | The purge writes, the reconcile and the deletion job read |
+| `ledger_migration` | `gone_members_swept` | System user (`""`) | `{done_ms}`. Written when the sweep of membership rows found none (spec 16 section 10.4). | The deletion job |
 | `ledger_user_scrub` | `{user_id}` | System user (`""`) | The scrub record of a deleted account (spec 16 section 10.2), with `sole_crews`: the crews the user was the only member of. Deleted when the scrub is over. No client read. | `BeforeDeleteAccount`, `AfterDeleteAccount`, the deletion job, `admin_scrub_user` |
-| `ledger_crew_purge` | `{crew_id}` | System user (`""`) | The purge record of a deleted crew: `{crew_id, started_ms, done_ms, settled_ms, store_pending, last_error}`. Kept for good. | `delete_crew`, `AfterDeleteCrew`, the scrub of an only member, the deletion job, the reconcile, `admin_purge_crew` |
+| `ledger_crew_purge` | `{crew_id}` | System user (`""`) | The purge record of a deleted crew: `{crew_id, started_ms, done_ms, settled_ms, store_pending, reactions_done, last_error}`. Kept for good. | `delete_crew`, `AfterDeleteCrew`, the scrub of an only member, the deletion job, the reconcile, `admin_purge_crew` |
 | `stream_resume` | `{host user_id}` | System user (`""`) | The stream records that `StreamCleanupUser` removed, the ledger event id and the time. Read 0, write 0. | `StreamCleanupUser` writes, `start_stream` with `resume_session_id` reads and deletes |
 | `discover` | `curation` | System user | Featured and hidden crew lists (§4.3). Read 0, write 0. | `discover_crews`, `admin_discover_curation_get`, `admin_discover_curation_set` |
 

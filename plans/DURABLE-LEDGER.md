@@ -84,13 +84,18 @@ One release after both cutovers are done on every install we support:
 ## 5. Open decisions
 
 - Chat of a deleted account (spec 16 section 10.6). Nakama deletes the
-  messages of the user. The chat images of the user, the reactions of the
-  user and the mentions of the user in other messages stay. No rule yet.
+  messages of the user, and the scrub deletes the chat images of the user.
+  The reactions of the user and the mentions of the user in other messages
+  stay. No rule yet.
 - The members of a crew are not told when the owner changes after a
   handover (spec 16 section 10.2). A client reads the role at the next read
   of the crew state. Tell them, or not: not decided.
-- A crew whose handover failed loses its group and keeps its data until
-  `admin_purge_crew` is run. Purge it in the scrub, or not: not decided.
+- The account delete can now be refused (a handover that fails). The
+  clients have no delete in the UI. When one is built it must show the text
+  of the server and let the user try again.
+- A crew with no owner and no member (two owners deleted at once, no one
+  else in the crew) keeps its group and its data. Delete it, or not: not
+  decided.
 - `MELLO_LEDGER_READ=doc` does not make the reconcile of phase 1a take the
   content of the ledger document again. Only phase 1b follows the truth. Fix
   it, or let it go with the legacy documents.
