@@ -27,6 +27,8 @@ pub struct PollState {
     saved_app_weak: slint::Weak<MainWindow>,
     /// The last time the live session cards counted their minutes again.
     live_cards_at: std::cell::Cell<std::time::Instant>,
+    /// The last time the Looking to play cards counted their minutes again.
+    ask_cards_at: std::cell::Cell<std::time::Instant>,
 }
 
 impl PollState {
@@ -41,6 +43,7 @@ impl PollState {
             update_event_rx,
             saved_timer: Rc::new(slint::Timer::default()),
             live_cards_at: std::cell::Cell::new(std::time::Instant::now()),
+            ask_cards_at: std::cell::Cell::new(std::time::Instant::now()),
             saved_app_weak: ctx.app.as_weak(),
         }
     }
@@ -73,6 +76,14 @@ impl PollState {
         if self.live_cards_at.get().elapsed() >= Duration::from_secs(30) {
             self.live_cards_at.set(std::time::Instant::now());
             crate::handlers::refresh_live_session_cards(poll_ctx);
+        }
+        // The minutes of the Looking to play cards. `tick` does nothing
+        // while the crew on screen has no ask that is open or on.
+        if self.ask_cards_at.get().elapsed()
+            >= Duration::from_millis(crate::looking_to_play::REFRESH_MS)
+        {
+            self.ask_cards_at.set(std::time::Instant::now());
+            crate::handlers::looking_to_play::tick(poll_ctx);
         }
         let update_event_rx = &self.update_event_rx;
         let event_rx = &self.event_rx;

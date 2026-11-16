@@ -49,6 +49,7 @@ mod joined_line;
 mod l10n_format;
 mod live_session;
 pub mod locale;
+mod looking_to_play;
 mod member_audio;
 mod notifications;
 mod onboarding;
@@ -712,6 +713,7 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
         stream_key_notice: Rc::new(RefCell::new(Some(Box::new(
             notifications::notify_stream_key,
         )))),
+        looking_to_play: Rc::new(RefCell::new(Default::default())),
     };
 
     // --- Wire all callbacks ---

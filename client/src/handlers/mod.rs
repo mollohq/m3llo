@@ -5,7 +5,7 @@ pub(crate) mod clip;
 mod crew;
 mod game;
 pub(crate) mod games;
-mod looking_to_play;
+pub(crate) mod looking_to_play;
 mod presence;
 mod quests;
 mod stats;

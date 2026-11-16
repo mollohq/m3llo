@@ -276,8 +276,11 @@ fn the_looking_to_play_setting_is_hidden_until_the_feature_is_built() {
     let mut h = crew_menu_open();
     press_menu_item(&mut h, "Notifications");
     switch(&h, "Messages");
+    // The composer pill has the same label, so only a switch counts.
     assert!(
-        h.controls_labelled("Looking to play").is_empty(),
+        h.controls_labelled("Looking to play")
+            .iter()
+            .all(|e| e.accessible_role() != Some(AccessibleRole::Switch)),
         "no Looking to play row by default"
     );
 

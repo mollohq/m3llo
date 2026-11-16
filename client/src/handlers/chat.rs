@@ -31,6 +31,7 @@ pub(crate) struct ChatRefresh {
     media_images: Rc<std::cell::RefCell<std::collections::HashMap<String, Option<slint::Image>>>>,
     rt: tokio::runtime::Handle,
     gif_chat_anim: crate::gif_animator::GifAnimator,
+    looking_to_play: Rc<std::cell::RefCell<crate::looking_to_play::LtpState>>,
 }
 
 impl ChatRefresh {
@@ -45,6 +46,7 @@ impl ChatRefresh {
             media_images: ctx.media_images.clone(),
             rt: ctx.rt.clone(),
             gif_chat_anim: ctx.gif_chat_anim.clone(),
+            looking_to_play: ctx.looking_to_play.clone(),
         }
     }
 
@@ -83,7 +85,12 @@ impl ChatRefresh {
                 .collect()
         };
         let tr = app.global::<crate::Tr>();
+        let ltp = self.looking_to_play.borrow();
+        let cards =
+            crate::handlers::looking_to_play::CardView::new(&app, &self.avatar_cache.borrow());
+        let ask_card = |ask_id: &str| cards.data(&tr, &ltp, ask_id);
         let opts = ChatConvertOptions {
+            ask_card: &ask_card,
             tr: &tr,
             user_id: &uid,
             reactions: &reactions,
@@ -101,6 +108,7 @@ impl ChatRefresh {
         app.set_chat_messages_this_week(mello_core::chat::count_messages_this_week(&raw));
         sync_gif_images(&app.get_messages(), &self.rt, &self.gif_chat_anim);
         self.chat_scroll.apply_to_window(&app, raw.len());
+        crate::handlers::looking_to_play::sync_pip(&app, &ltp);
     }
 }
 

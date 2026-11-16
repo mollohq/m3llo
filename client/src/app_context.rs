@@ -174,6 +174,9 @@ pub struct AppContext {
     /// Posts a stream key notification with this text. `None` posts
     /// nothing.
     pub stream_key_notice: Rc<RefCell<Option<crate::notifications::ShowText>>>,
+    /// Looking to play: the asks, the recent picks and the flags of the
+    /// cards and the ask popover (plans/LOOKING-TO-PLAY.md 3.6).
+    pub looking_to_play: Rc<RefCell<crate::looking_to_play::LtpState>>,
 }
 
 #[cfg(any(test, feature = "testkit"))]
@@ -296,6 +299,7 @@ impl AppContext {
             stream_key_action: Rc::new(Cell::new(None)),
             // Never a real OS notification in a test.
             stream_key_notice: Rc::new(RefCell::new(None)),
+            looking_to_play: Rc::new(RefCell::new(Default::default())),
         }
     }
 }
@@ -376,6 +380,7 @@ impl Clone for AppContext {
             game_clip: self.game_clip.clone(),
             stream_key_action: self.stream_key_action.clone(),
             stream_key_notice: self.stream_key_notice.clone(),
+            looking_to_play: self.looking_to_play.clone(),
         }
     }
 }

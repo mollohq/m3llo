@@ -5,6 +5,7 @@ pub(crate) mod crew;
 mod crew_settings;
 pub(crate) mod game;
 mod games;
+mod looking_to_play;
 pub(crate) mod onboarding;
 mod quests;
 #[cfg(test)]
@@ -53,5 +54,6 @@ pub fn wire_all(ctx: &AppContext) {
     onboarding::wire(ctx);
     game::wire(ctx);
     games::wire(ctx);
+    looking_to_play::wire(ctx);
     window::wire(ctx);
 }

@@ -3,6 +3,10 @@ import { CutCard, CutButtonShape, CutTile } from "cut.slint";
 import { UserAvatar, AvatarOverflow } from "avatar.slint";
 import { GameArt } from "game_art.slint";
 import { StatValue } from "stat.slint";
+// The card structs live in types.slint, because `ChatMessageData` carries
+// one and types.slint cannot import this file (game_art imports types).
+import { LookingToPlayRow, LookingToPlayCardData } from "../types.slint";
+export { LookingToPlayRow, LookingToPlayCardData }
 
 // ============================================================
 //  Looking to play: the card in crew chat and the toast.
@@ -21,65 +25,6 @@ import { StatValue } from "stat.slint";
 // ============================================================
 
 // ---------------------------------------------------------------- data
-
-/// One row of the card: a member and the state of the answer.
-export struct LookingToPlayRow {
-    user-id: string,
-    name: string,
-    /// Two letters for the octagon when there is no picture.
-    initials: string,
-    /// Identity hue of the initials fallback: 0 blue, 1 purple, 2 teal,
-    /// 3 amber, 4 pink (the order of `UserAvatar.color-index`).
-    color-index: int,
-    avatar: image,
-    has-avatar: bool,
-    /// "voice": in a voice channel of the crew. "in": answered In.
-    /// "due": answered In 15 or In 30, see `due-minutes`. "none": asked,
-    /// no answer yet. "no": answered Not now.
-    state: string,
-    /// Minutes until the member is due. Used when `state` is "due".
-    due-minutes: int,
-}
-
-/// One ask, as the card in chat draws it.
-export struct LookingToPlayCardData {
-    ask-id: string,
-    /// "open": nobody else is in yet. "on": one other member is in or more.
-    /// "closed": over, the card keeps its last state.
-    state: string,
-    /// Why a closed ask closed: "nobody", "all_no", "cancelled" or "done".
-    closed-reason: string,
-    asker-name: string,
-    /// The ask names a game. False: no game line.
-    has-game: bool,
-    /// Stable game id of the library report, for example "steam-730".
-    game-id: string,
-    game-name: string,
-    /// `GameArt` fallback: the short name and its identity hue (0 to 4).
-    game-monogram: string,
-    game-hue: int,
-    /// Square game art for `GameArt.icon`.
-    game-icon: image,
-    has-game-icon: bool,
-    /// Minutes until an open ask closes. Shown in the "open" state only.
-    minutes-left: int,
-    /// The rows, in the order to draw them. Rust picks which rows exist
-    /// (3.6: every asked member up to 10, else at most 6 who are in or due).
-    rows: [LookingToPlayRow],
-    /// Members who are in beyond `rows`. Shows "{n} more in" when above 0.
-    more-in: int,
-    /// Members who answered Not now and have no row. Shows "{n} not now".
-    no-count: int,
-    viewer-is-asker: bool,
-    /// The answer of the viewer: "", "in", "in_15", "in_30" or "no".
-    viewer-answer: string,
-    /// The viewer pressed Change: show the four answers again.
-    changing: bool,
-    /// Day and time of a closed card, ready to show: "Tue 20:02".
-    closed-at: string,
-    /// A closed card: the members who were in, in the order to draw them.
-    was-in: [LookingToPlayRow],
-}
 
 /// The toast for an ask that just arrived.
 export struct LookingToPlayToastData {
@@ -912,7 +857,7 @@ export component LookingToPlayToast inherits CutCard {
 //     client/ui/components/looking_to_play.slint
 
 /// Mock people and games of the mockup. Preview only.
-global LtpMock {
+global LtpMockPreview {
     out property <image> cs2: @image-url("../previews/fixtures/capsule-sample-1.png");
     out property <image> drg: @image-url("../previews/fixtures/capsule-sample-4.png");
     out property <LookingToPlayRow> k0ji: { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2 };
@@ -941,7 +886,7 @@ export component PreviewCardOpen inherits LtpColumn {
         data: {
             ask-id: "a1", state: "open", asker-name: "k0ji", minutes-left: 28,
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
             rows: [
                 { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "in" },
                 { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "none" },
@@ -957,7 +902,7 @@ export component PreviewCardOn inherits LtpColumn {
         data: {
             ask-id: "a1", state: "on", asker-name: "k0ji",
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
             viewer-answer: "in_15",
             rows: [
                 { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
@@ -975,7 +920,7 @@ export component PreviewCardClosed inherits LtpColumn {
         data: {
             ask-id: "a1", state: "closed", closed-reason: "done", asker-name: "k0ji", closed-at: "Tue 20:02",
             has-game: true, game-name: "Counter-Strike 2",
-            was-in: [LtpMock.k0ji, LtpMock.owe, LtpMock.bobdev],
+            was-in: [LtpMockPreview.k0ji, LtpMockPreview.owe, LtpMockPreview.bobdev],
         };
     }
     LookingToPlayCard {
@@ -991,7 +936,7 @@ export component PreviewCardMany inherits LtpColumn {
         data: {
             ask-id: "a1", state: "on", asker-name: "k0ji",
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
             rows: [
                 { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
                 { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "voice" },
@@ -1010,7 +955,7 @@ export component PreviewCardPicked inherits LtpColumn {
         data: {
             ask-id: "a1", state: "on", asker-name: "k0ji",
             has-game: true, game-id: "steam-548430", game-name: "Deep Rock Galactic", game-monogram: "DR", game-hue: 3,
-            game-icon: LtpMock.drg, has-game-icon: true,
+            game-icon: LtpMockPreview.drg, has-game-icon: true,
             rows: [
                 { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
                 { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0, state: "in" },
@@ -1040,7 +985,7 @@ export component PreviewCardChanging inherits LtpColumn {
         data: {
             ask-id: "a1", state: "on", asker-name: "k0ji",
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
             viewer-answer: "in_30", changing: true,
             rows: [
                 { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
@@ -1078,7 +1023,7 @@ export component PreviewToast inherits LtpToastStage {
             ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
             asker-name: "k0ji", minutes-left: 28, count-in: 2,
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
         };
     }
 }
@@ -1089,7 +1034,7 @@ export component PreviewToastMany inherits LtpToastStage {
             ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
             asker-name: "k0ji", minutes-left: 21, count-in: 14,
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
-            game-icon: LtpMock.cs2, has-game-icon: true,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
         };
     }
 }
@@ -1151,7 +1096,7 @@ export component PreviewLongText inherits Rectangle {
                         closed-at: "Di. 20:02",
                         was-in: [
                             { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4 },
-                            LtpMock.owe, LtpMock.k0ji, LtpMock.vilse, LtpMock.morran, LtpMock.frasse, LtpMock.sannah,
+                            LtpMockPreview.owe, LtpMockPreview.k0ji, LtpMockPreview.vilse, LtpMockPreview.morran, LtpMockPreview.frasse, LtpMockPreview.sannah,
                         ],
                     };
                 }

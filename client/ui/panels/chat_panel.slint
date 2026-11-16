@@ -4,6 +4,9 @@ import { UserAvatar } from "../components/avatar.slint";
 import { CrewEmojiUi } from "../components/crew_emoji.slint";
 import { ChatFocus, ChatMessageData, ChatLinkData, ChatImageData, AttachmentData, GifItemData, EmojiItemData, EmojiRowData, EmojiCategoryData, MentionMemberData } from "../types.slint";
 import { ListView } from "std-widgets.slint";
+import { LookingToPlayCard } from "../components/looking_to_play.slint";
+import { LookingToPlayPopover } from "../components/looking_to_play_popover.slint";
+import { LookingToPlayUi } from "../components/looking_to_play_ui.slint";
 
 component LinkPill inherits Rectangle {
     in property <string> url;
@@ -210,6 +213,9 @@ component PillButton inherits Rectangle {
     in property <image> icon;
     in property <string> label;
     in property <bool> active: false;
+    /// A small red dot at the top right: the pill names something that is
+    /// live now (an open ask).
+    in property <bool> pip: false;
     callback clicked();
 
     // An icon button: the label is what a screen reader and the driver read.
@@ -239,6 +245,15 @@ component PillButton inherits Rectangle {
         colorize: active || touch.has-hover ? Theme.accent : Theme.text-tertiary;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
+    }
+
+    if root.pip: Rectangle {
+        x: parent.width - self.width - 5px;
+        y: 4px;
+        width: 6px;
+        height: 6px;
+        border-radius: 3px;
+        background: Theme.live;
     }
 }
 
@@ -578,6 +593,8 @@ export component ChatPanel inherits Rectangle {
     /// Open the picker to choose a reaction for `message-id`.
     function pick-reaction-for(message-id: string) {
         root.emoji-target-message = message-id;
+        root.gif-popover-open = false;
+        LookingToPlayUi.popover-open = false;
         root.emoji-popover-open = true;
         root.emoji-pill-clicked();
     }
@@ -890,8 +907,9 @@ export component ChatPanel inherits Rectangle {
                         }
                     }
 
-                    // System message
-                    if msg.is-system && !msg.is-unread-divider: HorizontalLayout {
+                    // System message. A Looking to play ask whose state the
+                    // client has draws as the card below instead.
+                    if msg.is-system && !msg.is-ask && !msg.is-unread-divider: HorizontalLayout {
                         padding-left: 36px;
                         padding-right: 4px;
                         padding-top: 4px;
@@ -906,6 +924,26 @@ export component ChatPanel inherits Rectangle {
                             font-italic: true;
                             horizontal-alignment: center;
                             wrap: word-wrap;
+                        }
+                    }
+
+                    // Looking to play: the card of the ask.
+                    // A plain Rectangle, not a layout: the card picks its
+                    // columns from its width, so its width must not come
+                    // from its own layout info.
+                    if msg.is-ask && !msg.is-unread-divider: Rectangle {
+                        height: ask-card.height + 10px;
+
+                        ask-card := LookingToPlayCard {
+                            x: 4px;
+                            y: 6px;
+                            width: parent.width - 8px;
+                            height: self.preferred-height;
+                            data: msg.ask;
+                            answered(id, answer) => { LookingToPlayUi.answered(id, answer); }
+                            change-clicked(id) => { LookingToPlayUi.change-clicked(id); }
+                            cancel-clicked(id) => { LookingToPlayUi.cancel-clicked(id); }
+                            more-clicked(id) => { LookingToPlayUi.more-clicked(id); }
                         }
                     }
 
@@ -2109,6 +2147,41 @@ export component ChatPanel inherits Rectangle {
             close => { root.gif-popover-open = false; }
         }
 
+        // --- Looking to play: the ask popover ---
+        if LookingToPlayUi.popover-open: LookingToPlayPopover {
+            // The height the panel has, up to 560px. The member list scrolls.
+            limit-height: min(560px, max(240px, root.height - 300px));
+            open-asks: LookingToPlayUi.open-asks;
+            members: LookingToPlayUi.members;
+            groups: LookingToPlayUi.groups;
+            games: LookingToPlayUi.games;
+            large-crew: LookingToPlayUi.large-crew;
+            everyone-picked: LookingToPlayUi.everyone-picked;
+            picked-count: LookingToPlayUi.picked-count;
+            member-count: LookingToPlayUi.member-count;
+            crew-initials: LookingToPlayUi.crew-initials;
+            crew-color-index: LookingToPlayUi.crew-color-index;
+            crew-avatar: LookingToPlayUi.crew-avatar;
+            has-crew-avatar: LookingToPlayUi.has-crew-avatar;
+            busy: LookingToPlayUi.busy;
+            error-text: LookingToPlayUi.error-text;
+            open-ask-clicked(id) => {
+                // No scroll to one message: the newest asks are at the bottom.
+                LookingToPlayUi.popover-open = false;
+                root.scroll-to-bottom-request = true;
+            }
+            search-edited(text) => { LookingToPlayUi.search-edited(text); }
+            group-toggled(index) => { LookingToPlayUi.group-toggled(index); }
+            member-toggled(id) => { LookingToPlayUi.member-toggled(id); }
+            everyone-toggled => { LookingToPlayUi.everyone-toggled(); }
+            game-selected(id) => { LookingToPlayUi.game-selected(id); }
+            ask-clicked => { LookingToPlayUi.ask-clicked(); }
+            close-requested => {
+                LookingToPlayUi.popover-open = false;
+                chat-input.focus();
+            }
+        }
+
         // --- Pending image chips ---
         if root.attachments.length > 0: HorizontalLayout {
             height: 72px;
@@ -2207,6 +2280,8 @@ export component ChatPanel inherits Rectangle {
                 clicked => {
                     root.gif-popover-open = !root.gif-popover-open;
                     if root.gif-popover-open {
+                        root.emoji-popover-open = false;
+                        LookingToPlayUi.popover-open = false;
                         root.gif-pill-clicked();
                     }
                 }
@@ -2220,7 +2295,25 @@ export component ChatPanel inherits Rectangle {
                     root.emoji-target-message = "";
                     root.emoji-popover-open = !root.emoji-popover-open;
                     if root.emoji-popover-open {
+                        root.gif-popover-open = false;
+                        LookingToPlayUi.popover-open = false;
                         root.emoji-pill-clicked();
+                    }
+                }
+            }
+
+            PillButton {
+                icon: @image-url("../icons/gamepad.svg");
+                label: @tr("Looking to play");
+                active: LookingToPlayUi.popover-open;
+                pip: LookingToPlayUi.has-live-ask;
+                clicked => {
+                    LookingToPlayUi.popover-open = !LookingToPlayUi.popover-open;
+                    if LookingToPlayUi.popover-open {
+                        root.gif-popover-open = false;
+                        root.emoji-popover-open = false;
+                        root.emoji-target-message = "";
+                        LookingToPlayUi.popover-opened();
                     }
                 }
             }
@@ -2271,10 +2364,11 @@ export component ChatPanel inherits Rectangle {
                         root.actions-message-id = "";
                         return accept;
                     }
-                    if event.text == Key.Escape && (root.emoji-popover-open || root.gif-popover-open) {
+                    if event.text == Key.Escape && (root.emoji-popover-open || root.gif-popover-open || LookingToPlayUi.popover-open) {
                         root.emoji-popover-open = false;
                         root.emoji-target-message = "";
                         root.gif-popover-open = false;
+                        LookingToPlayUi.popover-open = false;
                         return accept;
                     }
                     // Cmd/Ctrl+V with an image on the clipboard: a chip, not text.
@@ -2633,6 +2727,94 @@ export component PreviewCrewEmoji inherits PreviewEmoji {
             display-styled: @markdown(":ida_rage:"),
             display-time: "21:43", is-group-start: true,
             crew-emoji: [@image-url("../previews/fixtures/avatars/ida.svg")],
+        },
+    ];
+}
+
+/// Looking to play: an open ask in the feed, and the pip on the pill.
+export component PreviewLookingToPlay inherits ChatPanel {
+    width: 400px;
+    height: 820px;
+    user-name: "bobdev";
+    user-id: "u1";
+    init => {
+        LookingToPlayUi.has-live-ask = true;
+    }
+    messages: [
+        {
+            message-id: "l1", sender-id: "u2", sender-name: "oweboweob",
+            sender-initials: "OW", text: "gg, that last round",
+            display-text: "gg, that last round",
+            display-styled: @markdown("gg, that last round"),
+            display-time: "19:52", is-group-start: true, day-label: "Today",
+        },
+        {
+            message-id: "l2", sender-id: "sys", is-system: true,
+            text: "k0ji is looking to play Counter-Strike 2",
+            display-text: "k0ji is looking to play Counter-Strike 2",
+            ask-id: "a1", is-ask: true,
+            ask: {
+                ask-id: "a1", state: "open", asker-name: "k0ji", minutes-left: 28,
+                has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+                game-icon: @image-url("../previews/fixtures/capsule-sample-1.png"), has-game-icon: true,
+                rows: [
+                    { user-id: "u3", name: "k0ji", initials: "K0", color-index: 2, state: "in" },
+                    { user-id: "u1", name: "bobdev", initials: "BO", color-index: 0, state: "none" },
+                    { user-id: "u2", name: "oweboweob", initials: "OW", color-index: 1, state: "none" },
+                    { user-id: "u4", name: "sannah", initials: "SA", color-index: 3, state: "no" },
+                ],
+            },
+        },
+        {
+            message-id: "l3", sender-id: "sys", is-system: true,
+            text: "sannah is looking to play",
+            display-text: "sannah is looking to play",
+            ask-id: "a0", is-ask: true,
+            ask: {
+                ask-id: "a0", state: "closed", closed-reason: "nobody", asker-name: "sannah",
+                closed-at: "Yesterday",
+            },
+        },
+    ];
+}
+
+/// Looking to play: the ask popover open over the composer, a small crew.
+export component PreviewLookingToPlayPopover inherits ChatPanel {
+    width: 400px;
+    height: 820px;
+    user-name: "bobdev";
+    user-id: "u1";
+    init => {
+        LookingToPlayUi.has-live-ask = true;
+        LookingToPlayUi.popover-open = true;
+        LookingToPlayUi.crew-initials = "NS";
+        LookingToPlayUi.crew-color-index = 1;
+        LookingToPlayUi.everyone-picked = true;
+        LookingToPlayUi.open-asks = [
+            { ask-id: "a1", has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+              game-icon: @image-url("../previews/fixtures/capsule-sample-1.png"), has-game-icon: true, count-in: 2 },
+        ];
+        LookingToPlayUi.members = [
+            { user-id: "u3", name: "k0ji", initials: "K0", color-index: 2, doing: "Counter-Strike 2 · 40m" },
+            { user-id: "u2", name: "oweboweob", initials: "OW", color-index: 1, doing: "In voice" },
+            { user-id: "u4", name: "sannah", initials: "SA", color-index: 3 },
+            { user-id: "u5", name: "frasse", initials: "FR", color-index: 4 },
+        ];
+        LookingToPlayUi.games = [
+            { game-id: "steam-730", name: "Counter-Strike 2", monogram: "CS", hue: 0,
+              icon: @image-url("../previews/fixtures/capsule-sample-1.png"), has-icon: true },
+            { game-id: "steam-548430", name: "Deep Rock Galactic", monogram: "DR", hue: 3,
+              icon: @image-url("../previews/fixtures/capsule-sample-4.png"), has-icon: true },
+            { game-id: "steam-892970", name: "Valheim", monogram: "VH", hue: 2 },
+        ];
+    }
+    messages: [
+        {
+            message-id: "l1", sender-id: "u2", sender-name: "oweboweob",
+            sender-initials: "OW", text: "gg, that last round",
+            display-text: "gg, that last round",
+            display-styled: @markdown("gg, that last round"),
+            display-time: "19:52", is-group-start: true, day-label: "Today",
         },
     ];
 }

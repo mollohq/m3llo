@@ -683,6 +683,68 @@ export struct AttachmentData {
     has-thumb: bool,
 }
 
+// ---- Looking to play: the card in the chat feed
+//      (components/looking_to_play.slint draws it).
+
+/// One row of the card: a member and the state of the answer.
+export struct LookingToPlayRow {
+    user-id: string,
+    name: string,
+    /// Two letters for the octagon when there is no picture.
+    initials: string,
+    /// Identity hue of the initials fallback: 0 blue, 1 purple, 2 teal,
+    /// 3 amber, 4 pink (the order of `UserAvatar.color-index`).
+    color-index: int,
+    avatar: image,
+    has-avatar: bool,
+    /// "voice": in a voice channel of the crew. "in": answered In.
+    /// "due": answered In 15 or In 30, see `due-minutes`. "none": asked,
+    /// no answer yet. "no": answered Not now.
+    state: string,
+    /// Minutes until the member is due. Used when `state` is "due".
+    due-minutes: int,
+}
+
+/// One ask, as the card in chat draws it.
+export struct LookingToPlayCardData {
+    ask-id: string,
+    /// "open": nobody else is in yet. "on": one other member is in or more.
+    /// "closed": over, the card keeps its last state.
+    state: string,
+    /// Why a closed ask closed: "nobody", "all_no", "cancelled" or "done".
+    closed-reason: string,
+    asker-name: string,
+    /// The ask names a game. False: no game line.
+    has-game: bool,
+    /// Stable game id of the library report, for example "steam-730".
+    game-id: string,
+    game-name: string,
+    /// `GameArt` fallback: the short name and its identity hue (0 to 4).
+    game-monogram: string,
+    game-hue: int,
+    /// Square game art for `GameArt.icon`.
+    game-icon: image,
+    has-game-icon: bool,
+    /// Minutes until an open ask closes. Shown in the "open" state only.
+    minutes-left: int,
+    /// The rows, in the order to draw them. Rust picks which rows exist
+    /// (3.6: every asked member up to 10, else at most 6 who are in or due).
+    rows: [LookingToPlayRow],
+    /// Members who are in beyond `rows`. Shows "{n} more in" when above 0.
+    more-in: int,
+    /// Members who answered Not now and have no row. Shows "{n} not now".
+    no-count: int,
+    viewer-is-asker: bool,
+    /// The answer of the viewer: "", "in", "in_15", "in_30" or "no".
+    viewer-answer: string,
+    /// The viewer pressed Change: show the four answers again.
+    changing: bool,
+    /// Day and time of a closed card, ready to show: "Tue 20:02".
+    closed-at: string,
+    /// A closed card: the members who were in, in the order to draw them.
+    was-in: [LookingToPlayRow],
+}
+
 export struct ChatMessageData {
     message-id: string,
     sender-id: string,
@@ -726,6 +788,12 @@ export struct ChatMessageData {
     reply-preview-text: string,
     is-edited: bool,
     is-deleted: bool,
+    /// The Looking to play ask of a system message, else empty.
+    ask-id: string,
+    /// The client has the state of `ask-id`: the row draws `ask` as a card.
+    /// False with an `ask-id`: the row is the plain system line.
+    is-ask: bool,
+    ask: LookingToPlayCardData,
 }
 
 export struct EmojiItemData {

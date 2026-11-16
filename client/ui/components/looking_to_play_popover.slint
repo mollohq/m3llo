@@ -63,8 +63,10 @@ export struct LookingToPlayGroup {
     faces: [LookingToPlayFace],
     /// Members of the group beyond `faces`. Shows a "+n" octagon.
     more: int,
-    /// Ready to show: "Last time".
+    /// Ready to show: "Last time". Empty for every group but the first.
     label: string,
+    /// What a screen reader and the e2e driver read: the names in the group.
+    a11y-label: string,
     picked: bool,
 }
 
@@ -369,7 +371,7 @@ export component LookingToPlayPopover inherits Rectangle {
                     for g in root.groups: LtpPickRow {
                         name: "";
                         doing: g.label;
-                        a11y-label: g.label;
+                        a11y-label: g.a11y-label;
                         picked: g.picked;
                         toggled => { root.group-toggled(g.index); }
                         HorizontalLayout {
