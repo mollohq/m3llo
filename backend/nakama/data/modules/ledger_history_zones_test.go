@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -177,36 +176,6 @@ func TestZonesOfADormantCrewFromTheStoreEqualTheDocuments(t *testing.T) {
 	}
 }
 
-// rowCounter counts the rows the store returns to its readers.
-type rowCounter struct {
-	*memLedgerStore
-	rows    atomic.Int64
-	queries atomic.Int64
-}
-
-func (c *rowCounter) count(events []CrewEvent, err error) ([]CrewEvent, error) {
-	c.queries.Add(1)
-	c.rows.Add(int64(len(events)))
-	return events, err
-}
-
-func (c *rowCounter) Between(ctx context.Context, crewID string, fromMs, toMs int64, types []string) ([]CrewEvent, error) {
-	return c.count(c.memLedgerStore.Between(ctx, crewID, fromMs, toMs, types))
-}
-
-func (c *rowCounter) NewestN(ctx context.Context, crewID string, types []string, beforeMs int64, n int) ([]CrewEvent, error) {
-	return c.count(c.memLedgerStore.NewestN(ctx, crewID, types, beforeMs, n))
-}
-
-func (c *rowCounter) RecentView(ctx context.Context, crewID string) ([]CrewEvent, error) {
-	return c.count(c.memLedgerStore.RecentView(ctx, crewID))
-}
-
-func (c *rowCounter) WeeksBefore(ctx context.Context, crewID string, types []string, beforeWeek int64, limit int) ([]weekCount, error) {
-	c.queries.Add(1)
-	return c.memLedgerStore.WeeksBefore(ctx, crewID, types, beforeWeek, limit)
-}
-
 // A crew far over the old caps: 3000 clips and 600 stream sessions in three
 // years. A page of the feed reads the rows of its weeks, not the crew.
 func TestZonesReadOnePageOfALargeCrew(t *testing.T) {
@@ -228,19 +197,20 @@ func TestZonesReadOnePageOfALargeCrew(t *testing.T) {
 	if n, err := store.Put(ctx, "big", rows); err != nil || n != len(rows) {
 		t.Fatalf("put: %d err=%v", n, err)
 	}
-	counter := &rowCounter{memLedgerStore: store}
+	counter := newQueryCounter(store)
 	useLedger(t, counter)
 
 	// One week holds about 19 clips and 4 stream sessions.
 	page := func(before int64) FeedZones {
-		counter.rows.Store(0)
-		counter.queries.Store(0)
+		counter.reset()
 		z := hZones(nk, "big", "u2", before, hNow)
 		if len(z.History) != zonesHistoryPageWeeks || z.HistoryNext == 0 {
 			t.Fatalf("page before %d: %d weeks, next %d", before, len(z.History), z.HistoryNext)
 		}
-		if rows, queries := counter.rows.Load(), counter.queries.Load(); rows > 250 || queries > 12 {
-			t.Fatalf("page before %d read %d rows in %d queries", before, rows, queries)
+		queries, rows := counter.total()
+		t.Logf("page before %d: %d rows, %d queries: %s", before, rows, queries, counter)
+		if rows > 250 || queries > 11 {
+			t.Fatalf("page before %d read %d rows in %d queries: %s", before, rows, queries, counter)
 		}
 		return z
 	}
@@ -341,5 +311,101 @@ func TestZonesFoldTwoRowsOfOneSessionBeforeTheWeeksAreCounted(t *testing.T) {
 	}
 	if listed["x_new"] != 1 || listed["y_new"] != 1 || listed["x_old"] != 0 || listed["y_old"] != 0 {
 		t.Fatalf("stream sessions of the pages = %v, want each session once, the newer row", listed)
+	}
+}
+
+// seedLargeCrewRows puts a crew far over the old caps into the store: 3000
+// clips, 600 stream sessions and 160 recaps in three years before nowMs. One
+// week holds about 19 clips and 4 stream sessions.
+func seedLargeCrewRows(t *testing.T, store ledgerStore, crewID string, nowMs int64) {
+	t.Helper()
+	var rows []ledgerRow
+	for i := 0; i < 3000; i++ {
+		c := StoredClip{EventID: fmt.Sprintf("c%04d", i), ClipID: fmt.Sprintf("c%04d", i), ActorID: "u1", Ts: nowMs - int64(i)*9*hHour, DurationSeconds: 9}
+		if i%3 == 0 {
+			c.ClipType = clipTypeGame
+		}
+		rows = append(rows, clipRow(c))
+	}
+	for i := 0; i < 600; i++ {
+		rows = append(rows, streamSessionRow(StoredStreamSession{EventID: fmt.Sprintf("s%04d", i), SessionID: fmt.Sprintf("sess%04d", i), StreamerID: "u2",
+			Ts: nowMs - int64(i)*45*hHour, DurationMin: 10, SnapshotURLs: []string{}}))
+	}
+	for week := int64(-160); week < 0; week++ {
+		start := weekStartOf(nowMs) + week*7*hDay
+		rows = append(rows, recapRow(WeeklyRecapData{WeekStart: start, WeekEnd: start + 7*hDay, GeneratedAt: start + 7*hDay + hHour, TotalHangoutMin: 10, TotalMin: 10}))
+	}
+	if n, err := store.Put(context.Background(), crewID, rows); err != nil || n != len(rows) {
+		t.Fatalf("put: %d err=%v", n, err)
+	}
+}
+
+// The store reads of one crew_feed call, through the RPC: the merged timeline
+// and the zones. The crew is far over the old caps.
+//
+// The count, with W = 5 weeks read for a page of 4:
+//
+//	timeline   3  the 7-day view, the clips of 7 days, the newest recap
+//	window     1  the clips and stream sessions of the free window
+//	board      1  the recaps of the newest weeks
+//	weeks      3  the clip weeks, the stream weeks, the recaps of the page
+//	open week  1  its clips and stream sessions
+//	locked     2  its teaser clips, its stream sessions
+//	sessions   1  the rows of the session ids of the page
+//
+// A viewer with m3llo+ reads 3+1+1+3+W+1 = 14. A viewer without it reads at
+// most 3+1+1+3+2W+1 = 19, and 18 when the newest week of the page is the
+// one the free window starts in, which is read as an open week.
+func TestCrewFeedLoadQueryCount(t *testing.T) {
+	store := useHistoryStoreReads(t)
+	nk := hCrew(t, "big")
+	now := time.Now().UnixMilli()
+	seedLargeCrewRows(t, store, "big", now)
+	counter := newQueryCounter(store)
+	useLedger(t, counter)
+
+	load := func(viewer string, before int64) (FeedZones, int, int) {
+		t.Helper()
+		counter.reset()
+		out, err := CrewFeedRPC(ctxWithUser(viewer), testLogger(), nil, nk, fmt.Sprintf(`{"crew_id":"big","history_before":%d}`, before))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var resp struct {
+			Zones FeedZones `json:"zones"`
+		}
+		if err := json.Unmarshal([]byte(out), &resp); err != nil {
+			t.Fatal(err)
+		}
+		if len(resp.Zones.History) != zonesHistoryPageWeeks || resp.Zones.HistoryNext == 0 {
+			t.Fatalf("viewer %s before %d: %d weeks, next %d", viewer, before, len(resp.Zones.History), resp.Zones.HistoryNext)
+		}
+		queries, rows := counter.total()
+		t.Logf("viewer %s before %d: %d rows, %d queries: %s", viewer, before, rows, queries, counter)
+		return resp.Zones, queries, rows
+	}
+	deep := weekStartOf(now) - 104*7*hDay
+
+	// u2 has m3llo+: every week of the page is read whole.
+	for _, before := range []int64{0, deep} {
+		z, queries, rows := load("u2", before)
+		if queries != 14 || rows > 260 {
+			t.Fatalf("m3llo+ page before %d: %d queries and %d rows, want 14 queries and at most 260 rows: %s", before, queries, rows, counter)
+		}
+		// The first week of the first page can be a part of a week.
+		if w := z.History[1]; w.Locked || len(w.Items) < 15 {
+			t.Fatalf("m3llo+ page before %d: second week %+v", before, w)
+		}
+	}
+	// u1 has not: a locked week costs two reads and at most 6 clip rows.
+	for _, before := range []int64{0, deep} {
+		z, queries, rows := load("u1", before)
+		if queries < 18 || queries > 19 || rows > 170 {
+			t.Fatalf("locked page before %d: %d queries and %d rows, want 18 or 19 queries and at most 170 rows: %s", before, queries, rows, counter)
+		}
+		last := z.History[len(z.History)-1]
+		if !last.Locked || last.ClipCount < 15 || len(last.Teasers) != zonesTeasersMax || len(last.Items) != 0 {
+			t.Fatalf("locked page before %d: last week %+v", before, last)
+		}
 	}
 }

@@ -27,7 +27,7 @@ func histRows(t *testing.T, store ledgerStore, crewID, typ string) []CrewEvent {
 // feedStreams is every stream session the zone feed reads for a crew, with
 // the whole time as its free window.
 func feedStreams(nk runtime.NakamaModule, crewID string) []StoredStreamSession {
-	return loadZoneHistory(context.Background(), nk, crewID, math.MinInt64, 0).Streams
+	return loadZoneHistory(context.Background(), nk, crewID, math.MinInt64, 0, nil).Streams
 }
 
 func histIDs(events []CrewEvent) []string {

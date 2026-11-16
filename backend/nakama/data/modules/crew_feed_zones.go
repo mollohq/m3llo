@@ -141,10 +141,14 @@ type zonesInput struct {
 	// 0 when Clips and Streams hold every one.
 	LastClipMs   int64
 	LastStreamMs int64
-	H2h          *Head2headFeedData
-	Libs         map[string]*LibraryDoc
-	Joins        []FeedJoin
-	Belts        []RecapBeltMoved
+	// LockedWeeks holds the clips of the locked weeks of Crew history, by
+	// week start (zoneLockedWeek). Clips does not hold the clips of such a
+	// week. Nil when Clips holds every clip.
+	LockedWeeks map[int64]zoneLockedWeek
+	H2h         *Head2headFeedData
+	Libs        map[string]*LibraryDoc
+	Joins       []FeedJoin
+	Belts       []RecapBeltMoved
 	// Quests is the quest record of the crew, nil when it has none.
 	Quests *CrewQuests
 	// Profile and Emoji fill the gifts of the quest card. Nil when the card
@@ -460,6 +464,16 @@ func zoneInstalled(in zonesInput) []RecentGameTile {
 	return games
 }
 
+// zoneWeekOpen is the rule for a week of Crew history: a viewer with m3llo+
+// opens every week, and every viewer opens the founding weeks of the crew.
+func zoneWeekOpen(plus bool, quests *CrewQuests) func(weekStart int64) bool {
+	founding := map[int64]bool{}
+	for _, ws := range foundingWeeks(quests) {
+		founding[ws] = true
+	}
+	return func(weekStart int64) bool { return plus || founding[weekStart] }
+}
+
 // zoneHistory groups everything older than the free window by week, newest
 // first, one page. boardWeek is the recap on the board: it is not history.
 func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int64) {
@@ -467,6 +481,9 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		recap   *WeeklyRecapData
 		clips   []StoredClip
 		streams []StoredStreamSession
+		// locked is set when the read gave the clip count and the first
+		// clips of the week in place of its clips.
+		locked *zoneLockedWeek
 	}
 	weeks := map[int64]*week{}
 	at := func(ws int64) *week {
@@ -496,6 +513,11 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		}
 		at(weekStartOf(r.WeekStart)).recap = &in.Recaps[i]
 	}
+	for ws := range in.LockedWeeks {
+		if lw := in.LockedWeeks[ws]; ws < start && lw.ClipCount > 0 {
+			at(ws).locked = &lw
+		}
+	}
 
 	starts := make([]int64, 0, len(weeks))
 	for ws := range weeks {
@@ -516,15 +538,23 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 	}
 	out := make([]ZoneHistoryWeek, 0, len(starts))
 	for _, ws := range starts {
-		open := in.Plus || founding[ws]
 		w := weeks[ws]
-		rankClips(w.clips)
+		// A week whose clips were not read is locked. The read uses the
+		// same rule (zoneWeekOpen), so it is no other week.
+		open := (in.Plus || founding[ws]) && w.locked == nil
+		clipCount := len(w.clips)
+		if w.locked != nil {
+			// The first clips of the week, in the order of rankClips.
+			clipCount, w.clips = w.locked.ClipCount, w.locked.TopClips
+		} else {
+			rankClips(w.clips)
+		}
 		sort.SliceStable(w.streams, func(i, j int) bool { return w.streams[i].Ts > w.streams[j].Ts })
 		h := ZoneHistoryWeek{
 			WeekStart:   ws,
 			Locked:      !open,
 			Founding:    founding[ws],
-			ClipCount:   len(w.clips),
+			ClipCount:   clipCount,
 			StreamCount: len(w.streams),
 		}
 		if w.recap != nil {

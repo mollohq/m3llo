@@ -726,6 +726,52 @@ func ledgerPutConformance(ctx context.Context, store ledgerStore, crewID, run st
 		return fmt.Errorf("refs before: prune: %w", err)
 	}
 
+	// TopInRange: the rows with a text value first, each group newest first,
+	// the lower id first for one time.
+	top := func(name, kind interface{}, ts int64) ledgerRow {
+		data := map[string]interface{}{"n": name}
+		if kind != nil {
+			data["kind"] = kind
+		}
+		return ledgerRow{Event: CrewEvent{ID: id(name.(string)), Type: "moment", Timestamp: ts, Data: data}}
+	}
+	from := now - 300*day
+	tops := []ledgerRow{
+		top("t_plain_new", nil, from+50), top("t_game_old", "game", from+10), top("t_voice", "voice", from+40),
+		top("t_game_b", "game", from+30), top("t_game_a", "game", from+30), top("t_number", 7, from+45),
+		top("t_out", "game", from+101),
+	}
+	if n, err := store.Put(ctx, crewID, tops); err != nil || n != len(tops) {
+		return fmt.Errorf("top in range: put: inserted=%d err=%v", n, err)
+	}
+	for _, tc := range []struct {
+		value string
+		n     int
+		want  string
+	}{
+		{"game", 10, "t_game_a,t_game_b,t_game_old,t_plain_new,t_number,t_voice"},
+		{"game", 4, "t_game_a,t_game_b,t_game_old,t_plain_new"},
+		{"game", 2, "t_game_a,t_game_b"},
+		{"7", 2, "t_plain_new,t_number"},
+		{"none", 3, "t_plain_new,t_number,t_voice"},
+		{"game", 0, ""},
+	} {
+		got, err = store.TopInRange(ctx, crewID, "moment", from, from+100, "kind", tc.value, tc.n)
+		if err != nil || names(got) != tc.want {
+			return fmt.Errorf("top in range of %q limit %d: [%s] err=%v, want [%s]", tc.value, tc.n, names(got), err, tc.want)
+		}
+	}
+	if got, err = store.TopInRange(ctx, crewID, "clip", from, from+100, "kind", "game", 5); err != nil || len(got) != 0 {
+		return fmt.Errorf("top in range of another type: %d rows err=%v", len(got), err)
+	}
+	topIDs := make([]string, 0, len(tops))
+	for _, row := range tops {
+		topIDs = append(topIDs, row.Event.ID)
+	}
+	if err := store.Prune(ctx, crewID, topIDs); err != nil {
+		return fmt.Errorf("top in range: prune: %w", err)
+	}
+
 	// Eight calls at once for one new ref store one row.
 	const racers = 8
 	raceRef := id("race")

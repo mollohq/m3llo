@@ -611,6 +611,24 @@ func (s *sqlLedgerStore) RefsBefore(ctx context.Context, crewID, typ, beforeRef 
 	return scanLedgerEvents(rows)
 }
 
+func (s *sqlLedgerStore) TopInRange(ctx context.Context, crewID, typ string, fromMs, toMs int64, field, value string, n int) ([]CrewEvent, error) {
+	if n < 0 {
+		n = 0
+	}
+	// jsonb_typeof keeps a number or a boolean with the same text out of
+	// the first group.
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+ledgerEventColumns+` FROM mello_crew_event
+		 WHERE crew_id = $1 AND type = $2 AND ts >= $3 AND ts <= $4
+		 ORDER BY (CASE WHEN jsonb_typeof(data -> $5::text) = 'string' AND data ->> $5::text = $6::text THEN 0 ELSE 1 END),
+		          ts DESC, id ASC
+		 LIMIT $7`, crewID, typ, fromMs, toMs, field, value, n)
+	if err != nil {
+		return nil, err
+	}
+	return scanLedgerEvents(rows)
+}
+
 func (s *sqlLedgerStore) UpdateData(ctx context.Context, crewID, eventID string, fn func(json.RawMessage) (json.RawMessage, error)) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		var data []byte

@@ -771,3 +771,36 @@ func TestEntryWithNoIDBlocksTheHistoryMarker(t *testing.T) {
 		t.Fatalf("pass after the repair = %+v marker=%s", r.lastHist, r.lastHistMarker)
 	}
 }
+
+// crew_catchup of a member who was never in the feed (last_seen 0) reads the
+// newest 250 clips, as the capped document held them, not every clip of a
+// crew over the cap. The answer is the answer from the document.
+func TestCatchupOfANewMemberReadsTheNewestClips(t *testing.T) {
+	store := useHistoryStoreReads(t)
+	nk := hCrew(t, "kc")
+	now := time.Now().UnixMilli()
+	const total = CrewClipsMaxRetained + 40
+	for i := 0; i < total; i++ {
+		hClip(t, nk, "kc", StoredClip{ClipID: fmt.Sprintf("c%03d", i), ActorID: "u1", Ts: now - int64(total-i)*hHour, DurationSeconds: 9})
+	}
+	if len(docClips(nk, "kc")) != CrewClipsMaxRetained || len(storeClips(t, store, "kc")) != total {
+		t.Fatalf("the seed is wrong: document %d clips, store %d", len(docClips(nk, "kc")), len(storeClips(t, store, "kc")))
+	}
+	counter := newQueryCounter(store)
+	useLedger(t, counter)
+
+	fromStore := hCatchup(t, nk, "kc", "u2", 0)
+	if _, rows := counter.total(); rows > CrewClipsMaxRetained {
+		t.Fatalf("the catch-up read %d rows, want at most %d: %s", rows, CrewClipsMaxRetained, counter)
+	}
+	t.Setenv("MELLO_LEDGER_HISTORY_READ", "doc")
+	fromDoc := hCatchup(t, nk, "kc", "u2", 0)
+	if fromDoc.EventCount != CrewClipsMaxRetained || hJSON(t, fromStore) != hJSON(t, fromDoc) {
+		t.Fatalf("catch-up from the store:\n%s\nfrom the document:\n%s", hJSON(t, fromStore), hJSON(t, fromDoc))
+	}
+	// A member who was here 50 hours ago gets the clips since then.
+	t.Setenv("MELLO_LEDGER_HISTORY_READ", "")
+	if resp := hCatchup(t, nk, "kc", "u2", now-50*hHour); resp.EventCount != 49 {
+		t.Fatalf("catch-up since 50 hours: %d events, want 49", resp.EventCount)
+	}
+}

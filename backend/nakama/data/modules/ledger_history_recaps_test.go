@@ -184,7 +184,7 @@ func TestRecapReadersFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 	monday := mondayStartUTC(time.Now())
 	nk.put(CrewRecapsCollection, "crew", SystemUserID, CrewRecapsDoc{CrewID: "crew", LastRecapWeek: "2026-W01",
 		Recaps: []WeeklyRecapData{histRecap(monday.Add(-7*24*time.Hour), 10), histRecap(monday.Add(-14*24*time.Hour), 20)}})
-	if got := loadZoneHistory(ctx, nk, "crew", 0, 0).Recaps; len(got) != 2 {
+	if got := loadZoneHistory(ctx, nk, "crew", 0, 0, nil).Recaps; len(got) != 2 {
 		t.Fatalf("recaps = %+v", got)
 	}
 	if got := crewLatestRecap(ctx, nk, "crew"); got == nil || got.TotalHangoutMin != 10 {

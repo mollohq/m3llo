@@ -140,6 +140,12 @@ type ledgerStore interface {
 	// with no ref is never returned. Refs compare as text, so a caller that
 	// wants an order uses refs of one width (recapWeekRef).
 	RefsBefore(ctx context.Context, crewID, typ, beforeRef string, n int) ([]CrewEvent, error)
+	// TopInRange returns up to n rows of one type with fromMs <= ts <= toMs.
+	// The rows whose data holds the text value in field come first. In each
+	// of the two groups the newest row is first, and of two rows of one time
+	// the one with the lower id. The store sorts, so a caller that shows a
+	// few rows of a long range does not load the range.
+	TopInRange(ctx context.Context, crewID, typ string, fromMs, toMs int64, field, value string, n int) ([]CrewEvent, error)
 }
 
 // ledgerRow is an event and its ref, for Put.
@@ -799,6 +805,37 @@ func (m *memLedgerStore) RefsBefore(_ context.Context, crewID, typ, beforeRef st
 			return a.ref > b.ref
 		}
 		return memByTsAsc(b, a)
+	})
+	if n < 0 {
+		n = 0
+	}
+	if len(rows) > n {
+		rows = rows[:n]
+	}
+	return memLedgerEvents(rows), nil
+}
+
+func (m *memLedgerStore) TopInRange(_ context.Context, crewID, typ string, fromMs, toMs int64, field, value string, n int) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	first := func(r *memLedgerRow) bool {
+		var obj map[string]interface{}
+		if err := json.Unmarshal(r.data, &obj); err != nil {
+			return false
+		}
+		text, ok := obj[field].(string)
+		return ok && text == value
+	}
+	rows := m.selectRows(crewID, func(r *memLedgerRow) bool {
+		return r.ev.Type == typ && r.ev.Timestamp >= fromMs && r.ev.Timestamp <= toMs
+	}, func(a, b *memLedgerRow) bool {
+		if fa, fb := first(a), first(b); fa != fb {
+			return fa
+		}
+		if a.ev.Timestamp != b.ev.Timestamp {
+			return a.ev.Timestamp > b.ev.Timestamp
+		}
+		return a.ev.ID < b.ev.ID
 	})
 	if n < 0 {
 		n = 0

@@ -625,22 +625,25 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 	// The clips, the stream sessions and the recaps of this page: the legacy
 	// documents before the cutover of phase 1b, a paged read of the durable
 	// store after it.
-	hist := loadZoneHistory(ctx, nk, req.CrewID, in.windowStart(), req.HistoryBefore)
-	stampRecapWeeks(ctx, nk, req.CrewID, hist.Recaps)
+	// The gate comes first: the read does not load the clips of a week that
+	// the viewer cannot open.
+	in.Plus = IsUserPremium(ctx, nk, userID)
 	quests, _ := readCrewQuests(ctx, nk, req.CrewID)
+	hist := loadZoneHistory(ctx, nk, req.CrewID, in.windowStart(), req.HistoryBefore, zoneWeekOpen(in.Plus, quests))
+	stampRecapWeeks(ctx, nk, req.CrewID, hist.Recaps)
 	var profile *CrewProfile
 	var emoji *CrewEmojiDoc
 	if quests != nil && nowMs < quests.EndsMs {
 		profile, _ = readCrewProfile(ctx, nk, req.CrewID)
 		emoji, _ = readCrewEmoji(ctx, nk, req.CrewID)
 	}
-	in.Plus = IsUserPremium(ctx, nk, userID)
 	in.Cards = dropEmptyCards(mergedToCards(timeline))
 	in.Clips = hist.Clips
 	in.Streams = hist.Streams
 	in.Recaps = hist.Recaps
 	in.LastClipMs = hist.LastClipMs
 	in.LastStreamMs = hist.LastStreamMs
+	in.LockedWeeks = hist.Locked
 	in.H2h = h2h
 	in.Libs = crewLibraryDocs(ctx, nk, req.CrewID)
 	in.Joins = joins

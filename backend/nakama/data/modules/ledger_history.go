@@ -554,6 +554,37 @@ func crewClipsBetween(ctx context.Context, nk runtime.NakamaModule, crewID strin
 	return out
 }
 
+// crewNewestClipsSince returns the clips of a crew with ts >= fromMs, oldest
+// first, and at most the newest CrewClipsMaxRetained of them. That is what
+// the capped document held, and the bound of a read with no lower time: the
+// catch-up of a member who was never in the feed (last_seen 0).
+func crewNewestClipsSince(ctx context.Context, nk runtime.NakamaModule, crewID string, fromMs int64) []StoredClip {
+	if store := historyTruthStore(ctx, nk); store != nil {
+		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeClip}, math.MaxInt64, CrewClipsMaxRetained)
+		if err == nil {
+			// Newest first: the rows from fromMs on are at the front.
+			n := 0
+			for n < len(rows) && rows[n].Timestamp >= fromMs {
+				n++
+			}
+			rows = rows[:n]
+			for i, j := 0, len(rows)-1; i < j; i, j = i+1, j-1 {
+				rows[i], rows[j] = rows[j], rows[i]
+			}
+			return clipsFromRows(rows)
+		}
+		ledgerLogError("ledger_store_read_failed kind=clips crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readClipsDoc(ctx, nk, crewID)
+	out := make([]StoredClip, 0, len(doc.Clips))
+	for _, c := range doc.Clips {
+		if c.Ts >= fromMs {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // crewClipsWithID returns the clips of a crew that have one clip_id.
 func crewClipsWithID(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string) []StoredClip {
 	if store := historyTruthStore(ctx, nk); store != nil {
@@ -835,6 +866,17 @@ type zoneHistoryData struct {
 	// newest stream session of the crew. 0 when the lists hold every one.
 	LastClipMs   int64
 	LastStreamMs int64
+	// Locked holds the clips of the weeks of Crew history that the viewer
+	// cannot open, by week start. Clips does not hold the clips of such a
+	// week. It is nil when Clips holds every clip (the documents).
+	Locked map[int64]zoneLockedWeek
+}
+
+// zoneLockedWeek is what a locked week of Crew history shows of its clips:
+// how many, and the first ones in the order of rankClips for the teasers.
+type zoneLockedWeek struct {
+	ClipCount int
+	TopClips  []StoredClip
 }
 
 // zoneHistoryTypes are the row types of Crew history.
@@ -847,9 +889,13 @@ var zoneHistoryTypes = []string{ledgerTypeClip, ledgerTypeStreamSession, ledgerT
 // Before the cutover of phase 1b it reads the three legacy documents whole.
 // After it, it reads the rows of the page from the store. A store read that
 // fails falls back to the documents, which are still written.
-func loadZoneHistory(ctx context.Context, nk runtime.NakamaModule, crewID string, windowStart, historyBefore int64) zoneHistoryData {
+//
+// open says if the viewer can open a week of Crew history (zoneWeekOpen). The
+// store read does not load the clips of a week that is locked. nil means
+// every week is open.
+func loadZoneHistory(ctx context.Context, nk runtime.NakamaModule, crewID string, windowStart, historyBefore int64, open func(weekStart int64) bool) zoneHistoryData {
 	if store := historyTruthStore(ctx, nk); store != nil {
-		data, err := loadZoneHistoryFromStore(ctx, store, crewID, windowStart, historyBefore)
+		data, err := loadZoneHistoryFromStore(ctx, store, crewID, windowStart, historyBefore, open)
 		if err == nil {
 			return data
 		}
@@ -907,12 +953,14 @@ const zoneBoardRecapBatch = 4
 //   - the newest recap that is not empty, for the board;
 //   - the time of the newest clip and of the newest stream session;
 //   - the weeks of one page of Crew history, and one week more, so that
-//     zoneHistory knows if a next page exists.
+//     zoneHistory knows if a next page exists. Of a week that the viewer
+//     cannot open it reads the clip count from the week rollup and the
+//     clips of the teasers (zoneLockedWeek), not the clips.
 //
 // The weeks come from the week rollup (WeeksBefore). A week of the rollup
 // that holds nothing for Crew history is skipped: its rows are in the free
 // window, or its recap is empty or is the recap of the board.
-func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID string, windowStart, historyBefore int64) (zoneHistoryData, error) {
+func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID string, windowStart, historyBefore int64, open func(weekStart int64) bool) (zoneHistoryData, error) {
 	var data zoneHistoryData
 	var streamRows []CrewEvent
 
@@ -994,7 +1042,6 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 			before += weekMs
 		}
 	}
-	mediaTypes := []string{ledgerTypeClip, ledgerTypeStreamSession}
 	weekKept := map[int64]int{}    // week start -> clips and recaps kept
 	weekStreams := map[int64]int{} // week start -> stream sessions kept
 	found := func() int {
@@ -1007,7 +1054,11 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 		return n
 	}
 	for {
-		mediaWeeks, err := store.WeeksBefore(ctx, crewID, mediaTypes, before, batch)
+		clipWeeks, err := store.WeeksBefore(ctx, crewID, []string{ledgerTypeClip}, before, batch)
+		if err != nil {
+			return data, err
+		}
+		streamWeeks, err := store.WeeksBefore(ctx, crewID, []string{ledgerTypeStreamSession}, before, batch)
 		if err != nil {
 			return data, err
 		}
@@ -1023,36 +1074,41 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 		// have more below its last week, so the round stops there: the week
 		// rollup holds a week whole, a list of recaps can end inside one.
 		floor := int64(math.MinInt64)
-		hasMedia := map[int64]bool{}
+		clipCount := map[int64]int{}
+		hasStreams := map[int64]bool{}
 		weekRecaps := map[int64][]WeeklyRecapData{}
-		for _, w := range mediaWeeks {
-			hasMedia[w.WeekStart] = true
+		inRound := map[int64]bool{}
+		for _, w := range clipWeeks {
+			clipCount[w.WeekStart] = w.N
+			inRound[w.WeekStart] = true
 		}
-		if len(mediaWeeks) == batch {
-			floor = mediaWeeks[batch-1].WeekStart
+		for _, w := range streamWeeks {
+			hasStreams[w.WeekStart] = true
+			inRound[w.WeekStart] = true
 		}
 		for _, r := range recaps {
 			w := weekStartOf(r.WeekStart)
 			weekRecaps[w] = append(weekRecaps[w], r)
+			inRound[w] = true
+		}
+		for _, full := range [][]weekCount{clipWeeks, streamWeeks} {
+			if len(full) == batch && full[batch-1].WeekStart > floor {
+				floor = full[batch-1].WeekStart
+			}
 		}
 		if len(recaps) == batch {
 			if last := weekStartOf(recaps[batch-1].WeekStart) + weekMs; last > floor {
 				floor = last
 			}
 		}
-		weeks := make([]int64, 0, len(hasMedia)+len(weekRecaps))
-		for w := range hasMedia {
+		weeks := make([]int64, 0, len(inRound))
+		for w := range inRound {
 			if w >= floor {
 				weeks = append(weeks, w)
 			}
 		}
-		for w := range weekRecaps {
-			if w >= floor && !hasMedia[w] {
-				weeks = append(weeks, w)
-			}
-		}
 		sort.Slice(weeks, func(i, j int) bool { return weeks[i] > weeks[j] })
-		more := len(mediaWeeks) == batch || len(recaps) == batch
+		more := len(clipWeeks) == batch || len(streamWeeks) == batch || len(recaps) == batch
 		if len(weeks) == 0 && more {
 			// More recaps of one week than a batch holds. No crew has them.
 			return data, fmt.Errorf("crew %s: the recaps before week %d do not fit one read", crewID, before)
@@ -1071,8 +1127,35 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 			}
 			// A week that starts in the free window has no clip or stream
 			// session for Crew history.
-			if hasMedia[w] && w < windowStart {
-				rows, err := store.Between(ctx, crewID, w, w+weekMs-1, mediaTypes)
+			var types []string
+			if w < windowStart {
+				if clipCount[w] > 0 {
+					types = append(types, ledgerTypeClip)
+				}
+				if hasStreams[w] {
+					types = append(types, ledgerTypeStreamSession)
+				}
+			}
+			// A locked week that ends before the free window: the clip
+			// count of the rollup and the clips of the teasers. The stream
+			// sessions are read, so that two rows of one session count once.
+			if clipCount[w] > 0 && w+weekMs <= windowStart && open != nil && !open(w) {
+				top, err := store.TopInRange(ctx, crewID, ledgerTypeClip, w, w+weekMs-1, "clip_type", clipTypeGame, zonesTeasersMax)
+				if err != nil {
+					return data, err
+				}
+				if data.Locked == nil {
+					data.Locked = map[int64]zoneLockedWeek{}
+				}
+				data.Locked[w] = zoneLockedWeek{ClipCount: clipCount[w], TopClips: clipsFromRows(top)}
+				kept += clipCount[w]
+				types = nil
+				if hasStreams[w] {
+					types = []string{ledgerTypeStreamSession}
+				}
+			}
+			if len(types) > 0 {
+				rows, err := store.Between(ctx, crewID, w, w+weekMs-1, types)
 				if err != nil {
 					return data, err
 				}
