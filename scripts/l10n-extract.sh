@@ -55,6 +55,14 @@ find client/ui hud/ui -name '*.slint' -not -path '*/previews/*' \
 
 # The creation date changes on every run, and line numbers change on every
 # edit above a message. Remove both; keep each file name once per message.
+#
+# slint-tr-extractor 1.18.1 can write a translator note (the `//` comment
+# on the line above a @tr()) as bare lines, without the "#. " prefix. A bare
+# line is not valid gettext, and Poedit rejects the file. The rule below
+# adds the prefix to each line that is not empty and does not start with
+# "#", "msg" or a quote. The extractor also keeps only the last line of a
+# multi-line comment. That is an upstream fault; this script does not
+# repair it, so keep a translator note on one line.
 awk '
     function flush() {
         if (refs != "") print "#:" refs
@@ -63,6 +71,7 @@ awk '
     }
     { sub(/\r$/, "") }
     /^"POT-Creation-Date:/ { next }
+    $0 != "" && !/^#/ && !/^msg/ && !/^"/ { $0 = "#. " $0 }
     /^#: / {
         for (i = 2; i <= NF; i++) {
             ref = $i
