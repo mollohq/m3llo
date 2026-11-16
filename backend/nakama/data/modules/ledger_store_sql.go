@@ -827,6 +827,41 @@ func (s *sqlLedgerStore) EventsNamingUser(ctx context.Context, userID string) ([
 	return scanLedgerEvents(rows)
 }
 
+func (s *sqlLedgerStore) DeletedIDs(ctx context.Context, crewID string, ids []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	for start := 0; start < len(ids); start += ledgerByIDsChunk {
+		end := start + ledgerByIDsChunk
+		if end > len(ids) {
+			end = len(ids)
+		}
+		args := []interface{}{crewID}
+		marks := make([]string, 0, end-start)
+		for _, id := range ids[start:end] {
+			args = append(args, id)
+			marks = append(marks, fmt.Sprintf("$%d", len(args)))
+		}
+		rows, err := s.db.QueryContext(ctx,
+			`SELECT event_id FROM mello_crew_event_deleted
+			 WHERE crew_id = $1 AND event_id IN (`+strings.Join(marks, ", ")+`)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			out[id] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 func (s *sqlLedgerStore) UserCrews(ctx context.Context, userID string) ([]string, error) {
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT DISTINCT crew_id FROM mello_crew_event_user WHERE user_id = $1 ORDER BY crew_id ASC`, userID)

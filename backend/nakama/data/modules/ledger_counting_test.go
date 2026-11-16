@@ -134,6 +134,11 @@ func (c *queryCounter) EventsNamingUser(ctx context.Context, userID string) ([]C
 	return c.events("EventsNamingUser", events, err)
 }
 
+func (c *queryCounter) DeletedIDs(ctx context.Context, crewID string, ids []string) (map[string]bool, error) {
+	c.call("DeletedIDs", 0)
+	return c.inner.DeletedIDs(ctx, crewID, ids)
+}
+
 func (c *queryCounter) UserCrews(ctx context.Context, userID string) ([]string, error) {
 	c.call("UserCrews", 0)
 	return c.inner.UserCrews(ctx, userID)

@@ -1,0 +1,651 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/heroiclabs/nakama-common/api"
+	"github.com/heroiclabs/nakama-common/runtime"
+)
+
+const (
+	goneUser  = "99999999-9999-4999-8999-999999999999"
+	goneName  = "Zed Gone"
+	scrubCrew = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+	leftCrew  = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	awayCrew  = "cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+)
+
+// useScrubInline points the media at the fake and runs the scrub and the
+// purge inline.
+func useScrubInline(t *testing.T) *fakeS3 {
+	t.Helper()
+	f := usePurgeBuckets(t)
+	prev := userScrubAsync
+	userScrubAsync = func(fn func()) { fn() }
+	t.Cleanup(func() { userScrubAsync = prev })
+	return f
+}
+
+func scrubAppend(t *testing.T, nk runtime.NakamaModule, crewID string, ev CrewEvent) {
+	t.Helper()
+	ev.ID = ev.ID + "-" + crewID[:4]
+	if err := AppendCrewEvent(context.Background(), nk, crewID, ev); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// seedScrubCrew gives a crew events, clips, a stream and a recap that name
+// the user in every way, through the writers of the module. member says if
+// the user is a member at the delete.
+func seedScrubCrew(t *testing.T, nk *delNk, f *fakeS3, crewID string, member bool) {
+	t.Helper()
+	ctx := context.Background()
+	now := time.Now()
+	ms := func(d time.Duration) int64 { return now.Add(-d).UnixMilli() }
+	nk.groups[crewID] = &api.Group{Id: crewID}
+	nk.addMember(crewID, "u1", "Ann")
+	nk.addMember(crewID, "u3", "Cy")
+	if member {
+		nk.addMember(crewID, goneUser, goneName)
+	}
+	tag := crewID[:4]
+
+	own := StreamSessionData{SessionID: "sg" + tag, StreamerID: goneUser, StreamerName: goneName, Title: "Mine", SnapshotURLs: []string{}}
+	watched := StreamSessionData{SessionID: "s1" + tag, StreamerID: "u1", StreamerName: "Ann", Title: "Hers", ViewerIDs: []string{goneUser, "u3"}, SnapshotURLs: []string{}}
+	events := []CrewEvent{
+		// Started by the user: dropped.
+		{ID: "own-game", Type: "game_session", ActorID: goneUser, Timestamp: ms(time.Hour), Data: GameSessionData{GameName: "G", PlayerIDs: []string{goneUser}, PlayerNames: []string{goneName}}},
+		{ID: "own-join", Type: "member_joined", ActorID: goneUser, Timestamp: ms(2 * time.Hour), Data: MemberJoinedData{Username: goneName, DisplayName: goneName}},
+		{ID: "own-moment", Type: "moment", ActorID: goneUser, Timestamp: ms(3 * time.Hour), Data: MomentData{Text: "gg"}},
+		{ID: "own-stream", Type: "stream_session", ActorID: goneUser, Timestamp: ms(4 * time.Hour), Score: 30, Data: own},
+		// Older than the 7 days of the ledger document: only the store holds it.
+		{ID: "own-old-game", Type: "game_session", ActorID: goneUser, Timestamp: ms(40 * 24 * time.Hour), Data: GameSessionData{GameName: "G", PlayerIDs: []string{goneUser}, PlayerNames: []string{goneName}}},
+		{ID: "duo-voice", Type: "voice_session", Timestamp: ms(5 * time.Hour), Data: VoiceSessionData{ParticipantIDs: []string{"u1", goneUser}, ParticipantNames: []string{"Ann", goneName}}},
+		// Started by another member: the user leaves the lists.
+		{ID: "trio-voice", Type: "voice_session", Timestamp: ms(6 * time.Hour), Data: VoiceSessionData{ParticipantIDs: []string{"u1", goneUser, "u3"}, ParticipantNames: []string{"Ann", goneName, "Cy"}}},
+		{ID: "co-game", Type: "game_session", ActorID: "u1", Timestamp: ms(7 * time.Hour), Data: GameSessionData{GameName: "G", PlayerIDs: []string{"u1", goneUser}, PlayerNames: []string{"Ann", goneName}, PlayerOverlapMin: []int{50, 20}}},
+		{ID: "old-co-game", Type: "game_session", ActorID: "u1", Timestamp: ms(41 * 24 * time.Hour), Data: GameSessionData{GameName: "G", PlayerIDs: []string{"u1", goneUser}, PlayerNames: []string{"Ann", "Old Zed"}, PlayerOverlapMin: []int{50, 20}}},
+		{ID: "invited", Type: "member_joined", ActorID: "u3", Timestamp: ms(8 * time.Hour), Data: MemberJoinedData{Username: "Cy", DisplayName: "Cy", InvitedBy: goneUser, InvitedByName: goneName}},
+		{ID: "watched", Type: "stream_session", ActorID: "u1", Timestamp: ms(9 * time.Hour), Score: 30, Data: watched},
+		// Does not name the user.
+		{ID: "other-game", Type: "game_session", ActorID: "u3", Timestamp: ms(10 * time.Hour), Data: GameSessionData{GameName: "G", PlayerIDs: []string{"u3"}, PlayerNames: []string{"Cy"}}},
+	}
+	for _, ev := range events {
+		scrubAppend(t, nk, crewID, ev)
+	}
+	for _, s := range []struct {
+		id   string
+		ts   int64
+		data StreamSessionData
+	}{{"own-stream-" + tag, ms(4 * time.Hour), own}, {"watched-" + tag, ms(9 * time.Hour), watched}} {
+		if err := UpsertStreamSession(ctx, nk, crewID, storedStreamSessionFrom(s.id, s.ts, 30, s.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	clips := []StoredClip{
+		{EventID: "ev-own-" + tag, ClipID: "cg" + tag, ActorID: goneUser, ClipperName: goneName, Ts: ms(11 * time.Hour), Score: 50, ClipType: clipTypeVoice},
+		{EventID: "ev-old-" + tag, ClipID: "cold" + tag, ActorID: goneUser, ClipperName: goneName, Ts: ms(50 * 24 * time.Hour), Score: 50, ClipType: clipTypeGame},
+		{EventID: "ev-shared-" + tag, ClipID: "c1" + tag, ActorID: "u1", ClipperName: "Ann", Ts: ms(12 * time.Hour), Score: 50, ClipType: clipTypeVoice,
+			Participants: []string{"u1", goneUser}, ParticipantNames: []string{"Ann", goneName}},
+	}
+	for _, c := range clips {
+		if _, err := AppendClip(ctx, nk, crewID, c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	recap := histRecap(time.UnixMilli(weekStartOf(ms(14*24*time.Hour))), 90)
+	recap.CrewID = crewID
+	recap.MostActive = goneName
+	recap.BestStreak, recap.BestStreakName = 3, goneName
+	recap.LongestSession = "Ann, " + goneName + " in Lobby (90m)"
+	recap.TopMembers = []RecapMember{{UserID: goneUser, DisplayName: goneName, HangoutMin: 60}, {UserID: "u1", DisplayName: "Ann", HangoutMin: 30}}
+	recap.ClipOfWeek = &RecapClipOfWeek{ClipID: "cold" + tag, Title: "Old Zed clipped that", ClipperName: "Old Zed", MediaURL: "m"}
+	recap.Awards = []RecapAward{{Kind: "grinder", Title: "Grinder of the week", Name: goneName}, {Kind: "heater", Title: "Biggest heater", Name: "Ann"}}
+	// A recap from before recaps held user ids: only a name.
+	old := histRecap(time.UnixMilli(weekStartOf(ms(28*24*time.Hour))), 40)
+	old.CrewID = crewID
+	old.MostActive = "Old Zed"
+	old.TopMembers = []RecapMember{{DisplayName: "Old Zed"}, {DisplayName: "Ann"}}
+	for _, r := range []WeeklyRecapData{old, recap} {
+		if err := AppendRecap(ctx, nk, crewID, r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	f.put("clips", "crews/"+crewID+"/cg"+tag+".mp4", 10, time.Hour)
+	f.put("clips", "crews/"+crewID+"/cold"+tag+".mp4", 10, time.Hour)
+	f.put("clips", "crews/"+crewID+"/cold"+tag+".jpg", 10, time.Hour)
+	f.put("clips", "crews/"+crewID+"/c1"+tag+".mp4", 10, time.Hour)
+	f.put("snaps", "snapshots/"+crewID+"/sg"+tag+"/1.jpg", 10, time.Hour)
+	f.put("snaps", "snapshots/"+crewID+"/sg"+tag+"/2.jpg", 10, time.Hour)
+	f.put("snaps", "snapshots/"+crewID+"/s1"+tag+"/1.jpg", 10, time.Hour)
+}
+
+// scrubDocCollections are the legacy documents the rules cover.
+var scrubDocCollections = []string{"crew_events", "crew_clips", "crew_stream_sessions", "crew_recaps"}
+
+// userTraces lists where an install still names the user in a crew: in a
+// legacy document or in a row of the store, by id or by a name.
+func userTraces(t *testing.T, nk *delNk, store ledgerStore, crewID string) []string {
+	t.Helper()
+	var out []string
+	names := func(text string) string {
+		for _, needle := range []string{goneUser, goneName, "Old Zed"} {
+			if strings.Contains(text, needle) {
+				return needle
+			}
+		}
+		return ""
+	}
+	nk.mu.Lock()
+	for _, collection := range scrubDocCollections {
+		if hit := names(nk.storage[fakeStorageKey(collection, crewID, SystemUserID)]); hit != "" {
+			out = append(out, fmt.Sprintf("doc %s holds %q", collection, hit))
+		}
+	}
+	nk.mu.Unlock()
+	if store == nil {
+		return out
+	}
+	for _, ev := range crewRows(t, store, crewID) {
+		raw, _ := json.Marshal(ev)
+		if hit := names(string(raw)); hit != "" {
+			out = append(out, fmt.Sprintf("row %s %s holds %q", ev.Type, ev.ID, hit))
+		}
+	}
+	rows, err := store.NamingUserInCrew(context.Background(), goneUser, crewID, 1000)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, ev := range rows {
+		out = append(out, "user index names "+ev.ID)
+	}
+	return out
+}
+
+// crewHolds reports whether the documents or the store hold an event id.
+func crewHolds(t *testing.T, nk *delNk, store ledgerStore, crewID, id string) (inDocs, inStore bool) {
+	t.Helper()
+	nk.mu.Lock()
+	for _, collection := range scrubDocCollections {
+		if strings.Contains(nk.storage[fakeStorageKey(collection, crewID, SystemUserID)], `"`+id+`"`) {
+			inDocs = true
+		}
+	}
+	nk.mu.Unlock()
+	if store != nil {
+		for _, ev := range crewRows(t, store, crewID) {
+			if ev.ID == id || ev.ID == "clip_"+id {
+				inStore = true
+			}
+		}
+	}
+	return inDocs, inStore
+}
+
+// deleteAccount is what DELETE /v2/account does around the hooks.
+func deleteAccount(t *testing.T, nk *delNk, userID string) {
+	t.Helper()
+	ctx := ctxWithUser(userID)
+	if err := BeforeDeleteAccount(ctx, testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	removeAccount(nk, userID)
+	if err := AfterDeleteAccount(ctx, testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func removeAccount(nk *delNk, userID string) {
+	delete(nk.users, userID)
+	for crewID, members := range nk.members {
+		kept := members[:0:0]
+		for _, m := range members {
+			if m.GetUser().GetId() != userID {
+				kept = append(kept, m)
+			}
+		}
+		nk.members[crewID] = kept
+	}
+}
+
+func scrubRecordOf(t *testing.T, nk runtime.NakamaModule) *userScrubRecord {
+	t.Helper()
+	rec, err := readUserScrubRecord(context.Background(), nk, goneUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rec
+}
+
+func scrubRPC(nk runtime.NakamaModule, userID string) (userScrubResult, error) {
+	var res userScrubResult
+	out, err := AdminScrubUserRPC(context.Background(), testLogger(), nil, nk, `{"user_id":"`+userID+`"}`)
+	if err == nil {
+		err = json.Unmarshal([]byte(out), &res)
+	}
+	return res, err
+}
+
+// checkScrubbed asserts what an account delete leaves of the crews of the
+// seed: no trace of the user, the events of the others, and the media.
+func checkScrubbed(t *testing.T, nk *delNk, store ledgerStore, f *fakeS3, when string) {
+	t.Helper()
+	for _, crewID := range []string{scrubCrew, leftCrew} {
+		tag := crewID[:4]
+		if traces := userTraces(t, nk, store, crewID); len(traces) != 0 {
+			t.Fatalf("%s: crew %s still names the user:\n%s", when, tag, strings.Join(traces, "\n"))
+		}
+		for _, id := range []string{"own-game", "own-join", "own-moment", "own-stream", "own-old-game", "duo-voice"} {
+			if inDocs, inStore := crewHolds(t, nk, store, crewID, id+"-"+tag); inDocs || inStore {
+				t.Fatalf("%s: crew %s holds %s: documents=%t store=%t", when, tag, id, inDocs, inStore)
+			}
+		}
+		for _, id := range []string{"ev-own-" + tag, "ev-old-" + tag} {
+			if inDocs, inStore := crewHolds(t, nk, store, crewID, id); inDocs || inStore {
+				t.Fatalf("%s: crew %s holds the clip %s: documents=%t store=%t", when, tag, id, inDocs, inStore)
+			}
+		}
+		// The events of the other members stay, on both sides.
+		for _, id := range []string{"trio-voice", "co-game", "invited", "watched", "other-game"} {
+			inDocs, inStore := crewHolds(t, nk, store, crewID, id+"-"+tag)
+			if !inDocs || (store != nil && !inStore) {
+				t.Fatalf("%s: crew %s lost %s: documents=%t store=%t", when, tag, id, inDocs, inStore)
+			}
+		}
+		if inDocs, inStore := crewHolds(t, nk, store, crewID, "ev-shared-"+tag); !inDocs || (store != nil && !inStore) {
+			t.Fatalf("%s: crew %s lost the clip of another member: documents=%t store=%t", when, tag, inDocs, inStore)
+		}
+		if store != nil {
+			if _, inStore := crewHolds(t, nk, store, crewID, "old-co-game-"+tag); !inStore {
+				t.Fatalf("%s: crew %s lost an old event of another member", when, tag)
+			}
+		}
+		// The recaps stay, without the user.
+		for _, r := range docRecaps(nk, crewID) {
+			if len(r.TopMembers) != 1 || r.TopMembers[0].DisplayName != "Ann" || r.MostActive != "" || r.ClipOfWeek != nil || r.TotalMin == 0 {
+				t.Fatalf("%s: recap of crew %s = %+v", when, tag, r)
+			}
+		}
+		if n := len(docRecaps(nk, crewID)); n != 2 {
+			t.Fatalf("%s: crew %s has %d recaps, want 2", when, tag, n)
+		}
+		// The media of the clips and the stream of the user is gone. The
+		// media of the others stays.
+		want := "crews/" + crewID + "/c1" + tag + ".mp4"
+		var clips, snaps []string
+		for _, k := range f.keys("clips") {
+			if strings.Contains(k, crewID) {
+				clips = append(clips, k)
+			}
+		}
+		for _, k := range f.keys("snaps") {
+			if strings.Contains(k, crewID) {
+				snaps = append(snaps, k)
+			}
+		}
+		if len(clips) != 1 || clips[0] != want {
+			t.Fatalf("%s: clip objects of crew %s = %v, want [%s]", when, tag, clips, want)
+		}
+		if len(snaps) != 1 || !strings.Contains(snaps[0], "/s1"+tag+"/") {
+			t.Fatalf("%s: snapshot objects of crew %s = %v", when, tag, snaps)
+		}
+	}
+}
+
+// An account delete scrubs the user from the documents and from the store in
+// every phase, also in a crew the user left before, and a reconcile brings
+// nothing back.
+func TestScrubUserFromLedger(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := useScrubInline(t)
+		seedScrubCrew(t, nk, f, scrubCrew, true)
+		seedScrubCrew(t, nk, f, leftCrew, false)
+		seedPurgeCrew(t, nk, f, otherCrew)
+		if n := len(userTraces(t, nk, store, scrubCrew)); n < 20 {
+			t.Fatalf("the seed is too small to prove the scrub: %d traces", n)
+		}
+		other := crewLeftovers(t, nk, store, f, otherCrew)
+		otherRows, _ := json.Marshal(crewRows(t, store, otherCrew))
+
+		deleteAccount(t, nk, goneUser)
+
+		checkScrubbed(t, nk, store, f, "after the delete")
+		rec := scrubRecordOf(t, nk)
+		if rec == nil || rec.DoneMs == 0 || rec.LastError != "" || !rec.idle() {
+			t.Fatalf("scrub record = %+v", rec)
+		}
+		r := reconcilePass(t, nk)
+		reconcilePass(t, nk)
+		checkScrubbed(t, nk, store, f, "after a reconcile")
+		if !r.last.clean() || !r.lastHist.clean() {
+			t.Fatalf("the reconcile after a scrub is not clean: %+v %+v", r.last, r.lastHist)
+		}
+		// A crew the user was never in is not touched.
+		if after := crewLeftovers(t, nk, store, f, otherCrew); strings.Join(after, "\n") != strings.Join(other, "\n") {
+			t.Fatalf("another crew changed: %v", after)
+		}
+		if rows, _ := json.Marshal(crewRows(t, store, otherCrew)); string(rows) != string(otherRows) {
+			t.Fatal("the rows of another crew changed")
+		}
+
+		// The second run, one day later, ends the scrub: the record with the
+		// names of the user is deleted.
+		prev := userScrubNow
+		userScrubNow = func() time.Time { return time.Now().Add(userScrubSettle + time.Minute) }
+		t.Cleanup(func() { userScrubNow = prev })
+		runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+		if rec := scrubRecordOf(t, nk); rec != nil {
+			t.Fatalf("the scrub record stays after the second run: %+v", rec)
+		}
+		checkScrubbed(t, nk, store, f, "after the second run")
+	})
+}
+
+// The scrub works on an install with no durable store.
+func TestScrubUserWithNoStore(t *testing.T) {
+	useLedger(t, nil)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	seedScrubCrew(t, nk, f, leftCrew, false)
+	deleteAccount(t, nk, goneUser)
+	for _, crewID := range []string{scrubCrew, leftCrew} {
+		// Known limit: the documents hold the events of 7 days. A name the
+		// user had before that is in no event, so a recap from before recaps
+		// held user ids keeps it. With the store the old events give the name.
+		traces := userTraces(t, nk, nil, crewID)
+		if len(traces) != 1 || traces[0] != `doc crew_recaps holds "Old Zed"` {
+			t.Fatalf("crew %s still names the user:\n%s", crewID[:4], strings.Join(traces, "\n"))
+		}
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+}
+
+// A scrub whose document write fails is not done. It does not fail the
+// account delete, a reconcile does not undo what it did, and
+// admin_scrub_user ends it.
+func TestScrubUserIsRepairedAfterAFailure(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := useScrubInline(t)
+		seedScrubCrew(t, nk, f, scrubCrew, true)
+		seedScrubCrew(t, nk, f, leftCrew, false)
+		nk.failWrite[CrewClipsCollection] = true
+
+		deleteAccount(t, nk, goneUser)
+		rec := scrubRecordOf(t, nk)
+		if rec == nil || rec.DoneMs != 0 || len(rec.Crews) != 2 || !strings.Contains(rec.LastError, CrewClipsCollection) {
+			t.Fatalf("scrub record after a failed write = %+v", rec)
+		}
+		if n := len(f.deletes); n != 0 {
+			t.Fatalf("a scrub that is not done deleted %d objects", n)
+		}
+		reconcilePass(t, nk)
+
+		// The account is gone, so the names come from the record.
+		nk.failWrite = map[string]bool{}
+		res, err := scrubRPC(nk, goneUser)
+		if err != nil || !res.Done || res.CrewsLeft != 0 {
+			t.Fatalf("admin_scrub_user = %+v err=%v", res, err)
+		}
+		checkScrubbed(t, nk, store, f, "after the repair")
+		reconcilePass(t, nk)
+		reconcilePass(t, nk)
+		checkScrubbed(t, nk, store, f, "after a reconcile")
+
+		// A second call finds nothing to do.
+		deletes := len(f.deletes)
+		res, err = scrubRPC(nk, goneUser)
+		if err != nil || !res.Done || res.Dropped != 0 || res.Changed != 0 || len(f.deletes) != deletes {
+			t.Fatalf("second admin_scrub_user = %+v err=%v", res, err)
+		}
+	})
+}
+
+func TestAdminScrubUserRefuses(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	before := len(userTraces(t, nk, store, scrubCrew))
+
+	if _, err := AdminScrubUserRPC(ctxWithUser("u1"), testLogger(), nil, nk, `{"user_id":"`+goneUser+`"}`); rpcCode(err) != 7 {
+		t.Fatalf("a user call: %v", err)
+	}
+	for _, bad := range []string{"", "u1", SystemUserID} {
+		if _, err := scrubRPC(nk, bad); rpcCode(err) != 3 {
+			t.Fatalf("user id %q: %v", bad, err)
+		}
+	}
+	// The account exists.
+	if _, err := scrubRPC(nk, goneUser); rpcCode(err) != 9 {
+		t.Fatalf("an account that exists: %v", err)
+	}
+	if after := len(userTraces(t, nk, store, scrubCrew)); after != before || len(f.deletes) != 0 || scrubRecordOf(t, nk) != nil {
+		t.Fatalf("a refused scrub changed data: %d traces, was %d", after, before)
+	}
+
+	// No hook ran (the account was deleted in the console): the RPC scrubs
+	// with the names the events hold.
+	removeAccount(nk, goneUser)
+	res, err := scrubRPC(nk, goneUser)
+	if err != nil || !res.Done || res.Dropped == 0 || res.MediaDeleted == 0 {
+		t.Fatalf("admin_scrub_user = %+v err=%v", res, err)
+	}
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+}
+
+// The before hook writes a record. When the delete does not happen, the job
+// deletes the record and scrubs nothing.
+func TestScrubRecordOfAnAccountThatStays(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	before := len(userTraces(t, nk, store, scrubCrew))
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	rec := scrubRecordOf(t, nk)
+	if rec == nil || rec.DeletedMs != 0 || len(rec.Crews) != 1 || len(rec.Names) != 1 || rec.Names[0] != goneName {
+		t.Fatalf("record of the before hook = %+v", rec)
+	}
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if scrubRecordOf(t, nk) == nil {
+		t.Fatal("the job deleted a new record")
+	}
+	prev := userScrubNow
+	userScrubNow = func() time.Time { return time.Now().Add(userScrubStale + time.Minute) }
+	t.Cleanup(func() { userScrubNow = prev })
+	runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+	if scrubRecordOf(t, nk) != nil {
+		t.Fatal("the record of an account that stays is not deleted")
+	}
+	if after := len(userTraces(t, nk, store, scrubCrew)); after != before || len(f.deletes) != 0 {
+		t.Fatalf("an account that stays was scrubbed: %d traces, was %d", after, before)
+	}
+}
+
+// The after hook did not run (the node stopped). The job sees that the
+// account is gone and scrubs.
+func TestDeletionJobScrubsWhenTheAfterHookDidNotRun(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	removeAccount(nk, goneUser)
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+}
+
+// A user with more rows than one batch, and a run that is cut at its budget:
+// the next run continues.
+func TestScrubUserInBatchesAndAfterItsBudget(t *testing.T) {
+	store := useHistoryStoreReads(t)
+	nk := newDelNk()
+	markersInStorage(t, nk)
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	const many = 2*userScrubBatch + 50
+	base := time.Now().Add(-90 * 24 * time.Hour)
+	for i := 0; i < many; i++ {
+		ev := CrewEvent{ID: fmt.Sprintf("bulk-%04d", i), CrewID: scrubCrew, Type: "game_session", ActorID: goneUser,
+			Timestamp: base.Add(time.Duration(i) * time.Minute).UnixMilli(), Data: GameSessionData{GameName: "G"}}
+		if i%2 == 1 {
+			ev.ActorID = "u1"
+			ev.Data = GameSessionData{GameName: "G", PlayerIDs: []string{"u1", goneUser}, PlayerNames: []string{"Ann", goneName}}
+		}
+		if _, err := store.Append(context.Background(), ev, ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows := len(crewRows(t, store, scrubCrew))
+
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	removeAccount(nk, goneUser)
+	rec, err := confirmUserScrub(context.Background(), nk, goneUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A run past its deadline does nothing and says so.
+	res := runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(-time.Second))
+	if res.Done || !res.Incomplete || res.Dropped != 0 {
+		t.Fatalf("a run past its deadline = %+v", res)
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs != 0 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user: %d traces, first %s", len(traces), traces[0])
+	}
+	// Half of the bulk rows were events of the user, the other half stays.
+	if got, want := len(crewRows(t, store, scrubCrew)), rows-many/2-8; got != want {
+		t.Fatalf("rows after the scrub = %d, want %d", got, want)
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+}
+
+// The media of a clip is not deleted while the crew holds another clip with
+// the same clip_id (a document from before clip_id was checked).
+func TestScrubKeepsMediaThatAnotherClipHolds(t *testing.T) {
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	tag := scrubCrew[:4]
+	doc, _ := readClipsDoc(context.Background(), nk, scrubCrew)
+	doc.Clips = append(doc.Clips, StoredClip{EventID: "ev-twin", ClipID: "cg" + tag, ActorID: "u3", ClipperName: "Cy", Ts: time.Now().UnixMilli(), ClipType: clipTypeVoice})
+	if err := writeClipsDoc(context.Background(), nk, scrubCrew, doc, ""); err != nil {
+		t.Fatal(err)
+	}
+	deleteAccount(t, nk, goneUser)
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+	keys := strings.Join(f.keys("clips"), ",")
+	if !strings.Contains(keys, "cg"+tag+".mp4") {
+		t.Fatalf("the media that another clip holds is gone: %s", keys)
+	}
+	if strings.Contains(keys, "cold"+tag) {
+		t.Fatalf("the media of the own clip stays: %s", keys)
+	}
+}
+
+// Nakama can delete a crew with the account of its owner, and then no
+// delete-group hook runs. The scrub purges a crew of the user that is gone.
+func TestScrubPurgesACrewThatWentWithTheAccount(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	seedScrubCrew(t, nk, f, awayCrew, true)
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	removeAccount(nk, goneUser)
+	if err := nk.GroupDelete(context.Background(), awayCrew); err != nil {
+		t.Fatal(err)
+	}
+	if err := AfterDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	if rows := crewRows(t, store, awayCrew); len(rows) != 0 {
+		t.Fatalf("rows of the crew that is gone: %d", len(rows))
+	}
+	for _, collection := range scrubDocCollections {
+		if nk.has(collection, awayCrew) {
+			t.Fatalf("the crew that is gone keeps its %s document", collection)
+		}
+	}
+	for _, bucket := range []string{"clips", "snaps"} {
+		for _, key := range f.keys(bucket) {
+			if strings.Contains(key, awayCrew) {
+				t.Fatalf("the crew that is gone keeps %s", key)
+			}
+		}
+	}
+	if rec := purgeRecordOf(t, nk, awayCrew); rec.DoneMs == 0 {
+		t.Fatalf("purge record = %+v", rec)
+	}
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("the crew that stays still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+}
+
+// The store remembers the id of each row the scrub drops. A document that
+// holds a dropped entry again (a node of an older release wrote it back, or
+// its scrub failed) does not bring the row back, in either phase.
+func TestReconcileDoesNotRestoreWhatTheScrubDropped(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := useScrubInline(t)
+		seedScrubCrew(t, nk, f, scrubCrew, true)
+		ctx := context.Background()
+		tag := scrubCrew[:4]
+		ledgerBefore, _ := readLedgerDocStrict(ctx, nk, scrubCrew)
+		clipsBefore, _ := readClipsDoc(ctx, nk, scrubCrew)
+		streamsBefore, _ := readStreamSessionsDoc(ctx, nk, scrubCrew)
+
+		deleteAccount(t, nk, goneUser)
+		if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+			t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+		}
+
+		// The documents as they were before the scrub.
+		nk.put(CrewEventsCollection, scrubCrew, SystemUserID, ledgerBefore)
+		nk.put(CrewClipsCollection, scrubCrew, SystemUserID, clipsBefore)
+		nk.put(CrewStreamSessionsCollection, scrubCrew, SystemUserID, streamsBefore)
+		reconcilePass(t, nk)
+		reconcilePass(t, nk)
+		for _, id := range []string{"own-game-" + tag, "own-join-" + tag, "own-moment-" + tag, "own-stream-" + tag, "duo-voice-" + tag, "ev-own-" + tag, "ev-old-" + tag} {
+			if _, inStore := crewHolds(t, nk, store, scrubCrew, id); inStore {
+				t.Fatalf("the reconcile stored the dropped row %s again", id)
+			}
+		}
+		for _, ev := range crewRows(t, store, scrubCrew) {
+			if ev.ActorID == goneUser {
+				t.Fatalf("the store holds a row of the user again: %s %s", ev.Type, ev.ID)
+			}
+		}
+	})
+}

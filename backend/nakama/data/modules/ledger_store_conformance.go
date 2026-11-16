@@ -910,6 +910,18 @@ func ledgerScrubConformance(ctx context.Context, store ledgerStore, crewID, run 
 	if n, err := store.Put(ctx, crewID, []ledgerRow{clip}); err != nil || n != 0 {
 		return fmt.Errorf("put of a deleted clip row: inserted=%d err=%v, want 0", n, err)
 	}
+	// DeletedIDs names the ids that Delete removed, and no other.
+	asked := []string{own.ID, clip.Event.ID, shared.ID, id("s_never")}
+	gotDeleted, err := store.DeletedIDs(ctx, crewID, asked)
+	if err != nil || len(gotDeleted) != 2 || !gotDeleted[own.ID] || !gotDeleted[clip.Event.ID] {
+		return fmt.Errorf("deleted ids = %v err=%v, want the own event and the clip row", gotDeleted, err)
+	}
+	if gotDeleted, err = store.DeletedIDs(ctx, "selftest_no_crew_"+run, asked); err != nil || len(gotDeleted) != 0 {
+		return fmt.Errorf("deleted ids of another crew = %v err=%v", gotDeleted, err)
+	}
+	if gotDeleted, err = store.DeletedIDs(ctx, crewID, nil); err != nil || len(gotDeleted) != 0 {
+		return fmt.Errorf("deleted ids of no ids = %v err=%v", gotDeleted, err)
+	}
 	if n, err := store.Backfill(ctx, crewID, []CrewEvent{own}, now, true); err != nil || n != 0 {
 		return fmt.Errorf("backfill of a deleted event: inserted=%d err=%v, want 0", n, err)
 	}

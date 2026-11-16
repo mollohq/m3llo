@@ -198,6 +198,25 @@ func putMissingHistoryRows(ctx context.Context, store ledgerStore, kind *history
 		inserted, err = store.Put(ctx, crewID, missing)
 		return inserted, 0, err
 	}
+	// PutUnique stores a row whose id Delete removed: a live write may use
+	// the id again. The reconcile must not: the scrub of a deleted account
+	// dropped the row, and the document that still holds the entry is not
+	// scrubbed yet or was written by an older release.
+	ids := make([]string, 0, len(missing))
+	for _, row := range missing {
+		ids = append(ids, row.Event.ID)
+	}
+	deleted, err := store.DeletedIDs(ctx, crewID, ids)
+	if err != nil {
+		return 0, 0, err
+	}
+	wanted := missing[:0:0]
+	for _, row := range missing {
+		if !deleted[row.Event.ID] {
+			wanted = append(wanted, row)
+		}
+	}
+	missing = wanted
 	perRef := map[string]int{}
 	for _, row := range missing {
 		perRef[row.Ref]++

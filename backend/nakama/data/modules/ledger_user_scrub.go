@@ -1,0 +1,1096 @@
+package main
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"math"
+	"strings"
+	"time"
+
+	"github.com/heroiclabs/nakama-common/runtime"
+)
+
+// The scrub of a deleted account (plans/DURABLE-LEDGER.md section 7). The
+// rules are the pure functions of ledger_scrub.go. This file applies them to
+// the legacy documents and to the rows of the durable store, and deletes the
+// media of the clips and streams of the user.
+//
+// Both sides are scrubbed in every phase, the documents first:
+//
+//   - Before the cutover the documents are the truth and the reconcile copies
+//     them to the store. A document that still names the user would bring the
+//     user back.
+//   - After the cutover the documents are the rollback path (the kill
+//     switches). The reconcile only inserts, and the store remembers the id
+//     of each row the scrub drops (ledgerStore.Delete).
+//
+// A scrub has a record. It holds what a later run needs and the account no
+// longer gives: the names of the user and the crews of the user. A run does a
+// bounded part of the work and saves its place, so a scrub of a user with
+// many crews continues in the next run (the deletion job, or the RPC
+// admin_scrub_user).
+//
+// A scrub runs a second time one day after it was done (userScrubSettle): a
+// voice session that ends after the delete still names the user. Then the
+// record is deleted.
+
+const (
+	// UserScrubCollection holds one scrub record for each deleted account
+	// whose scrub is not over, system-owned, key user id.
+	UserScrubCollection = "ledger_user_scrub"
+
+	// userScrubBudget bounds one run of a scrub.
+	userScrubBudget = 2 * time.Minute
+	// userScrubSettle is the wait before the second run.
+	userScrubSettle = 24 * time.Hour
+	// userScrubStale is the age at which a record of an account that still
+	// exists is deleted: the account delete did not happen.
+	userScrubStale = 1 * time.Hour
+	// userScrubBatch is the number of store rows of one batch.
+	userScrubBatch = 200
+)
+
+// scrubMedia is the media of one dropped clip or stream that is still to be
+// deleted. Kind is the row type: clip (Ref is the clip_id) or stream_session
+// (Ref is the session id).
+type scrubMedia struct {
+	Kind   string `json:"kind"`
+	CrewID string `json:"crew_id"`
+	Ref    string `json:"ref"`
+}
+
+// userScrubRecord is the scrub record of a deleted account.
+type userScrubRecord struct {
+	UserID string `json:"user_id"`
+	// Names are the names the user had: the account names at the delete, and
+	// the names the events of the user hold.
+	Names []string `json:"names,omitempty"`
+	// Crews are the crews that are still to be scrubbed.
+	Crews []string `json:"crews,omitempty"`
+	// Discovered is true when the user index of the store and the scan of the
+	// legacy documents have added their crews. ScanStep and ScanCursor are
+	// the place of the scan.
+	Discovered bool   `json:"discovered,omitempty"`
+	ScanStep   int    `json:"scan_step,omitempty"`
+	ScanCursor string `json:"scan_cursor,omitempty"`
+	// Media is the media of dropped clips and streams that is not deleted yet.
+	Media     []scrubMedia `json:"media,omitempty"`
+	StartedMs int64        `json:"started_ms"`
+	// DeletedMs is when the account was seen to be gone. 0: the record was
+	// written before the delete, and the delete is not confirmed.
+	DeletedMs int64 `json:"deleted_ms,omitempty"`
+	// DoneMs is the end of the first full run. SecondRun is true when the
+	// run after userScrubSettle has started.
+	DoneMs    int64  `json:"done_ms,omitempty"`
+	SecondRun bool   `json:"second_run,omitempty"`
+	LastError string `json:"last_error,omitempty"`
+}
+
+// idle reports whether the record has no work left.
+func (r *userScrubRecord) idle() bool {
+	return r.Discovered && len(r.Crews) == 0 && len(r.Media) == 0
+}
+
+// rediscover makes the next run look for the crews of the user again.
+func (r *userScrubRecord) rediscover() {
+	r.Discovered, r.ScanStep, r.ScanCursor = false, 0, ""
+}
+
+func (r *userScrubRecord) who() scrubWho {
+	return scrubWho{UserID: r.UserID, Names: r.Names}
+}
+
+func (r *userScrubRecord) addNames(names ...string) {
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		known := false
+		for _, have := range r.Names {
+			if have == n {
+				known = true
+				break
+			}
+		}
+		if !known {
+			r.Names = append(r.Names, n)
+		}
+	}
+}
+
+func (r *userScrubRecord) addCrews(crews ...string) {
+	for _, c := range crews {
+		if c == "" {
+			continue
+		}
+		known := false
+		for _, have := range r.Crews {
+			if have == c {
+				known = true
+				break
+			}
+		}
+		if !known {
+			r.Crews = append(r.Crews, c)
+		}
+	}
+}
+
+func (r *userScrubRecord) addMedia(m scrubMedia) {
+	if m.Ref == "" || m.CrewID == "" {
+		return
+	}
+	for _, have := range r.Media {
+		if have == m {
+			return
+		}
+	}
+	r.Media = append(r.Media, m)
+}
+
+// userScrubResult is what one run of a scrub did.
+type userScrubResult struct {
+	UserID string `json:"user_id"`
+	// Done is true when the run left nothing to do.
+	Done bool `json:"done"`
+	// Incomplete is true when the run was cut at its time budget.
+	Incomplete    bool     `json:"incomplete"`
+	CrewsScrubbed int      `json:"crews_scrubbed"`
+	CrewsLeft     int      `json:"crews_left"`
+	Dropped       int      `json:"dropped"`
+	Changed       int      `json:"changed"`
+	MediaDeleted  int      `json:"media_deleted"`
+	MediaSkipped  []string `json:"media_skipped,omitempty"`
+	Errors        []string `json:"errors,omitempty"`
+}
+
+func (r *userScrubResult) fail(format string, args ...interface{}) {
+	r.Errors = append(r.Errors, fmt.Sprintf(format, args...))
+}
+
+// userScrubNow is the clock of the scrub. Tests change it.
+var userScrubNow = time.Now
+
+// userScrubAsync runs the scrub that an account delete starts. A var so a
+// test runs it inline.
+var userScrubAsync = func(fn func()) { go fn() }
+
+func readUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, userID string) (*userScrubRecord, error) {
+	var rec userScrubRecord
+	found, _, err := readDocStrict(ctx, nk, UserScrubCollection, userID, &rec)
+	if err != nil || !found {
+		return nil, err
+	}
+	rec.UserID = userID
+	return &rec, nil
+}
+
+func writeUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord) error {
+	data, err := json.Marshal(rec)
+	if err != nil {
+		return err
+	}
+	_, err = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+		Collection:      UserScrubCollection,
+		Key:             rec.UserID,
+		UserID:          SystemUserID,
+		Value:           string(data),
+		PermissionRead:  0,
+		PermissionWrite: 0,
+	}})
+	return err
+}
+
+func deleteUserScrubRecord(ctx context.Context, nk runtime.NakamaModule, userID string) error {
+	return nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: UserScrubCollection, Key: userID, UserID: SystemUserID}})
+}
+
+// accountExists reports whether the user is an account on this install.
+func accountExists(ctx context.Context, nk runtime.NakamaModule, userID string) (bool, error) {
+	users, err := nk.UsersGetId(ctx, []string{userID}, nil)
+	if err != nil {
+		return false, err
+	}
+	for _, u := range users {
+		if u.GetId() == userID {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// BeforeDeleteAccount runs before Nakama deletes an account
+// (DELETE /v2/account). After the delete the names and the crews of the user
+// cannot be read, so this hook writes them to the scrub record. It deletes
+// nothing: the delete can still fail. It never fails the delete.
+func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error {
+	userID, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
+	if userID == "" {
+		return nil
+	}
+	rec, err := readUserScrubRecord(ctx, nk, userID)
+	if err != nil {
+		logger.Error("user_scrub_failed user=%s: scrub record read: %v", userID, err)
+	}
+	if rec == nil {
+		rec = &userScrubRecord{UserID: userID, StartedMs: userScrubNow().UnixMilli()}
+	}
+	if users, err := nk.UsersGetId(ctx, []string{userID}, nil); err != nil {
+		logger.Error("user_scrub_failed user=%s: account read: %v", userID, err)
+	} else {
+		for _, u := range users {
+			rec.addNames(u.GetDisplayName(), u.GetUsername())
+		}
+	}
+	cursor := ""
+	for {
+		groups, next, err := nk.UserGroupsList(ctx, userID, 100, nil, cursor)
+		if err != nil {
+			logger.Error("user_scrub_failed user=%s: crews read: %v", userID, err)
+			break
+		}
+		for _, g := range groups {
+			rec.addCrews(g.GetGroup().GetId())
+		}
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+	if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+		logger.Error("user_scrub_failed user=%s: scrub record write: %v. Run admin_scrub_user after the delete", userID, err)
+	}
+	return nil
+}
+
+// AfterDeleteAccount runs after Nakama deleted an account. It starts the
+// scrub and does not wait for it. A scrub that fails stays in its record:
+// the deletion job and admin_scrub_user run it again.
+func AfterDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error {
+	userID, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
+	if userID == "" {
+		return nil
+	}
+	rec, err := confirmUserScrub(ctx, nk, userID)
+	if err != nil {
+		logger.Error("user_scrub_failed user=%s: scrub record: %v. Run admin_scrub_user", userID, err)
+		return nil
+	}
+	userScrubAsync(func() {
+		// The context of the request ends with the request.
+		bg, cancel := context.WithTimeout(context.Background(), userScrubBudget+30*time.Second)
+		defer cancel()
+		runUserScrub(bg, nk, logger, rec, userScrubNow().Add(userScrubBudget))
+	})
+	return nil
+}
+
+// confirmUserScrub returns the scrub record of an account that is gone, with
+// the time it was seen to be gone. It makes the record when there is none:
+// the names and the crews then come only from the data.
+func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID string) (*userScrubRecord, error) {
+	rec, err := readUserScrubRecord(ctx, nk, userID)
+	if err != nil {
+		return nil, err
+	}
+	now := userScrubNow().UnixMilli()
+	if rec == nil {
+		rec = &userScrubRecord{UserID: userID, StartedMs: now}
+	}
+	if rec.DeletedMs == 0 {
+		rec.DeletedMs = now
+		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+			return nil, err
+		}
+	}
+	return rec, nil
+}
+
+// scrubScanCollections are the legacy documents the scrub scans for the id of
+// the user, in order.
+var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection}
+
+// discoverUserCrews adds to the record the crews that hold the user: the
+// crews of the user index of the store, and the crews whose legacy documents
+// hold the id of the user. The crews the user was a member of at the delete
+// are in the record already. It returns false when the deadline cut the scan.
+func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) bool {
+	if store := currentLedger(); store != nil && rec.ScanStep == 0 && rec.ScanCursor == "" {
+		crews, err := store.UserCrews(ctx, rec.UserID)
+		if err != nil {
+			res.fail("user index: %v", err)
+			return false
+		}
+		rec.addCrews(crews...)
+	}
+	for rec.ScanStep < len(scrubScanCollections) {
+		if userScrubNow().After(deadline) {
+			res.Incomplete = true
+			return false
+		}
+		collection := scrubScanCollections[rec.ScanStep]
+		objects, next, err := nk.StorageList(ctx, "", SystemUserID, collection, 100, rec.ScanCursor)
+		if err != nil {
+			res.fail("scan of %s: %v", collection, err)
+			return false
+		}
+		for _, obj := range objects {
+			// The id of the user anywhere in the document, in any field.
+			if obj.GetKey() != "" && strings.Contains(obj.GetValue(), rec.UserID) {
+				rec.addCrews(obj.GetKey())
+			}
+		}
+		rec.ScanCursor = next
+		if next == "" {
+			rec.ScanStep++
+		}
+		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+			res.fail("scrub record write: %v", err)
+			return false
+		}
+	}
+	rec.Discovered = true
+	return true
+}
+
+// runUserScrub runs the scrub of a deleted account once, up to the deadline.
+// It can run again at any time: every step leaves the data without the user
+// or as it was.
+func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, deadline time.Time) userScrubResult {
+	res := userScrubResult{UserID: rec.UserID}
+	finish := func() userScrubResult {
+		res.CrewsLeft = len(rec.Crews)
+		res.Done = len(res.Errors) == 0 && !res.Incomplete && rec.idle()
+		now := userScrubNow().UnixMilli()
+		rec.LastError = strings.Join(res.Errors, "; ")
+		settled := false
+		if res.Done {
+			switch {
+			case rec.DoneMs == 0:
+				rec.DoneMs = now
+			case rec.SecondRun:
+				settled = true
+			}
+		}
+		var err error
+		if settled {
+			// The second run is over. The record holds names: it goes.
+			err = deleteUserScrubRecord(ctx, nk, rec.UserID)
+		} else {
+			err = writeUserScrubRecord(ctx, nk, rec)
+		}
+		if err != nil {
+			res.fail("scrub record write: %v", err)
+			res.Done = false
+		}
+		line := fmt.Sprintf("user=%s crews=%d crews_left=%d dropped=%d changed=%d media=%d incomplete=%t",
+			rec.UserID, res.CrewsScrubbed, res.CrewsLeft, res.Dropped, res.Changed, res.MediaDeleted, res.Incomplete)
+		if len(res.Errors) > 0 {
+			logger.Error("user_scrub_failed %s: %s", line, strings.Join(res.Errors, "; "))
+		} else {
+			logger.Info("user_scrub %s", line)
+		}
+		return res
+	}
+
+	if !rec.Discovered && !discoverUserCrews(ctx, nk, rec, &res, deadline) {
+		return finish()
+	}
+	if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+		res.fail("scrub record write: %v", err)
+		return finish()
+	}
+	for len(rec.Crews) > 0 {
+		if userScrubNow().After(deadline) {
+			res.Incomplete = true
+			return finish()
+		}
+		crewID := rec.Crews[0]
+		done, err := scrubCrewForUser(ctx, nk, logger, rec, &res, crewID, deadline)
+		if err != nil {
+			// The crew stays in the record. The other crews still run.
+			res.fail("crew %s: %v", crewID, err)
+			rec.Crews = append(rec.Crews[1:], crewID)
+			if len(res.Errors) >= len(rec.Crews) {
+				return finish()
+			}
+			continue
+		}
+		if !done {
+			res.Incomplete = true
+			return finish()
+		}
+		rec.Crews = rec.Crews[1:]
+		res.CrewsScrubbed++
+		if err := writeUserScrubRecord(ctx, nk, rec); err != nil {
+			res.fail("scrub record write: %v", err)
+			return finish()
+		}
+	}
+	deleteScrubMedia(ctx, nk, rec, &res)
+	return finish()
+}
+
+// scrubDoc reads one system document, gives its value to fn, and writes the
+// result when fn changed it. It writes with the version it read and retries
+// when another writer was first.
+func scrubDoc(ctx context.Context, nk runtime.NakamaModule, collection, key string, fn func(value string) (out string, changed bool, err error)) error {
+	var lastErr error
+	for attempt := 0; attempt < 3; attempt++ {
+		objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{{Collection: collection, Key: key, UserID: SystemUserID}})
+		if err != nil {
+			return err
+		}
+		if len(objects) == 0 {
+			return nil
+		}
+		out, changed, err := fn(objects[0].GetValue())
+		if err != nil || !changed {
+			return err
+		}
+		_, lastErr = nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+			Collection:      collection,
+			Key:             key,
+			UserID:          SystemUserID,
+			Value:           out,
+			Version:         objects[0].GetVersion(),
+			PermissionRead:  int(objects[0].GetPermissionRead()),
+			PermissionWrite: int(objects[0].GetPermissionWrite()),
+		}})
+		if lastErr == nil {
+			return nil
+		}
+		time.Sleep(time.Duration(50*(attempt+1)) * time.Millisecond)
+	}
+	return fmt.Errorf("%s write failed after 3 tries: %w", collection, lastErr)
+}
+
+// crewScrub is the scrub of one crew for one user.
+type crewScrub struct {
+	ctx    context.Context
+	nk     runtime.NakamaModule
+	rec    *userScrubRecord
+	res    *userScrubResult
+	crewID string
+	// clipIDs are the clip_ids of the clips the scrub dropped in this run.
+	clipIDs map[string]bool
+}
+
+func (c *crewScrub) who() scrubWho {
+	who := c.rec.who()
+	who.ClipIDs = c.clipIDs
+	return who
+}
+
+// dropClip notes a dropped clip: its media goes, and a recap must not show it.
+func (c *crewScrub) dropClip(clipID string) {
+	if clipID == "" {
+		return
+	}
+	c.clipIDs[clipID] = true
+	c.rec.addMedia(scrubMedia{Kind: ledgerTypeClip, CrewID: c.crewID, Ref: clipID})
+}
+
+func (c *crewScrub) dropStream(sessionID string) {
+	c.rec.addMedia(scrubMedia{Kind: ledgerTypeStreamSession, CrewID: c.crewID, Ref: sessionID})
+}
+
+// dropEvent notes the media of a dropped event of the legacy ledger path.
+func (c *crewScrub) dropEvent(ev CrewEvent) {
+	switch typ, _ := ledgerReaderType(ev.Type); typ {
+	case ledgerTypeStreamSession:
+		c.dropStream(eventRef(CrewEvent{Type: ledgerTypeStreamSession, Data: ev.Data}))
+	case ledgerTypeClip:
+		if cd, ok := decodeCardData[ClipData](ev.Data); ok {
+			c.dropClip(cd.ClipID)
+		}
+	}
+}
+
+// saveRecord writes the names and the media the scrub found so far. It runs
+// before the data that held them is changed.
+func (c *crewScrub) saveRecord() error {
+	if err := writeUserScrubRecord(c.ctx, c.nk, c.rec); err != nil {
+		return fmt.Errorf("scrub record write: %w", err)
+	}
+	return nil
+}
+
+// scrubCrewForUser scrubs one crew: the legacy documents, the rows of the
+// store, then the recaps. done is false when the deadline cut it.
+//
+// A crew that is no longer a group is purged whole. Nakama can delete a group
+// with the account of its last owner, and then no delete-group hook runs.
+func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, res *userScrubResult, crewID string, deadline time.Time) (done bool, err error) {
+	exists, err := crewGroupExists(ctx, nk, crewID)
+	if err != nil {
+		return false, fmt.Errorf("group read: %w", err)
+	}
+	if !exists {
+		if !validPurgeCrewID(crewID) {
+			// Not a crew of this install. Nothing to scrub or to purge.
+			return true, nil
+		}
+		known, err := crewKnownHere(ctx, nk, currentLedger(), crewID)
+		if err != nil {
+			return false, fmt.Errorf("crew data read: %w", err)
+		}
+		if !known {
+			return true, nil
+		}
+		if _, err := ensureCrewPurgeRecord(ctx, nk, crewID); err != nil {
+			return false, fmt.Errorf("purge record write: %w", err)
+		}
+		// The purge has its own record. A purge that fails continues there.
+		purgeCrewData(ctx, nk, logger, crewID, deadline)
+		return true, nil
+	}
+
+	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
+	if err := c.documents(); err != nil {
+		return false, err
+	}
+	if store := currentLedger(); store != nil {
+		if done, err := c.rows(store, deadline); err != nil || !done {
+			return false, err
+		}
+	}
+	if err := c.recaps(currentLedger()); err != nil {
+		return false, err
+	}
+	InvalidateCrewState(crewID)
+	return true, nil
+}
+
+// documents scrubs the ledger document, the clips document and the document
+// of the stream sessions.
+func (c *crewScrub) documents() error {
+	userID := c.rec.UserID
+
+	// The names the documents give the user, and the media of what goes.
+	// Both are saved before a document changes.
+	err := scrubDoc(c.ctx, c.nk, CrewEventsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewEventLedger
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		for _, ev := range doc.Events {
+			c.rec.addNames(scrubNamesOfEvent(ev, userID)...)
+			if _, drop := scrubEventFor(ev, c.who()); drop {
+				c.dropEvent(ev)
+			}
+		}
+		return "", false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("%s read: %w", CrewEventsCollection, err)
+	}
+	err = scrubDoc(c.ctx, c.nk, CrewClipsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewClipsDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		for _, clip := range doc.Clips {
+			c.rec.addNames(scrubNamesOfEvent(clipRow(clip).Event, userID)...)
+			if clip.ActorID == userID {
+				c.dropClip(clip.ClipID)
+			}
+		}
+		return "", false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("%s read: %w", CrewClipsCollection, err)
+	}
+	err = scrubDoc(c.ctx, c.nk, CrewStreamSessionsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewStreamSessionsDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		for _, s := range doc.Sessions {
+			if s.StreamerID == userID {
+				c.rec.addNames(s.StreamerName)
+				c.dropStream(s.SessionID)
+			}
+		}
+		return "", false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("%s read: %w", CrewStreamSessionsCollection, err)
+	}
+	if err := c.saveRecord(); err != nil {
+		return err
+	}
+
+	err = scrubDoc(c.ctx, c.nk, CrewEventsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewEventLedger
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		kept := make([]CrewEvent, 0, len(doc.Events))
+		dropped, changed := 0, 0
+		for _, ev := range doc.Events {
+			out, drop := scrubEventFor(ev, c.who())
+			switch {
+			case drop:
+				dropped++
+				continue
+			case !ledgerSameData(ev.Data, out.Data):
+				changed++
+			}
+			kept = append(kept, out)
+		}
+		if dropped+changed == 0 {
+			return "", false, nil
+		}
+		c.res.Dropped += dropped
+		c.res.Changed += changed
+		doc.Events = kept
+		doc.UpdatedAt = time.Now().UnixMilli()
+		out, err := json.Marshal(doc)
+		return string(out), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewEventsCollection, err)
+	}
+	err = scrubDoc(c.ctx, c.nk, CrewClipsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewClipsDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		kept := make([]StoredClip, 0, len(doc.Clips))
+		dropped, changed := 0, 0
+		for _, clip := range doc.Clips {
+			out, drop := scrubClipForUser(clip, c.who())
+			switch {
+			case drop:
+				dropped++
+				continue
+			case !historySameJSON(clip, out):
+				changed++
+			}
+			kept = append(kept, out)
+		}
+		if dropped+changed == 0 {
+			return "", false, nil
+		}
+		c.res.Dropped += dropped
+		c.res.Changed += changed
+		doc.Clips = kept
+		doc.UpdatedAt = time.Now().UnixMilli()
+		out, err := json.Marshal(doc)
+		return string(out), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewClipsCollection, err)
+	}
+	err = scrubDoc(c.ctx, c.nk, CrewStreamSessionsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewStreamSessionsDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		kept := make([]StoredStreamSession, 0, len(doc.Sessions))
+		for _, s := range doc.Sessions {
+			if _, drop := scrubStreamSessionForUser(s, c.who()); !drop {
+				kept = append(kept, s)
+			}
+		}
+		if len(kept) == len(doc.Sessions) {
+			return "", false, nil
+		}
+		c.res.Dropped += len(doc.Sessions) - len(kept)
+		doc.Sessions = kept
+		doc.UpdatedAt = time.Now().UnixMilli()
+		out, err := json.Marshal(doc)
+		return string(out), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewStreamSessionsCollection, err)
+	}
+	return nil
+}
+
+// scrubRow applies the scrub rules to one row of the store. data is the new
+// data of a row that stays and changed, nil when the row is unchanged.
+func (c *crewScrub) scrubRow(ev CrewEvent) (drop bool, data json.RawMessage, err error) {
+	who := c.who()
+	switch ev.Type {
+	case ledgerTypeClip:
+		clip, ok := clipFromRow(ev)
+		if !ok {
+			return false, nil, fmt.Errorf("row %s: not a clip", ev.ID)
+		}
+		out, drop := scrubClipForUser(clip, who)
+		if drop {
+			c.dropClip(clip.ClipID)
+			return true, nil, nil
+		}
+		if historySameJSON(clip, out) {
+			return false, nil, nil
+		}
+		data, err = json.Marshal(out)
+		return false, data, err
+	case ledgerTypeWeeklyRecap:
+		recap, ok := recapFromRow(ev)
+		if !ok {
+			return false, nil, fmt.Errorf("row %s: not a recap", ev.ID)
+		}
+		out, changed := scrubRecapForUser(recap, who)
+		if !changed {
+			return false, nil, nil
+		}
+		data, err = json.Marshal(out)
+		return false, data, err
+	}
+	out, drop := scrubEventFor(ev, who)
+	if drop {
+		c.dropEvent(ev)
+		return true, nil, nil
+	}
+	if ledgerSameData(ev.Data, out.Data) {
+		return false, nil, nil
+	}
+	data, err = ledgerEncodeData(out.Data)
+	return false, data, err
+}
+
+// rows scrubs the rows of the store that name the user, a batch at a time.
+// A row that was handled no longer names the user: it is deleted, or the
+// user leaves its data and the user index.
+func (c *crewScrub) rows(store ledgerStore, deadline time.Time) (done bool, err error) {
+	userID := c.rec.UserID
+	for {
+		if userScrubNow().After(deadline) {
+			return false, nil
+		}
+		batch, err := store.NamingUserInCrew(c.ctx, userID, c.crewID, userScrubBatch)
+		if err != nil {
+			return false, fmt.Errorf("store read: %w", err)
+		}
+		if len(batch) == 0 {
+			return true, nil
+		}
+		type plan struct {
+			id   string
+			drop bool
+			data json.RawMessage
+		}
+		plans := make([]plan, 0, len(batch))
+		for _, ev := range batch {
+			c.rec.addNames(scrubNamesOfEvent(ev, userID)...)
+		}
+		for _, ev := range batch {
+			drop, data, err := c.scrubRow(ev)
+			if err != nil {
+				return false, err
+			}
+			plans = append(plans, plan{id: ev.ID, drop: drop, data: data})
+		}
+		if err := c.saveRecord(); err != nil {
+			return false, err
+		}
+		kept := make([]string, 0, len(plans))
+		for _, p := range plans {
+			if p.drop {
+				// Delete remembers the id: no reconcile stores it again.
+				if err := store.Delete(c.ctx, c.crewID, p.id); err != nil {
+					return false, fmt.Errorf("store delete: %w", err)
+				}
+				c.res.Dropped++
+				continue
+			}
+			if p.data != nil {
+				data := p.data
+				err := store.UpdateData(c.ctx, c.crewID, p.id, func(json.RawMessage) (json.RawMessage, error) { return data, nil })
+				if err != nil && !errors.Is(err, errLedgerEventNotFound) {
+					return false, fmt.Errorf("store update: %w", err)
+				}
+				c.res.Changed++
+			}
+			kept = append(kept, p.id)
+		}
+		if len(kept) > 0 {
+			if err := store.ForgetUser(c.ctx, userID, c.crewID, kept); err != nil {
+				return false, fmt.Errorf("store user index: %w", err)
+			}
+		}
+	}
+}
+
+// recaps scrubs every stored recap of the crew: the document and the rows.
+// It runs after the events, with every name they gave. A recap can name the
+// user in a field with no id, so every recap of the crew is read.
+func (c *crewScrub) recaps(store ledgerStore) error {
+	err := scrubDoc(c.ctx, c.nk, CrewRecapsCollection, c.crewID, func(value string) (string, bool, error) {
+		var doc CrewRecapsDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		changed := 0
+		for i, r := range doc.Recaps {
+			if out, did := scrubRecapForUser(r, c.who()); did {
+				doc.Recaps[i] = out
+				changed++
+			}
+		}
+		if changed == 0 {
+			return "", false, nil
+		}
+		c.res.Changed += changed
+		doc.UpdatedAt = time.Now().UnixMilli()
+		out, err := json.Marshal(doc)
+		return string(out), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewRecapsCollection, err)
+	}
+	if store == nil {
+		return nil
+	}
+	update := func(ev CrewEvent) error {
+		_, data, err := c.scrubRow(ev)
+		if err != nil || data == nil {
+			return err
+		}
+		err = store.UpdateData(c.ctx, c.crewID, ev.ID, func(json.RawMessage) (json.RawMessage, error) { return data, nil })
+		if err != nil && !errors.Is(err, errLedgerEventNotFound) {
+			return fmt.Errorf("store update: %w", err)
+		}
+		c.res.Changed++
+		return nil
+	}
+	for beforeRef := ""; ; {
+		rows, err := store.RefsBefore(c.ctx, c.crewID, ledgerTypeWeeklyRecap, beforeRef, userScrubBatch)
+		if err != nil {
+			return fmt.Errorf("store read: %w", err)
+		}
+		for _, ev := range rows {
+			if err := update(ev); err != nil {
+				return err
+			}
+		}
+		if len(rows) < userScrubBatch {
+			break
+		}
+		beforeRef = recapWeekRef(func() int64 { r, _ := recapFromRow(rows[len(rows)-1]); return r.WeekStart }())
+		if beforeRef == "" {
+			break
+		}
+	}
+	// The recap events that an old ledger document held.
+	legacy, err := store.Between(c.ctx, c.crewID, 0, math.MaxInt64, []string{ledgerStoredType(ledgerTypeWeeklyRecap)})
+	if err != nil {
+		return fmt.Errorf("store read: %w", err)
+	}
+	for _, ev := range legacy {
+		out, drop := scrubEventFor(ev, c.who())
+		if drop || ledgerSameData(ev.Data, out.Data) {
+			continue
+		}
+		data, err := ledgerEncodeData(out.Data)
+		if err != nil {
+			return err
+		}
+		err = store.UpdateData(c.ctx, c.crewID, ev.ID, func(json.RawMessage) (json.RawMessage, error) { return data, nil })
+		if err != nil && !errors.Is(err, errLedgerEventNotFound) {
+			return fmt.Errorf("store update: %w", err)
+		}
+		c.res.Changed++
+	}
+	return nil
+}
+
+// deleteScrubMedia deletes the media of the dropped clips and streams of the
+// user. A delete cannot be undone, so:
+//
+//   - a key is made only from a crew id, a clip_id or a session id that is
+//     safe in a key. Anything else is skipped and named in the result;
+//   - nothing is deleted while the crew still holds a clip with the clip_id
+//     or a stream session with the session id (a document from before
+//     clip_id was checked can hold one clip_id for two actors);
+//   - a clip is two exact keys (gameClipKeys). A stream is the prefix of its
+//     session.
+//
+// What is deleted or skipped leaves the record. What failed stays.
+func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult) {
+	if len(rec.Media) == 0 {
+		return
+	}
+	clips, snapshots := mediaOrphanBuckets()
+	index := newMediaRefIndex(ctx, nk, currentLedger())
+	left := rec.Media[:0:0]
+	for _, m := range rec.Media {
+		name := m.Kind + " " + m.CrewID + "/" + m.Ref
+		if !validGameClipID(m.CrewID) || !validGameClipID(m.Ref) {
+			res.MediaSkipped = append(res.MediaSkipped, name+": the id is not safe in a key")
+			continue
+		}
+		bucket := clips
+		if m.Kind == ledgerTypeStreamSession {
+			bucket = snapshots
+		}
+		if bucket.client == nil || bucket.bucket == "" {
+			res.MediaSkipped = append(res.MediaSkipped, name+": the bucket is not configured")
+			continue
+		}
+		held, known, err := index.held(m.CrewID, m.Kind, m.Ref)
+		if err != nil {
+			res.fail("media %s: %v", name, err)
+			left = append(left, m)
+			continue
+		}
+		if !known {
+			// The crew is gone. Its purge deletes the media.
+			continue
+		}
+		if held {
+			res.MediaSkipped = append(res.MediaSkipped, name+": the crew still holds it")
+			continue
+		}
+		switch m.Kind {
+		case ledgerTypeClip:
+			poster, video := gameClipKeys(m.CrewID, m.Ref)
+			failed := false
+			for _, key := range []string{video, poster} {
+				if err := deleteObject(ctx, bucket.client, bucket.bucket, key); err != nil {
+					res.fail("media %s: %v", key, err)
+					failed = true
+					continue
+				}
+				res.MediaDeleted++
+			}
+			if failed {
+				left = append(left, m)
+			}
+		case ledgerTypeStreamSession:
+			n, _, err := deleteObjectsUnder(ctx, bucket.client, bucket.bucket, snapshotSessionPrefix(m.CrewID, m.Ref), m.Ref, userScrubNow().Add(userScrubBudget))
+			res.MediaDeleted += n
+			if err != nil {
+				res.fail("media %s: %v", name, err)
+				left = append(left, m)
+			}
+		}
+	}
+	rec.Media = left
+}
+
+// runPendingUserScrubs runs the scrubs that are not done, and the second run
+// of the scrubs that are (userScrubSettle). The deletion job calls it.
+func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, deadline time.Time) {
+	cursor := ""
+	for {
+		objects, next, err := nk.StorageList(ctx, "", SystemUserID, UserScrubCollection, 100, cursor)
+		if err != nil {
+			logger.Error("user_scrub_failed: list of scrub records: %v", err)
+			return
+		}
+		for _, obj := range objects {
+			var rec userScrubRecord
+			if err := json.Unmarshal([]byte(obj.GetValue()), &rec); err != nil || obj.GetKey() == "" {
+				continue
+			}
+			rec.UserID = obj.GetKey()
+			now := userScrubNow()
+			if now.After(deadline) {
+				return
+			}
+			if rec.DeletedMs == 0 {
+				exists, err := accountExists(ctx, nk, rec.UserID)
+				if err != nil {
+					logger.Error("user_scrub_failed user=%s: account read: %v", rec.UserID, err)
+					continue
+				}
+				if exists {
+					// The delete did not happen, or is not over yet.
+					if now.UnixMilli() >= rec.StartedMs+userScrubStale.Milliseconds() {
+						if err := deleteUserScrubRecord(ctx, nk, rec.UserID); err != nil {
+							logger.Error("user_scrub_failed user=%s: scrub record delete: %v", rec.UserID, err)
+						}
+					}
+					continue
+				}
+				rec.DeletedMs = now.UnixMilli()
+			}
+			if rec.DoneMs > 0 && !rec.SecondRun && rec.idle() {
+				if now.UnixMilli() < rec.DoneMs+userScrubSettle.Milliseconds() {
+					continue
+				}
+				// The second run looks for the crews again.
+				rec.SecondRun = true
+				rec.rediscover()
+			}
+			runUserScrub(ctx, nk, logger, &rec, deadline)
+		}
+		if next == "" {
+			return
+		}
+		cursor = next
+	}
+}
+
+// ledgerDeletionInterval is the time between two runs of the deletion job.
+const ledgerDeletionInterval = 5 * time.Minute
+
+// StartLedgerDeletionJob runs the scrubs and the purges that are not over, at
+// start and then on a timer. InitModule starts it once per node. Two nodes
+// can run the same scrub: every step can run twice.
+func StartLedgerDeletionJob(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger) {
+	ticker := time.NewTicker(ledgerDeletionInterval)
+	defer ticker.Stop()
+	for {
+		deadline := time.Now().Add(userScrubBudget)
+		runPendingUserScrubs(ctx, nk, logger, deadline)
+		runPendingCrewPurges(ctx, nk, logger, time.Now().Add(crewPurgeBudget))
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
+}
+
+// AdminScrubUserRPC runs the scrub of a deleted account again. Server-to-
+// server (http_key). Request {user_id}. It refuses while the account exists.
+// The answer is the result of the run: call again while done is false.
+func AdminScrubUserRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	if err := requireServerCaller(ctx, "admin_scrub_user"); err != nil {
+		return "", err
+	}
+	var req struct {
+		UserID string `json:"user_id"`
+	}
+	if err := json.Unmarshal([]byte(payload), &req); err != nil {
+		return "", runtime.NewError("invalid request", 3)
+	}
+	// A user id is a UUID, as a group id.
+	if !validPurgeCrewID(req.UserID) || req.UserID == SystemUserID {
+		return "", runtime.NewError("user_id must be a user id", 3)
+	}
+	exists, err := accountExists(ctx, nk, req.UserID)
+	if err != nil {
+		return "", runtime.NewError("failed to read the account", 13)
+	}
+	if exists {
+		return "", runtime.NewError("the account still exists: delete it first", 9)
+	}
+	rec, err := confirmUserScrub(ctx, nk, req.UserID)
+	if err != nil {
+		return "", runtime.NewError("failed to write the scrub record", 13)
+	}
+	// A call on a scrub with no work left looks for the crews again: it is
+	// the repair of a scrub that missed something. A scrub that was cut
+	// continues at its place.
+	if rec.idle() {
+		rec.rediscover()
+	}
+	ctx, cancel := context.WithTimeout(ctx, userScrubBudget+30*time.Second)
+	defer cancel()
+	res := runUserScrub(ctx, nk, logger, rec, userScrubNow().Add(userScrubBudget))
+	out, err := json.Marshal(res)
+	if err != nil {
+		return "", runtime.NewError("encode failed", 13)
+	}
+	return string(out), nil
+}

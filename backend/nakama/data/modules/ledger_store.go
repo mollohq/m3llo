@@ -117,6 +117,9 @@ type ledgerStore interface {
 	DeleteCrew(ctx context.Context, crewID string) error
 	// EventsNamingUser returns every event that names the user.
 	EventsNamingUser(ctx context.Context, userID string) ([]CrewEvent, error)
+	// DeletedIDs returns which of these ids Delete removed from the crew and
+	// no later Append or PutUnique stored again.
+	DeletedIDs(ctx context.Context, crewID string, ids []string) (map[string]bool, error)
 	// UserCrews returns the ids of the crews that hold an event which names
 	// the user, sorted.
 	UserCrews(ctx context.Context, userID string) ([]string, error)
@@ -727,6 +730,18 @@ func (m *memLedgerStore) EventsNamingUser(_ context.Context, userID string) ([]C
 			return false
 		}, memByTsAsc)
 		out = append(out, memLedgerEvents(rows)...)
+	}
+	return out, nil
+}
+
+func (m *memLedgerStore) DeletedIDs(_ context.Context, crewID string, ids []string) (map[string]bool, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := map[string]bool{}
+	for _, id := range ids {
+		if m.deleted[crewID][id] {
+			out[id] = true
+		}
 	}
 	return out, nil
 }
