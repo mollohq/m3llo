@@ -528,9 +528,13 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 				continue
 			}
 			if purged[obj.Key] {
-				r.dropPurgedDoc(ctx, store, step.collection, obj.Key)
-				done++
-				continue
+				if r.dropPurgedDoc(ctx, store, step.collection, obj.Key) {
+					done++
+					continue
+				}
+				// The crew is a group: its purge record was wrong and is
+				// deleted. The document is reconciled as any other.
+				delete(purged, obj.Key)
 			}
 			if step.history != nil {
 				r.reconcileHistoryDoc(ctx, store, step.history, obj.Key, histDocWins)
@@ -555,13 +559,31 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 // rows of the crew. The purge of the crew did not delete the document, or a
 // late writer made it again. The document is not imported, and it does not
 // count for the marker.
-func (r *ledgerReconciler) dropPurgedDoc(ctx context.Context, store ledgerStore, collection, crewID string) {
+//
+// It deletes only when the group is read and is gone. A group read that
+// fails deletes nothing and imports nothing: the document waits for the next
+// pass. When the group exists the purge record is wrong: the record is
+// deleted, and handled is false so that the document is reconciled.
+func (r *ledgerReconciler) dropPurgedDoc(ctx context.Context, store ledgerStore, collection, crewID string) (handled bool) {
+	exists, err := crewGroupExists(ctx, r.nk, crewID)
+	if err != nil {
+		r.logger.Error("crew_purge_failed crew=%s: group read: %v. The %s document waits", crewID, err, collection)
+		return true
+	}
+	if exists {
+		r.logger.Error("crew_purge_refused crew=%s: the crew still exists. Its purge record is deleted", crewID)
+		if err := deleteCrewPurgeRecord(ctx, r.nk, crewID); err != nil {
+			r.logger.Error("crew_purge_failed crew=%s: purge record delete: %v", crewID, err)
+		}
+		return false
+	}
 	if err := r.nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: collection, Key: crewID, UserID: SystemUserID}}); err != nil {
 		r.logger.Error("crew_purge_failed crew=%s: delete of the %s document: %v", crewID, collection, err)
 	}
 	if err := store.DeleteCrew(ctx, crewID); err != nil {
 		r.logger.Error("crew_purge_failed crew=%s: store rows: %v", crewID, err)
 	}
+	return true
 }
 
 func (r *ledgerReconciler) reconcileLedgerDoc(ctx context.Context, store ledgerStore, crewID string, docWins bool) {

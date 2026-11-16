@@ -129,6 +129,10 @@ func writeCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, rec crew
 	return err
 }
 
+func deleteCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, crewID string) error {
+	return nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: CrewPurgeCollection, Key: crewID, UserID: SystemUserID}})
+}
+
 // ensureCrewPurgeRecord returns the purge record of a crew and makes it when
 // there is none.
 func ensureCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, crewID string) (*crewPurgeRecord, error) {
@@ -276,15 +280,14 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 		return res
 	}
 	if exists {
-		// A record of a crew that is a group: the delete of the group failed
-		// after the record was written, or the record is wrong. Nothing is
-		// deleted.
+		// A record of a crew that is a group is wrong. Nothing of the crew is
+		// deleted, and the record goes: while it is there the reconcile would
+		// look at the crew as a purged one.
 		res.fail("the crew still exists")
-		rec.LastError = "the crew still exists"
-		if err := writeCrewPurgeRecord(ctx, nk, *rec); err != nil {
-			res.fail("purge record write: %v", err)
+		if err := deleteCrewPurgeRecord(ctx, nk, crewID); err != nil {
+			res.fail("purge record delete: %v", err)
 		}
-		logger.Error("crew_purge_failed crew=%s: the crew still exists", crewID)
+		logger.Error("crew_purge_refused crew=%s: the crew still exists. Its purge record is deleted", crewID)
 		return res
 	}
 
@@ -445,6 +448,18 @@ func deleteObjectsUnder(ctx context.Context, c *s3.Client, bucket, prefix, owner
 func startCrewPurge(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID string) {
 	if !validPurgeCrewID(crewID) {
 		logger.Error("crew_purge_failed crew=%s: the crew id is not a group id", crewID)
+		return
+	}
+	// The record is the order to delete everything of the crew, also for the
+	// reconcile. It is written only when the group is seen to be gone. A
+	// group read that fails is not a group that is gone.
+	exists, err := crewGroupExists(ctx, nk, crewID)
+	if err != nil {
+		logger.Error("crew_purge_failed crew=%s: group read: %v. Run admin_purge_crew", crewID, err)
+		return
+	}
+	if exists {
+		logger.Error("crew_purge_refused crew=%s: the crew still exists", crewID)
 		return
 	}
 	if _, err := ensureCrewPurgeRecord(ctx, nk, crewID); err != nil {

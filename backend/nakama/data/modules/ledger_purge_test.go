@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -405,25 +406,71 @@ func TestDeleteObjectsUnderRefusesAWrongPrefix(t *testing.T) {
 	}
 }
 
-// A purge record of a crew that is still a group deletes nothing: the purge
-// reads the group on every run.
-func TestPurgeRefusesACrewThatExists(t *testing.T) {
-	store := useMemLedger(t)
-	nk := newDelNk()
-	f := usePurgeBuckets(t)
-	seedPurgeCrew(t, nk, f, purgeCrew)
-	before := crewLeftovers(t, nk, store, f, purgeCrew)
-	if _, err := ensureCrewPurgeRecord(context.Background(), nk, purgeCrew); err != nil {
-		t.Fatal(err)
-	}
-	runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
-	if err := AfterDeleteCrew(context.Background(), testLogger(), nil, nk, &api.DeleteGroupRequest{GroupId: purgeCrew}); err != nil {
-		t.Fatal(err)
-	}
-	if after := crewLeftovers(t, nk, store, f, purgeCrew); len(after) != len(before) || len(f.deletes) != 0 {
-		t.Fatalf("a crew that exists lost data: %v, deletes %v", after, f.deletes)
-	}
-	if rec := purgeRecordOf(t, nk, purgeCrew); rec.DoneMs != 0 || !strings.Contains(rec.LastError, "still exists") {
-		t.Fatalf("purge record = %+v", rec)
-	}
+// A purge record of a crew that is a group must delete nothing: not through
+// the purge, not through the job, not through the reconcile. The record is
+// wrong, so it is deleted and the crew is reconciled as any other.
+func TestPurgeRecordOfALiveCrewDeletesNothing(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := usePurgeBuckets(t)
+		seedPurgeCrew(t, nk, f, purgeCrew)
+		reconcilePass(t, nk)
+		before := crewLeftovers(t, nk, store, f, purgeCrew)
+		if len(before) < 20 {
+			t.Fatalf("the seed is too small: %v", before)
+		}
+		same := func(when string) {
+			t.Helper()
+			if after := crewLeftovers(t, nk, store, f, purgeCrew); strings.Join(after, "\n") != strings.Join(before, "\n") || len(f.deletes) != 0 {
+				t.Fatalf("%s: a live crew lost data:\n%v\nwas\n%v\ndeletes %v", when, after, before, f.deletes)
+			}
+		}
+		record := func() {
+			t.Helper()
+			if err := writeCrewPurgeRecord(context.Background(), nk, crewPurgeRecord{CrewID: purgeCrew, StartedMs: 1}); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// The reconcile, with a record that something wrote for a live crew.
+		record()
+		reconcilePass(t, nk)
+		reconcilePass(t, nk)
+		same("after the reconcile")
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, purgeCrew); rec != nil {
+			t.Fatalf("the reconcile kept the record of a live crew: %+v", rec)
+		}
+
+		// The group read fails: nothing is deleted, and the record stays for
+		// a pass that can read the group.
+		record()
+		nk.groupErr = errors.New("group read failed")
+		reconcilePass(t, nk)
+		runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+		same("with a group read that fails")
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, purgeCrew); rec == nil {
+			t.Fatal("a group read error deleted the record")
+		}
+		nk.groupErr = nil
+
+		// The job.
+		runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+		same("after the job")
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, purgeCrew); rec != nil {
+			t.Fatalf("the job kept the record of a live crew: %+v", rec)
+		}
+
+		// The hook and the start of a purge write no record for a live crew,
+		// and none when the group cannot be read.
+		if err := AfterDeleteCrew(context.Background(), testLogger(), nil, nk, &api.DeleteGroupRequest{GroupId: purgeCrew}); err != nil {
+			t.Fatal(err)
+		}
+		nk.groupErr = errors.New("group read failed")
+		startCrewPurge(context.Background(), testLogger(), nk, purgeCrew)
+		nk.groupErr = nil
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, purgeCrew); rec != nil {
+			t.Fatalf("a purge of a live crew wrote a record: %+v", rec)
+		}
+		reconcilePass(t, nk)
+		same("after the hook")
+	})
 }
