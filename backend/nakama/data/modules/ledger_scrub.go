@@ -7,7 +7,7 @@ import (
 	"unicode/utf8"
 )
 
-// The scrub rules of a deleted account (plans/DURABLE-LEDGER.md section 7).
+// The scrub rules of a deleted account (specs/16-CREW-EVENT-LEDGER.md section 10).
 // Every function of this file is pure: no storage, no clock.
 //
 //   - An event the user started is dropped: the user is the actor or the

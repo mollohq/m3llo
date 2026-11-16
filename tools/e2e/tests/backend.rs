@@ -890,7 +890,7 @@ fn a_clip_uploads_to_local_storage_and_plays_back_without_credentials() {
 
 /// The SQL crew ledger store keeps the store contract on the real tables.
 /// `dev_ledger_selftest` runs the same conformance function that `go test`
-/// runs on the in-memory store (plans/DURABLE-LEDGER.md section 8). It writes
+/// runs on the in-memory store (TESTING.md). It writes
 /// only to two throwaway crew ids and deletes them at the end.
 ///
 /// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.

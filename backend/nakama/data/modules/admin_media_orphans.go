@@ -2,7 +2,7 @@ package main
 
 // admin_media_orphans: the clip and snapshot objects in the bucket that no
 // clip and no stream session of a crew points at
-// (plans/DURABLE-LEDGER.md section 6a). The caps of the legacy documents
+// (specs/16-CREW-EVENT-LEDGER.md section 3.8). The caps of the legacy documents
 // dropped clips and stream sessions and left their media in the bucket.
 //
 // The RPC is server-to-server only, as the other admin RPCs (spec 04 section

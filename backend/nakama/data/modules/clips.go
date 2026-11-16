@@ -172,7 +172,7 @@ func ownVoiceClip(clips []StoredClip, clipID, userID string) (*StoredClip, error
 // of the same actor, it stores nothing and returns that clip, so a retried
 // post_clip stores one clip. Another actor's clip_id returns errClipIDTaken.
 //
-// Dual write (plans/DURABLE-LEDGER.md section 6a). The store that is the
+// Dual write (specs/16-CREW-EVENT-LEDGER.md section 3.8). The store that is the
 // truth is written first, and it decides if the clip_id is free: the legacy
 // document before the cutover of phase 1b, the durable store after it. A
 // failure of the other store is logged.

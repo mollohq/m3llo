@@ -17,7 +17,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// The purge of a deleted crew (plans/DURABLE-LEDGER.md section 7): everything
+// The purge of a deleted crew (specs/16-CREW-EVENT-LEDGER.md section 10): everything
 // of the crew goes. The rows of the durable store, the legacy documents, the
 // other documents keyed by the crew id, and the media under the prefixes of
 // the crew.

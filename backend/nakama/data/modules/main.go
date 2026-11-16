@@ -76,7 +76,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterBeforeUpdateAccount(BeforeUpdateAccount); err != nil {
 		return err
 	}
-	// The scrub of a deleted account (plans/DURABLE-LEDGER.md section 7). The
+	// The scrub of a deleted account (specs/16-CREW-EVENT-LEDGER.md section 10). The
 	// before hook saves the names and the crews of the user, the after hook
 	// starts the scrub.
 	if err := initializer.RegisterBeforeDeleteAccount(BeforeDeleteAccount); err != nil {
@@ -464,7 +464,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("admin_media_orphans", AdminMediaOrphansRPC); err != nil {
 		return err
 	}
-	// The deletion rules of the crew ledger (plans/DURABLE-LEDGER.md section 7).
+	// The deletion rules of the crew ledger (specs/16-CREW-EVENT-LEDGER.md section 10).
 	if err := initializer.RegisterRpc("admin_purge_crew", AdminPurgeCrewRPC); err != nil {
 		return err
 	}

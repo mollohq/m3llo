@@ -407,7 +407,7 @@ func firstClipEntry(z FeedZones) FeedEntry {
 // The board, the merged timeline and the recap job read the first one from
 // the documents too. Crew history is the one place that differs: from the
 // documents it shows the recap written last, from the store the first one.
-// This is a known difference (plans/DURABLE-LEDGER.md section 6a).
+// This is a known difference (specs/16-CREW-EVENT-LEDGER.md section 3.8).
 func TestTwoRecapsForOneWeek(t *testing.T) {
 	ctx := context.Background()
 	nk := hCrew(t, "two")

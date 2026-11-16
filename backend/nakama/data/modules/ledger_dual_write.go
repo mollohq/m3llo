@@ -10,7 +10,7 @@ import (
 )
 
 // Dual write to the legacy ledger document and the durable ledger store
-// (plans/DURABLE-LEDGER.md section 5).
+// (specs/16-CREW-EVENT-LEDGER.md section 3.8).
 //
 // One of the two is the truth: the one the readers use.
 //   - Before the cutover it is the document. The document is written first.

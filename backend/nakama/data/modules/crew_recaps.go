@@ -114,7 +114,7 @@ func stampRecapWeeks(ctx context.Context, nk runtime.NakamaModule, crewID string
 
 // AppendRecap stores a weekly recap of a crew.
 //
-// Dual write (plans/DURABLE-LEDGER.md section 6a). The store that is the
+// Dual write (specs/16-CREW-EVENT-LEDGER.md section 3.8). The store that is the
 // truth is written first and its error is returned: the legacy document
 // before the cutover of phase 1b, the durable store after it. A failure of
 // the other store is logged. The store holds one recap for a week start.

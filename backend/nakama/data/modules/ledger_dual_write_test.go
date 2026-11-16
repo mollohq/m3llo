@@ -332,7 +332,7 @@ func concurrentAppends(t *testing.T, nk runtime.NakamaModule, n int) []error {
 	t.Helper()
 	now := time.Now()
 	// The document exists, so every write carries a version. The first write
-	// of a document has none (plans/DURABLE-LEDGER.md section 1).
+	// of a document has none (specs/16-CREW-EVENT-LEDGER.md section 1).
 	if err := AppendCrewEvent(context.Background(), nk, "crew", charEvent("seed", now)); err != nil {
 		t.Fatal(err)
 	}

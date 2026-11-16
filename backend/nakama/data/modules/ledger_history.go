@@ -14,7 +14,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// Phase 1b of the durable crew ledger (plans/DURABLE-LEDGER.md section 6a):
+// Phase 1b of the durable crew ledger (specs/16-CREW-EVENT-LEDGER.md section 3.8):
 // the clips, the stream sessions and the weekly recaps of a crew as rows of
 // the durable store.
 //

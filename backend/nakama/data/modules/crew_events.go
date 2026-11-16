@@ -323,7 +323,7 @@ var ledgerNow = time.Now
 
 // AppendCrewEvent appends an event to the ledger of a crew.
 //
-// Dual write (plans/DURABLE-LEDGER.md section 5). The store that is the truth
+// Dual write (specs/16-CREW-EVENT-LEDGER.md section 3.8). The store that is the truth
 // is written first and its error is returned: the legacy document before the
 // cutover, the durable store after it. A failure of the other store is logged.
 func AppendCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID string, event CrewEvent) error {

@@ -20,7 +20,7 @@ func kickFixture(t *testing.T) *delNk {
 }
 
 // A kick writes the member_left event that a leave writes
-// (plans/DURABLE-LEDGER.md section 7). The earlier events of the member stay.
+// (specs/16-CREW-EVENT-LEDGER.md section 10). The earlier events of the member stay.
 func TestKickWritesMemberLeft(t *testing.T) {
 	nk := kickFixture(t)
 	ctx := ctxWithUser("owner")

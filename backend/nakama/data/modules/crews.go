@@ -411,7 +411,7 @@ func DeleteCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 
 	InvalidateCrewState(req.CrewID)
 
-	// Everything of the crew goes with it (plans/DURABLE-LEDGER.md section 7).
+	// Everything of the crew goes with it (specs/16-CREW-EVENT-LEDGER.md section 10).
 	startCrewPurge(ctx, logger, nk, req.CrewID)
 
 	logger.Info("User %s deleted crew %s", userID, req.CrewID)
@@ -739,7 +739,7 @@ func AfterKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 // recordMemberLeft writes the member_left event of the crew ledger. A leave
 // and a kick both call it. The earlier events of the member stay
-// (plans/DURABLE-LEDGER.md section 7).
+// (specs/16-CREW-EVENT-LEDGER.md section 10).
 func recordMemberLeft(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, userID string) {
 	displayName := resolveUsername(ctx, nk, userID)
 	event := CrewEvent{

@@ -14,7 +14,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// The SQL ledger store (plans/DURABLE-LEDGER.md section 4). It lives in the
+// The SQL ledger store (specs/16-CREW-EVENT-LEDGER.md section 3.7). It lives in the
 // Nakama Postgres database and uses only database/sql.
 
 // ledgerSchemaLockKey is the pg_advisory_lock key of the schema setup. It is

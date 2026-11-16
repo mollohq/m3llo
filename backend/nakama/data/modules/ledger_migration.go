@@ -14,7 +14,7 @@ import (
 )
 
 // Migration of the legacy ledger documents to the durable store
-// (plans/DURABLE-LEDGER.md section 5): the reconcile, the soak, the marker
+// (specs/16-CREW-EVENT-LEDGER.md section 3.8): the reconcile, the soak, the marker
 // and the cutover of the readers.
 
 const (

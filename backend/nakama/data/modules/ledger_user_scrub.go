@@ -14,7 +14,7 @@ import (
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
-// The scrub of a deleted account (plans/DURABLE-LEDGER.md section 7). The
+// The scrub of a deleted account (specs/16-CREW-EVENT-LEDGER.md section 10). The
 // rules are the pure functions of ledger_scrub.go. This file applies them to
 // the legacy documents and to the rows of the durable store, and deletes the
 // media of the clips and streams of the user.
