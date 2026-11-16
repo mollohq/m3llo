@@ -601,7 +601,7 @@ func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histMarkerOp
 	r.lastHist, r.lastHistMarker = h, histMarker
 	line = fmt.Sprintf("ledger_history_pass docs=%d inserted=%d updated=%d no_id=%d ref_held=%d unclean=%d failed=%d marker=%s",
 		h.Docs, h.Inserted, h.Updated, h.NoID, h.RefHeld, h.Unclean, h.Failed, histMarker)
-	if h.clean() {
+	if h.clean() && h.NoID == 0 {
 		r.logger.Info("%s", line)
 	} else {
 		r.logger.Error("%s", line)
@@ -636,6 +636,11 @@ func (r *ledgerReconciler) trySetMarker(ctx context.Context, p ledgerPassStats) 
 func (r *ledgerReconciler) trySetHistoryMarker(ctx context.Context, p ledgerPassStats, h historyPassStats) string {
 	if !p.clean() || !h.clean() {
 		return "not_set_pass_not_clean"
+	}
+	if h.NoID > 0 {
+		// An entry that no row can hold would vanish from the readers at
+		// the cutover.
+		return "not_set_entries_without_id"
 	}
 	events, _, err := readLedgerMigrationState(ctx, r.nk)
 	if err != nil || events == nil {

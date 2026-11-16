@@ -495,3 +495,46 @@ func TestLedgerDocumentDecidesAboutASessionItHolds(t *testing.T) {
 		}
 	}
 }
+
+// A stream session of the durable copy from before the copy held the event
+// id. The import gives it a row id made from its session id. The feed lists
+// it after the cutover as the document held it. An entry with no session id
+// either is counted and blocks the marker.
+func TestStreamSessionWithNoEventIDIsImported(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	prevRecheck := ledgerMarkerRecheck
+	ledgerMarkerRecheck = 0
+	t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+	now := time.Now()
+
+	old := histSession("old", now.Add(-40*charDay), "https://m.test/1.jpg")
+	old.EventID = ""
+	neither := histSession("neither", now.Add(-50*charDay))
+	neither.EventID, neither.SessionID = "", ""
+	putStreamsDoc(nk, "crew", neither, old, histSession("new", now.Add(-30*charDay)))
+	before := feedStreams(nk, "crew")
+
+	r := reconcilePass(t, nk)
+	if r.lastHist.Inserted != 2 || r.lastHist.NoID != 1 || r.lastHistMarker != "not_set_entries_without_id" {
+		t.Fatalf("pass = %+v marker=%s", r.lastHist, r.lastHistMarker)
+	}
+	if rows, _ := store.ByRef(ctx, "crew", "stream_session", "sess_old"); len(rows) != 1 || rows[0].ID != "session_sess_old" {
+		t.Fatalf("row of the session with no event id = %+v", rows)
+	}
+
+	// Without the entry that has neither id the marker is set, and the feed
+	// has the same two sessions from the store.
+	putStreamsDoc(nk, "crew", old, histSession("new", now.Add(-30*charDay)))
+	if r = reconcilePass(t, nk); r.lastHist.Inserted != 0 || r.lastHist.NoID != 0 || historyTruthStore(ctx, nk) == nil {
+		t.Fatalf("second pass = %+v marker=%s", r.lastHist, r.lastHistMarker)
+	}
+	after := feedStreams(nk, "crew")
+	if len(after) != 2 || after[0].EventID != "" || !historySameJSON(after, before[1:]) {
+		t.Fatalf("sessions after the cutover = %+v, before it %+v", after, before)
+	}
+}

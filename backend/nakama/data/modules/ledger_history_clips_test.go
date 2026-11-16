@@ -401,11 +401,13 @@ func TestClipReconcileKeepsTwoEntriesOfOneClipID(t *testing.T) {
 	noID.EventID = ""
 	nk.put(CrewClipsCollection, "crew", SystemUserID, CrewClipsDoc{CrewID: "crew", Clips: []StoredClip{first, second, noID}})
 
+	// The entry with no event id has a clip_id: it gets a row id made from
+	// the clip_id and is stored too.
 	r := reconcilePass(t, nk)
-	if r.lastHist.Inserted != 2 || r.lastHist.NoID != 1 || !r.lastHist.clean() || !historyMarkerSet(nk) {
+	if r.lastHist.Inserted != 3 || r.lastHist.NoID != 0 || !r.lastHist.clean() || !historyMarkerSet(nk) {
 		t.Fatalf("pass = %+v marker=%s", r.lastHist, r.lastHistMarker)
 	}
-	if got := storeClips(t, store, "crew"); !historySameJSON(got, []StoredClip{first, second}) {
+	if got := storeClips(t, store, "crew"); !historySameJSON(got, []StoredClip{first, second, noID}) {
 		t.Fatalf("store = %+v", got)
 	}
 	// A retry of that clip_id answers with the first entry, as before.
@@ -681,5 +683,87 @@ func TestReconcileRepairsContentUnderTheKillSwitch(t *testing.T) {
 				t.Fatalf("second pass = %+v", r.lastHist)
 			}
 		})
+	}
+}
+
+// A clip from before clips held an event id. The import gives it a row id
+// made from its clip_id, so the readers still have it after the cutover, as
+// the document holds it.
+func TestClipWithNoEventIDIsImported(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	prevRecheck := ledgerMarkerRecheck
+	ledgerMarkerRecheck = 0
+	t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+	now := time.Now()
+
+	old := histClip("old", "u1", now.Add(-2*time.Hour))
+	old.EventID = ""
+	nk.put(CrewClipsCollection, "crew", SystemUserID, CrewClipsDoc{CrewID: "crew", Clips: []StoredClip{old, histClip("new", "u1", now.Add(-time.Hour))}})
+	before := crewClipsBetween(ctx, nk, "crew", math.MinInt64, math.MaxInt64)
+
+	r := reconcilePass(t, nk)
+	if r.lastHist.Inserted != 2 || r.lastHist.NoID != 0 || !r.lastHist.clean() || historyTruthStore(ctx, nk) == nil {
+		t.Fatalf("pass = %+v marker=%s", r.lastHist, r.lastHistMarker)
+	}
+	if rows, _ := store.ByRef(ctx, "crew", "clip", "old"); len(rows) != 1 || rows[0].ID != "clipref_old" {
+		t.Fatalf("row of the clip with no event id = %+v", rows)
+	}
+	after := crewClipsBetween(ctx, nk, "crew", math.MinInt64, math.MaxInt64)
+	if len(after) != 2 || !historySameJSON(before, after) {
+		t.Fatalf("readers after the cutover = %+v, before it %+v", after, before)
+	}
+	if r = reconcilePass(t, nk); r.lastHist.Inserted != 0 || r.lastHist.Updated != 0 || !r.lastHist.clean() {
+		t.Fatalf("second pass = %+v", r.lastHist)
+	}
+	// An update finds the row.
+	own := func(clips []StoredClip) *StoredClip { c, _ := existingClip(clips, "old", "u1"); return c }
+	if err := updateStoredClip(ctx, nk, "crew", "old", own, func(c *StoredClip) { c.MediaURL = "https://m.test/old.mp4" }); err != nil {
+		t.Fatal(err)
+	}
+	if got := crewClipsWithID(ctx, nk, "crew", "old"); len(got) != 1 || got[0].MediaURL != "https://m.test/old.mp4" || got[0].EventID != "" {
+		t.Fatalf("the clip after an update = %+v", got)
+	}
+}
+
+// An entry with neither an event id nor a clip_id cannot be a row. It is
+// counted, and the marker of phase 1b waits: the cutover would drop it from
+// the readers.
+func TestEntryWithNoIDBlocksTheHistoryMarker(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	prevRecheck := ledgerMarkerRecheck
+	ledgerMarkerRecheck = 0
+	t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+	now := time.Now()
+
+	nothing := histClip("", "u1", now.Add(-time.Hour))
+	nothing.EventID = ""
+	nk.put(CrewClipsCollection, "crew", SystemUserID, CrewClipsDoc{CrewID: "crew", Clips: []StoredClip{nothing, histClip("ok", "u1", now)}})
+	for pass := 1; pass <= 2; pass++ {
+		r := reconcilePass(t, nk)
+		if r.lastHist.NoID != 1 || r.lastHistMarker != "not_set_entries_without_id" || historyMarkerSet(nk) {
+			t.Fatalf("pass %d = %+v marker=%s", pass, r.lastHist, r.lastHistMarker)
+		}
+	}
+	if !markerSet(nk) || historyTruthStore(ctx, nk) != nil {
+		t.Fatal("want the marker of phase 1a alone")
+	}
+	if got := crewClipsBetween(ctx, nk, "crew", math.MinInt64, math.MaxInt64); len(got) != 2 {
+		t.Fatalf("readers have %d clips, want the 2 of the document", len(got))
+	}
+	// The entry is repaired in the document: the next pass sets the marker.
+	nothing.ClipID = "repaired"
+	nk.put(CrewClipsCollection, "crew", SystemUserID, CrewClipsDoc{CrewID: "crew", Clips: []StoredClip{nothing, histClip("ok", "u1", now)}})
+	if r := reconcilePass(t, nk); r.lastHist.NoID != 0 || r.lastHistMarker != "set" {
+		t.Fatalf("pass after the repair = %+v marker=%s", r.lastHist, r.lastHistMarker)
 	}
 }

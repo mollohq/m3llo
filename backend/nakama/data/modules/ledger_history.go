@@ -42,7 +42,8 @@ type historyKind struct {
 	collection string
 	// plan reads the legacy document of a crew and returns its entries as
 	// the rows the store keeps, in document order. noID counts the entries
-	// that have no id. A read or decode error is returned: it is not an empty
+	// that no row can hold: they have no event id and nothing else to make
+	// an id from. A read or decode error is returned: it is not an empty
 	// document.
 	plan func(ctx context.Context, nk runtime.NakamaModule, crewID string) (rows []ledgerRow, noID int, err error)
 	// same reports whether a stored row holds what the document entry holds.
@@ -276,12 +277,31 @@ func historyRefHeldOutside(held []CrewEvent, docIDs map[string]bool) bool {
 //
 // stream_session is a pulse type, so no "ledger_" row exists for a stream.
 
+// streamSessionRefIDPrefix starts the row id of a stream session of the
+// durable copy that has no event id. An event id is a generated id and never
+// has this prefix.
+const streamSessionRefIDPrefix = "session_"
+
+// streamSessionRowID is the row id of a stream session of the durable copy:
+// the id of its ledger event. An entry from before the copy held the event id
+// gets an id made from its session id, so the import stores it and stores it
+// once. It is "" for an entry with neither.
+func streamSessionRowID(s StoredStreamSession) string {
+	switch {
+	case s.EventID != "":
+		return s.EventID
+	case s.SessionID != "":
+		return streamSessionRefIDPrefix + s.SessionID
+	}
+	return ""
+}
+
 // streamSessionRow is a stream session of the durable copy as a row.
 func streamSessionRow(s StoredStreamSession) ledgerRow {
 	return ledgerRow{
 		Ref: s.SessionID,
 		Event: CrewEvent{
-			ID:        s.EventID,
+			ID:        streamSessionRowID(s),
 			Type:      ledgerTypeStreamSession,
 			ActorID:   s.StreamerID,
 			Timestamp: s.Ts,
@@ -310,7 +330,13 @@ func streamSessionFromRow(ev CrewEvent) (StoredStreamSession, bool) {
 	if err := json.Unmarshal(raw, &d); err != nil {
 		return StoredStreamSession{}, false
 	}
-	return storedStreamSessionFrom(ev.ID, ev.Timestamp, ev.Score, d), true
+	eventID := ev.ID
+	if d.SessionID != "" && eventID == streamSessionRefIDPrefix+d.SessionID {
+		// The entry had no event id (streamSessionRowID). The feed gets it
+		// as the document held it.
+		eventID = ""
+	}
+	return storedStreamSessionFrom(eventID, ev.Timestamp, ev.Score, d), true
 }
 
 // streamSessionsFromRows turns stream_session rows, oldest first, into the
@@ -348,16 +374,21 @@ var streamSessionHistoryKind = &historyKind{
 			return nil, 0, err
 		}
 		inLedger := make(map[string]bool, len(ledger.Events))
+		sessionInLedger := map[string]bool{}
 		for _, ev := range ledger.Events {
 			inLedger[ev.ID] = true
+			if ref := eventRef(ev); ref != "" {
+				sessionInLedger[ref] = true
+			}
 		}
 		rows := make([]ledgerRow, 0, len(doc.Sessions))
 		noID := 0
 		for _, s := range doc.Sessions {
 			switch {
-			case s.EventID == "":
+			case streamSessionRowID(s) == "":
+				// Neither an event id nor a session id: no row can hold it.
 				noID++
-			case inLedger[s.EventID]:
+			case inLedger[s.EventID], s.EventID == "" && sessionInLedger[s.SessionID]:
 				// The ledger document decides about this session.
 			default:
 				rows = append(rows, streamSessionRow(s))
@@ -409,12 +440,30 @@ func clipRowID(eventID string) string {
 	return "clip_" + eventID
 }
 
-// clipRow is a stored clip as a row.
+// clipRefRowIDPrefix starts the row id of a clip that has no event id. It
+// does not start with "clip_", so it never meets the id of clipRowID.
+const clipRefRowIDPrefix = "clipref_"
+
+// clipRowIDOf is the row id of a stored clip. A clip from before clips held
+// an event id gets an id made from its clip_id, so the import stores it and
+// stores it once. It is "" for a clip with neither.
+func clipRowIDOf(c StoredClip) string {
+	switch {
+	case c.EventID != "":
+		return clipRowID(c.EventID)
+	case c.ClipID != "":
+		return clipRefRowIDPrefix + c.ClipID
+	}
+	return ""
+}
+
+// clipRow is a stored clip as a row. The data is the clip as the document
+// holds it, so a clip with no event id reads the same from both.
 func clipRow(c StoredClip) ledgerRow {
 	return ledgerRow{
 		Ref: c.ClipID,
 		Event: CrewEvent{
-			ID:        clipRowID(c.EventID),
+			ID:        clipRowIDOf(c),
 			Type:      ledgerTypeClip,
 			ActorID:   c.ActorID,
 			Timestamp: c.Ts,
@@ -457,11 +506,18 @@ var clipHistoryKind = &historyKind{
 		}
 		rows := make([]ledgerRow, 0, len(doc.Clips))
 		noID := 0
+		made := map[string]bool{}
 		for _, c := range doc.Clips {
-			if c.EventID == "" {
+			id := clipRowIDOf(c)
+			// No row can hold a clip with neither an event id nor a clip_id,
+			// or a second clip with no event id and the same clip_id. Such
+			// an entry would vanish from the readers at the cutover, so it
+			// is counted and blocks the marker.
+			if id == "" || (c.EventID == "" && made[id]) {
 				noID++
 				continue
 			}
+			made[id] = true
 			rows = append(rows, clipRow(c))
 		}
 		return rows, noID, nil
@@ -548,7 +604,7 @@ func crewClipsForGuestFeed(ctx context.Context, nk runtime.NakamaModule, crewID 
 // crew. set changes it.
 func updateStoredClip(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string, find func([]StoredClip) *StoredClip, set func(*StoredClip)) error {
 	truth := historyTruthStore(ctx, nk)
-	eventID := ""
+	rowID := ""
 	return ledgerWriteOrdered(truth, "clip_update", crewID, clipID,
 		func(store ledgerStore) error {
 			if truth != nil {
@@ -560,12 +616,12 @@ func updateStoredClip(ctx context.Context, nk runtime.NakamaModule, crewID, clip
 				if clip == nil {
 					return fmt.Errorf("clip %s not found in crew %s", clipID, crewID)
 				}
-				eventID = clip.EventID
+				rowID = clipRowIDOf(*clip)
 			}
-			if eventID == "" {
+			if rowID == "" {
 				return errLedgerEventNotFound
 			}
-			return store.UpdateData(ctx, crewID, clipRowID(eventID), func(raw json.RawMessage) (json.RawMessage, error) {
+			return store.UpdateData(ctx, crewID, rowID, func(raw json.RawMessage) (json.RawMessage, error) {
 				var c StoredClip
 				if err := json.Unmarshal(raw, &c); err != nil {
 					return nil, err
@@ -577,15 +633,15 @@ func updateStoredClip(ctx context.Context, nk runtime.NakamaModule, crewID, clip
 		func() error {
 			id, err := updateClipDoc(ctx, nk, crewID, clipID, find, set)
 			if truth == nil {
-				eventID = id
+				rowID = id
 			}
 			return err
 		})
 }
 
 // updateClipDoc changes one clip of the legacy clips document, with the
-// version retry of the other document writers. It returns the event id of
-// the clip.
+// version retry of the other document writers. It returns the row id of the
+// clip (clipRowIDOf).
 func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID string, find func([]StoredClip) *StoredClip, set func(*StoredClip)) (string, error) {
 	for attempt := 0; attempt < 3; attempt++ {
 		doc, version := readClipsDoc(ctx, nk, crewID)
@@ -596,7 +652,7 @@ func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID 
 		set(clip)
 		doc.UpdatedAt = time.Now().UnixMilli()
 		if err := writeClipsDoc(ctx, nk, crewID, doc, version); err == nil {
-			return clip.EventID, nil
+			return clipRowIDOf(*clip), nil
 		}
 		jitter, _ := rand.Int(rand.Reader, big.NewInt(50))
 		time.Sleep(time.Duration(50*(attempt+1)+int(jitter.Int64())) * time.Millisecond)
