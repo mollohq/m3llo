@@ -162,11 +162,60 @@ func (c *crewScrub) crewOwnerNow() (string, error) {
 	return "", nil
 }
 
-// leftovers scrubs the documents of the crew outside the ledger: the quests
-// record, the crew emoji and the three push queues. exists says whether the
-// crew is a group.
+// groupCreator removes the user from the group of the crew: creator_id, and
+// created_by in the metadata. Nakama keeps both when the account is deleted
+// and the group stays. creator_id becomes the owner the crew has now: the
+// group update of Nakama cannot clear it. created_by is removed.
+func (c *crewScrub) groupCreator() error {
+	userID := c.rec.UserID
+	groups, err := c.nk.GroupsGetId(c.ctx, []string{c.crewID})
+	if err != nil {
+		return err
+	}
+	for _, g := range groups {
+		if g.GetId() != c.crewID {
+			continue
+		}
+		// A nil metadata leaves the metadata of the group as it is.
+		var metadata map[string]interface{}
+		if raw := g.GetMetadata(); raw != "" {
+			var doc map[string]interface{}
+			if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+				return err
+			}
+			if by, _ := doc["created_by"].(string); by == userID {
+				delete(doc, "created_by")
+				metadata = doc
+			}
+		}
+		creator := ""
+		if g.GetCreatorId() == userID {
+			if creator, err = c.crewOwnerNow(); err != nil {
+				return err
+			}
+		}
+		if creator == "" && metadata == nil {
+			return nil
+		}
+		// Empty values leave the name, the description and the avatar.
+		if err := c.nk.GroupUpdate(c.ctx, c.crewID, "", "", creator, "", "", "", g.GetOpen().GetValue(), metadata, 0); err != nil {
+			return err
+		}
+		c.res.Changed++
+	}
+	return nil
+}
+
+// leftovers scrubs what names the user outside the ledger: the group of the
+// crew, the quests record, the crew emoji and the three push queues. exists
+// says whether the crew is a group.
 func (c *crewScrub) leftovers(exists bool) error {
 	who := c.who()
+	if exists && c.rec.DeletedMs > 0 {
+		if err := c.groupCreator(); err != nil {
+			return fmt.Errorf("group update: %w", err)
+		}
+	}
 	err := scrubDoc(c.ctx, c.nk, CrewQuestsCollection, c.crewID, func(value string) (string, bool, error) {
 		var q CrewQuests
 		if err := json.Unmarshal([]byte(value), &q); err != nil {

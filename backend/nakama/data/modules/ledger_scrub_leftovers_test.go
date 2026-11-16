@@ -9,6 +9,7 @@ import (
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestScrubQuestsForUser(t *testing.T) {
@@ -269,7 +270,21 @@ func TestHandoverMovesTheQuestsOwner(t *testing.T) {
 	nk.addMemberAs(scrubCrew, "u1", "Ann", 2)
 	nk.addMemberAs(scrubCrew, "u3", "Cy", 1)
 	seedLeftovers(nk, scrubCrew)
+	// The group of a crew names who made it, twice.
+	nk.groups[scrubCrew] = &api.Group{Id: scrubCrew, CreatorId: goneUser, Open: wrapperspb.Bool(true),
+		Metadata: `{"created_by":"` + goneUser + `","invite_only":false,"max_members":10000}`}
+	nk.groups[otherCrew] = &api.Group{Id: otherCrew, CreatorId: "u1", Metadata: `{"created_by":"u1"}`}
+	nk.addMemberAs(otherCrew, "u1", "Ann", 0)
+	nk.addMemberAs(otherCrew, goneUser, goneName, 2)
 	nakamaDeleteAccount(t, nk, goneUser)
+	g := nk.groups[scrubCrew]
+	if g.GetCreatorId() != "u3" || g.GetMetadata() != `{"invite_only":false,"max_members":10000}` || !g.GetOpen().GetValue() {
+		t.Fatalf("group = creator %q metadata %s open %t", g.GetCreatorId(), g.GetMetadata(), g.GetOpen().GetValue())
+	}
+	// A group that another member made is not updated.
+	if nk.groupUpdates != 1 || nk.groups[otherCrew].GetCreatorId() != "u1" {
+		t.Fatalf("group updates = %d", nk.groupUpdates)
+	}
 	var q CrewQuests
 	if _, _, err := readDocStrict(context.Background(), nk, CrewQuestsCollection, scrubCrew, &q); err != nil || q.OwnerID != "u3" {
 		t.Fatalf("owner_id = %q err=%v, want the promoted admin", q.OwnerID, err)

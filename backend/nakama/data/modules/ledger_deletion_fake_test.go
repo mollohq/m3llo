@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -42,6 +43,8 @@ type delNk struct {
 	promoteNoop bool
 	// promotes are the promotes that changed a member: "crew user state".
 	promotes []string
+	// groupUpdates counts the group updates.
+	groupUpdates int
 }
 
 func newDelNk() *delNk {
@@ -112,6 +115,28 @@ func (n *delNk) GroupUsersPromote(_ context.Context, _ string, groupID string, u
 			}
 		}
 	}
+	return nil
+}
+
+// GroupUpdate changes the creator and the metadata of a group, as Nakama
+// does: an empty creator and a nil metadata change nothing.
+func (n *delNk) GroupUpdate(_ context.Context, id, _, _, creatorID, _, _, _ string, open bool, metadata map[string]interface{}, _ int) error {
+	g, ok := n.groups[id]
+	if !ok {
+		return errors.New("group not found")
+	}
+	if creatorID != "" {
+		g.CreatorId = creatorID
+	}
+	if metadata != nil {
+		data, err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+		g.Metadata = string(data)
+	}
+	g.Open = wrapperspb.Bool(open)
+	n.groupUpdates++
 	return nil
 }
 
