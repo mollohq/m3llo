@@ -1,0 +1,238 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+// The scrub of a deleted account outside the ledger
+// (specs/16-CREW-EVENT-LEDGER.md section 10.2): the quests record of a crew,
+// the crew emoji, the queued pushes of a crew and the invite codes. The rule
+// functions are pure. crewScrub.leftovers applies them.
+
+// scrubQuestsForUser removes the user from the quests record of a crew. No
+// step is taken back: a step that is done stays done, with its time.
+//
+//   - owner_id: the id of the owner the crew has now (newOwner), or empty.
+//     The client opens the gifts for the member that owner_id names, and the
+//     friend step skips that member.
+//   - friend: the id and the name of the friend are cleared, and the inviter.
+//   - call, session: the user leaves the id list and the name list.
+//   - clip: the clipper is cleared. The clip itself is deleted by the scrub
+//     of the clips.
+//   - plus_granted: the user leaves the list.
+func scrubQuestsForUser(q CrewQuests, who scrubWho, newOwner string) (CrewQuests, bool) {
+	if who.UserID == "" {
+		return q, false
+	}
+	changed := false
+	if q.OwnerID == who.UserID {
+		q.OwnerID = newOwner
+		changed = true
+	}
+	if f := q.Steps.Friend; f != nil && (f.UserID == who.UserID || f.InvitedBy == who.UserID) {
+		out := *f
+		if out.UserID == who.UserID {
+			out.UserID, out.Name = "", ""
+		}
+		if out.InvitedBy == who.UserID {
+			out.InvitedBy, out.InvitedByName = "", ""
+		}
+		q.Steps.Friend = &out
+		changed = true
+	}
+	if c := q.Steps.Call; c != nil {
+		if ids, names, did := scrubNamesAligned(c.UserIDs, c.Names, who); did {
+			out := *c
+			out.UserIDs, out.Names = ids, names
+			q.Steps.Call = &out
+			changed = true
+		}
+	}
+	if c := q.Steps.Clip; c != nil && c.ClipperID == who.UserID {
+		out := *c
+		out.ClipperID, out.ClipperName = "", ""
+		q.Steps.Clip = &out
+		changed = true
+	}
+	if s := q.Steps.Session; s != nil {
+		if ids, names, did := scrubNamesAligned(s.UserIDs, s.Names, who); did {
+			out := *s
+			out.UserIDs, out.Names = ids, names
+			q.Steps.Session = &out
+			changed = true
+		}
+	}
+	kept := q.PlusGranted[:0:0]
+	for _, id := range q.PlusGranted {
+		if id != who.UserID {
+			kept = append(kept, id)
+		}
+	}
+	if len(kept) != len(q.PlusGranted) {
+		q.PlusGranted = kept
+		changed = true
+	}
+	return q, changed
+}
+
+// scrubEmojiForUser clears who added an emoji. The emoji is of the crew: it
+// stays. With no added_by, only the owner can remove it.
+func scrubEmojiForUser(d CrewEmojiDoc, userID string) (CrewEmojiDoc, bool) {
+	if userID == "" {
+		return d, false
+	}
+	changed := false
+	out := make([]CrewEmoji, len(d.Emoji))
+	copy(out, d.Emoji)
+	for i := range out {
+		if out[i].AddedBy == userID {
+			out[i].AddedBy, out[i].AddedByName = "", ""
+			changed = true
+		}
+	}
+	if !changed {
+		return d, false
+	}
+	d.Emoji = out
+	return d, true
+}
+
+// scrubPushQueueForUser removes from a push queue of a crew the items for
+// the user, and the items whose text names the user. An item is removed
+// whole, sent or not: a text is not made again without the user.
+func scrubPushQueueForUser(doc RecapPushDoc, who scrubWho) (RecapPushDoc, bool) {
+	if who.UserID == "" {
+		return doc, false
+	}
+	names := func(it RecapPushItem) bool {
+		if who.holdsName(it.Body) {
+			return true
+		}
+		for _, ev := range it.Events {
+			if who.isName(ev.Name) {
+				return true
+			}
+		}
+		return false
+	}
+	kept := doc.Items[:0:0]
+	for _, it := range doc.Items {
+		if it.UserID == who.UserID || names(it) {
+			continue
+		}
+		kept = append(kept, it)
+	}
+	if len(kept) == len(doc.Items) {
+		return doc, false
+	}
+	doc.Items = kept
+	return doc, true
+}
+
+// scrubInviteCodeForUser clears the inviter of an invite code. The code
+// stays: it is the invite link of the crew, and other people hold it. A join
+// with the code then names no inviter.
+func scrubInviteCodeForUser(value, userID string) (out string, changed bool, err error) {
+	var doc map[string]interface{}
+	if err := json.Unmarshal([]byte(value), &doc); err != nil {
+		return "", false, err
+	}
+	if inviter, _ := doc["inviter_user_id"].(string); userID == "" || inviter != userID {
+		return "", false, nil
+	}
+	delete(doc, "inviter_user_id")
+	data, err := json.Marshal(doc)
+	return string(data), true, err
+}
+
+// crewOwnerNow returns a superadmin the crew has now, the one who joined
+// first, or "" when the crew has none.
+func (c *crewScrub) crewOwnerNow() (string, error) {
+	owners, err := crewMembersInState(c.ctx, c.nk, c.crewID, groupStateSuperadmin, 2)
+	if err != nil {
+		return "", err
+	}
+	for _, id := range owners {
+		if id != c.rec.UserID {
+			return id, nil
+		}
+	}
+	return "", nil
+}
+
+// leftovers scrubs the documents of the crew outside the ledger: the quests
+// record, the crew emoji and the three push queues. exists says whether the
+// crew is a group.
+func (c *crewScrub) leftovers(exists bool) error {
+	who := c.who()
+	err := scrubDoc(c.ctx, c.nk, CrewQuestsCollection, c.crewID, func(value string) (string, bool, error) {
+		var q CrewQuests
+		if err := json.Unmarshal([]byte(value), &q); err != nil {
+			return "", false, err
+		}
+		newOwner := ""
+		if exists && q.OwnerID == who.UserID {
+			var err error
+			if newOwner, err = c.crewOwnerNow(); err != nil {
+				return "", false, fmt.Errorf("owner read: %w", err)
+			}
+		}
+		out, changed := scrubQuestsForUser(q, who, newOwner)
+		if !changed {
+			return "", false, nil
+		}
+		c.res.Changed++
+		data, err := json.Marshal(out)
+		return string(data), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewQuestsCollection, err)
+	}
+	err = scrubDoc(c.ctx, c.nk, CrewEmojiCollection, c.crewID, func(value string) (string, bool, error) {
+		var d CrewEmojiDoc
+		if err := json.Unmarshal([]byte(value), &d); err != nil {
+			return "", false, err
+		}
+		out, changed := scrubEmojiForUser(d, who.UserID)
+		if !changed {
+			return "", false, nil
+		}
+		c.res.Changed++
+		data, err := json.Marshal(out)
+		return string(data), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewEmojiCollection, err)
+	}
+	for _, key := range []string{c.crewID, beltPushKey + c.crewID, crewJoinPushKey + c.crewID} {
+		err := scrubDoc(c.ctx, c.nk, RecapPushCollection, key, func(value string) (string, bool, error) {
+			var doc RecapPushDoc
+			if err := json.Unmarshal([]byte(value), &doc); err != nil {
+				return "", false, err
+			}
+			out, changed := scrubPushQueueForUser(doc, who)
+			if !changed {
+				return "", false, nil
+			}
+			c.res.Changed++
+			data, err := json.Marshal(out)
+			return string(data), true, err
+		})
+		if err != nil {
+			return fmt.Errorf("%s/%s: %w", RecapPushCollection, key, err)
+		}
+	}
+	return nil
+}
+
+// pushQueueCrewID is the crew id of a push queue document, from its key.
+func pushQueueCrewID(key string) string {
+	for _, prefix := range []string{beltPushKey, crewJoinPushKey} {
+		if crewID, ok := strings.CutPrefix(key, prefix); ok {
+			return crewID
+		}
+	}
+	return key
+}

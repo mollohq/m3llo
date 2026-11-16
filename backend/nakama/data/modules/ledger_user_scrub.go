@@ -461,25 +461,34 @@ func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID strin
 }
 
 // scrubScanCollections are the documents the scrub scans for the id of the
-// user, in order: the legacy documents of the ledger, and the head2head
-// holders documents.
-var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection}
+// user, in order: the legacy documents of the ledger, the head2head holders
+// documents, the documents of a crew outside the ledger, and the invite
+// codes. A scrub record holds its place in this list (ScanStep): a new
+// collection goes at the end.
+var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection,
+	CrewQuestsCollection, CrewEmojiCollection, RecapPushCollection, InviteCodeCollection}
 
-// scrubScanCrewID is the crew id of a scanned document, from its key.
+// scrubScanCrewID is the crew id of a scanned document, from its key. An
+// invite code has no crew to scrub: the scan clears its inviter.
 func scrubScanCrewID(collection, key string) string {
-	if collection == CrewHead2headCollection {
+	switch collection {
+	case CrewHead2headCollection:
 		crewID, ok := strings.CutPrefix(key, head2headKeyPrefix)
 		if !ok {
 			return ""
 		}
 		return crewID
+	case RecapPushCollection:
+		return pushQueueCrewID(key)
+	case InviteCodeCollection:
+		return ""
 	}
 	return key
 }
 
 // discoverUserCrews adds to the record the crews that hold the user: the
-// crews of the user index of the store, and the crews whose legacy documents
-// hold the id of the user. The crews the user was a member of at the delete
+// crews of the user index of the store, and the crews whose documents hold
+// the id of the user. It clears the user from the invite codes on the way. The crews the user was a member of at the delete
 // are in the record already. It returns false when the deadline cut the scan.
 func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) (bool, error) {
 	if store := currentLedger(); store != nil && rec.ScanStep == 0 && rec.ScanCursor == "" {
@@ -503,9 +512,22 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 		}
 		for _, obj := range objects {
 			// The id of the user anywhere in the document, in any field.
-			if strings.Contains(obj.GetValue(), rec.UserID) {
-				rec.addCrews(scrubScanCrewID(collection, obj.GetKey()))
+			if !strings.Contains(obj.GetValue(), rec.UserID) {
+				continue
 			}
+			if collection == InviteCodeCollection {
+				// The key of an invite code is the code, so nothing lists
+				// the codes of a user but this scan.
+				err := scrubDoc(ctx, nk, InviteCodeCollection, obj.GetKey(), func(value string) (string, bool, error) {
+					return scrubInviteCodeForUser(value, rec.UserID)
+				})
+				if err != nil {
+					res.fail("%s: %v", InviteCodeCollection, err)
+					return false, nil
+				}
+				continue
+			}
+			rec.addCrews(scrubScanCrewID(collection, obj.GetKey()))
 		}
 		rec.ScanCursor = next
 		if next == "" {
@@ -852,6 +874,9 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		return false, err
 	}
 	if err := c.head2head(); err != nil {
+		return false, err
+	}
+	if err := c.leftovers(exists); err != nil {
 		return false, err
 	}
 	InvalidateCrewState(crewID)

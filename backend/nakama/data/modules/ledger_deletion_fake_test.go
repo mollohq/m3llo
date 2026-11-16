@@ -156,7 +156,8 @@ func (n *delNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]
 	for _, r := range reads {
 		k := fakeStorageKey(r.Collection, r.Key, r.UserID)
 		if v, ok := n.storage[k]; ok {
-			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v, Version: n.versionOf(k)})
+			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v, Version: n.versionOf(k),
+				PermissionRead: int32(n.perms[k][0]), PermissionWrite: int32(n.perms[k][1])})
 		}
 	}
 	return out, nil
