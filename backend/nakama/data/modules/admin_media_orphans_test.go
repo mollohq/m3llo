@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -117,7 +118,7 @@ func useFakeBuckets(t *testing.T, f *fakeS3) {
 	client := newS3Client(f.server.URL, "test", "test")
 	mediaOrphanBuckets = func() (mediaBucket, mediaBucket) {
 		return mediaBucket{client: client, bucket: "clips", prefix: mediaClipPrefix, typ: ledgerTypeClip, ref: clipObjectRef},
-			mediaBucket{client: client, bucket: "snaps", prefix: mediaSnapshotPrefix, typ: ledgerTypeStreamSession, ref: snapshotObjectRef}
+			mediaBucket{client: client, bucket: "snaps", prefix: mediaSnapshotPrefix, typ: ledgerTypeStreamSession, ref: snapshotObjectRef, groupPrefix: snapshotSessionPrefix}
 	}
 	t.Cleanup(func() { mediaOrphanBuckets = prev })
 }
@@ -180,12 +181,14 @@ func TestMediaObjectRefs(t *testing.T) {
 }
 
 // seedMediaCrew gives crew c1 clips and stream sessions in each place that
-// can hold one, and the bucket their objects plus the orphans.
+// can hold one, and the bucket their objects plus the orphans. c1 is a group
+// of this install. c2 is not.
 func seedMediaCrew(t *testing.T, nk *fakeGuestNk, store ledgerStore, f *fakeS3) {
 	t.Helper()
 	ctx := context.Background()
 	now := time.Now()
 	const old, fresh = 50 * time.Hour, time.Hour
+	nk.groups["c1"] = &api.Group{Id: "c1", Name: "Crew"}
 
 	// Clips: one in the document, one in the store only (the document
 	// dropped it), one in an old ledger.
@@ -212,7 +215,7 @@ func seedMediaCrew(t *testing.T, nk *fakeGuestNk, store ledgerStore, f *fakeS3) 
 	}
 	f.put("clips", "crews/c1/gone.mp4", 1000, old)
 	f.put("clips", "crews/c1/gone.jpg", 200, old)
-	f.put("clips", "crews/c2/gone_too.mp4", 30, old) // a crew with no document
+	f.put("clips", "crews/c2/gone_too.mp4", 30, old) // a crew id that is no group here
 	f.put("clips", "crews/c1/uploading.mp4", 70, fresh)
 	f.put("clips", "crews/c1/notes.txt", 9, old)
 	f.put("clips", "crews/readme", 9, old)
@@ -226,10 +229,50 @@ func seedMediaCrew(t *testing.T, nk *fakeGuestNk, store ledgerStore, f *fakeS3) 
 	}
 	f.put("snaps", "snapshots/c1/sess_new/1.jpg", 100, fresh)
 	f.put("snaps", "snapshots/c1/sess_gone/frame.png", 100, old)
+	f.put("snaps", "snapshots/c2/sess_far/1.jpg", 100, old)
+	// A stream of 50 hours that stopped a minute ago. stop_stream deleted
+	// its stream record and did not write the stream session yet: nothing
+	// holds the session id.
+	f.put("snaps", "snapshots/c1/sess_stopping/1.jpg", 100, old)
+	f.put("snaps", "snapshots/c1/sess_stopping/2.jpg", 100, 30*time.Hour)
+	f.put("snaps", "snapshots/c1/sess_stopping/3.jpg", 100, time.Minute)
 }
 
-func TestAdminMediaOrphansIsADryRun(t *testing.T) {
+const (
+	mediaClipOrphans     = "crews/c1/gone.jpg crews/c1/gone.mp4"
+	mediaSnapshotOrphans = "snapshots/c1/sess_gone/1.jpg snapshots/c1/sess_gone/2.jpg snapshots/c1/sess_gone/3.jpg"
+)
+
+func orphanDelete(t *testing.T, nk runtime.NakamaModule, clipKeys, snapshotKeys []string) AdminMediaOrphansResponse {
+	t.Helper()
+	payload, err := json.Marshal(AdminMediaOrphansRequest{Delete: true, ClipKeys: clipKeys, SnapshotKeys: snapshotKeys})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp := mediaOrphans(t, nk, string(payload))
+	if resp.DryRun || resp.DeletedClips == nil || resp.DeletedSnapshots == nil {
+		t.Fatalf("delete response = %+v", resp)
+	}
+	return resp
+}
+
+// refusals is "key=reason" for each refused key, sorted.
+func refusals(d *AdminMediaOrphanDelete) string {
+	out := make([]string, 0, len(d.Refused))
+	for _, r := range d.Refused {
+		out = append(out, r.Key+"="+r.Reason)
+	}
+	sort.Strings(out)
+	return strings.Join(out, " ")
+}
+
+func sampleKeyList(k AdminMediaOrphanKind) []string {
+	return strings.Fields(sampleKeys(k))
+}
+
+func TestAdminMediaOrphansScanDeletesNothing(t *testing.T) {
 	store := useMemLedger(t)
+	t.Setenv(mediaOrphanDeleteEnv, "1")
 	nk := newFakeGuestNk()
 	f := newFakeS3(t)
 	useFakeBuckets(t, f)
@@ -237,27 +280,29 @@ func TestAdminMediaOrphansIsADryRun(t *testing.T) {
 	clipsBefore, snapsBefore := f.keys("clips"), f.keys("snaps")
 
 	resp := mediaOrphans(t, nk, "")
-	if !resp.DryRun || resp.MinAgeHours != 24 || !resp.Store {
+	if !resp.DryRun || resp.MinAgeHours != 24 || !resp.Store || resp.DeletedClips != nil || resp.DeletedSnapshots != nil {
 		t.Fatalf("response = %+v", resp)
 	}
 	c := resp.Clips
-	if !c.Configured || c.Scanned != 10 || c.Orphans != 3 || c.Bytes != 1230 || c.TooNew != 1 || c.Unknown != 2 || c.ReadFailed != 0 || c.Deleted != 0 || c.NextAfter != "" {
+	if !c.Configured || c.Scanned != 10 || c.Orphans != 2 || c.Bytes != 1200 || c.TooNew != 1 || c.Unknown != 2 || c.UnknownCrew != 1 || c.ReadFailed != 0 || c.Incomplete || c.NextAfter != "" {
 		t.Fatalf("clips = %+v", c)
 	}
-	if got := sampleKeys(c); got != "crews/c1/gone.jpg crews/c1/gone.mp4 crews/c2/gone_too.mp4" {
+	if got := sampleKeys(c); got != mediaClipOrphans {
 		t.Fatalf("clip orphans = %s", got)
 	}
 	s := resp.Snapshots
-	if s.Scanned != 9 || s.Orphans != 3 || s.Bytes != 300 || s.TooNew != 1 || s.Unknown != 1 || s.Deleted != 0 {
+	// too_new: the new session, and the three snapshots of the session that
+	// stopped a minute ago.
+	if s.Scanned != 13 || s.Orphans != 3 || s.Bytes != 300 || s.TooNew != 4 || s.Unknown != 1 || s.UnknownCrew != 1 || s.Incomplete {
 		t.Fatalf("snapshots = %+v", s)
 	}
-	if got := sampleKeys(s); got != "snapshots/c1/sess_gone/1.jpg snapshots/c1/sess_gone/2.jpg snapshots/c1/sess_gone/3.jpg" {
+	if got := sampleKeys(s); got != mediaSnapshotOrphans {
 		t.Fatalf("snapshot orphans = %s", got)
 	}
 	if c.Sample[1].Bytes != 1000 || time.Since(time.UnixMilli(c.Sample[1].LastModifiedMs)) < 49*time.Hour {
 		t.Fatalf("sample = %+v", c.Sample[1])
 	}
-	// Nothing was deleted.
+	// Nothing was deleted, with the env switch on.
 	if got := f.keys("clips"); strings.Join(got, " ") != strings.Join(clipsBefore, " ") {
 		t.Fatalf("clips bucket changed: %v", got)
 	}
@@ -276,12 +321,12 @@ func TestAdminMediaOrphansIsADryRun(t *testing.T) {
 		if part.Scanned > 3 || calls > 20 {
 			t.Fatalf("call %d scanned %d objects after %q", calls, part.Scanned, after)
 		}
-		if part.NextAfter == "" {
+		if !part.Incomplete {
 			break
 		}
 		after = part.NextAfter
 	}
-	if orphans != 3 || scanned != 10 || calls != 4 {
+	if orphans != 2 || scanned != 10 || calls != 4 {
 		t.Fatalf("in parts: %d orphans of %d objects in %d calls", orphans, scanned, calls)
 	}
 
@@ -291,6 +336,45 @@ func TestAdminMediaOrphansIsADryRun(t *testing.T) {
 	}
 	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"max_objects":-1}`); errCode(err) != 3 {
 		t.Fatalf("a bad max_objects: %v, want code 3", err)
+	}
+	// Keys with no delete flag are a mistake, not a scan.
+	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"clip_keys":["crews/c1/gone.mp4"]}`); errCode(err) != 3 || len(f.deletes) != 0 {
+		t.Fatalf("keys without the delete flag: %v, deletes %v", err, f.deletes)
+	}
+}
+
+// stop_stream and the socket drop delete the stream record before they write
+// the stream session. In that gap nothing holds the session id. The scan and
+// the delete skip the whole session while one of its snapshots is younger
+// than 24 hours.
+func TestAdminMediaOrphansSkipsASessionWithAFreshSnapshot(t *testing.T) {
+	store := useMemLedger(t)
+	t.Setenv(mediaOrphanDeleteEnv, "1")
+	nk := newFakeGuestNk()
+	f := newFakeS3(t)
+	useFakeBuckets(t, f)
+	nk.groups["c1"] = &api.Group{Id: "c1"}
+	_ = store
+	// A stream of three days. The stream record is gone, the event is not
+	// written yet.
+	f.put("snaps", "snapshots/c1/gap/1.jpg", 100, 72*time.Hour)
+	f.put("snaps", "snapshots/c1/gap/2.jpg", 100, 48*time.Hour)
+	f.put("snaps", "snapshots/c1/gap/3.jpg", 100, 10*time.Second)
+	// A session that ended two days ago and has no row is an orphan.
+	f.put("snaps", "snapshots/c1/lost/1.jpg", 100, 72*time.Hour)
+	f.put("snaps", "snapshots/c1/lost/2.jpg", 100, 48*time.Hour)
+
+	s := mediaOrphans(t, nk, "").Snapshots
+	if s.Scanned != 5 || s.Orphans != 2 || s.TooNew != 3 || sampleKeys(s) != "snapshots/c1/lost/1.jpg snapshots/c1/lost/2.jpg" {
+		t.Fatalf("scan = %+v", s)
+	}
+	// A delete of the old snapshots of the session in the gap is refused.
+	resp := orphanDelete(t, nk, nil, []string{"snapshots/c1/gap/1.jpg", "snapshots/c1/gap/2.jpg", "snapshots/c1/lost/1.jpg"})
+	if got := refusals(resp.DeletedSnapshots); got != "snapshots/c1/gap/1.jpg=session_active snapshots/c1/gap/2.jpg=session_active" {
+		t.Fatalf("refused = %s", got)
+	}
+	if got := strings.Join(resp.DeletedSnapshots.Deleted, " "); got != "snapshots/c1/lost/1.jpg" || strings.Join(f.deletes, " ") != "snaps/snapshots/c1/lost/1.jpg" {
+		t.Fatalf("deleted = %s, bucket deletes %v", got, f.deletes)
 	}
 }
 
@@ -306,10 +390,10 @@ func TestAdminMediaOrphansWithoutTheStore(t *testing.T) {
 	seedMediaCrew(t, nk, nil, f)
 
 	resp := mediaOrphans(t, nk, "")
-	if resp.Store || resp.Clips.Orphans != 4 || resp.Snapshots.Orphans != 4 {
+	if resp.Store || resp.Clips.Orphans != 3 || resp.Snapshots.Orphans != 4 {
 		t.Fatalf("response = %+v", resp)
 	}
-	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"delete":true}`); errCode(err) != 9 {
+	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"delete":true,"clip_keys":["crews/c1/gone.mp4"]}`); errCode(err) != 9 {
 		t.Fatalf("delete without the store: %v, want code 9", err)
 	}
 	if len(f.deletes) != 0 {
@@ -317,9 +401,9 @@ func TestAdminMediaOrphansWithoutTheStore(t *testing.T) {
 	}
 }
 
-// The delete flag deletes nothing without the env switch. With both, only
-// the orphans go.
-func TestAdminMediaOrphansDeleteNeedsTheEnvSwitch(t *testing.T) {
+// A delete needs the env switch and a list of keys. It deletes the keys of
+// the list that are orphans, and no other object.
+func TestAdminMediaOrphansDeleteTakesTheKeysOfAScan(t *testing.T) {
 	store := useMemLedger(t)
 	nk := newFakeGuestNk()
 	f := newFakeS3(t)
@@ -327,43 +411,148 @@ func TestAdminMediaOrphansDeleteNeedsTheEnvSwitch(t *testing.T) {
 	seedMediaCrew(t, nk, store, f)
 
 	t.Setenv(mediaOrphanDeleteEnv, "")
-	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"delete":true}`); errCode(err) != 9 {
+	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"delete":true,"clip_keys":["crews/c1/gone.mp4"]}`); errCode(err) != 9 {
 		t.Fatalf("delete without the env switch: %v, want code 9", err)
 	}
 	if len(f.deletes) != 0 || f.lists != 0 {
 		t.Fatalf("without the env switch: deletes %v, %d lists", f.deletes, f.lists)
 	}
-	// The env switch alone, with no delete flag, is a dry run.
 	t.Setenv(mediaOrphanDeleteEnv, "1")
-	if resp := mediaOrphans(t, nk, `{"delete":false}`); !resp.DryRun || resp.Clips.Deleted != 0 || len(f.deletes) != 0 {
-		t.Fatalf("env switch without the flag: %+v, deletes %v", resp, f.deletes)
+	// The delete flag with no keys deletes nothing: there is no "delete what
+	// you find".
+	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, `{"delete":true}`); errCode(err) != 3 || len(f.deletes) != 0 {
+		t.Fatalf("delete with no keys: %v, deletes %v", err, f.deletes)
+	}
+	// The hard cap: one key too many deletes nothing.
+	tooMany := make([]string, 0, mediaOrphanDeleteMax+1)
+	for i := 0; i < mediaOrphanDeleteMax; i++ {
+		tooMany = append(tooMany, fmt.Sprintf("crews/c1/none_%d.mp4", i))
+	}
+	payload, _ := json.Marshal(AdminMediaOrphansRequest{Delete: true, ClipKeys: tooMany, SnapshotKeys: []string{"snapshots/c1/sess_gone/1.jpg"}})
+	if _, err := AdminMediaOrphansRPC(context.Background(), testLogger(), nil, nk, string(payload)); errCode(err) != 3 || len(f.deletes) != 0 {
+		t.Fatalf("delete of %d keys: %v, deletes %v", mediaOrphanDeleteMax+1, err, f.deletes)
 	}
 
-	resp := mediaOrphans(t, nk, `{"delete":true}`)
-	if resp.DryRun || resp.Clips.Deleted != 3 || resp.Clips.DeleteFailed != 0 || resp.Snapshots.Deleted != 3 {
-		t.Fatalf("delete = %+v", resp)
+	// One orphan clip of the two: the other one stays.
+	scan := mediaOrphans(t, nk, "")
+	resp := orphanDelete(t, nk, []string{"crews/c1/gone.mp4"}, sampleKeyList(scan.Snapshots))
+	if got := strings.Join(resp.DeletedClips.Deleted, " "); got != "crews/c1/gone.mp4" || len(resp.DeletedClips.Refused) != 0 {
+		t.Fatalf("deleted clips = %+v", resp.DeletedClips)
+	}
+	if got := strings.Join(resp.DeletedSnapshots.Deleted, " "); got != mediaSnapshotOrphans || len(resp.DeletedSnapshots.Refused) != 0 {
+		t.Fatalf("deleted snapshots = %+v", resp.DeletedSnapshots)
 	}
 	sort.Strings(f.deletes)
-	want := "clips/crews/c1/gone.jpg clips/crews/c1/gone.mp4 clips/crews/c2/gone_too.mp4 " +
-		"snaps/snapshots/c1/sess_gone/1.jpg snaps/snapshots/c1/sess_gone/2.jpg snaps/snapshots/c1/sess_gone/3.jpg"
-	if got := strings.Join(f.deletes, " "); got != want {
-		t.Fatalf("deleted %s", got)
+	if got := strings.Join(f.deletes, " "); got != "clips/crews/c1/gone.mp4 snaps/"+strings.ReplaceAll(mediaSnapshotOrphans, " ", " snaps/") {
+		t.Fatalf("bucket deletes = %s", got)
 	}
-	// What a row points at, what is new and what is unknown stays.
-	if got := strings.Join(f.keys("clips"), " "); got != "crews/c1/in_doc.jpg crews/c1/in_doc.mp4 crews/c1/in_ledger.mp4 crews/c1/notes.txt crews/c1/row_only.mp4 crews/c1/uploading.mp4 crews/readme other/c1/gone.mp4" {
+	if got := strings.Join(f.keys("clips"), " "); got != "crews/c1/gone.jpg crews/c1/in_doc.jpg crews/c1/in_doc.mp4 crews/c1/in_ledger.mp4 crews/c1/notes.txt crews/c1/row_only.mp4 crews/c1/uploading.mp4 crews/c2/gone_too.mp4 crews/readme other/c1/gone.mp4" {
 		t.Fatalf("clips bucket after the delete: %s", got)
 	}
-	if got := len(f.keys("snaps")); got != 6 {
-		t.Fatalf("snapshots bucket after the delete: %v", f.keys("snaps"))
+
+	// Every key that is not an orphan is refused with its reason, and stays.
+	f.deletes = nil
+	resp = orphanDelete(t, nk,
+		[]string{"crews/c1/in_doc.mp4", "crews/c1/row_only.mp4", "crews/c2/gone_too.mp4", "crews/c1/uploading.mp4", "crews/c1/notes.txt",
+			"crews/c1/gone.mp4", "other/c1/gone.mp4", "snapshots/c1/sess_gone/1.jpg", "crews/c1/gone.jpg", "crews/c1/gone.jpg"},
+		[]string{"snapshots/c1/live/1.jpg", "snapshots/c1/sess_row_only/1.jpg", "snapshots/c2/sess_far/1.jpg", "snapshots/c1/sess_new/1.jpg",
+			"snapshots/c1/sess_stopping/1.jpg", "snapshots/c1/sess_gone/frame.png", "snapshots/c1/sess_gone/1.jpg", "crews/c1/gone.jpg"})
+	wantClips := "crews/c1/gone.mp4=not_found crews/c1/in_doc.mp4=held crews/c1/notes.txt=unknown_key crews/c1/row_only.mp4=held " +
+		"crews/c1/uploading.mp4=too_new crews/c2/gone_too.mp4=unknown_crew other/c1/gone.mp4=unknown_key snapshots/c1/sess_gone/1.jpg=unknown_key"
+	if got := refusals(resp.DeletedClips); got != wantClips {
+		t.Fatalf("refused clips =\n%s, want\n%s", got, wantClips)
 	}
-	// A second run finds nothing.
-	if again := mediaOrphans(t, nk, `{"delete":true}`); again.Clips.Orphans != 0 || again.Snapshots.Orphans != 0 {
-		t.Fatalf("second delete = %+v", again)
+	wantSnaps := "crews/c1/gone.jpg=unknown_key snapshots/c1/live/1.jpg=held snapshots/c1/sess_gone/1.jpg=not_found snapshots/c1/sess_gone/frame.png=unknown_key " +
+		"snapshots/c1/sess_new/1.jpg=too_new snapshots/c1/sess_row_only/1.jpg=held snapshots/c1/sess_stopping/1.jpg=session_active snapshots/c2/sess_far/1.jpg=unknown_crew"
+	if got := refusals(resp.DeletedSnapshots); got != wantSnaps {
+		t.Fatalf("refused snapshots =\n%s, want\n%s", got, wantSnaps)
+	}
+	// The one orphan of the lists went, once.
+	if got := strings.Join(resp.DeletedClips.Deleted, " "); got != "crews/c1/gone.jpg" || len(resp.DeletedSnapshots.Deleted) != 0 || strings.Join(f.deletes, " ") != "clips/crews/c1/gone.jpg" {
+		t.Fatalf("deleted = %+v %+v, bucket deletes %v", resp.DeletedClips.Deleted, resp.DeletedSnapshots.Deleted, f.deletes)
+	}
+	// A scan after it finds no orphan.
+	if again := mediaOrphans(t, nk, ""); again.Clips.Orphans != 0 || again.Snapshots.Orphans != 0 {
+		t.Fatalf("scan after the delete = %+v", again)
+	}
+}
+
+// A key is an orphan at the scan and not any more at the delete: the crew
+// took the clip_id, the session got its row. The delete reads again and
+// refuses.
+func TestAdminMediaOrphansDeleteChecksEachKeyAgain(t *testing.T) {
+	store := useMemLedger(t)
+	t.Setenv(mediaOrphanDeleteEnv, "1")
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	f := newFakeS3(t)
+	useFakeBuckets(t, f)
+	seedMediaCrew(t, nk, store, f)
+
+	scan := mediaOrphans(t, nk, "")
+	if sampleKeys(scan.Clips) != mediaClipOrphans || sampleKeys(scan.Snapshots) != mediaSnapshotOrphans {
+		t.Fatalf("scan = %+v", scan)
+	}
+	// After the scan: a clip with the clip_id is uploaded, and the stream
+	// session of the session is written to the store.
+	if _, err := AppendClip(ctx, nk, "c1", histClip("gone", "u1", time.Now())); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Put(ctx, "c1", []ledgerRow{streamSessionRow(histSession("gone", time.Now()))}); err != nil {
+		t.Fatal(err)
+	}
+
+	resp := orphanDelete(t, nk, sampleKeyList(scan.Clips), sampleKeyList(scan.Snapshots))
+	if got := refusals(resp.DeletedClips); got != "crews/c1/gone.jpg=held crews/c1/gone.mp4=held" {
+		t.Fatalf("refused clips = %s", got)
+	}
+	if got := refusals(resp.DeletedSnapshots); got != "snapshots/c1/sess_gone/1.jpg=held snapshots/c1/sess_gone/2.jpg=held snapshots/c1/sess_gone/3.jpg=held" {
+		t.Fatalf("refused snapshots = %s", got)
+	}
+	if len(resp.DeletedClips.Deleted) != 0 || len(resp.DeletedSnapshots.Deleted) != 0 || len(f.deletes) != 0 {
+		t.Fatalf("deleted = %+v %+v, bucket deletes %v", resp.DeletedClips.Deleted, resp.DeletedSnapshots.Deleted, f.deletes)
+	}
+}
+
+// crewTakesClipNk gives the crew a clip of a clip_id when the group of the
+// crew is read for the second time: between the check of one key and the
+// check of the next.
+type crewTakesClipNk struct {
+	*fakeGuestNk
+	reads int
+}
+
+func (c *crewTakesClipNk) GroupsGetId(ctx context.Context, ids []string) ([]*api.Group, error) {
+	if c.reads++; c.reads == 2 {
+		c.fakeGuestNk.put(CrewClipsCollection, "c1", SystemUserID, CrewClipsDoc{CrewID: "c1", Clips: []StoredClip{histClip("b", "u1", time.Now())}})
+	}
+	return c.fakeGuestNk.GroupsGetId(ctx, ids)
+}
+
+// The delete does not keep what it read for one key. A clip that the crew
+// takes while a delete call runs is seen at the next key.
+func TestAdminMediaOrphansDeleteReadsTheCrewForEachKey(t *testing.T) {
+	useMemLedger(t)
+	t.Setenv(mediaOrphanDeleteEnv, "1")
+	base := newFakeGuestNk()
+	base.groups["c1"] = &api.Group{Id: "c1"}
+	nk := &crewTakesClipNk{fakeGuestNk: base}
+	f := newFakeS3(t)
+	useFakeBuckets(t, f)
+	f.put("clips", "crews/c1/a.mp4", 10, 50*time.Hour)
+	f.put("clips", "crews/c1/b.mp4", 10, 50*time.Hour)
+
+	resp := orphanDelete(t, nk, []string{"crews/c1/a.mp4", "crews/c1/b.mp4"}, nil)
+	if got := strings.Join(resp.DeletedClips.Deleted, " "); got != "crews/c1/a.mp4" || refusals(resp.DeletedClips) != "crews/c1/b.mp4=held" {
+		t.Fatalf("deleted = %s, refused = %s", got, refusals(resp.DeletedClips))
+	}
+	if nk.reads != 2 || strings.Join(f.keys("clips"), " ") != "crews/c1/b.mp4" {
+		t.Fatalf("%d group reads, bucket %v", nk.reads, f.keys("clips"))
 	}
 }
 
 // A crew whose documents cannot be read has no orphans: its objects are
-// kept and counted.
+// kept and counted. A delete refuses them.
 func TestAdminMediaOrphansKeepsWhatItCannotCheck(t *testing.T) {
 	store := useMemLedger(t)
 	t.Setenv(mediaOrphanDeleteEnv, "1")
@@ -372,15 +561,103 @@ func TestAdminMediaOrphansKeepsWhatItCannotCheck(t *testing.T) {
 	useFakeBuckets(t, f)
 	seedMediaCrew(t, nk, store, f)
 
-	resp := mediaOrphans(t, failHistReadNk{fakeGuestNk: nk, collection: CrewClipsCollection}, `{"delete":true}`)
-	if resp.Clips.Orphans != 0 || resp.Clips.ReadFailed != 8 || resp.Snapshots.Orphans != 0 || resp.Snapshots.ReadFailed != 8 || len(f.deletes) != 0 {
-		t.Fatalf("response = %+v, deletes %v", resp, f.deletes)
+	broken := failHistReadNk{fakeGuestNk: nk, collection: CrewClipsCollection}
+	resp := mediaOrphans(t, broken, "")
+	if resp.Clips.Orphans != 0 || resp.Clips.ReadFailed != 7 || resp.Clips.UnknownCrew != 1 || resp.Snapshots.Orphans != 0 || resp.Snapshots.ReadFailed != 11 {
+		t.Fatalf("response = %+v", resp)
+	}
+	del := orphanDelete(t, broken, strings.Fields(mediaClipOrphans), strings.Fields(mediaSnapshotOrphans))
+	if len(del.DeletedClips.Deleted) != 0 || len(del.DeletedSnapshots.Deleted) != 0 || len(f.deletes) != 0 ||
+		refusals(del.DeletedClips) != "crews/c1/gone.jpg=read_failed crews/c1/gone.mp4=read_failed" {
+		t.Fatalf("delete with a document that cannot be read = %+v %+v, deletes %v", del.DeletedClips, del.DeletedSnapshots, f.deletes)
 	}
 	// The store fails: the same.
 	useLedger(t, failingClipReads{store})
-	resp = mediaOrphans(t, nk, `{"delete":true}`)
-	if resp.Clips.Orphans != 0 || resp.Clips.ReadFailed != 5 || resp.Snapshots.ReadFailed != 5 || len(f.deletes) != 0 {
-		t.Fatalf("response with a failing store = %+v, deletes %v", resp, f.deletes)
+	resp = mediaOrphans(t, nk, "")
+	if resp.Clips.Orphans != 0 || resp.Clips.ReadFailed != 4 || resp.Snapshots.ReadFailed != 8 {
+		t.Fatalf("response with a failing store = %+v", resp)
+	}
+	del = orphanDelete(t, nk, strings.Fields(mediaClipOrphans), strings.Fields(mediaSnapshotOrphans))
+	if len(del.DeletedClips.Deleted) != 0 || len(del.DeletedSnapshots.Deleted) != 0 || len(f.deletes) != 0 || len(del.DeletedSnapshots.Refused) != 3 {
+		t.Fatalf("delete with a failing store = %+v %+v, deletes %v", del.DeletedClips, del.DeletedSnapshots, f.deletes)
+	}
+}
+
+// The time budget ends in the middle of a scan. The objects that were not
+// judged are not counted, and next_after is the last key that was judged:
+// the calls that follow judge every other key once.
+func TestAdminMediaOrphansNextAfterStopsAtTheFirstKeyNotJudged(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newFakeGuestNk()
+	f := newFakeS3(t)
+	useFakeBuckets(t, f)
+	seedMediaCrew(t, nk, store, f)
+	whole := mediaOrphans(t, nk, "")
+
+	// The clock of the budget: each call of a scan gets four looks at the
+	// clock inside its budget. The next one is after it.
+	looks := 0
+	start := time.Now()
+	prev := mediaOrphanClock
+	mediaOrphanClock = func() time.Time {
+		if looks++; looks > 5 {
+			return start.Add(mediaOrphanBudget + time.Second)
+		}
+		return start
+	}
+	t.Cleanup(func() { mediaOrphanClock = prev })
+
+	var clips, snaps AdminMediaOrphanKind
+	judged := map[string]bool{}
+	clipsAfter, snapsAfter := "", ""
+	clipsDone, snapsDone := false, false
+	for call := 1; !clipsDone || !snapsDone; call++ {
+		if call > 30 {
+			t.Fatal("the scan does not end")
+		}
+		looks = 0
+		resp := mediaOrphans(t, nk, fmt.Sprintf(`{"clips_after":%q,"snapshots_after":%q}`, clipsAfter, snapsAfter))
+		// The first look is the start of the call, so a call judges at most
+		// three objects of the first prefix it has time for.
+		if resp.Clips.Scanned+resp.Snapshots.Scanned > 3 || resp.Clips.Scanned+resp.Snapshots.Scanned == 0 {
+			t.Fatalf("call %d judged %d clips and %d snapshots", call, resp.Clips.Scanned, resp.Snapshots.Scanned)
+		}
+		for _, part := range []struct {
+			got   AdminMediaOrphanKind
+			sum   *AdminMediaOrphanKind
+			after *string
+			done  *bool
+		}{{resp.Clips, &clips, &clipsAfter, &clipsDone}, {resp.Snapshots, &snaps, &snapsAfter, &snapsDone}} {
+			if *part.done {
+				continue
+			}
+			part.sum.Scanned += part.got.Scanned
+			part.sum.Orphans += part.got.Orphans
+			part.sum.TooNew += part.got.TooNew
+			part.sum.Unknown += part.got.Unknown
+			part.sum.UnknownCrew += part.got.UnknownCrew
+			for _, o := range part.got.Sample {
+				if judged[o.Key] {
+					t.Fatalf("call %d: %s is an orphan of two calls", call, o.Key)
+				}
+				judged[o.Key] = true
+			}
+			if !part.got.Incomplete {
+				*part.done = true
+				continue
+			}
+			// No key that was not judged is behind next_after.
+			if part.got.Scanned == 0 && part.got.NextAfter != *part.after {
+				t.Fatalf("call %d judged nothing and moved next_after from %q to %q", call, *part.after, part.got.NextAfter)
+			}
+			*part.after = part.got.NextAfter
+		}
+	}
+	for name, pair := range map[string][2]AdminMediaOrphanKind{"clips": {clips, whole.Clips}, "snapshots": {snaps, whole.Snapshots}} {
+		got, want := pair[0], pair[1]
+		if got.Scanned != want.Scanned || got.Orphans != want.Orphans || got.TooNew != want.TooNew || got.Unknown != want.Unknown || got.UnknownCrew != want.UnknownCrew {
+			t.Fatalf("%s in parts = %+v, in one call %+v", name, got, want)
+		}
 	}
 }
 
