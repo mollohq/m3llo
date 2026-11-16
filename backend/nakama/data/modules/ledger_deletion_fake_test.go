@@ -3,7 +3,10 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,16 +15,35 @@ import (
 )
 
 // delNk is fakeGuestNk with the calls the deletion rules use: the kick, the
-// group delete and the storage delete. A test can make the writes or the
-// deletes of one collection fail.
+// group delete and the storage delete. It checks storage versions as Nakama
+// does: a write with a version that is not the current one fails, and "*"
+// writes only an object that does not exist. A test can make the writes or
+// the deletes of one collection fail.
 type delNk struct {
 	*fakeGuestNk
 	failDelete map[string]bool // collection -> StorageDelete fails
 	failWrite  map[string]bool // collection -> StorageWrite fails
+	versions   map[string]int  // storage key -> number of writes
+	// groupErr makes every group read fail.
+	groupErr error
+	// onRead runs before each storage read of a collection, outside the lock.
+	onRead map[string]func()
+	// stale counts the writes that a version check refused.
+	stale int
 }
 
 func newDelNk() *delNk {
-	return &delNk{fakeGuestNk: newFakeGuestNk(), failDelete: map[string]bool{}, failWrite: map[string]bool{}}
+	return &delNk{fakeGuestNk: newFakeGuestNk(), failDelete: map[string]bool{}, failWrite: map[string]bool{},
+		versions: map[string]int{}, onRead: map[string]func(){}}
+}
+
+func (n *delNk) versionOf(k string) string { return fmt.Sprintf("v%d", n.versions[k]) }
+
+func (n *delNk) GroupsGetId(ctx context.Context, ids []string) ([]*api.Group, error) {
+	if n.groupErr != nil {
+		return nil, n.groupErr
+	}
+	return n.fakeGuestNk.GroupsGetId(ctx, ids)
 }
 
 func (n *delNk) GroupUsersKick(_ context.Context, _ string, groupID string, userIDs []string) error {
@@ -45,13 +67,72 @@ func (n *delNk) GroupDelete(_ context.Context, id string) error {
 	return nil
 }
 
-func (n *delNk) StorageWrite(ctx context.Context, writes []*runtime.StorageWrite) ([]*api.StorageObjectAck, error) {
+func (n *delNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]*api.StorageObject, error) {
+	for _, r := range reads {
+		if hook := n.onRead[r.Collection]; hook != nil {
+			hook()
+		}
+	}
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	var out []*api.StorageObject
+	for _, r := range reads {
+		k := fakeStorageKey(r.Collection, r.Key, r.UserID)
+		if v, ok := n.storage[k]; ok {
+			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v, Version: n.versionOf(k)})
+		}
+	}
+	return out, nil
+}
+
+func (n *delNk) StorageList(_ context.Context, _, userID, collection string, _ int, _ string) ([]*api.StorageObject, string, error) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	prefix, suffix := collection+"/", "/"+userID
+	var keys []string
+	for k := range n.storage {
+		if strings.HasPrefix(k, prefix) && strings.HasSuffix(k, suffix) {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	var out []*api.StorageObject
+	for _, k := range keys {
+		key := strings.TrimSuffix(strings.TrimPrefix(k, prefix), suffix)
+		out = append(out, &api.StorageObject{Collection: collection, Key: key, UserId: userID, Value: n.storage[k], Version: n.versionOf(k)})
+	}
+	return out, "", nil
+}
+
+func (n *delNk) StorageWrite(_ context.Context, writes []*runtime.StorageWrite) ([]*api.StorageObjectAck, error) {
 	for _, w := range writes {
 		if n.failWrite[w.Collection] {
 			return nil, errors.New("storage write failed")
 		}
 	}
-	return n.fakeGuestNk.StorageWrite(ctx, writes)
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	for _, w := range writes {
+		k := fakeStorageKey(w.Collection, w.Key, w.UserID)
+		_, exists := n.storage[k]
+		switch {
+		case w.Version == "":
+		case w.Version == "*" && !exists:
+		case w.Version != "*" && exists && w.Version == n.versionOf(k):
+		default:
+			n.stale++
+			return nil, errors.New("storage write rejected: version check failed")
+		}
+	}
+	acks := make([]*api.StorageObjectAck, 0, len(writes))
+	for _, w := range writes {
+		k := fakeStorageKey(w.Collection, w.Key, w.UserID)
+		n.storage[k] = w.Value
+		n.versions[k]++
+		n.perms[k] = [2]int{w.PermissionRead, w.PermissionWrite}
+		acks = append(acks, &api.StorageObjectAck{Collection: w.Collection, Key: w.Key, UserId: w.UserID, Version: n.versionOf(k)})
+	}
+	return acks, nil
 }
 
 func (n *delNk) StorageDelete(_ context.Context, deletes []*runtime.StorageDelete) error {
@@ -63,9 +144,26 @@ func (n *delNk) StorageDelete(_ context.Context, deletes []*runtime.StorageDelet
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	for _, d := range deletes {
-		delete(n.storage, fakeStorageKey(d.Collection, d.Key, d.UserID))
+		k := fakeStorageKey(d.Collection, d.Key, d.UserID)
+		if _, exists := n.storage[k]; d.Version != "" && (!exists || d.Version != n.versionOf(k)) {
+			n.stale++
+			return errors.New("storage delete rejected: version check failed")
+		}
+	}
+	for _, d := range deletes {
+		k := fakeStorageKey(d.Collection, d.Key, d.UserID)
+		delete(n.storage, k)
+		n.versions[k]++
 	}
 	return nil
+}
+
+// put stores v as JSON, as a write with no version.
+func (n *delNk) put(collection, key, userID string, v interface{}) {
+	n.fakeGuestNk.put(collection, key, userID, v)
+	n.mu.Lock()
+	n.versions[fakeStorageKey(collection, key, userID)]++
+	n.mu.Unlock()
 }
 
 // has reports whether a system document exists.
