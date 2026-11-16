@@ -43,6 +43,10 @@ var crewHandoverBudget = 10 * time.Second
 // refuses an account delete. The text is safe to show.
 var errAccountDeleteHandover = runtime.NewError("Your account was not deleted. A crew you own could not be handed to another member. Try again in a moment.", 14)
 
+// handoverFaults is the number of promotes that fail next. Only the dev RPC
+// dev_fault sets it (fail_next_handover).
+var handoverFaults atomic.Int32
+
 // crewHandover is what the before hook did for one crew.
 type crewHandover int
 
@@ -101,6 +105,10 @@ func promoteNextOwner(ctx context.Context, nk runtime.NakamaModule, crewID strin
 	}
 	for i := 0; i < steps; i++ {
 		// No caller: the system promotes, with no permission check.
+		if handoverFaults.Load() > 0 {
+			handoverFaults.Add(-1)
+			return newOwner, errors.New("promote: dev fault")
+		}
 		if err := nk.GroupUsersPromote(ctx, "", crewID, []string{newOwner}); err != nil {
 			return newOwner, fmt.Errorf("promote: %w", err)
 		}

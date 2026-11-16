@@ -1016,3 +1016,49 @@ fn the_sql_ledger_store_passes_the_conformance_run() {
         let _ = client.delete_account().await;
     });
 }
+
+/// The SQL statements of the deletion rules run on the real tables of Nakama:
+/// the chat messages and the reactions of a crew, and the membership rows of
+/// an account that is gone. `go test` runs the rules on fakes, so this is the
+/// only run that sees the statements. `dev_delete_selftest` makes its own
+/// rows under new random ids and deletes them at the end.
+///
+/// The negative cases are in the RPC: a direct message and the messages of
+/// another crew stay, the reactions of another crew are not returned, and the
+/// membership rows of an account that exists stay. It also checks what the
+/// group update of Nakama does with empty values.
+///
+/// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+#[test]
+fn the_sql_of_the_deletion_rules_passes_its_selftest() {
+    if !e2e_enabled("the_sql_of_the_deletion_rules_passes_its_selftest") {
+        return;
+    }
+
+    rt().block_on(async {
+        let mut client = NakamaClient::new(e2e_config());
+        client
+            .authenticate_device(&random_device_id())
+            .await
+            .expect("device auth");
+
+        for run in 0..2 {
+            let raw = client
+                .rpc("dev_delete_selftest", &serde_json::json!({}))
+                .await
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "dev_delete_selftest run {run} failed: {e}. If it says disabled, the \
+                         stack needs MELLO_ENABLE_DEV_FAULT=1 (scripts/e2e.sh sets it)"
+                    )
+                });
+            let body: serde_json::Value =
+                serde_json::from_str(&raw).expect("dev_delete_selftest returns JSON");
+            assert_eq!(body["success"], true, "selftest response: {body}");
+            let checks = body["checks"].as_array().expect("checks");
+            assert_eq!(checks.len(), 7, "selftest checks: {body}");
+        }
+
+        let _ = client.delete_account().await;
+    });
+}

@@ -28,6 +28,8 @@ import (
 //   - force_leave:    force a voice leave for user_id (simulates a missed leave).
 //   - clear_channel:  evict every member of channel_id.
 //   - drop_next_push: drop the next `count` voice_update pushes for crew_id.
+//   - fail_next_handover: make the next `count` promotes of a crew handover
+//     fail (crew_handover.go), so a test sees an account delete refused.
 //   - backdate_voice_join: move the join time of user_id back by `count`
 //     minutes, so a test can leave voice with a long stint (head2head mouth).
 //     Requires user_id and count.
@@ -122,6 +124,14 @@ func DevFaultRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runt
 		}
 		DropNextVoicePush(req.CrewID, n)
 		logger.Warn("dev_fault: dropping next %d voice_update pushes for crew=%s", n, req.CrewID)
+
+	case "fail_next_handover":
+		n := req.Count
+		if n <= 0 {
+			n = 1
+		}
+		handoverFaults.Store(int32(n))
+		logger.Warn("dev_fault: the next %d promotes of a crew handover fail", n)
 
 	case "backdate_voice_join":
 		if req.UserID == "" || req.Count <= 0 {
