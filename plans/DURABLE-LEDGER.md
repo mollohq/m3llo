@@ -13,7 +13,7 @@ Phase 1 is in the specs. The code is in `backend/nakama/data/modules/`.
 | Dual write, the two cutovers, kill switches | Spec 16 section 3.8 |
 | Reconcile | Spec 16 section 3.9 |
 | Self-hosting, log lines, env variables | Spec 16 section 3.10 |
-| Deletion rules, leftovers, the open case | Spec 16 section 10 |
+| Deletion rules, the handover of a crew, the chat of a deleted crew, leftovers | Spec 16 section 10 |
 | Modules, collections, hooks, admin RPCs | `specs/04-BACKEND.md` sections 3, 4, 4.5, 4.6, 6 |
 | Clips with no cap | `specs/features/CLIPS.md` section 6.2 |
 | Crew history from the store | `specs/features/CREW-FEED-ZONES.md` section 7 |
@@ -83,13 +83,14 @@ One release after both cutovers are done on every install we support:
 
 ## 5. Open decisions
 
-- A crew whose only owner deletes the account. Nakama removes the group and
-  no hook runs. The data of the crew stays until `admin_purge_crew` is run.
-  Remove the crew, or hand it to another member: not decided.
-- Leftovers outside the ledger after an account delete (spec 16 section
-  10.6): `crew_quests`, `crew_emoji`, `invite_codes`, `recap_pushes`,
-  `media_reports`, chat messages and chat images. No rule yet.
-- Chat messages and chat images of a deleted crew. Not part of the purge.
+- Chat of a deleted account (spec 16 section 10.6). Nakama deletes the
+  messages of the user. The chat images of the user, the reactions of the
+  user and the mentions of the user in other messages stay. No rule yet.
+- The members of a crew are not told when the owner changes after a
+  handover (spec 16 section 10.2). A client reads the role at the next read
+  of the crew state. Tell them, or not: not decided.
+- A crew whose handover failed loses its group and keeps its data until
+  `admin_purge_crew` is run. Purge it in the scrub, or not: not decided.
 - `MELLO_LEDGER_READ=doc` does not make the reconcile of phase 1a take the
   content of the ledger document again. Only phase 1b follows the truth. Fix
   it, or let it go with the legacy documents.

@@ -625,9 +625,11 @@ func TestScrubKeepsMediaThatAnotherClipHolds(t *testing.T) {
 	}
 }
 
-// A crew of the user that is no longer a group is scrubbed as any other
-// crew. The scrub never purges: the events of the other members, their media
-// and the documents of the crew stay, and no purge record is written.
+// A crew of the user that is no longer a group, and that had other members,
+// is scrubbed as any other crew. The scrub does not purge it: the events of
+// the other members, their media and the documents of the crew stay, and no
+// purge record is written. (The crew of an only member is purged:
+// crew_handover_test.go.)
 func TestScrubNeverPurgesACrew(t *testing.T) {
 	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
 		f := useScrubInline(t)

@@ -103,8 +103,11 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `ledger_migration.go` | `StartLedgerReconcile`, the soak, the two markers, `ledgerTruthStore`, `historyTruthStore` (spec 16 sections 3.8 and 3.9) |
 | `ledger_history.go` | Clips, stream sessions and weekly recaps as rows; their reconcile; the store reads of `crew_feed`, one page of Crew history |
 | `ledger_scrub.go` | The scrub rules of a deleted account. Pure functions |
+| `ledger_scrub_leftovers.go` | The scrub rules outside the ledger: the quests record, the crew emoji, the push queues, the invite codes, the creator of the group |
 | `ledger_user_scrub.go` | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub of a deleted account, `StartLedgerDeletionJob`, `AdminScrubUserRPC` |
+| `crew_handover.go` | The new owner of a crew whose only owner deletes the account (`handOverCrew`), and the membership rows that Nakama keeps of a deleted account |
 | `ledger_purge.go` | `AfterDeleteCrew`, the purge of a deleted crew, `AdminPurgeCrewRPC` |
+| `ledger_purge_chat.go` | The chat part of the purge: the messages of the group channel and the reactions of the crew |
 | `admin_media_orphans.go` | `AdminMediaOrphansRPC`: server-to-server scan and delete of clip and snapshot objects that no row points at (§4.5) |
 | `s3.go` | S3/R2 presign client singleton, `GeneratePresignedPUT`, `S3PublicURL` helpers; the chat bucket (`MEDIA_S3_BUCKET`, `MEDIA_S3_PUBLIC_URL`) with `GeneratePresignedPUTChat` and `DeleteChatObjects` |
 | `chat_images.go` | `ChatUploadURLRPC`, `ChatDeleteImagesRPC`, the chat image key rules and `validateChatImages` for the message hook |
@@ -130,7 +133,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `search_users` | Yes | Searches users by display name. The query is at least 2 characters (runes). The match folds case with `strings.ToLower` (Go) and `LOWER` (SQL). Returns friends first (via `nk.FriendsList`), then non-friends matching the query (via SQL `LIKE` on `users` table). Limit 100 friends, 20 results. |
 | `join_by_invite_code` | Yes | Looks up invite code in storage, joins the associated crew. Returns crew ID + name. |
 | `update_crew` | Yes | Updates crew name, description, avatar, open/closed status, and invite policy. Requires admin role (state ≤ 1). A new name follows §4.4. |
-| `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). Then starts the purge of everything of the crew (spec 16 section 10.3). |
+| `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). Then starts the purge of everything of the crew, with its chat (spec 16 section 10.3). |
 | `change_crew_role` | Yes | Promotes/demotes a member between admin (1) and member (2). Requires owner role (state 0). |
 | `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. Writes a `member_left` ledger event. |
 | `get_ice_servers` | Yes | Returns STUN server URLs + TURN server URLs with time-limited HMAC credentials (24h TTL). |
@@ -183,8 +186,8 @@ Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`
 | `BeforeKickGroupUsers` | `BeforeKickCrewMembers` | Notes which ids of the request are members. Never changes or refuses the request |
 | `AfterKickGroupUsers` | `AfterKickCrewMembers` | For each noted id that is no member now: cleans voice, writes `member_left` |
 | `AfterDeleteGroup` | `AfterDeleteCrew` | Starts the purge of the crew (spec 16 section 10.3) |
-| `BeforeDeleteAccount` | `BeforeDeleteAccount` | Writes the scrub record: the names and the crews of the user. Never fails the delete |
-| `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2) |
+| `BeforeDeleteAccount` | `BeforeDeleteAccount` | Hands over a crew whose only owner is the user. Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. Never fails the delete |
+| `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2). The scrub purges a crew the user was the only member of |
 
 **Background jobs of the durable store.** `StartLedgerReconcile` and `StartLedgerDeletionJob` run at start and every 5 minutes on each node.
 
@@ -420,18 +423,18 @@ The RPC has two modes. A delete cannot be undone, so a scan never deletes.
 Both repair a deletion of spec 16 section 10 by hand. The deletion job runs the same work every 5 minutes, so a call is needed only for the cases of spec 16 sections 10.5 and 10.6.
 
 **`admin_scrub_user`**: request `{user_id}`, a UUID. One call is one run with a deadline of 2 minutes. Response:
-`{user_id, done, incomplete, busy, store_pending, crews_scrubbed, crews_left, dropped, changed, media_deleted, media_pending, media_skipped, errors}`.
+`{user_id, done, incomplete, busy, store_pending, crews_scrubbed, crews_purged, crews_left, dropped, changed, media_deleted, media_pending, media_skipped, errors}`.
 Call it again while `done` is false. `busy` is true when a scrub of the user runs in this process. A call on a scrub with no work left looks for the crews of the user again.
 
 **`admin_purge_crew`**: request `{crew_id}`, a UUID. It writes the purge record, then runs one run with a deadline of 2 minutes. Response:
-`{crew_id, done, incomplete, store_pending, media_deleted, docs_deleted, store_deleted, media_skipped, errors}`.
-Call it again while `done` is false.
+`{crew_id, done, incomplete, store_pending, media_deleted, docs_deleted, store_deleted, chat_deleted, reactions_deleted, media_skipped, errors}`.
+Call it again while `done` is false. `chat_deleted` is the number of deleted chat messages, `reactions_deleted` the number of deleted `chat_reactions` documents.
 
 | Rule | Error |
 |---|---|
 | The id is not a UUID | `INVALID_ARGUMENT` (3) |
 | The account or the group still exists | `FAILED_PRECONDITION` (9) |
-| `admin_purge_crew`: no purge record, no document and no row of the crew on this install | `NOT_FOUND` (5) |
+| `admin_purge_crew`: no purge record, no document, no chat message and no row of the crew on this install | `NOT_FOUND` (5) |
 | The account, the group or the record was not read or written | `INTERNAL` (13) |
 
 ---
@@ -480,7 +483,7 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 | Collection | Key | Owner | Value | Used by |
 |-----------|-----|-------|-------|---------|
 | `crew_avatars` | `{crew_id}` | System user (`""`) | `{"data":"<base64 JPEG>"}` | `create_crew`, `get_crew_avatar` |
-| `invite_codes` | `{code}` | System user (`""`) | `{"crew_id":"...","crew_name":"...","created_by":"..."}` | `GenerateInviteCode`, `join_by_invite_code` |
+| `invite_codes` | `{code}` | System user (`""`) | `{"crew_id":"...","inviter_user_id":"..."}`. The scrub of a deleted account removes `inviter_user_id` | `GenerateInviteCode`, `join_by_invite_code`, the scrub |
 | `stream_thumbnails` | `{crew_id}` | Streaming user | `{"data":"<base64 JPEG>"}` | `upload_thumbnail` |
 | `crew_events` | `{crew_id}` | System user (`""`) | Legacy copy of the ledger events, trimmed to 7 days. The truth until the cutover of phase 1a (spec 16 section 3.8) | Every ledger write (dual write); the readers before the cutover |
 | `crew_clips` | `{crew_id}` | System user (`""`) | Legacy copy of the clip metadata, newest 250. The truth until the cutover of phase 1b | `post_clip`, `clip_upload_complete` (dual write); the readers before the cutover |
@@ -489,8 +492,8 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 | `ledger_migration` | `state` | System user (`""`) | `{dual_write_started_ms, events_done_ms}`: the state and the marker of phase 1a. Read 0, write 0. | The reconcile writes, `ledgerTruthStore` reads |
 | `ledger_migration` | `history` | System user (`""`) | `{started_ms, done_ms}`: the state and the marker of phase 1b. Read 0, write 0. | The reconcile writes, `historyTruthStore` reads |
 | `ledger_migration` | `purge_token` | System user (`""`) | A token that changes with every write of a purge record. A node lists the purge records again only when it changed. | The purge writes, the reconcile and the deletion job read |
-| `ledger_user_scrub` | `{user_id}` | System user (`""`) | The scrub record of a deleted account (spec 16 section 10.2). Deleted when the scrub is over. No client read. | `BeforeDeleteAccount`, `AfterDeleteAccount`, the deletion job, `admin_scrub_user` |
-| `ledger_crew_purge` | `{crew_id}` | System user (`""`) | The purge record of a deleted crew: `{crew_id, started_ms, done_ms, settled_ms, store_pending, last_error}`. Kept for good. | `delete_crew`, `AfterDeleteCrew`, the deletion job, the reconcile, `admin_purge_crew` |
+| `ledger_user_scrub` | `{user_id}` | System user (`""`) | The scrub record of a deleted account (spec 16 section 10.2), with `sole_crews`: the crews the user was the only member of. Deleted when the scrub is over. No client read. | `BeforeDeleteAccount`, `AfterDeleteAccount`, the deletion job, `admin_scrub_user` |
+| `ledger_crew_purge` | `{crew_id}` | System user (`""`) | The purge record of a deleted crew: `{crew_id, started_ms, done_ms, settled_ms, store_pending, last_error}`. Kept for good. | `delete_crew`, `AfterDeleteCrew`, the scrub of an only member, the deletion job, the reconcile, `admin_purge_crew` |
 | `stream_resume` | `{host user_id}` | System user (`""`) | The stream records that `StreamCleanupUser` removed, the ledger event id and the time. Read 0, write 0. | `StreamCleanupUser` writes, `start_stream` with `resume_session_id` reads and deletes |
 | `discover` | `curation` | System user | Featured and hidden crew lists (§4.3). Read 0, write 0. | `discover_crews`, `admin_discover_curation_get`, `admin_discover_curation_set` |
 

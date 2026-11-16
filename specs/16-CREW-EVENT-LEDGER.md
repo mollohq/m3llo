@@ -1088,8 +1088,8 @@ Events stay for good, so these rules say when data leaves. They hold in both sto
 |---|---|
 | Member leaves | A `member_left` event. Earlier events stay |
 | Member is kicked | The same `member_left` event. Earlier events stay |
-| Account deleted | The events the user started are deleted, with their media. The user leaves the events of other members, the stored recaps and the head2head holders |
-| Crew deleted | Everything of the crew is deleted: rows, documents, media |
+| Account deleted | The events the user started are deleted, with their media. The user leaves the events of other members, the stored recaps, the head2head holders and the other documents of the crew. A crew whose only owner is the user gets a new owner. A crew whose only member is the user is purged |
+| Crew deleted | Everything of the crew is deleted: rows, documents, media, chat |
 
 ### 10.1 Leave and kick
 
@@ -1104,10 +1104,30 @@ The client calls `DELETE /v2/account` of Nakama. Two hooks run:
 
 | Hook | Does |
 |---|---|
-| `BeforeDeleteAccount` | Writes the scrub record: the names and the crews of the user. After the delete neither can be read. Deletes nothing. Never fails the delete |
+| `BeforeDeleteAccount` | Hands over each crew whose only owner is the user (see below). Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. After the delete none of them can be read. Deletes nothing. Never fails the delete |
 | `AfterDeleteAccount` | Marks the record and starts the scrub in a goroutine. Never fails |
 
 The scrub record is `ledger_user_scrub/{user_id}`, system-owned, with no client read. Every write of the record carries its storage version. One scrub of a user runs at a time in a process.
+
+**The crew of an only owner.** Nakama 3.21.0 deletes a group when its last superadmin deletes the account, also when the group has other members. No delete-group hook runs. So `BeforeDeleteAccount` acts before Nakama does (`crew_handover.go`):
+
+| The user in the crew | Before the delete | After the delete |
+|---|---|---|
+| Not a superadmin, or another superadmin exists | Nothing | Nakama removes the user from the group |
+| The only superadmin, with other members | One member becomes a superadmin | The crew stays, with the new owner |
+| The only member | The crew goes in `sole_crews` of the scrub record | Nakama deletes the group. The scrub purges the crew |
+
+- The new owner is chosen by rank, then by seniority: an admin before a member, and among equals the one who joined first.
+- The join time is the position of the member in the group. Nakama sets it at the join, does not change it, and lists the members of one state in its order. The module reads no other join time.
+- A join request and a banned user are not members.
+- The promote is a call of the Nakama runtime (`GroupUsersPromote`), one call for an admin, two for a member. Nakama writes one message with code 7 and no content to the chat of the crew for each call. The clients do not show it.
+- No ledger event is written. No event type is a change of owner.
+- No client is told. A client reads the roles with the crew state (`set_active_crew`), so the new owner sees the role at the next read.
+- The handovers of one delete have 10 seconds. A handover that fails is logged (`crew_handover_failed`), and the delete goes on. When no member was promoted, Nakama deletes the group with its members. The scrub removes the user from the data of the crew, and the rest stays. Run `admin_purge_crew` for that crew.
+- When the account delete fails after a handover, the crew has two owners. This is accepted. Nothing takes the role back.
+- A member read that fails never makes a crew a crew of an only member.
+
+The scrub purges a crew only when all of these hold: the crew is in `sole_crews` of the last delete attempt, the account is gone, and the group is read and is gone. It writes the purge record and runs the purge of section 10.3. Any other crew with no group is scrubbed and not purged.
 
 What the scrub does to each thing that names the user:
 
@@ -1120,6 +1140,16 @@ What the scrub does to each thing that names the user:
 | Clip of another member that names the user | The user leaves `participants` and `participant_names`. The clip and its media stay |
 | Stream session of the user | Deleted, with its snapshots |
 | Head2head holders (`crew_head2head`) | A title the user holds is removed. A title taken from the user loses `previous_holder_user_id`. The user leaves `members` and `pairs` |
+| Quests record (`crew_quests`) | No step is taken back. `owner_id` becomes the owner the crew has now, or empty. `friend` loses the id and the name of the user, as the friend or as the inviter. The user leaves the lists of `call` and `session`, and `plus_granted`. `clip` loses the clipper |
+| Crew emoji (`crew_emoji`) | `added_by` and `added_by_name` are cleared. The emoji stays. Then only the owner can remove it |
+| Push queues (`recap_pushes`: recap, belt, join) | An item for the user is removed. An item whose text or event names the user is removed, sent or not |
+| Invite codes (`invite_codes`) | `inviter_user_id` is removed. The code stays: it is the invite link of the crew, and other people hold it |
+| The group of the crew | `creator_id` becomes the owner the crew has now. `created_by` leaves the metadata |
+| Membership rows (`group_edge`) | Nakama 3.21.0 keeps the rows of a deleted superadmin or admin. The scrub deletes them |
+
+The membership rows are deleted with SQL. The Nakama runtime has no call for it: a kick lowers the member count a second time. The statement names the crew and the user, and deletes nothing while the account exists. A superadmin row that stays would count in the last-superadmin checks of Nakama.
+
+`media_reports` is not scrubbed. A report is a moderation record.
 
 A name list that is not aligned with its id list loses the entries that are a name of the user. When none is, the list is emptied.
 
@@ -1145,8 +1175,8 @@ Names:
 
 One run of the scrub (`runUserScrub`), with a deadline of 2 minutes:
 
-1. Find the crews: the crews of the record, the user index of the store, and a scan for the user id in `crew_events`, `crew_clips`, `crew_stream_sessions`, `crew_recaps` and `crew_head2head`.
-2. For each crew: scrub the three documents, then the rows (200 at a time), then every recap, then the head2head holders.
+1. Find the crews: the crews of the record, the user index of the store, and a scan for the user id in `crew_events`, `crew_clips`, `crew_stream_sessions`, `crew_recaps`, `crew_head2head`, `crew_quests`, `crew_emoji` and `recap_pushes`. The scan also reads `invite_codes` and clears the inviter there.
+2. For each crew: scrub the three documents, then the rows (200 at a time), then every recap, then the head2head holders, then the group, the quests record, the crew emoji and the push queues. A crew of `sole_crews` with no group is purged in place of this step.
 3. Delete the media of the deleted clips and stream sessions.
 4. Set `done_ms`. The names leave the record.
 
@@ -1156,7 +1186,7 @@ One run of the scrub (`runUserScrub`), with a deadline of 2 minutes:
 - A second run comes 24 hours after `done_ms`. A voice session that ends after the delete can name the user. The second run finds the user by id. Then the record is deleted.
 - A record of an account that still exists 1 hour after the delete attempt is deleted. The account delete did not happen.
 - With no store loaded, the run scrubs the documents and stays pending. The first run with a store scrubs the rows.
-- The scrub never purges a crew.
+- The scrub purges only a crew the user was the only member of (see above).
 
 Media of the user:
 
@@ -1166,7 +1196,7 @@ Media of the user:
 
 ### 10.3 Crew deleted
 
-`delete_crew` and the `AfterDeleteGroup` hook (`AfterDeleteCrew`) start the purge (`purgeCrewData`).
+`delete_crew` and the `AfterDeleteGroup` hook (`AfterDeleteCrew`) start the purge (`purgeCrewData`). The scrub of an account starts it for a crew the user was the only member of (section 10.2).
 
 The purge record is `ledger_crew_purge/{crew_id}`, system-owned. It is written before anything is deleted, and it is kept for good. It is the proof that the crew was a crew of this install: a bucket can be shared with another install.
 
@@ -1187,7 +1217,19 @@ What a purge removes:
 | Other documents | `crew_quests`, `crew_profile`, `crew_emoji`, `crew_avatars`, `voice_channels`, `crew_head2head`, the three `recap_pushes` documents of the crew, `stream_meta`, and `active_streams` of the streamer that `stream_meta` names |
 | Clips bucket | `crews/{crew_id}/`: voice clips, game clip videos and posters |
 | Snapshots bucket | `snapshots/{crew_id}/` |
-| Media bucket | `crew-banners/{crew_id}/`, `crew-emoji/{crew_id}/` |
+| Media bucket | `crew-banners/{crew_id}/`, `crew-emoji/{crew_id}/`, and the chat images under `{crew_id}/` |
+| Chat messages | Every message of the group channel of the crew, in the `message` table of Nakama |
+| Chat reactions | Every `chat_reactions` document with the crew id, also of a message that is gone |
+
+Chat:
+
+- A crew has one text channel: the group channel of Nakama (stream mode 3, the subject is the group id). A voice channel has no text. The clients open no other channel.
+- A group delete of Nakama leaves the messages in the `message` table.
+- The Nakama runtime has no call that deletes the messages of a channel. `ChannelMessageRemove` deletes one message, needs its sender, and sends one event to the channel. So the purge uses SQL on the `message` table, with placeholders, 200 messages at a time (`ledger_purge_chat.go`).
+- Every statement names stream mode 3 and the crew id. A direct message has stream mode 4 and two user ids. No statement can match it.
+- Nothing lists the reactions of a crew. The purge reads the keys from the storage table with SQL, by the crew id in the document, and deletes the documents with the storage call of Nakama. The read looks at every reactions document of the install.
+- The chat is deleted under the same rules as the rest: only with a purge record, only when the group is read and is gone, in batches, up to the deadline of the run. A run that is cut continues in the next run.
+- A message table that holds a message of the crew makes the crew known to `admin_purge_crew`.
 
 - Each part runs also when another part failed. The purge is done when one run removed everything with no error.
 - A run is cut after 2 minutes. The next run continues.
@@ -1213,35 +1255,39 @@ Both RPCs are server-to-server (`http_key`). Spec 04 has the contracts.
 | `admin_scrub_user {user_id}` | Runs the scrub of a deleted account again. It refuses while the account exists. Call it again while `done` is false |
 | `admin_purge_crew {crew_id}` | Runs the purge of a deleted crew. It refuses while the group exists, and for a crew id this install holds nothing of |
 
-Use `admin_scrub_user` for an account that was deleted with no hook: the Nakama console, or a lost scrub record. Such a scrub has no names. It matches ids, and the name beside the id in the same recap.
+Use `admin_scrub_user` for an account that was deleted with no hook: the Nakama console, or a lost scrub record. Such a scrub has no names. It matches ids, and the name beside the id in the same recap. It has no `sole_crews`, so it purges no crew.
+
+Use `admin_purge_crew` for a crew whose group went with the account of its owner and that the scrub did not purge: the handover failed, or the account was deleted with no hook. The log line of a failed handover is `crew_handover_failed`. The purge then removes the chat of the crew too.
 
 ### 10.6 Not covered yet
 
-**A crew whose only owner deletes the account.** Nakama removes the group. No delete-group hook runs, so nothing starts a purge. The scrub removes the user from the data of the crew. The rest of the data of the crew stays until `admin_purge_crew` is run. Whether such a crew is removed or handed to another member is not decided.
+**Leftovers of a deleted account.**
 
-**Leftovers outside the ledger.** A deleted user can still be named in:
-
-| Where | Field |
-|---|---|
-| `crew_quests` | `friend`, `call`, `owner_id`, `plus_granted` |
-| `crew_emoji` | `added_by` |
-| `invite_codes` | `inviter_user_id` |
-| `recap_pushes` | The text of a queued push |
-| `media_reports` | The report |
-| Chat | Chat messages and chat images |
+| Where | What stays | Why |
+|---|---|---|
+| Chat messages of the user | Nothing. Nakama deletes them with the account: the `message` table has a foreign key on the sender | |
+| Chat messages of other members | A mention of the user (`<@user_id>`), and the text | Not decided |
+| Chat reactions | The id of the user in the reactions of a message. The reactions document of a message of the user, with no message | Not decided |
+| Chat images of the user | The objects under `{crew_id}/{user_id}/` in the media bucket. They go when the crew is purged | Not decided |
+| Direct messages | Nakama keeps a message that another user sent to the user. The clients open no direct message channel | |
+| `media_reports` | The report | A moderation record |
+| A crew with a failed handover | The data of the crew, without the user | Run `admin_purge_crew` |
 
 **Leftovers of a deleted crew.** A purge does not remove:
 
 | What | Why |
 |---|---|
 | `crew_last_seen`, `chat_read` | Owned by each member. They hold a time. Nakama deletes them with the account |
-| `invite_codes` | The key is the code. Nothing lists the codes of a crew |
-| `chat_reactions`, `thumbnails`, `media_reports` | Keyed by a message, a stream or a report |
-| Chat messages, and chat images (`{crew_id}/` in the media bucket) | Not part of the ledger |
+| `invite_codes` | The key is the code. Nothing lists the codes of a crew. A join with the code answers that the crew is gone |
+| `thumbnails`, `media_reports` | Keyed by a stream or a report |
+| Direct messages between two members | Not of the crew |
 
 **Other limits:**
 
-- A name the user had before the delete stays in a recap field that has no id for the user.
+- A name the user had before the delete stays in a recap field or a queued push that has no id for the user.
+- The second run of a scrub has no names. It removes a queued push by the id of the user, and not by a name in the text.
+- A crew that was deleted before the purge had the chat keeps its chat. Run `admin_purge_crew` for it.
+- The promote messages of a handover (code 7) stay in the chat of the crew. They hold the id of the new owner.
 - A recap field with only a name that another member also has stays.
 - When the purge record cannot be written, nothing is purged. The log line is `crew_purge_failed`. Run `admin_purge_crew`.
 - A write for a purged crew that makes only a store row, more than one hour after the purge, stays.
