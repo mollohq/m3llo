@@ -572,80 +572,31 @@ func TestScrubKeepsMediaThatAnotherClipHolds(t *testing.T) {
 	}
 }
 
-// Nakama can delete a crew with the account of its owner, and then no
-// delete-group hook runs. The scrub purges a crew of the user that is gone.
-func TestScrubPurgesACrewThatWentWithTheAccount(t *testing.T) {
-	store := useMemLedger(t)
-	nk := newDelNk()
-	f := useScrubInline(t)
-	seedScrubCrew(t, nk, f, scrubCrew, true)
-	seedScrubCrew(t, nk, f, awayCrew, true)
-	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
-		t.Fatal(err)
-	}
-	removeAccount(nk, goneUser)
-	if err := nk.GroupDelete(context.Background(), awayCrew); err != nil {
-		t.Fatal(err)
-	}
-	if err := AfterDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
-		t.Fatal(err)
-	}
-	if rows := crewRows(t, store, awayCrew); len(rows) != 0 {
-		t.Fatalf("rows of the crew that is gone: %d", len(rows))
-	}
-	for _, collection := range scrubDocCollections {
-		if nk.has(collection, awayCrew) {
-			t.Fatalf("the crew that is gone keeps its %s document", collection)
-		}
-	}
-	for _, bucket := range []string{"clips", "snaps"} {
-		for _, key := range f.keys(bucket) {
-			if strings.Contains(key, awayCrew) {
-				t.Fatalf("the crew that is gone keeps %s", key)
-			}
-		}
-	}
-	if rec := purgeRecordOf(t, nk, awayCrew); rec.DoneMs == 0 {
-		t.Fatalf("purge record = %+v", rec)
-	}
-	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
-		t.Fatalf("the crew that stays still names the user:\n%s", strings.Join(traces, "\n"))
-	}
-}
-
-// The store remembers the id of each row the scrub drops. A document that
-// holds a dropped entry again (a node of an older release wrote it back, or
-// its scrub failed) does not bring the row back, in either phase.
-func TestReconcileDoesNotRestoreWhatTheScrubDropped(t *testing.T) {
+// A crew of the user that is no longer a group is scrubbed as any other
+// crew. The scrub never purges: the events of the other members, their media
+// and the documents of the crew stay, and no purge record is written.
+func TestScrubNeverPurgesACrew(t *testing.T) {
 	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
 		f := useScrubInline(t)
 		seedScrubCrew(t, nk, f, scrubCrew, true)
-		ctx := context.Background()
-		tag := scrubCrew[:4]
-		ledgerBefore, _ := readLedgerDocStrict(ctx, nk, scrubCrew)
-		clipsBefore, _ := readClipsDoc(ctx, nk, scrubCrew)
-		streamsBefore, _ := readStreamSessionsDoc(ctx, nk, scrubCrew)
-
-		deleteAccount(t, nk, goneUser)
-		if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
-			t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+		seedScrubCrew(t, nk, f, leftCrew, true)
+		if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+			t.Fatal(err)
 		}
-
-		// The documents as they were before the scrub.
-		nk.put(CrewEventsCollection, scrubCrew, SystemUserID, ledgerBefore)
-		nk.put(CrewClipsCollection, scrubCrew, SystemUserID, clipsBefore)
-		nk.put(CrewStreamSessionsCollection, scrubCrew, SystemUserID, streamsBefore)
+		removeAccount(nk, goneUser)
+		// The group is gone at the time of the scrub, and no hook ran for it.
+		if err := nk.GroupDelete(context.Background(), leftCrew); err != nil {
+			t.Fatal(err)
+		}
+		if err := AfterDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+			t.Fatal(err)
+		}
+		checkScrubbed(t, nk, store, f, "after the delete")
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, leftCrew); rec != nil {
+			t.Fatalf("the scrub wrote a purge record: %+v", rec)
+		}
 		reconcilePass(t, nk)
-		reconcilePass(t, nk)
-		for _, id := range []string{"own-game-" + tag, "own-join-" + tag, "own-moment-" + tag, "own-stream-" + tag, "duo-voice-" + tag, "ev-own-" + tag, "ev-old-" + tag} {
-			if _, inStore := crewHolds(t, nk, store, scrubCrew, id); inStore {
-				t.Fatalf("the reconcile stored the dropped row %s again", id)
-			}
-		}
-		for _, ev := range crewRows(t, store, scrubCrew) {
-			if ev.ActorID == goneUser {
-				t.Fatalf("the store holds a row of the user again: %s %s", ev.Type, ev.ID)
-			}
-		}
+		runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+		checkScrubbed(t, nk, store, f, "after a reconcile")
 	})
 }

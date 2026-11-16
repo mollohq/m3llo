@@ -217,6 +217,10 @@ type mediaRefIndex struct {
 	store ledgerStore
 	crews map[string]*crewMediaRefs
 	rows  map[string]bool
+	// anyCrew makes the index read the documents of a crew id that is not a
+	// group. The scrub of a deleted account sets it: it asks only about
+	// crews whose data this install holds. admin_media_orphans never does.
+	anyCrew bool
 }
 
 func newMediaRefIndex(ctx context.Context, nk runtime.NakamaModule, store ledgerStore) *mediaRefIndex {
@@ -244,9 +248,10 @@ func (m *mediaRefIndex) crew(crewID string) *crewMediaRefs {
 			refs.known = true
 		}
 	}
-	if !refs.known {
+	if !refs.known && !m.anyCrew {
 		return refs
 	}
+	refs.known = true
 
 	var clips CrewClipsDoc
 	if _, _, err := readDocStrict(m.ctx, m.nk, CrewClipsCollection, crewID, &clips); err != nil {

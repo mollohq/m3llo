@@ -461,8 +461,16 @@ func TestPurgeRecordOfALiveCrewDeletesNothing(t *testing.T) {
 
 		// The hook and the start of a purge write no record for a live crew,
 		// and none when the group cannot be read.
+		// The purge itself does not run here, so that it cannot remove a
+		// record that the start wrote.
+		inline := crewPurgeAsync
+		crewPurgeAsync = func(func()) {}
+		defer func() { crewPurgeAsync = inline }()
 		if err := AfterDeleteCrew(context.Background(), testLogger(), nil, nk, &api.DeleteGroupRequest{GroupId: purgeCrew}); err != nil {
 			t.Fatal(err)
+		}
+		if rec, _ := readCrewPurgeRecord(context.Background(), nk, purgeCrew); rec != nil {
+			t.Fatalf("the hook wrote a record for a live crew: %+v", rec)
 		}
 		nk.groupErr = errors.New("group read failed")
 		startCrewPurge(context.Background(), testLogger(), nk, purgeCrew)

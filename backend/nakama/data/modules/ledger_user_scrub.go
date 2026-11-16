@@ -521,32 +521,14 @@ func (c *crewScrub) saveRecord() error {
 
 // scrubCrewForUser scrubs one crew: the legacy documents, the rows of the
 // store, then the recaps. done is false when the deadline cut it.
-//
-// A crew that is no longer a group is purged whole. Nakama can delete a group
-// with the account of its last owner, and then no delete-group hook runs.
 func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, res *userScrubResult, crewID string, deadline time.Time) (done bool, err error) {
-	exists, err := crewGroupExists(ctx, nk, crewID)
-	if err != nil {
+	// A crew that is no longer a group is scrubbed as any other crew. The
+	// scrub never purges a crew: what happens to the crew of an owner who
+	// deletes the account is not decided.
+	if exists, err := crewGroupExists(ctx, nk, crewID); err != nil {
 		return false, fmt.Errorf("group read: %w", err)
-	}
-	if !exists {
-		if !validPurgeCrewID(crewID) {
-			// Not a crew of this install. Nothing to scrub or to purge.
-			return true, nil
-		}
-		known, err := crewKnownHere(ctx, nk, currentLedger(), crewID)
-		if err != nil {
-			return false, fmt.Errorf("crew data read: %w", err)
-		}
-		if !known {
-			return true, nil
-		}
-		if _, err := ensureCrewPurgeRecord(ctx, nk, crewID); err != nil {
-			return false, fmt.Errorf("purge record write: %w", err)
-		}
-		// The purge has its own record. A purge that fails continues there.
-		purgeCrewData(ctx, nk, logger, crewID, deadline)
-		return true, nil
+	} else if !exists {
+		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged", rec.UserID, crewID)
 	}
 
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
@@ -919,7 +901,10 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 		return
 	}
 	clips, snapshots := mediaOrphanBuckets()
+	// The crew of a dropped clip need not be a group any more: the documents
+	// and the rows of the crew still say what it holds.
 	index := newMediaRefIndex(ctx, nk, currentLedger())
+	index.anyCrew = true
 	left := rec.Media[:0:0]
 	for _, m := range rec.Media {
 		name := m.Kind + " " + m.CrewID + "/" + m.Ref
@@ -935,14 +920,10 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 			res.MediaSkipped = append(res.MediaSkipped, name+": the bucket is not configured")
 			continue
 		}
-		held, known, err := index.held(m.CrewID, m.Kind, m.Ref)
+		held, _, err := index.held(m.CrewID, m.Kind, m.Ref)
 		if err != nil {
 			res.fail("media %s: %v", name, err)
 			left = append(left, m)
-			continue
-		}
-		if !known {
-			// The crew is gone. Its purge deletes the media.
 			continue
 		}
 		if held {
