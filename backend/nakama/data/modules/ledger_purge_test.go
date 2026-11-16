@@ -520,3 +520,74 @@ func TestPurgeCrewWaitsForTheStore(t *testing.T) {
 		t.Fatalf("purge record with the store = %+v", rec)
 	}
 }
+
+func TestRotateAfter(t *testing.T) {
+	cases := []struct {
+		keys   []string
+		cursor string
+		want   string
+	}{
+		{[]string{"c", "a", "b"}, "", "a,b,c"},
+		{[]string{"c", "a", "b"}, "a", "b,c,a"},
+		{[]string{"c", "a", "b"}, "c", "a,b,c"},
+		{[]string{"c", "a"}, "b", "c,a"}, // the record of the cursor is gone
+		{[]string{"a"}, "a", "a"},
+		{nil, "a", ""},
+	}
+	for _, tc := range cases {
+		if got := strings.Join(rotateAfter(tc.keys, tc.cursor), ","); got != tc.want {
+			t.Errorf("rotateAfter(%v, %q) = %s, want %s", tc.keys, tc.cursor, got, tc.want)
+		}
+	}
+}
+
+// The purge records are kept for good. A node lists them again only when the
+// token says that a record changed, or when its copy is one hour old.
+func TestPurgeRecordsAreListedOnlyWhenTheyChange(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	ctx := context.Background()
+	lists := func() int {
+		purgeCache.mu.Lock()
+		defer purgeCache.mu.Unlock()
+		return purgeCache.lists
+	}
+	if err := writeCrewPurgeRecord(ctx, nk, crewPurgeRecord{CrewID: purgeCrew, StartedMs: 1, DoneMs: 2, SettledMs: 3}); err != nil {
+		t.Fatal(err)
+	}
+	base := lists()
+	for i := 0; i < 5; i++ {
+		ids, err := purgedCrewIDs(ctx, nk)
+		if err != nil || len(ids) != 1 || !ids[purgeCrew] {
+			t.Fatalf("purged crews = %v err=%v", ids, err)
+		}
+		runPendingCrewPurges(ctx, nk, testLogger(), time.Now().Add(time.Minute))
+	}
+	reconcilePass(t, nk)
+	if got := lists() - base; got != 1 {
+		t.Fatalf("the records were listed %d times for reads with no change, want 1", got)
+	}
+
+	// Another node writes a record and the token.
+	nk.put(CrewPurgeCollection, otherCrew, SystemUserID, crewPurgeRecord{CrewID: otherCrew, StartedMs: 1, DoneMs: 2, SettledMs: 3})
+	nk.put(LedgerMigrationCollection, purgeTokenKey, SystemUserID, map[string]string{"token": "from-another-node"})
+	ids, err := purgedCrewIDs(ctx, nk)
+	if err != nil || len(ids) != 2 || !ids[otherCrew] {
+		t.Fatalf("purged crews after the write of another node = %v err=%v", ids, err)
+	}
+	if got := lists() - base; got != 2 {
+		t.Fatalf("lists after a new token = %d, want 2", got)
+	}
+
+	// A record whose token write was lost is seen when the copy is old.
+	nk.put(CrewPurgeCollection, "33333333-3333-4333-8333-333333333333", SystemUserID, crewPurgeRecord{StartedMs: 1, DoneMs: 2, SettledMs: 3})
+	if ids, _ := purgedCrewIDs(ctx, nk); len(ids) != 2 {
+		t.Fatalf("purged crews with the same token = %v", ids)
+	}
+	prev := crewPurgeNow
+	crewPurgeNow = func() time.Time { return time.Now().Add(purgeCacheMaxAge + time.Minute) }
+	t.Cleanup(func() { crewPurgeNow = prev })
+	if ids, _ := purgedCrewIDs(ctx, nk); len(ids) != 3 {
+		t.Fatalf("purged crews after the age bound = %v", ids)
+	}
+}

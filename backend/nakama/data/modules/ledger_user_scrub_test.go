@@ -1111,3 +1111,47 @@ func TestSecondScrubRunWorksWithoutNames(t *testing.T) {
 		}
 	})
 }
+
+// A scrub that takes the whole budget of every run of the job, and never
+// ends, must not keep the job from the scrub behind it: the job starts after
+// the record it handled last.
+func TestDeletionJobDoesNotStarveBehindASlowScrub(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	scrubReady(t, nk, f)
+	deletionJobCursor.mu.Lock()
+	deletionJobCursor.scrub = ""
+	deletionJobCursor.mu.Unlock()
+	// A second account that is gone, behind the first in key order.
+	const behind = "ffffffff-ffff-4fff-8fff-ffffffffffff"
+	if _, err := confirmUserScrub(context.Background(), nk, behind); err != nil {
+		t.Fatal(err)
+	}
+	// The scrub of the first user is slow: when it reads the ledger of its
+	// crew, more time than the budget of the run has passed.
+	var offset time.Duration
+	prev := userScrubNow
+	userScrubNow = func() time.Time { return time.Now().Add(offset) }
+	t.Cleanup(func() { userScrubNow = prev })
+	nk.onRead[CrewEventsCollection] = func() { offset += 10 * time.Minute }
+	doneMs := func(userID string) int64 {
+		rec, err := readUserScrubRecord(context.Background(), nk, userID)
+		if err != nil || rec == nil {
+			t.Fatalf("record of %s = %+v err=%v", userID[:4], rec, err)
+		}
+		return rec.DoneMs
+	}
+
+	runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+	if doneMs(goneUser) != 0 || doneMs(behind) != 0 {
+		t.Fatal("the test needs a first run that ends at the slow scrub")
+	}
+	runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+	if doneMs(behind) == 0 {
+		t.Fatal("the scrub behind the slow one did not run in the second run of the job")
+	}
+	if doneMs(goneUser) != 0 {
+		t.Fatal("the slow scrub ended: the test proves nothing")
+	}
+}

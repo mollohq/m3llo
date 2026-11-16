@@ -1254,8 +1254,13 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 }
 
 // runPendingUserScrubs runs the scrubs that are not done, and the second run
-// of the scrubs that are (userScrubSettle). The deletion job calls it.
+// of the scrubs that are (userScrubSettle). The deletion job calls it. It
+// starts after the record it handled last (deletionJobCursor). The scrub
+// records are few: a record is deleted when its scrub is over. So the list
+// is read from storage on every run.
 func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, deadline time.Time) {
+	records := map[string]*userScrubRecord{}
+	var keys []string
 	cursor := ""
 	for {
 		objects, next, err := nk.StorageList(ctx, "", SystemUserID, UserScrubCollection, 100, cursor)
@@ -1270,46 +1275,57 @@ func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger r
 			}
 			rec.UserID = obj.GetKey()
 			rec.version = obj.GetVersion()
-			now := userScrubNow()
-			if now.After(deadline) {
-				return
-			}
-			if rec.DeletedMs == 0 {
-				exists, err := accountExists(ctx, nk, rec.UserID)
-				if err != nil {
-					logger.Error("user_scrub_failed user=%s: account read: %v", rec.UserID, err)
-					continue
-				}
-				if exists {
-					// The delete did not happen, or is not over yet.
-					if now.UnixMilli() >= rec.StartedMs+userScrubStale.Milliseconds() {
-						if err := deleteUserScrubRecord(ctx, nk, &rec); err != nil {
-							logger.Error("user_scrub_failed user=%s: scrub record delete: %v", rec.UserID, err)
-						}
-					}
-					continue
-				}
-				rec.DeletedMs = now.UnixMilli()
-			}
-			if rec.waitsForStore() && currentLedger() == nil {
-				// Nothing to do until the store is loaded.
-				logger.Warn("user_scrub_pending user=%s: the durable store is not loaded", rec.UserID)
-				continue
-			}
-			if rec.DoneMs > 0 && !rec.SecondRun && rec.idle() {
-				if now.UnixMilli() < rec.DoneMs+userScrubSettle.Milliseconds() {
-					continue
-				}
-				// The second run looks for the crews again.
-				rec.SecondRun = true
-				rec.rediscover()
-			}
-			runUserScrub(ctx, nk, logger, &rec, deadline)
+			records[rec.UserID] = &rec
+			keys = append(keys, rec.UserID)
 		}
 		if next == "" {
-			return
+			break
 		}
 		cursor = next
+	}
+	deletionJobCursor.mu.Lock()
+	last := deletionJobCursor.scrub
+	deletionJobCursor.mu.Unlock()
+	for _, userID := range rotateAfter(keys, last) {
+		rec := records[userID]
+		now := userScrubNow()
+		if now.After(deadline) {
+			return
+		}
+		if rec.DeletedMs == 0 {
+			exists, err := accountExists(ctx, nk, rec.UserID)
+			if err != nil {
+				logger.Error("user_scrub_failed user=%s: account read: %v", rec.UserID, err)
+				continue
+			}
+			if exists {
+				// The delete did not happen, or is not over yet.
+				if now.UnixMilli() >= rec.StartedMs+userScrubStale.Milliseconds() {
+					if err := deleteUserScrubRecord(ctx, nk, rec); err != nil {
+						logger.Error("user_scrub_failed user=%s: scrub record delete: %v", rec.UserID, err)
+					}
+				}
+				continue
+			}
+			rec.DeletedMs = now.UnixMilli()
+		}
+		if rec.waitsForStore() && currentLedger() == nil {
+			// Nothing to do until the store is loaded.
+			logger.Warn("user_scrub_pending user=%s: the durable store is not loaded", rec.UserID)
+			continue
+		}
+		if rec.DoneMs > 0 && !rec.SecondRun && rec.idle() {
+			if now.UnixMilli() < rec.DoneMs+userScrubSettle.Milliseconds() {
+				continue
+			}
+			// The second run looks for the crews again.
+			rec.SecondRun = true
+			rec.rediscover()
+		}
+		runUserScrub(ctx, nk, logger, rec, deadline)
+		deletionJobCursor.mu.Lock()
+		deletionJobCursor.scrub = rec.UserID
+		deletionJobCursor.mu.Unlock()
 	}
 }
 

@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -132,11 +134,107 @@ func writeCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, rec crew
 		PermissionRead:  0,
 		PermissionWrite: 0,
 	}})
-	return err
+	if err != nil {
+		return err
+	}
+	return purgeRecordsChanged(ctx, nk)
 }
 
 func deleteCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, crewID string) error {
-	return nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: CrewPurgeCollection, Key: crewID, UserID: SystemUserID}})
+	if err := nk.StorageDelete(ctx, []*runtime.StorageDelete{{Collection: CrewPurgeCollection, Key: crewID, UserID: SystemUserID}}); err != nil {
+		return err
+	}
+	return purgeRecordsChanged(ctx, nk)
+}
+
+// The purge records are kept for good, and two jobs need them every 5
+// minutes: the reconcile (which crews are gone) and the deletion job (which
+// purges are not over). Listing the collection each time costs more with
+// every crew that was ever deleted. So a node keeps the records in memory,
+// and one small document says when they changed:
+//
+//   - every write and delete of a purge record writes a new token to
+//     ledger_migration/purge_token, after the record;
+//   - a node reads the token (one storage read) and lists the records again
+//     only when the token is not the one of its copy, or its copy is older
+//     than purgeCacheMaxAge. The age bound covers a token write that failed.
+const (
+	purgeTokenKey    = "purge_token"
+	purgeCacheMaxAge = 1 * time.Hour
+)
+
+var purgeCache struct {
+	mu       sync.Mutex
+	token    string
+	loadedAt time.Time
+	records  map[string]crewPurgeRecord
+	// lists counts the full lists, for the tests.
+	lists int
+}
+
+// purgeRecordsChanged writes a new token and drops the copy of this node.
+func purgeRecordsChanged(ctx context.Context, nk runtime.NakamaModule) error {
+	purgeCache.mu.Lock()
+	purgeCache.token, purgeCache.records = "", nil
+	purgeCache.mu.Unlock()
+	data, _ := json.Marshal(map[string]string{"token": generateEventID()})
+	_, err := nk.StorageWrite(ctx, []*runtime.StorageWrite{{
+		Collection:      LedgerMigrationCollection,
+		Key:             purgeTokenKey,
+		UserID:          SystemUserID,
+		Value:           string(data),
+		PermissionRead:  0,
+		PermissionWrite: 0,
+	}})
+	if err != nil {
+		return fmt.Errorf("purge token write: %w", err)
+	}
+	return nil
+}
+
+// loadPurgeRecords returns the purge records by crew id. The map is a copy.
+func loadPurgeRecords(ctx context.Context, nk runtime.NakamaModule) (map[string]crewPurgeRecord, error) {
+	var doc struct {
+		Token string `json:"token"`
+	}
+	if _, _, err := readDocStrict(ctx, nk, LedgerMigrationCollection, purgeTokenKey, &doc); err != nil {
+		return nil, err
+	}
+	purgeCache.mu.Lock()
+	defer purgeCache.mu.Unlock()
+	fresh := doc.Token != "" && doc.Token == purgeCache.token && purgeCache.records != nil &&
+		crewPurgeNow().Sub(purgeCache.loadedAt) < purgeCacheMaxAge && !crewPurgeNow().Before(purgeCache.loadedAt)
+	if !fresh {
+		records := map[string]crewPurgeRecord{}
+		cursor := ""
+		for {
+			objects, next, err := nk.StorageList(ctx, "", SystemUserID, CrewPurgeCollection, 100, cursor)
+			if err != nil {
+				return nil, err
+			}
+			for _, obj := range objects {
+				var rec crewPurgeRecord
+				if obj.GetKey() == "" || json.Unmarshal([]byte(obj.GetValue()), &rec) != nil {
+					continue
+				}
+				rec.CrewID = obj.GetKey()
+				records[rec.CrewID] = rec
+			}
+			if next == "" {
+				break
+			}
+			cursor = next
+		}
+		// The token was read before the list. A record written since then
+		// has a newer token, so the next call lists again.
+		purgeCache.token, purgeCache.records, purgeCache.loadedAt = doc.Token, records, crewPurgeNow()
+		purgeCache.lists++
+	}
+	out := make(map[string]crewPurgeRecord, len(purgeCache.records))
+	for id, rec := range purgeCache.records {
+		out[id] = rec
+	}
+	return out, nil
 }
 
 // ensureCrewPurgeRecord returns the purge record of a crew and makes it when
@@ -155,23 +253,15 @@ func ensureCrewPurgeRecord(ctx context.Context, nk runtime.NakamaModule, crewID 
 
 // purgedCrewIDs returns the ids of the crews with a purge record.
 func purgedCrewIDs(ctx context.Context, nk runtime.NakamaModule) (map[string]bool, error) {
-	out := map[string]bool{}
-	cursor := ""
-	for {
-		objects, next, err := nk.StorageList(ctx, "", SystemUserID, CrewPurgeCollection, 100, cursor)
-		if err != nil {
-			return nil, err
-		}
-		for _, obj := range objects {
-			if obj.GetKey() != "" {
-				out[obj.GetKey()] = true
-			}
-		}
-		if next == "" {
-			return out, nil
-		}
-		cursor = next
+	records, err := loadPurgeRecords(ctx, nk)
+	if err != nil {
+		return nil, err
 	}
+	out := make(map[string]bool, len(records))
+	for id := range records {
+		out[id] = true
+	}
+	return out, nil
 }
 
 // crewGroupExists reports whether the crew is a group on this install.
@@ -506,39 +596,62 @@ func AfterDeleteCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 	return nil
 }
 
+// deletionJobCursor is the place of the deletion job in its two lists: the
+// key of the record it handled last. The next run starts after it, so a
+// record that takes the whole budget of a run, or that fails every time,
+// does not keep the job from the records behind it.
+var deletionJobCursor struct {
+	mu           sync.Mutex
+	scrub, purge string
+}
+
+// rotateAfter returns the sorted keys, starting after cursor and wrapping.
+func rotateAfter(keys []string, cursor string) []string {
+	sort.Strings(keys)
+	at := sort.SearchStrings(keys, cursor)
+	if at < len(keys) && keys[at] == cursor {
+		at++
+	}
+	out := make([]string, 0, len(keys))
+	out = append(out, keys[at:]...)
+	return append(out, keys[:at]...)
+}
+
 // runPendingCrewPurges runs the purges that are not done, and the second run
 // of the purges that are (crewPurgeSettle). The deletion job calls it.
 func runPendingCrewPurges(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, deadline time.Time) {
-	cursor := ""
-	for {
-		objects, next, err := nk.StorageList(ctx, "", SystemUserID, CrewPurgeCollection, 100, cursor)
-		if err != nil {
-			logger.Error("crew_purge_failed: list of purge records: %v", err)
+	records, err := loadPurgeRecords(ctx, nk)
+	if err != nil {
+		logger.Error("crew_purge_failed: purge records: %v", err)
+		return
+	}
+	var due []string
+	waiting := 0
+	now := crewPurgeNow()
+	for id, rec := range records {
+		switch {
+		case rec.SettledMs > 0 || (rec.DoneMs > 0 && now.UnixMilli() < rec.DoneMs+crewPurgeSettle.Milliseconds()):
+		case rec.StorePending && currentLedger() == nil:
+			// Nothing to do until the store is loaded.
+			waiting++
+		default:
+			due = append(due, id)
+		}
+	}
+	if waiting > 0 {
+		logger.Warn("crew_purge_pending: %d purges wait for the durable store, which is not loaded", waiting)
+	}
+	deletionJobCursor.mu.Lock()
+	cursor := deletionJobCursor.purge
+	deletionJobCursor.mu.Unlock()
+	for _, crewID := range rotateAfter(due, cursor) {
+		if crewPurgeNow().After(deadline) {
 			return
 		}
-		for _, obj := range objects {
-			var rec crewPurgeRecord
-			if err := json.Unmarshal([]byte(obj.GetValue()), &rec); err != nil || obj.GetKey() == "" {
-				continue
-			}
-			now := crewPurgeNow()
-			if rec.SettledMs > 0 || (rec.DoneMs > 0 && now.UnixMilli() < rec.DoneMs+crewPurgeSettle.Milliseconds()) {
-				continue
-			}
-			if rec.StorePending && currentLedger() == nil {
-				// Nothing to do until the store is loaded.
-				logger.Warn("crew_purge_pending crew=%s: the durable store is not loaded", obj.GetKey())
-				continue
-			}
-			if now.After(deadline) {
-				return
-			}
-			purgeCrewData(ctx, nk, logger, obj.GetKey(), deadline)
-		}
-		if next == "" {
-			return
-		}
-		cursor = next
+		purgeCrewData(ctx, nk, logger, crewID, deadline)
+		deletionJobCursor.mu.Lock()
+		deletionJobCursor.purge = crewID
+		deletionJobCursor.mu.Unlock()
 	}
 }
 
