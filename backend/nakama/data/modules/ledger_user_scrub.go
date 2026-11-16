@@ -102,9 +102,13 @@ type userScrubRecord struct {
 	DeletedMs int64 `json:"deleted_ms,omitempty"`
 	// DoneMs is the end of the first full run. SecondRun is true when the
 	// run after userScrubSettle has started.
-	DoneMs    int64  `json:"done_ms,omitempty"`
-	SecondRun bool   `json:"second_run,omitempty"`
-	LastError string `json:"last_error,omitempty"`
+	DoneMs    int64 `json:"done_ms,omitempty"`
+	SecondRun bool  `json:"second_run,omitempty"`
+	// StorePending is true when a run had no durable store: the documents
+	// are scrubbed and the rows of the store are not. The scrub is not done.
+	// The first run with a store looks for the crews again.
+	StorePending bool   `json:"store_pending,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
 
 	// version is the storage version this copy of the record was read or
 	// written at. Every write and the delete carry it, so a run that works on
@@ -114,7 +118,13 @@ type userScrubRecord struct {
 
 // idle reports whether the record has no work left.
 func (r *userScrubRecord) idle() bool {
-	return r.Discovered && len(r.Crews) == 0 && len(r.Media) == 0
+	return r.Discovered && len(r.Crews) == 0 && len(r.Media) == 0 && !r.StorePending
+}
+
+// waitsForStore reports whether the record has no work left but the rows of
+// a store that is not loaded.
+func (r *userScrubRecord) waitsForStore() bool {
+	return r.StorePending && r.Discovered && len(r.Crews) == 0 && len(r.Media) == 0
 }
 
 // rediscover makes the next run look for the crews of the user again.
@@ -201,7 +211,10 @@ type userScrubResult struct {
 	Incomplete bool `json:"incomplete"`
 	// Busy is true when another scrub of the user runs in this process. The
 	// run did nothing.
-	Busy          bool `json:"busy,omitempty"`
+	Busy bool `json:"busy,omitempty"`
+	// StorePending is true when the durable store is not loaded: the rows of
+	// the store are not scrubbed, and the scrub is not done.
+	StorePending  bool `json:"store_pending,omitempty"`
 	CrewsScrubbed int  `json:"crews_scrubbed"`
 	CrewsLeft     int  `json:"crews_left"`
 	Dropped       int  `json:"dropped"`
@@ -482,6 +495,17 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 	}
 	defer userScrubRunning.Delete(rec.UserID)
 
+	// The store can be missing: the schema setup failed at start and is tried
+	// again in the background (startLedgerStore). A run then scrubs the
+	// documents and stays pending. Nothing tells an install whose schema can
+	// never be made from one that waits for its database, so both stay
+	// pending and are logged.
+	noStore := currentLedger() == nil
+	if !noStore && rec.StorePending {
+		rec.StorePending = false
+		rec.rediscover()
+	}
+
 	// lost is true when a write of the record was refused. This run then
 	// stops and writes nothing more: its copy of the record is old.
 	lost := false
@@ -505,6 +529,11 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 		if lost {
 			logger.Error("user_scrub_failed %s: %s", line(), strings.Join(res.Errors, "; "))
 			return res
+		}
+		if noStore {
+			rec.StorePending = true
+			res.StorePending = true
+			logger.Warn("user_scrub_pending user=%s: the durable store is not loaded. The documents are scrubbed, the store rows wait", rec.UserID)
 		}
 		res.Done = len(res.Errors) == 0 && !res.Incomplete && rec.idle()
 		now := userScrubNow().UnixMilli()
@@ -1194,6 +1223,11 @@ func runPendingUserScrubs(ctx context.Context, nk runtime.NakamaModule, logger r
 					continue
 				}
 				rec.DeletedMs = now.UnixMilli()
+			}
+			if rec.waitsForStore() && currentLedger() == nil {
+				// Nothing to do until the store is loaded.
+				logger.Warn("user_scrub_pending user=%s: the durable store is not loaded", rec.UserID)
+				continue
 			}
 			if rec.DoneMs > 0 && !rec.SecondRun && rec.idle() {
 				if now.UnixMilli() < rec.DoneMs+userScrubSettle.Milliseconds() {

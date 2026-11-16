@@ -482,3 +482,41 @@ func TestPurgeRecordOfALiveCrewDeletesNothing(t *testing.T) {
 		same("after the hook")
 	})
 }
+
+// With no store loaded a purge is not done: it removes the documents and the
+// media and waits. The job ends it when the store is loaded.
+func TestPurgeCrewWaitsForTheStore(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := usePurgeBuckets(t)
+	seedPurgeCrew(t, nk, f, purgeCrew)
+
+	setLedger(nil)
+	deleteCrewByOwner(t, nk, purgeCrew)
+	rec := purgeRecordOf(t, nk, purgeCrew)
+	if rec.DoneMs != 0 || !rec.StorePending {
+		t.Fatalf("purge record with no store = %+v", rec)
+	}
+	runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if res, err := purgeRPC(nk, purgeCrew); err != nil || res.Done || !res.StorePending {
+		t.Fatalf("admin_purge_crew with no store = %+v err=%v", res, err)
+	}
+	left := crewLeftovers(t, nk, store, f, purgeCrew)
+	for _, l := range left {
+		if !strings.HasPrefix(l, "row ") && l != "user index" {
+			t.Fatalf("left with no store: %v", left)
+		}
+	}
+	if len(left) == 0 {
+		t.Fatal("the test needs store rows of the crew")
+	}
+
+	setLedger(store)
+	runPendingCrewPurges(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if left := crewLeftovers(t, nk, store, f, purgeCrew); len(left) != 0 {
+		t.Fatalf("left after the store is loaded: %v", left)
+	}
+	if rec := purgeRecordOf(t, nk, purgeCrew); rec.DoneMs == 0 || rec.StorePending || rec.LastError != "" {
+		t.Fatalf("purge record with the store = %+v", rec)
+	}
+}

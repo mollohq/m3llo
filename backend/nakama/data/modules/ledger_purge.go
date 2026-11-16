@@ -59,8 +59,11 @@ type crewPurgeRecord struct {
 	// DoneMs is the end of the first run that removed everything.
 	DoneMs int64 `json:"done_ms,omitempty"`
 	// SettledMs is the end of the second run, crewPurgeSettle after the first.
-	SettledMs int64  `json:"settled_ms,omitempty"`
-	LastError string `json:"last_error,omitempty"`
+	SettledMs int64 `json:"settled_ms,omitempty"`
+	// StorePending is true when a run had no durable store and removed all
+	// but the rows of the store. The purge is not done.
+	StorePending bool   `json:"store_pending,omitempty"`
+	LastError    string `json:"last_error,omitempty"`
 }
 
 // crewPurgeResult is what one run of a purge did.
@@ -69,7 +72,10 @@ type crewPurgeResult struct {
 	// Done is true when the run removed everything it found, with no error.
 	Done bool `json:"done"`
 	// Incomplete is true when the run was cut at its time budget.
-	Incomplete   bool     `json:"incomplete"`
+	Incomplete bool `json:"incomplete"`
+	// StorePending is true when the durable store is not loaded: the rows of
+	// the crew are not deleted, and the purge is not done.
+	StorePending bool     `json:"store_pending,omitempty"`
 	MediaDeleted int      `json:"media_deleted"`
 	DocsDeleted  int      `json:"docs_deleted"`
 	StoreDeleted bool     `json:"store_deleted"`
@@ -293,23 +299,35 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 
 	purgeCrewMedia(ctx, logger, &res, crewID, deadline)
 
+	// The store can be missing: the schema setup failed at start and is tried
+	// again in the background. The purge then removes the rest and stays
+	// pending, as the scrub of an account does (runUserScrub).
 	if store := currentLedger(); store != nil {
 		if err := store.DeleteCrew(ctx, crewID); err != nil {
 			res.fail("store rows: %v", err)
 		} else {
 			res.StoreDeleted = true
 		}
+	} else {
+		res.StorePending = true
 	}
 	purgeCrewDocs(ctx, nk, &res, crewID)
 	InvalidateCrewState(crewID)
 
-	res.Done = len(res.Errors) == 0 && !res.Incomplete
+	rec.StorePending = res.StorePending && len(res.Errors) == 0 && !res.Incomplete
+	if res.StorePending {
+		logger.Warn("crew_purge_pending crew=%s: the durable store is not loaded. The store rows wait", crewID)
+	}
+	res.Done = len(res.Errors) == 0 && !res.Incomplete && !res.StorePending
 	now := crewPurgeNow().UnixMilli()
 	switch {
 	case !res.Done:
 		rec.LastError = strings.Join(res.Errors, "; ")
 		if res.Incomplete && rec.LastError == "" {
 			rec.LastError = "cut at the time budget"
+		}
+		if rec.StorePending {
+			rec.LastError = "the durable store is not loaded"
 		}
 	case rec.DoneMs == 0:
 		rec.DoneMs, rec.LastError = now, ""
@@ -322,9 +340,12 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 		res.fail("purge record write: %v", err)
 		res.Done = false
 	}
-	if res.Done {
+	switch {
+	case res.Done:
 		logger.Info("crew_purge crew=%s media=%d docs=%d store=%t", crewID, res.MediaDeleted, res.DocsDeleted, res.StoreDeleted)
-	} else {
+	case rec.StorePending:
+		// Logged above as pending. Nothing else failed.
+	default:
 		logger.Error("crew_purge_failed crew=%s media=%d docs=%d incomplete=%t: %s", crewID, res.MediaDeleted, res.DocsDeleted, res.Incomplete, strings.Join(res.Errors, "; "))
 	}
 	return res
@@ -502,6 +523,11 @@ func runPendingCrewPurges(ctx context.Context, nk runtime.NakamaModule, logger r
 			}
 			now := crewPurgeNow()
 			if rec.SettledMs > 0 || (rec.DoneMs > 0 && now.UnixMilli() < rec.DoneMs+crewPurgeSettle.Milliseconds()) {
+				continue
+			}
+			if rec.StorePending && currentLedger() == nil {
+				// Nothing to do until the store is loaded.
+				logger.Warn("crew_purge_pending crew=%s: the durable store is not loaded", obj.GetKey())
 				continue
 			}
 			if now.After(deadline) {

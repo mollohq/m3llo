@@ -348,25 +348,50 @@ func TestScrubUserFromLedger(t *testing.T) {
 	})
 }
 
-// The scrub works on an install with no durable store.
-func TestScrubUserWithNoStore(t *testing.T) {
-	useLedger(t, nil)
+// With no store loaded (the schema setup failed at start) a scrub is not
+// done: it scrubs the documents and waits. The job ends it when the store is
+// loaded, and the rows that the store held are scrubbed then.
+func TestScrubUserWaitsForTheStore(t *testing.T) {
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
 	nk := newDelNk()
 	f := useScrubInline(t)
 	seedScrubCrew(t, nk, f, scrubCrew, true)
 	seedScrubCrew(t, nk, f, leftCrew, false)
+
+	setLedger(nil)
 	deleteAccount(t, nk, goneUser)
 	for _, crewID := range []string{scrubCrew, leftCrew} {
-		// Known limit: the documents hold the events of 7 days. A name the
-		// user had before that is in no event, so a recap from before recaps
-		// held user ids keeps it. With the store the old events give the name.
+		// A name the user had before is known only from an old event, and
+		// the documents hold the events of 7 days.
 		traces := userTraces(t, nk, nil, crewID)
 		if len(traces) != 1 || traces[0] != `doc crew_recaps holds "Old Zed"` {
-			t.Fatalf("crew %s still names the user:\n%s", crewID[:4], strings.Join(traces, "\n"))
+			t.Fatalf("the documents of crew %s still name the user:\n%s", crewID[:4], strings.Join(traces, "\n"))
 		}
 	}
-	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
-		t.Fatalf("scrub record = %+v", rec)
+	rec := scrubRecordOf(t, nk)
+	if rec == nil || rec.DoneMs != 0 || !rec.StorePending || rec.idle() || len(rec.Names) == 0 {
+		t.Fatalf("scrub record with no store = %+v", rec)
+	}
+	// The job and the RPC do not end it while the store is not loaded.
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if res, err := scrubRPC(nk, goneUser); err != nil || res.Done || !res.StorePending {
+		t.Fatalf("admin_scrub_user with no store = %+v err=%v", res, err)
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs != 0 || !rec.StorePending {
+		t.Fatalf("scrub record with no store = %+v", rec)
+	}
+	if n := len(userTraces(t, nk, store, scrubCrew)); n == 0 {
+		t.Fatal("the test needs store rows that name the user")
+	}
+
+	// The store is loaded.
+	setLedger(store)
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	checkScrubbed(t, nk, store, f, "after the store is loaded")
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 || rec.StorePending {
+		t.Fatalf("scrub record with the store = %+v", rec)
 	}
 }
 
