@@ -26,7 +26,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	globalLogger = logger
 	globalDb = db
 
-	// The durable crew ledger (plans/DURABLE-LEDGER.md). Without its tables
+	// The durable crew ledger (specs/16-CREW-EVENT-LEDGER.md). Without its tables
 	// the module still runs on the legacy ledger document alone, and the
 	// schema setup is tried again in the background.
 	startLedgerStore(ctx, logger, ledgerSchemaRetry, func(ctx context.Context) (ledgerStore, error) {

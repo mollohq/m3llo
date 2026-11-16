@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 )
 
-// The durable crew ledger (plans/DURABLE-LEDGER.md). Every event is kept. The
+// The durable crew ledger (specs/16-CREW-EVENT-LEDGER.md). Every event is kept. The
 // 7-day cut that readers know is a view on top of it (RecentView).
 
 // ledgerPulseTypes are the event types of the legacy ledger document. The

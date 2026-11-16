@@ -27,8 +27,7 @@ const (
 	CrewClipsCollection = "crew_clips"
 	// CrewClipsMaxRetained caps the legacy clips document of a crew, which is
 	// one storage object. The durable store has no cap: after the cutover of
-	// phase 1b every clip is kept and read (plans/DURABLE-LEDGER.md section
-	// 6a). The document keeps its cap until it is removed.
+	// phase 1b every clip is kept and read (spec 16 section 3.8). The document keeps its cap until it is removed.
 	CrewClipsMaxRetained = 250
 	clipWaveformBytes    = 64
 
