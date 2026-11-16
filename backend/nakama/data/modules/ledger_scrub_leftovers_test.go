@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
 	"google.golang.org/protobuf/types/known/wrapperspb"
@@ -363,5 +364,87 @@ func TestGroupCreatorSkipsAGroupThatChanged(t *testing.T) {
 	}
 	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
 		t.Fatalf("scrub record = %+v", rec)
+	}
+}
+
+// The chat images the user posted go with the account: every object under
+// {crew_id}/{user_id}/ of the crews of the record, and nothing else.
+func TestAccountDeleteRemovesTheChatImagesOfTheUser(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := useScrubInline(t)
+		memEdgesOf(t, nk)
+		seedScrubCrew(t, nk, f, scrubCrew, true)
+		seedScrubCrew(t, nk, f, leftCrew, false)
+		mine := []string{
+			scrubCrew + "/" + goneUser + "/a.jpg", scrubCrew + "/" + goneUser + "/b.png",
+			leftCrew + "/" + goneUser + "/c.gif",
+		}
+		others := []string{
+			scrubCrew + "/" + handMem1 + "/a.jpg", leftCrew + "/" + handMem1 + "/b.jpg",
+			// A crew the user was never in, a key that only starts like the
+			// id of the user, and the other prefixes of the bucket.
+			otherCrew + "/" + goneUser + "/x.jpg",
+			scrubCrew + "/" + goneUser + "x/a.jpg",
+			"crew-emoji/" + scrubCrew + "/" + goneUser + ".png",
+			"crew-banners/" + scrubCrew + "/b.jpg",
+		}
+		for _, key := range append(append([]string{}, mine...), others...) {
+			f.put("media", key, 10, time.Hour)
+		}
+
+		deleteAccount(t, nk, goneUser)
+
+		keys := strings.Join(f.keys("media"), "\n")
+		for _, key := range mine {
+			if strings.Contains(keys, key) {
+				t.Fatalf("a chat image of the user stays: %s", key)
+			}
+		}
+		for _, key := range others {
+			if !strings.Contains(keys, key) {
+				t.Fatalf("the scrub deleted %s", key)
+			}
+		}
+		if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 || len(rec.Media) != 0 {
+			t.Fatalf("scrub record = %+v", rec)
+		}
+		checkScrubbed(t, nk, store, f, "after the delete")
+	})
+}
+
+// A chat image delete that fails keeps its entry in the record, and the next
+// run ends it.
+func TestChatImagesOfTheUserStayInTheRecordUntilTheyAreDeleted(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	memEdgesOf(t, nk)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	key := scrubCrew + "/" + goneUser + "/a.jpg"
+	f.put("media", key, 10, time.Hour)
+	// The media bucket is gone between the scrub of the crew and the delete
+	// of the media.
+	prev := crewGiftsBucket
+	client, bucket := prev()
+	calls := 0
+	crewGiftsBucket = func() (*s3.Client, string) {
+		if calls++; calls > 1 {
+			return nil, ""
+		}
+		return client, bucket
+	}
+	t.Cleanup(func() { crewGiftsBucket = prev })
+	deleteAccount(t, nk, goneUser)
+	rec := scrubRecordOf(t, nk)
+	if rec == nil || rec.DoneMs != 0 || len(rec.Media) != 1 || rec.Media[0].Kind != scrubKindChatImages {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+	crewGiftsBucket = prev
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 || len(rec.Media) != 0 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+	if strings.Contains(strings.Join(f.keys("media"), "\n"), key) {
+		t.Fatal("the chat image stays")
 	}
 }

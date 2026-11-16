@@ -71,6 +71,11 @@ type scrubSkipped struct {
 	Reason string `json:"reason"`
 }
 
+// scrubKindChatImages is the kind of a scrubMedia entry for the chat images
+// the user posted in a crew: every object under {crew_id}/{user_id}/ in the
+// media bucket (chatImageKey). Ref is the user id.
+const scrubKindChatImages = "chat_images"
+
 const (
 	scrubSkipUnsafeID  = "the id is not safe in an object key"
 	scrubSkipNoSession = "the stream session has no session id, so no key can be made"
@@ -873,6 +878,13 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		}
 	}
 
+	// The chat images the user posted in the crew go with the account. An
+	// install with no media bucket has none. The entry is saved with the
+	// record before a document of the crew changes (crewScrub.documents).
+	if client, bucket := crewGiftsBucket(); client != nil && bucket != "" && validPurgeCrewID(crewID) && validPurgeCrewID(rec.UserID) {
+		rec.addMedia(scrubMedia{Kind: scrubKindChatImages, CrewID: crewID, Ref: rec.UserID})
+	}
+
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
 	if exists {
 		// A name of the user that another member has now is not matched in a
@@ -1263,7 +1275,7 @@ func (c *crewScrub) head2head() error {
 }
 
 // deleteScrubMedia deletes the media of the dropped clips and streams of the
-// user, up to the deadline of the run. A delete cannot be undone, so:
+// user, and the chat images the user posted, up to the deadline of the run. A delete cannot be undone, so:
 //
 //   - a key is made only from a crew id, a clip_id or a session id that is
 //     safe in a key. Anything else is not deleted. It moves to the skipped
@@ -1294,6 +1306,34 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 			res.Incomplete = true
 			left = append(left, rec.Media[i:]...)
 			break
+		}
+		if m.Kind == scrubKindChatImages {
+			// The exact prefix of one user in one crew, from two ids that
+			// are UUIDs.
+			if !validPurgeCrewID(m.CrewID) || !validPurgeCrewID(m.Ref) {
+				rec.addSkipped(m, scrubSkipUnsafeID)
+				continue
+			}
+			client, bucket := crewGiftsBucket()
+			if client == nil || bucket == "" {
+				res.fail("media %s: the bucket is not configured. The entry stays in the record", name)
+				left = append(left, m)
+				continue
+			}
+			n, incomplete, err := deleteObjectsUnder(ctx, client, bucket, m.CrewID+"/"+m.Ref+"/", m.Ref, deadline)
+			res.MediaDeleted += n
+			if err != nil {
+				res.fail("media %s: %v", name, err)
+			}
+			if incomplete {
+				res.Incomplete = true
+				rec.Media = append(left, rec.Media[i:]...)
+				return
+			}
+			if err != nil {
+				left = append(left, m)
+			}
+			continue
 		}
 		if !validGameClipID(m.CrewID) || !validGameClipID(m.Ref) {
 			rec.addSkipped(m, scrubSkipUnsafeID)
