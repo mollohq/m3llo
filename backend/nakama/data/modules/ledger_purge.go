@@ -533,10 +533,17 @@ func purgeCrewMedia(ctx context.Context, logger runtime.Logger, res *crewPurgeRe
 
 // deleteObjectsUnder deletes the objects of a bucket under a prefix, a batch
 // of the list at a time, until the list is empty or the deadline passes. The
-// prefix must be "{owner}/" or end with "/{owner}/": a wrong prefix deletes
-// nothing.
+// prefix must end with "/{owner}/", or be "{owner}/" with a group id as the
+// owner: a wrong prefix deletes nothing.
 func deleteObjectsUnder(ctx context.Context, c *s3.Client, bucket, prefix, owner string, deadline time.Time) (deleted int, incomplete bool, err error) {
-	if owner == "" || strings.ContainsAny(owner, "/.") || (prefix != owner+"/" && !strings.HasSuffix(prefix, "/"+owner+"/")) {
+	if owner == "" || strings.ContainsAny(owner, "/.") {
+		return 0, false, fmt.Errorf("refusing the prefix %q", prefix)
+	}
+	switch {
+	case strings.HasSuffix(prefix, "/"+owner+"/"):
+	case prefix == owner+"/" && validPurgeCrewID(owner):
+		// A prefix at the root of a bucket: only a group id is an owner.
+	default:
 		return 0, false, fmt.Errorf("refusing the prefix %q", prefix)
 	}
 	for {

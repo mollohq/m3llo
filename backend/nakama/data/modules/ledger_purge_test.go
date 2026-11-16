@@ -400,8 +400,21 @@ func TestDeleteObjectsUnderRefusesAWrongPrefix(t *testing.T) {
 	if _, _, err := deleteObjectsUnder(context.Background(), client, "clips", "crews//", "", time.Now().Add(time.Minute)); err == nil {
 		t.Fatal("an empty owner passed")
 	}
-	if len(f.deletes) != 0 || len(f.keys("clips")) != 1 {
+	// A prefix at the root of a bucket needs a group id as its owner.
+	f.put("clips", "crews/x.mp4", 10, time.Hour)
+	f.put("clips", "u1/x.mp4", 10, time.Hour)
+	for _, owner := range []string{"crews", "u1", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"} {
+		if n, _, err := deleteObjectsUnder(context.Background(), client, "clips", owner+"/", owner, time.Now().Add(time.Minute)); err == nil || n != 0 {
+			t.Fatalf("root prefix %q: deleted=%d err=%v", owner+"/", n, err)
+		}
+	}
+	if len(f.deletes) != 0 || len(f.keys("clips")) != 3 {
 		t.Fatalf("deletes = %v", f.deletes)
+	}
+	// The root prefix of a group id passes.
+	f.put("clips", purgeCrew+"/u1/x.png", 10, time.Hour)
+	if n, _, err := deleteObjectsUnder(context.Background(), client, "clips", purgeCrew+"/", purgeCrew, time.Now().Add(time.Minute)); err != nil || n != 1 {
+		t.Fatalf("root prefix of a group id: deleted=%d err=%v", n, err)
 	}
 }
 
