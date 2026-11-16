@@ -128,7 +128,7 @@ Everything older is Crew history, which is m3llo+.
 - m3llo+ is per user, never per crew. Two members of one crew can see the
   same week differently.
 - A viewer without m3llo+ gets a locked week: the sealed recap field, the
-  counts and up to two teasers (who, clip or stream, length). The server sends
+  counts and up to six teasers (who, clip or stream, length). The server sends
   no media, poster or snapshot URL for a locked week.
 - A viewer with m3llo+ gets the week open: its numbers and its clips and
   streams.
@@ -137,9 +137,16 @@ Everything older is Crew history, which is m3llo+.
   (`CREW-QUESTS.md` section 3.4). Such a week carries `founding: true`.
 - Without m3llo+ an m3llo+ strip stands above the weeks. Every m3llo+ action
   opens a "coming soon" modal until a purchase flow exists.
-- History pages by week. Near the end of the feed the client asks for the
-  page of weeks before `history_next` (`Command::LoadCrewHistory`). A week is
-  never split across pages.
+- History pages by week, four weeks to a page. Near the end of the feed the
+  client asks for the page of weeks before `history_next`
+  (`Command::LoadCrewHistory`). A week is never split across pages.
+- The server loads history from the durable crew ledger store (spec 16
+  section 3.7) after the cutover of phase 1b. It reads only the rows of the
+  free window and of the page. Before the cutover it reads the legacy
+  documents, which hold the newest 250 clips and 150 stream sessions of a
+  crew. The store has no cap.
+- For a locked week the server does not read the clips. It reads the clip
+  count from the week rollup and the teaser clips.
 
 ## 8. Payload
 
@@ -189,6 +196,8 @@ must update.
 ## 10. Tests
 
 - Server: `crew_feed_zones_test.go` (each zone, the gate, paging, the
-  config).
+  config). `ledger_history_zones_test.go`: the zones from the store equal
+  the zones from the documents, and one page of a large crew reads a bounded
+  number of rows.
 - Client: `client/src/flow_tests/zones.rs`, `flow_tests/sealed.rs`.
 - Journeys: `qa/journeys/feed-*.ts` (FEED-03 to FEED-12 in `qa/flows.yaml`).

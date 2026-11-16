@@ -525,8 +525,9 @@ func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	_, recap, ledger := buildRecapHighlightWithData(ctx, nk, logger, crewID)
 	resp.Recap = recap
 
-	clipsDoc, _ := readClipsDoc(ctx, nk, crewID)
-	resp.Clips, resp.ClipCount = collectGuestClips(clipsDoc, ledger, guestFeedClipLimit)
+	clips, more := crewClipsForGuestFeed(ctx, nk, crewID)
+	resp.Clips, resp.ClipCount = collectGuestClips(&CrewClipsDoc{CrewID: crewID, Clips: clips}, ledger, guestFeedClipLimit)
+	resp.ClipCount += more
 	resp.Sessions = projectGuestSessions(ledger, guestFeedSessionCap)
 
 	if channels, chErr := GetVoiceChannels(ctx, nk, crewID); chErr == nil && channels != nil {

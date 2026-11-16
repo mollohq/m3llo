@@ -26,6 +26,16 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	globalLogger = logger
 	globalDb = db
 
+	// The durable crew ledger (specs/16-CREW-EVENT-LEDGER.md). Without its tables
+	// the module still runs on the legacy ledger document alone, and the
+	// schema setup is tried again in the background.
+	startLedgerStore(ctx, logger, ledgerSchemaRetry, func(ctx context.Context) (ledgerStore, error) {
+		if err := ensureLedgerSchema(ctx, db); err != nil {
+			return nil, err
+		}
+		return newSQLLedgerStore(db), nil
+	})
+
 	// SFU auth init (non-fatal — SFU features are just unavailable if not configured)
 	if err := initSFUAuth(); err != nil {
 		logger.Error("SFU auth init failed: %v", err)
@@ -66,6 +76,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterBeforeUpdateAccount(BeforeUpdateAccount); err != nil {
 		return err
 	}
+	// The scrub of a deleted account (specs/16-CREW-EVENT-LEDGER.md section 10). The
+	// before hook saves the names and the crews of the user, the after hook
+	// starts the scrub.
+	if err := initializer.RegisterBeforeDeleteAccount(BeforeDeleteAccount); err != nil {
+		return err
+	}
+	if err := initializer.RegisterAfterDeleteAccount(AfterDeleteAccount); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// Session lifecycle hooks
@@ -84,6 +103,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 	if err := initializer.RegisterAfterLeaveGroup(AfterLeaveCrew); err != nil {
+		return err
+	}
+	if err := initializer.RegisterBeforeKickGroupUsers(BeforeKickCrewMembers); err != nil {
+		return err
+	}
+	if err := initializer.RegisterAfterKickGroupUsers(AfterKickCrewMembers); err != nil {
+		return err
+	}
+	if err := initializer.RegisterAfterDeleteGroup(AfterDeleteCrew); err != nil {
 		return err
 	}
 
@@ -433,6 +461,16 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("admin_media_report_dismiss", AdminMediaReportDismissRPC); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("admin_media_orphans", AdminMediaOrphansRPC); err != nil {
+		return err
+	}
+	// The deletion rules of the crew ledger (specs/16-CREW-EVENT-LEDGER.md section 10).
+	if err := initializer.RegisterRpc("admin_purge_crew", AdminPurgeCrewRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("admin_scrub_user", AdminScrubUserRPC); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// RPCs — dev tools
@@ -447,6 +485,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return err
 	}
 	if err := initializer.RegisterRpc("dev_enable_sfu_crew", DevEnableSfuCrewRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("dev_ledger_selftest", DevLedgerSelftestRPC); err != nil {
 		return err
 	}
 
@@ -465,6 +506,8 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 	go StartStreamGC(ctx, nk, logger, 60*time.Second)
 	go StartSnapshotBackfillJob(ctx, nk, logger)
+	go StartLedgerReconcile(ctx, nk, logger)
+	go StartLedgerDeletionJob(ctx, nk, logger)
 	go StartWeeklyRecapJob(ctx, nk, logger)
 	go StartGameClipUploadCleanupJob(ctx, logger)
 	go StartHead2headDirtyLoop(ctx, nk, logger, head2headDirtyInterval)

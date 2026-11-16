@@ -2,7 +2,7 @@
 
 > **Component:** Crew Memory, Clips, Crew Feed  
 > **Version:** 1.0  
-> **Status:** v1 In Progress (durable crew memory landed: clips and recaps persist outside the ledger trim; dot-matrix waveform clip cards landed; the crew feed is the zone feed, CREW-FEED-ZONES.md; one clip key (F8): a game clip while the replay records, else a voice clip; game clips built on Windows, section 15)  
+> **Status:** v1 In Progress (durable crew memory landed: clips, recaps and stream replays are rows of the durable ledger store, spec 16; dot-matrix waveform clip cards landed; the crew feed is the zone feed, CREW-FEED-ZONES.md; one clip key (F8): a game clip while the replay records, else a voice clip; game clips built on Windows, section 15)  
 > **Depends on:** CREW-EVENT-LEDGER.md, 13-VOICE-CHANNELS.md  
 > **Mockups:** m3llo-crew-feed-mockup-v4.html (populated), m3llo-crew-feed-cold-start-full.html (empty)
 
@@ -16,7 +16,7 @@ The crew feed is where clips live alongside session summaries, daily and weekly 
 
 When nobody is streaming, the center view of the app shows this feed. When someone goes live, the stream takes over. When the stream ends, the feed comes back with the session added to it. m3llo always has something to show.
 
-This is also the foundation for m3llo+ monetization. Clip cards and media now persist for everyone (no 7-day deletion); m3llo+ will add unbounded clip history beyond the per-crew retention cap.
+This is also the foundation for m3llo+ monetization. Clip cards and media persist for everyone. The server deletes no clip by age or by count. Crew history older than the free window is m3llo+ (CREW-FEED-ZONES.md section 7).
 
 ---
 
@@ -234,7 +234,13 @@ Clip is now playable by all crew members via public media_url
 
 The R2 bucket (`mello-clips`) has public read access. `media_url` points directly to the public endpoint — no signed download URLs needed.
 
-**Retention:** Clip cards are durable. They live in a dedicated per-crew document `crew_clips/{crew_id}`, outside the 7-day ledger trim, capped at the most-recent 250 entries (the cap keeps the single Nakama storage object under its 256 KB limit). Clip media in R2 persists for everyone too — there is no longer a 7-day lifecycle deletion. Full unbounded clip history is future m3llo+ work.
+**Retention:** Clip cards are durable. Each clip is a row of the durable crew ledger store (spec 16 section 3.7). The store has no cap.
+
+- The server also writes the legacy document `crew_clips/{crew_id}`, capped at the most-recent 250 entries. The cap keeps the Nakama storage object under its 256 KB limit.
+- Until the cutover of phase 1b (spec 16 section 3.8) the readers use the document, so a crew sees its newest 250 clips. After the cutover the readers use the store, and there is no cap.
+- Clip media in R2 persists for everyone. There is no lifecycle deletion by age.
+- A clip leaves only by the deletion rules of spec 16 section 10: its clipper deletes the account, or the crew is deleted. The media goes with it.
+- Which weeks a member can open is a read rule (CREW-FEED-ZONES.md section 7). It deletes nothing.
 
 ### 6.3 Storage Costs
 
@@ -359,7 +365,7 @@ Playable inline in chat. Tap to expand and play without switching to the crew fe
 
 ## 10. Weekly Recap (v1)
 
-A backend job runs weekly (Monday 00:00 UTC) and generates a recap from ledger data (hangout time, top game, longest session, top members) and the durable clips store (clip counts). Recaps are durable: stored in a dedicated per-crew document `crew_recaps/{crew_id}` (no cap, one per week), outside the ledger trim, so past recaps persist.
+A backend job runs weekly (Monday 00:00 UTC) and generates a recap from ledger data (hangout time, top game, longest session, top members) and the durable clips store (clip counts). Recaps are durable: each recap is a row of the durable crew ledger store (spec 16 section 3.7), one per week, so past recaps persist. The server also writes the legacy document `crew_recaps/{crew_id}` (no cap) during the migration.
 
 ### 10.1 Contents
 
@@ -382,11 +388,11 @@ The centre view draws the recap card: the label and the week; hangout, clips, lo
 
 ### 11.1 Event Ledger (Existing)
 
-Voice sessions, stream sessions, game sessions, chat activity summaries. These are the ephemeral pulse events, stored in the 7-day rolling ledger `crew_events/{crew_id}`. They give the session cards, the Today numbers of the Board, and the installed games of a quiet week. Clips and recaps are not ledger events; stream sessions are also mirrored to a durable store (§11.3a) so replays survive the trim.
+Voice sessions, stream sessions, game sessions, chat activity summaries. These are the pulse events of the crew ledger (spec 16). The server keeps every event in the durable store. The feed reads the 7-day view of the ledger. They give the session cards, the Today numbers of the Board, and the installed games of a quiet week. Clips and recaps are rows of the same store with their own types; a stream session is one row that is both the ledger event and the replay (§11.3a).
 
 ### 11.2 Clips (Durable)
 
-Clip metadata is durable, stored in its own per-crew document `crew_clips/{crew_id}` (capped at most-recent 250). Each `StoredClip` carries:
+Clip metadata is durable: one row per clip in the durable store, with no cap, and a legacy copy in `crew_clips/{crew_id}` (capped at most-recent 250, section 6.2). Each `StoredClip` carries:
 
 - event_id (time-sortable, used as the pagination cursor), clip_id, clip_type (voice, game; stream in future)
 - media_url (populated after S3 upload by `clip_upload_complete`)
@@ -401,11 +407,11 @@ The waveform is computed once on the clipper's machine: mello-core parses the ca
 
 ### 11.3 Recaps (Durable)
 
-Weekly recaps are durable, stored in `crew_recaps/{crew_id}` (no cap). See section 10.
+Weekly recaps are durable: one row per week in the durable store, and a legacy copy in `crew_recaps/{crew_id}` (no cap). See section 10.
 
 ### 11.3a Stream Replays (Durable)
 
-Stream sessions stay in the ledger for the recent window, but a lean projection (`StoredStreamSession`: streamer, title, game, duration, peak viewers, snapshot URLs; viewer IDs dropped) is also mirrored into `crew_stream_sessions/{crew_id}` (capped at most-recent 150). It is upserted when a stream ends and again from the snapshot backfill job, so late-arriving snapshots land on the durable copy and snapshot URLs only grow. The backfill job also recreates a missing durable copy when ledger snapshots are already current. This keeps stream replays (a `session-preview` when snapshots exist, else `session`) available in Crew history long after the 7-day trim.
+The `stream_session` ledger event is a row of the durable store, and it is the replay. The store has no cap. A lean projection (`StoredStreamSession`: streamer, title, game, duration, peak viewers, snapshot URLs; viewer IDs dropped) is also written to the legacy document `crew_stream_sessions/{crew_id}` (capped at most-recent 150). It is upserted when a stream ends and again from the snapshot backfill job, so late-arriving snapshots land on the copy and snapshot URLs only grow. The backfill job also recreates a missing copy when ledger snapshots are already current. Until the cutover of phase 1b (spec 16 section 3.8) Crew history reads the copy. After it Crew history reads the rows. Stream replays (a `session-preview` when snapshots exist, else `session`) stay available in Crew history after they leave the 7-day view.
 
 ### 11.4 Retrieval
 
@@ -441,10 +447,10 @@ Stream sessions stay in the ledger for the recent window, but a lean projection 
 - Game clips (F8) on Windows: replay buffer, MP4, upload, card, streamed playback (section 15)
 
 **Backend:**
-- `post_clip` RPC storing clip metadata in the durable `crew_clips/{crew_id}` store (capped at most-recent 250)
+- `post_clip` RPC storing clip metadata in the durable store (no cap) and in the legacy `crew_clips/{crew_id}` document (capped at most-recent 250)
 - `crew_feed` RPC: the zones, and Crew history paged by week
 - S3 integration for clip upload and playback URLs
-- Weekly recap generation job (Monday 00:00 UTC) writing to the durable `crew_recaps/{crew_id}` store
+- Weekly recap generation job (Monday 00:00 UTC) writing to the durable store and the legacy `crew_recaps/{crew_id}` document
 
 ### Does NOT ship in v1
 

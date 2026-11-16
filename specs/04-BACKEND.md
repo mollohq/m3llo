@@ -83,7 +83,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `main.go` | RPC and hook registration |
 | `auth.go` | Post-authentication hooks (create default metadata); `BeforeUpdateAccount`, the display name rule (§4.4) |
 | `text_rules.go` | `cleanName`, `nameLength` and the name limits (§4.4) |
-| `crews.go` | `CreateCrewRPC`, `DiscoverCrewsRPC`, `UpdateCrewRPC`, `DeleteCrewRPC`, `ChangeCrewRoleRPC`, `KickCrewMemberRPC`, `GetCrewAvatarRPC`, after-join/leave hooks |
+| `crews.go` | `CreateCrewRPC`, `DiscoverCrewsRPC`, `UpdateCrewRPC`, `DeleteCrewRPC`, `ChangeCrewRoleRPC`, `KickCrewMemberRPC`, `GetCrewAvatarRPC`, after-join/leave hooks, the kick hooks (`BeforeKickCrewMembers`, `AfterKickCrewMembers`), `recordMemberLeft` |
 | `streaming.go` | `StartStreamRPC`, `StopStreamRPC`, `UploadThumbnailRPC`; `CapturePolicy` and `loadCapturePolicy` for the `capture` block (§4.2) |
 | `search_users.go` | `SearchUsersRPC` — friends first, then other matches by display name |
 | `invite_codes.go` | `GenerateInviteCode`, `JoinByInviteCodeRPC` |
@@ -93,9 +93,19 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `crew_state.go` | Crew state streaming (sidebar, presence) |
 | `presence.go` | Presence hooks (status tracking) |
 | `push.go` | Push notification helpers |
-| `clips.go` | `PostClipRPC`, `ClipUploadURLRPC`, `ClipUploadCompleteRPC`, `WeeklyRecapJob`; durable `crew_clips`/`crew_recaps` storage |
+| `clips.go` | `PostClipRPC`, `ClipUploadURLRPC`, `ClipUploadCompleteRPC`, `WeeklyRecapJob`; `AppendClip` and the legacy `crew_clips` document |
 | `crew_feed.go` | `CrewFeedRPC` — server-side feed curation (order, role, size, locked card) |
-| `stream_sessions_store.go` | Durable `crew_stream_sessions` store (`UpsertStreamSession`, cap) so stream replays outlive the ledger trim |
+| `stream_sessions_store.go` | The legacy `crew_stream_sessions` document (`UpsertStreamSession`, cap 150). A stream replay is a row of the durable store (spec 16 section 3.7) |
+| `ledger_store.go` | The durable crew ledger: the `ledgerStore` interface, the type sets, the in-memory store for tests |
+| `ledger_store_sql.go` | `ensureLedgerSchema`, `startLedgerStore`, the SQL store on the Nakama database, `DevLedgerSelftestRPC` |
+| `ledger_store_conformance.go` | `ledgerStoreConformance`: the store contract. `go test` runs it on the in-memory store, `dev_ledger_selftest` on the SQL store |
+| `ledger_dual_write.go` | `ledgerWriteBoth`, `historyWriteBoth`: one write on the legacy document and the store, the truth first |
+| `ledger_migration.go` | `StartLedgerReconcile`, the soak, the two markers, `ledgerTruthStore`, `historyTruthStore` (spec 16 sections 3.8 and 3.9) |
+| `ledger_history.go` | Clips, stream sessions and weekly recaps as rows; their reconcile; the store reads of `crew_feed`, one page of Crew history |
+| `ledger_scrub.go` | The scrub rules of a deleted account. Pure functions |
+| `ledger_user_scrub.go` | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub of a deleted account, `StartLedgerDeletionJob`, `AdminScrubUserRPC` |
+| `ledger_purge.go` | `AfterDeleteCrew`, the purge of a deleted crew, `AdminPurgeCrewRPC` |
+| `admin_media_orphans.go` | `AdminMediaOrphansRPC`: server-to-server scan and delete of clip and snapshot objects that no row points at (§4.5) |
 | `s3.go` | S3/R2 presign client singleton, `GeneratePresignedPUT`, `S3PublicURL` helpers; the chat bucket (`MEDIA_S3_BUCKET`, `MEDIA_S3_PUBLIC_URL`) with `GeneratePresignedPUTChat` and `DeleteChatObjects` |
 | `chat_images.go` | `ChatUploadURLRPC`, `ChatDeleteImagesRPC`, the chat image key rules and `validateChatImages` for the message hook |
 | `chat_reactions.go` | `ChatReactRPC`, `ChatReactionsRPC`; `applyReaction` and `validReactionEmoji` are pure |
@@ -106,7 +116,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_live_snapshot.go` | `AdminLiveSnapshotRPC` — server-to-server snapshot of non-empty voice rooms (channel, crew, members) plus active streams (`stream_meta` scan). Powers the admin Live view. |
 | `admin_capture_policy.go` | `AdminCapturePolicyGetRPC`, `AdminCapturePolicySetRPC` — server-to-server read and conditional write of the game capture hook policy (§4.2). Powers the admin Hook policy page. |
 | `discover_curation.go` | `AdminDiscoverCurationGetRPC`, `AdminDiscoverCurationSetRPC`: server-to-server read and conditional write of the Discover curation (§4.3). `readDiscoverCuration` is also read by `DiscoverCrewsRPC`. Powers the admin Discover page. |
-| `dev_seed.go` | Development seed data |
+| `dev_seed.go` | Development seed data. A reset also deletes the rows of the crew in the durable store |
 
 ---
 
@@ -120,9 +130,9 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `search_users` | Yes | Searches users by display name. The query is at least 2 characters (runes). The match folds case with `strings.ToLower` (Go) and `LOWER` (SQL). Returns friends first (via `nk.FriendsList`), then non-friends matching the query (via SQL `LIKE` on `users` table). Limit 100 friends, 20 results. |
 | `join_by_invite_code` | Yes | Looks up invite code in storage, joins the associated crew. Returns crew ID + name. |
 | `update_crew` | Yes | Updates crew name, description, avatar, open/closed status, and invite policy. Requires admin role (state ≤ 1). A new name follows §4.4. |
-| `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). |
+| `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). Then starts the purge of everything of the crew (spec 16 section 10.3). |
 | `change_crew_role` | Yes | Promotes/demotes a member between admin (1) and member (2). Requires owner role (state 0). |
-| `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. |
+| `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. Writes a `member_left` ledger event. |
 | `get_ice_servers` | Yes | Returns STUN server URLs + TURN server URLs with time-limited HMAC credentials (24h TTL). |
 | `start_stream` | Yes | Announces stream start to crew members via crew state stream. The response carries the `capture` block: the hook policy (§4.2). With `resume_session_id`, it re-advertises a stream that the host's SFU session still carries after a Nakama realtime reconnect: the records are still there, or `StreamCleanupUser` removed them less than 10 min ago and the `stream_resume` record restores them (same session id and endpoint; the cleanup's `stream_session` ledger event is removed). The response then has `resumed: true`. Any other resume returns NOT_FOUND (5). With `advertise: "on_live"` (streaming-quality stage 6), it signs the host token and writes only the `stream_sessions` record with the pending advertisement; the response echoes `advertise: "on_live"`, and `stream_live` advertises the stream. Without the field it advertises at once (older clients). `fps` is optional and goes to the push. `igdb_id` (0 or absent: not a catalogue game) goes to `active_streams`, `stream_meta`, the push and the crew state. |
 | `stream_live` | Yes | `{crew_id, session_id, width, height, fps, bitrate_kbps}`. The host calls it when its SFU track is open, for a stream that `start_stream` recorded with `advertise: "on_live"`. Writes `active_streams`, `stream_meta` and the host's presence, and pushes `stream_started` with `mode`, `width`, `height`, `fps` and `igdb_id`, so a viewer starts its decoder with no second RPC. Only the host of the session (PERMISSION_DENIED, 7); an unknown session is NOT_FOUND (5); a second call for an advertised stream changes nothing. |
@@ -131,7 +141,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `stop_stream` | Yes | Announces stream end. Only the host of the crew's stream can stop it; another caller gets PERMISSION_DENIED (7) and nothing changes. The `stream_session` ledger event takes `peak_viewers` and every viewer that watched (`stream_meta.peak_viewers`, `watched_ids`). An optional `session_id` also removes a stream that was never advertised (no `stream_live` yet). |
 | `stream_viewer_left` | Yes | `{crew_id, viewer_id}`. The host calls it on the SFU `member_left` of a viewer. Removes the viewer from `stream_meta.viewer_ids`, which `watch_stream` fills; crew state `viewer_count` is its length. Only the host can call it (PERMISSION_DENIED otherwise). |
 | `upload_thumbnail` | Yes | Stores stream thumbnail (base64) in Nakama storage. |
-| `post_clip` | Yes | Stores clip metadata in the durable per-crew `crew_clips` document (capped, outside the 7-day ledger trim). Pushes notification to crew. |
+| `post_clip` | Yes | Stores clip metadata as a row of the durable store and in the legacy `crew_clips` document (spec 16 section 3.8). The store has no cap. Pushes notification to crew. |
 | `crew_feed` | Yes | The crew feed: the zones (Stage, Board, clips and sessions of the free window, People) and one page of Crew history by week (`history_before`). See features/CREW-FEED-ZONES.md. |
 | `clip_upload_url` | Yes | Returns a presigned PUT URL for direct S3/R2 upload and the public `media_url`. Only the clipper, a crew member, after `post_clip`. |
 | `clip_upload_complete` | Yes | Updates the clip's `media_url` after successful upload. |
@@ -157,8 +167,26 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_capture_policy_set` | No (`http_key`, server-to-server only) | Replaces the stored hook policy, only if the storage version still matches (see §4.2). Rejects client sessions. |
 | `admin_discover_curation_get` | No (`http_key`, server-to-server only) | Returns the featured and hidden lists, a summary of each crew, and the storage version (see §4.3). Rejects client sessions. |
 | `admin_discover_curation_set` | No (`http_key`, server-to-server only) | Replaces both lists, only if the storage version still matches (see §4.3). Rejects client sessions. |
+| `admin_media_orphans` | No (`http_key`, server-to-server only) | Scans the clips and snapshots buckets for objects that no clip and no stream session points at. Deletes only keys that the caller names, and only with `MELLO_MEDIA_ORPHAN_DELETE=1` (see §4.5). Rejects client sessions. |
+| `admin_scrub_user` | No (`http_key`, server-to-server only) | `{user_id}`. Runs the scrub of a deleted account again (see §4.6). Refuses while the account exists (FAILED_PRECONDITION, 9). Rejects client sessions. |
+| `admin_purge_crew` | No (`http_key`, server-to-server only) | `{crew_id}`. Runs the purge of a deleted crew (see §4.6). Refuses while the group exists (9), and for a crew id this install holds nothing of (NOT_FOUND, 5). Rejects client sessions. |
+| `dev_ledger_selftest` | Yes, or `http_key` | Dev and test only. Runs the store conformance on the real ledger tables, on throwaway crew ids. Needs `MELLO_ENABLE_DEV_FAULT=1`, else FAILED_PRECONDITION (9). Returns `{"success": true, "store": "sql"}`. |
 
 Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`, `INVALID_ARGUMENT`, `NOT_FOUND`, `PERMISSION_DENIED`, `INTERNAL`).
+
+**Hooks.** `main.go` registers these hooks next to the RPCs:
+
+| Hook | Function | Does |
+|---|---|---|
+| `AfterJoinGroup` | `AfterJoinCrew` | Writes the `member_joined` ledger event |
+| `AfterLeaveGroup` | `AfterLeaveCrew` | Cleans voice, writes the `member_left` ledger event |
+| `BeforeKickGroupUsers` | `BeforeKickCrewMembers` | Notes which ids of the request are members. Never changes or refuses the request |
+| `AfterKickGroupUsers` | `AfterKickCrewMembers` | For each noted id that is no member now: cleans voice, writes `member_left` |
+| `AfterDeleteGroup` | `AfterDeleteCrew` | Starts the purge of the crew (spec 16 section 10.3) |
+| `BeforeDeleteAccount` | `BeforeDeleteAccount` | Writes the scrub record: the names and the crews of the user. Never fails the delete |
+| `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2) |
+
+**Background jobs of the durable store.** `StartLedgerReconcile` and `StartLedgerDeletionJob` run at start and every 5 minutes on each node.
 
 ### 4.1 `admin_live_snapshot` contract
 
@@ -353,6 +381,59 @@ updates must not fail. A new name must meet the limit.
 
 **Initials** are not a server rule. See `01-CLIENT.md` §4.2.
 
+### 4.5 `admin_media_orphans` contract
+
+The RPC has two modes. A delete cannot be undone, so a scan never deletes.
+
+**Scan.** Request `{max_objects?, clips_after?, snapshots_after?}`. `max_objects` is 1 to 50,000, default 5,000.
+
+- It lists `crews/` in the clips bucket and `snapshots/` in the snapshots bucket.
+- An object is an orphan when its crew is a group on this install, no clip (by `clip_id`) and no stream session (by `session_id`) of the crew points at it, and it is older than 24 hours.
+- A crew holds a clip or a session when a legacy document, the live stream record or a store row has it.
+- Response: `{dry_run, min_age_hours, store, clips, snapshots}`. Each of `clips` and `snapshots` is `{configured, scanned, orphans, bytes, too_new, unknown, unknown_crew, read_failed, sample, incomplete, next_after}`.
+
+| Field | Meaning |
+|---|---|
+| `unknown_crew` | The crew id is not a group on this install. Another install can share the bucket. Such an object is never an orphan here |
+| `too_new` | Younger than 24 hours. It also counts every snapshot of a session that has a snapshot younger than 24 hours |
+| `unknown` | The key does not follow the layout |
+| `read_failed` | The crew was not read |
+| `sample` | The orphans of the call, `{key, bytes, last_modified_ms}`, at most 500 |
+| `incomplete`, `next_after` | The list was cut at `max_objects` or at the time budget (2 minutes). `next_after` is the last key that was judged. Send it as `clips_after` or `snapshots_after` |
+
+**Delete.** Request `{delete: true, clip_keys?, snapshot_keys?}`.
+
+| Rule | Error |
+|---|---|
+| `MELLO_MEDIA_ORPHAN_DELETE` is not `1` | `FAILED_PRECONDITION` (9) |
+| The durable store is not loaded | `FAILED_PRECONDITION` (9) |
+| `delete` with no keys | `INVALID_ARGUMENT` (3) |
+| Keys with no `delete` | `INVALID_ARGUMENT` (3) |
+| More than 500 keys, both lists together | `INVALID_ARGUMENT` (3). Nothing is deleted |
+
+- Each key is judged again as an orphan, with a new read for that key.
+- Response: `deleted_clips` and `deleted_snapshots`, each `{deleted: [key], refused: [{key, reason}]}`. Every key of the request is in one of the two lists.
+- Reasons: `unknown_key`, `unknown_crew`, `read_failed`, `held`, `not_found`, `too_new`, `session_active`, `delete_failed`, `not_configured`.
+
+### 4.6 `admin_scrub_user` and `admin_purge_crew` contracts
+
+Both repair a deletion of spec 16 section 10 by hand. The deletion job runs the same work every 5 minutes, so a call is needed only for the cases of spec 16 sections 10.5 and 10.6.
+
+**`admin_scrub_user`**: request `{user_id}`, a UUID. One call is one run with a deadline of 2 minutes. Response:
+`{user_id, done, incomplete, busy, store_pending, crews_scrubbed, crews_left, dropped, changed, media_deleted, media_pending, media_skipped, errors}`.
+Call it again while `done` is false. `busy` is true when a scrub of the user runs in this process. A call on a scrub with no work left looks for the crews of the user again.
+
+**`admin_purge_crew`**: request `{crew_id}`, a UUID. It writes the purge record, then runs one run with a deadline of 2 minutes. Response:
+`{crew_id, done, incomplete, store_pending, media_deleted, docs_deleted, store_deleted, media_skipped, errors}`.
+Call it again while `done` is false.
+
+| Rule | Error |
+|---|---|
+| The id is not a UUID | `INVALID_ARGUMENT` (3) |
+| The account or the group still exists | `FAILED_PRECONDITION` (9) |
+| `admin_purge_crew`: no purge record, no document and no row of the crew on this install | `NOT_FOUND` (5) |
+| The account, the group or the record was not read or written | `INTERNAL` (13) |
+
 ---
 
 ## 5. Data Models
@@ -401,12 +482,19 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 | `crew_avatars` | `{crew_id}` | System user (`""`) | `{"data":"<base64 JPEG>"}` | `create_crew`, `get_crew_avatar` |
 | `invite_codes` | `{code}` | System user (`""`) | `{"crew_id":"...","crew_name":"...","created_by":"..."}` | `GenerateInviteCode`, `join_by_invite_code` |
 | `stream_thumbnails` | `{crew_id}` | Streaming user | `{"data":"<base64 JPEG>"}` | `upload_thumbnail` |
-| `crew_events` | `{crew_id}` | System user (`""`) | 7-day rolling JSON event ledger (sessions, joins, chat, moments) | `crew_feed`, `post_moment` |
-| `crew_clips` | `{crew_id}` | System user (`""`) | Durable capped list of clip metadata (outside ledger trim) | `post_clip`, `crew_feed`, `clip_upload_complete` |
-| `crew_recaps` | `{crew_id}` | System user (`""`) | Durable list of weekly recaps | `WeeklyRecapJob`, `crew_feed` |
-| `crew_stream_sessions` | `{crew_id}` | System user (`""`) | Durable capped list of stream replays (outside ledger trim) | `stop_stream`, snapshot backfill, `crew_feed` |
+| `crew_events` | `{crew_id}` | System user (`""`) | Legacy copy of the ledger events, trimmed to 7 days. The truth until the cutover of phase 1a (spec 16 section 3.8) | Every ledger write (dual write); the readers before the cutover |
+| `crew_clips` | `{crew_id}` | System user (`""`) | Legacy copy of the clip metadata, newest 250. The truth until the cutover of phase 1b | `post_clip`, `clip_upload_complete` (dual write); the readers before the cutover |
+| `crew_recaps` | `{crew_id}` | System user (`""`) | Legacy copy of the weekly recaps. The truth until the cutover of phase 1b | `WeeklyRecapJob` (dual write); the readers before the cutover |
+| `crew_stream_sessions` | `{crew_id}` | System user (`""`) | Legacy copy of the stream replays, newest 150. The truth until the cutover of phase 1b | `stop_stream`, snapshot backfill; the readers before the cutover |
+| `ledger_migration` | `state` | System user (`""`) | `{dual_write_started_ms, events_done_ms}`: the state and the marker of phase 1a. Read 0, write 0. | The reconcile writes, `ledgerTruthStore` reads |
+| `ledger_migration` | `history` | System user (`""`) | `{started_ms, done_ms}`: the state and the marker of phase 1b. Read 0, write 0. | The reconcile writes, `historyTruthStore` reads |
+| `ledger_migration` | `purge_token` | System user (`""`) | A token that changes with every write of a purge record. A node lists the purge records again only when it changed. | The purge writes, the reconcile and the deletion job read |
+| `ledger_user_scrub` | `{user_id}` | System user (`""`) | The scrub record of a deleted account (spec 16 section 10.2). Deleted when the scrub is over. No client read. | `BeforeDeleteAccount`, `AfterDeleteAccount`, the deletion job, `admin_scrub_user` |
+| `ledger_crew_purge` | `{crew_id}` | System user (`""`) | The purge record of a deleted crew: `{crew_id, started_ms, done_ms, settled_ms, store_pending, last_error}`. Kept for good. | `delete_crew`, `AfterDeleteCrew`, the deletion job, the reconcile, `admin_purge_crew` |
 | `stream_resume` | `{host user_id}` | System user (`""`) | The stream records that `StreamCleanupUser` removed, the ledger event id and the time. Read 0, write 0. | `StreamCleanupUser` writes, `start_stream` with `resume_session_id` reads and deletes |
 | `discover` | `curation` | System user | Featured and hidden crew lists (§4.3). Read 0, write 0. | `discover_crews`, `admin_discover_curation_get`, `admin_discover_curation_set` |
+
+**Durable crew ledger (SQL):** The ledger events, clips, weekly recaps and stream replays are rows of five tables in the Nakama database (`mello_crew_event`, `mello_crew_event_user`, `mello_crew_event_week`, `mello_crew_event_anchor`, `mello_crew_event_deleted`). The module creates them at start. See [16-CREW-EVENT-LEDGER.md](./16-CREW-EVENT-LEDGER.md) section 3.7.
 
 **Cloud object storage (S3/R2):** Clip media files (MP4/AAC) are stored in an S3-compatible bucket (`mello-clips`). Clients upload directly via presigned PUT URLs — no data passes through Nakama. See [CLIPS.md §6](./features/CLIPS.md) for the full flow.
 
@@ -599,7 +687,7 @@ Estimated cost: ~$2,000-5,000/mo
 | POST | `/v2/rpc/stream_picture` | Yes | The newest SFU snapshot of a live stream |
 | POST | `/v2/rpc/refresh_stream_token` | Yes | New SFU token for a stream session (host or viewer) |
 | POST | `/v2/rpc/upload_thumbnail` | Yes | Upload stream thumbnail |
-| POST | `/v2/rpc/post_clip` | Yes | Store clip metadata in durable `crew_clips` |
+| POST | `/v2/rpc/post_clip` | Yes | Store clip metadata in the durable store |
 | POST | `/v2/rpc/crew_feed` | Yes | The crew feed: the zones and Crew history |
 | POST | `/v2/rpc/clip_upload_url` | Yes | Get presigned PUT URL for S3/R2 upload |
 | POST | `/v2/rpc/clip_upload_complete` | Yes | Confirm upload, set media_url |

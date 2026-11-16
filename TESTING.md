@@ -156,6 +156,7 @@ set `RUSTC` to the toolchain `rustc.exe`.
 | Nakama `go test` | Backend modules | No | ✅ yes | `cd backend/nakama/data/modules && go test ./...` |
 | Nakama `gofmt` / `go vet` | Backend modules | No | ✅ yes | `cd backend/nakama/data/modules && gofmt -l . && go vet ./...` |
 | `dev_fault` RPC | Backend fault injection | Yes (live Nakama) | No (manual/integration) | RPC call, gated by `MELLO_ENABLE_DEV_FAULT=1` |
+| `dev_ledger_selftest` RPC | The SQL crew ledger store against the store contract | Yes (live Nakama) | No (manual) | `./scripts/e2e.sh`, gated by `MELLO_ENABLE_DEV_FAULT=1` |
 | `scripts/e2e-head2head.sh` | Head2head feed entry: library_report, crew_feed, belt move, night_owl | Yes (own local Nakama stack) | No (manual, ~70 s) | `./scripts/e2e-head2head.sh` |
 | `mello-driver seed-crew` | Seeds crewmates (library, sessions, clips, belt) into your crew on the local stack | Yes (local Nakama) | No (manual) | `node tools/mello-driver/src/cli.ts seed-crew <invite code> [--members N] [--belts] [--clips N] [--recap]` |
 | `mello-driver run` needs | A journey lists `needs` (`sfu`, `lounge`, `art`); `voice: true` implies `sfu`. `run` checks each need once before the first journey, and only on a local address. `art` is the art Worker health at `MELLO_E2E_ART_BASE` (default `http://127.0.0.1:8787`); start it with `scripts/e2e-art-worker.sh up`. `sfu` is the SFU health at `MELLO_E2E_SFU_HEALTH`. Start it with `docker compose up -d --build` in `mello-sfu`: without `--build`, compose reuses the old `mello-sfu-sfu` image and voice joins fail with `DataChannel open timeout`. | Yes (local stack) | No (manual) | `node tools/mello-driver/src/cli.ts run <journey>` |
@@ -1368,6 +1369,40 @@ Actions (payload `{"action": ...}`):
   (simulates lost notifications → client must self-heal).
 
 Never enable in production.
+
+### Crew ledger store (conformance run and `dev_ledger_selftest`)
+
+`ledgerStoreConformance` (`ledger_store_conformance.go`) is the contract of the
+durable crew ledger store (`specs/16-CREW-EVENT-LEDGER.md` section 3.7). The
+same function runs on both stores:
+
+- **In memory, no server:** `TestMemLedgerConformance` runs it on
+  `memLedgerStore`, the store the other Go tests use.
+- **SQL, live Nakama:** the `dev_ledger_selftest` RPC runs it on the real
+  tables. It writes only to throwaway crew ids (`selftest_*`) and deletes them
+  at the end. It is gated by `MELLO_ENABLE_DEV_FAULT=1`, as `dev_fault`.
+  Success returns `{"success": true, "store": "sql"}`.
+
+```bash
+# in memory
+cd backend/nakama/data/modules
+go test -run 'TestMemLedgerConformance' .
+
+# SQL: scripts/e2e.sh brings the stack up with MELLO_ENABLE_DEV_FAULT=1 and
+# MELLO_LEDGER_SOAK_SECONDS=0, then runs the backend tests
+./scripts/e2e.sh
+# or against a stack that is already up:
+MELLO_E2E=1 CI=true cargo test -p e2e --test backend -- the_sql_ledger_store_passes_the_conformance_run --nocapture
+```
+
+A new method of `ledgerStore` gets its checks in the conformance function, not
+in a test of one store. Then both stores are held to it.
+
+The migration and deletion tests (`ledger_*_test.go`) run on the in-memory
+store and a storage fake. Tests of the deletion rules use `delPhases`: each one
+runs before the cutover, after it, and under each kill switch.
+
+Never enable `dev_ledger_selftest` in production.
 
 ---
 

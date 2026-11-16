@@ -381,6 +381,54 @@ func deleteObject(ctx context.Context, c *s3.Client, bucket, key string) error {
 	return nil
 }
 
+// s3ObjectEntry is one object of a bucket list.
+type s3ObjectEntry struct {
+	Key          string
+	Size         int64
+	LastModified time.Time
+}
+
+// listObjectsAfter lists up to max objects with a key under prefix that sort
+// after startAfter, in key order. more is true when the bucket holds further
+// objects under the prefix.
+func listObjectsAfter(ctx context.Context, c *s3.Client, bucket, prefix, startAfter string, max int) (objects []s3ObjectEntry, more bool, err error) {
+	var token *string
+	for len(objects) < max {
+		page := max - len(objects)
+		if page > 1000 {
+			page = 1000
+		}
+		in := &s3.ListObjectsV2Input{
+			Bucket:            aws.String(bucket),
+			Prefix:            aws.String(prefix),
+			MaxKeys:           aws.Int32(int32(page)),
+			ContinuationToken: token,
+		}
+		if token == nil && startAfter != "" {
+			in.StartAfter = aws.String(startAfter)
+		}
+		out, err := c.ListObjectsV2(ctx, in)
+		if err != nil {
+			return objects, false, fmt.Errorf("ListObjectsV2 failed: %w", err)
+		}
+		for _, obj := range out.Contents {
+			if obj.Key == nil {
+				continue
+			}
+			entry := s3ObjectEntry{Key: *obj.Key, Size: aws.ToInt64(obj.Size)}
+			if obj.LastModified != nil {
+				entry.LastModified = *obj.LastModified
+			}
+			objects = append(objects, entry)
+		}
+		if !aws.ToBool(out.IsTruncated) || out.NextContinuationToken == nil {
+			return objects, false, nil
+		}
+		token = out.NextContinuationToken
+	}
+	return objects, true, nil
+}
+
 // staleMultipartUploads returns the uploads with a key under prefix that
 // started before cutoff. An upload with no start time is kept, because its
 // age is not known.

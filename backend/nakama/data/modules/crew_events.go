@@ -154,7 +154,52 @@ func generateEventID() string {
 // Storage helpers
 // ---------------------------------------------------------------------------
 
+// readLedger is the ledger of a crew as readers see it: the events of the
+// 7 days before the last append. After the cutover it comes from the durable
+// store (ledgerStore.RecentView), before it from the legacy document. The
+// version is for the writers of the document and is empty after the cutover.
 func readLedger(ctx context.Context, nk runtime.NakamaModule, crewID string) (*CrewEventLedger, string) {
+	if store := ledgerTruthStore(ctx, nk); store != nil {
+		events, err := store.RecentView(ctx, crewID)
+		if err == nil {
+			return &CrewEventLedger{CrewID: crewID, Events: events}, ""
+		}
+		// The document is still written after the cutover.
+		ledgerLogError("ledger_store_read_failed crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	return readLedgerDoc(ctx, nk, crewID)
+}
+
+// readLedgerWindow returns the events of a crew for a reader that wants the
+// time window fromMs..toMs. After the cutover these are all events of the
+// legacy ledger path in the window, under their document type. Before it,
+// the legacy document is all there is, and the caller filters by time.
+func readLedgerWindow(ctx context.Context, nk runtime.NakamaModule, crewID string, fromMs, toMs int64) *CrewEventLedger {
+	if store := ledgerTruthStore(ctx, nk); store != nil {
+		rows, err := store.Between(ctx, crewID, fromMs, toMs, nil)
+		if err == nil {
+			events := make([]CrewEvent, 0, len(rows))
+			for _, ev := range rows {
+				// Rows that are not of the legacy ledger path (the clip and
+				// recap rows of phase 1b) were never in the document.
+				typ, ok := ledgerReaderType(ev.Type)
+				if !ok {
+					continue
+				}
+				ev.Type = typ
+				events = append(events, ev)
+			}
+			return &CrewEventLedger{CrewID: crewID, Events: events}
+		}
+		ledgerLogError("ledger_store_read_failed crew=%s: %v. Reading the legacy document", crewID, err)
+	}
+	doc, _ := readLedgerDoc(ctx, nk, crewID)
+	return doc
+}
+
+// readLedgerDoc reads the legacy ledger document and its version. The writers
+// of the document use it.
+func readLedgerDoc(ctx context.Context, nk runtime.NakamaModule, crewID string) (*CrewEventLedger, string) {
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{Collection: CrewEventsCollection, Key: crewID, UserID: SystemUserID},
 	})
@@ -224,9 +269,22 @@ func streamSessionDataToObject(data StreamSessionData) (map[string]interface{}, 
 
 // UpdateLedgerEventSnapshotURLs finds a stream_session event by eventID and updates its SnapshotURLs.
 // Used by the background backfill job when SFU uploads frames after StopStreamRPC completed.
+//
+// The store that is the truth is written first and its error is returned
+// (ledger_dual_write.go).
 func UpdateLedgerEventSnapshotURLs(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string, snapshotURLs []string) error {
+	return ledgerWriteBoth(ctx, nk, "snapshot_urls", crewID, eventID,
+		func(store ledgerStore) error {
+			return ledgerStoreSetSnapshotURLs(ctx, store, crewID, eventID, snapshotURLs)
+		},
+		func() error { return updateLedgerDocSnapshotURLs(ctx, nk, crewID, eventID, snapshotURLs) })
+}
+
+// updateLedgerDocSnapshotURLs sets the snapshot URLs of a stream_session
+// event in the legacy document.
+func updateLedgerDocSnapshotURLs(ctx context.Context, nk runtime.NakamaModule, crewID, eventID string, snapshotURLs []string) error {
 	for attempt := 0; attempt < 3; attempt++ {
-		ledger, version := readLedger(ctx, nk, crewID)
+		ledger, version := readLedgerDoc(ctx, nk, crewID)
 
 		found := false
 		for i, e := range ledger.Events {
@@ -260,15 +318,30 @@ func UpdateLedgerEventSnapshotURLs(ctx context.Context, nk runtime.NakamaModule,
 	return fmt.Errorf("UpdateLedgerEventSnapshotURLs failed after 3 retries for crew %s event %s", crewID, eventID)
 }
 
-// AppendCrewEvent appends an event to a crew's ledger with optimistic concurrency retry.
+// ledgerNow is the clock of the ledger trim. Tests replace it.
+var ledgerNow = time.Now
+
+// AppendCrewEvent appends an event to the ledger of a crew.
+//
+// Dual write (specs/16-CREW-EVENT-LEDGER.md section 3.8). The store that is the truth
+// is written first and its error is returned: the legacy document before the
+// cutover, the durable store after it. A failure of the other store is logged.
 func AppendCrewEvent(ctx context.Context, nk runtime.NakamaModule, crewID string, event CrewEvent) error {
+	return ledgerWriteBoth(ctx, nk, "append", crewID, event.ID,
+		func(store ledgerStore) error { return ledgerStoreAppend(ctx, store, crewID, event) },
+		func() error { return appendLedgerDoc(ctx, nk, crewID, event) })
+}
+
+// appendLedgerDoc appends an event to the legacy document with optimistic
+// concurrency retry, and trims the document to 7 days.
+func appendLedgerDoc(ctx context.Context, nk runtime.NakamaModule, crewID string, event CrewEvent) error {
 	for attempt := 0; attempt < 3; attempt++ {
-		ledger, version := readLedger(ctx, nk, crewID)
+		ledger, version := readLedgerDoc(ctx, nk, crewID)
 
 		ledger.Events = append(ledger.Events, event)
 
 		// Trim events older than the rolling window
-		cutoff := time.Now().Add(-time.Duration(EventRollingWindowDays) * 24 * time.Hour).UnixMilli()
+		cutoff := ledgerNow().Add(-time.Duration(EventRollingWindowDays) * 24 * time.Hour).UnixMilli()
 		trimmed := make([]CrewEvent, 0, len(ledger.Events))
 		for _, e := range ledger.Events {
 			if e.Timestamp >= cutoff {
@@ -396,8 +469,9 @@ func CrewCatchupRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	// Clips are durable and no longer in the ledger. Merge recent clips into the
 	// candidate set as synthetic events so high-value moments still surface.
 	events := ledger.Events
-	clipsDoc, _ := readClipsDoc(ctx, nk, req.CrewID)
-	for _, c := range clipsDoc.Clips {
+	// At most the newest 250 clips, as the capped document held them: a
+	// member with last_seen 0 does not read every clip of the crew.
+	for _, c := range crewNewestClipsSince(ctx, nk, req.CrewID, lastSeen+1) {
 		if c.Ts <= lastSeen {
 			continue
 		}

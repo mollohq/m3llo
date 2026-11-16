@@ -12,6 +12,8 @@ cd backend && docker compose up -d
 
 The Nakama console is at `http://localhost:7351`. The login is in `backend/nakama/data/local.yml`.
 
+The backend creates its own tables for the crew ledger at start. If you use your own PostgreSQL, the Nakama database user must be allowed to create tables and indexes. The bundled compose setup needs nothing.
+
 ## SFU
 
 Voice and streams run through the SFU. Run [m3llo-sfu](https://github.com/mollohq/m3llo-sfu) (its `SELF-HOSTING.md` covers the SFU side), then point Nakama at it. `backend/docker-compose.yml` passes these variables to Nakama:

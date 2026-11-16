@@ -112,9 +112,24 @@ func stampRecapWeeks(ctx context.Context, nk runtime.NakamaModule, crewID string
 	}
 }
 
-// AppendRecap appends a recap to the durable recaps doc and retries on version
-// conflict. No cap: recaps are tiny and one per crew per week.
+// AppendRecap stores a weekly recap of a crew.
+//
+// Dual write (specs/16-CREW-EVENT-LEDGER.md section 3.8). The store that is the
+// truth is written first and its error is returned: the legacy document
+// before the cutover of phase 1b, the durable store after it. A failure of
+// the other store is logged. The store holds one recap for a week start.
 func AppendRecap(ctx context.Context, nk runtime.NakamaModule, crewID string, recap WeeklyRecapData) error {
+	return historyWriteBoth(ctx, nk, "recap", crewID, recapEntryID(recap.WeekStart),
+		func(store ledgerStore) error {
+			_, err := store.Put(ctx, crewID, []ledgerRow{recapRow(recap)})
+			return err
+		},
+		func() error { return appendRecapDoc(ctx, nk, crewID, recap) })
+}
+
+// appendRecapDoc appends a recap to the legacy recaps document and retries on
+// version conflict. No cap: recaps are tiny and one per crew per week.
+func appendRecapDoc(ctx context.Context, nk runtime.NakamaModule, crewID string, recap WeeklyRecapData) error {
 	for attempt := 0; attempt < 3; attempt++ {
 		doc, version := readRecapsDoc(ctx, nk, crewID)
 		doc.Recaps = append(doc.Recaps, recap)
@@ -294,11 +309,12 @@ func generateWeeklyRecap(ctx context.Context, nk runtime.NakamaModule, logger ru
 // Events and clips after weekEnd are left out, so a late run (recapLookback)
 // still reports the week that ended on Monday 00:00 UTC.
 func generateWeeklyRecapAt(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, crewID string, weekEnd time.Time) {
-	ledger, _ := readLedger(ctx, nk, crewID)
-
 	weekStart := weekEnd.Add(-7 * 24 * time.Hour)
 	startMs := weekStart.UnixMilli()
 	endMs := weekEnd.UnixMilli()
+
+	// After the ledger cutover a late run still has its full week.
+	ledger := readLedgerWindow(ctx, nk, crewID, startMs, endMs)
 
 	var totalHangoutMin int
 	var totalGameMin int
@@ -391,15 +407,15 @@ func generateWeeklyRecapAt(ctx context.Context, nk runtime.NakamaModule, logger 
 		}
 	}
 
-	// Clips are durable and no longer in the ledger; count them from the clips doc.
-	clipsDoc, _ := readClipsDoc(ctx, nk, crewID)
-	for _, c := range clipsDoc.Clips {
+	// Clips are not in the ledger. Count the stored clips of the week.
+	weekClips := crewClipsBetween(ctx, nk, crewID, startMs, endMs)
+	for _, c := range weekClips {
 		if c.Ts >= startMs && c.Ts <= endMs {
 			clipCount++
 			actorClips[c.ActorID]++
 		}
 	}
-	clipOfWeek := pickClipOfWeek(clipsDoc.Clips, startMs, endMs)
+	clipOfWeek := pickClipOfWeek(weekClips, startMs, endMs)
 
 	topGame := ""
 	topGameMin := 0
@@ -896,8 +912,7 @@ func generateDueRecaps(ctx context.Context, nk runtime.NakamaModule, logger runt
 			return
 		}
 		for _, g := range groups {
-			doc, _ := readRecapsDoc(ctx, nk, g.GetId())
-			if recapDue(doc, now) {
+			if recapDue(crewRecapState(ctx, nk, g.GetId()), now) {
 				generateWeeklyRecapAt(ctx, nk, logger, g.GetId(), mondayStartUTC(now))
 			}
 		}
