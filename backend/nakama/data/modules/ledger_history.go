@@ -763,6 +763,42 @@ func loadZoneHistory(ctx context.Context, nk runtime.NakamaModule, crewID string
 	return zoneHistoryData{Clips: clips.Clips, Streams: streams.Sessions, Recaps: recaps.Recaps}
 }
 
+// dropSupersededStreamRows drops the stream_session rows whose session id a
+// newer row of the crew holds. The document held one entry for a session id,
+// the one written last (streamSessionsFromRows). The newer row can be in
+// another week or in the free window, so the store is asked.
+func dropSupersededStreamRows(ctx context.Context, store ledgerStore, crewID string, rows []CrewEvent) ([]CrewEvent, error) {
+	refs := make([]string, 0, len(rows))
+	for _, ev := range rows {
+		if ref := eventRef(ev); ref != "" {
+			refs = append(refs, ref)
+		}
+	}
+	if len(refs) == 0 {
+		return rows, nil
+	}
+	all, err := store.ByRefs(ctx, crewID, ledgerTypeStreamSession, refs)
+	if err != nil {
+		return nil, err
+	}
+	newest := map[string]CrewEvent{}
+	for _, ev := range all {
+		ref := eventRef(ev)
+		if cur, ok := newest[ref]; !ok || ev.Timestamp > cur.Timestamp || (ev.Timestamp == cur.Timestamp && ev.ID > cur.ID) {
+			newest[ref] = ev
+		}
+	}
+	out := rows[:0:0]
+	for _, ev := range rows {
+		ref := eventRef(ev)
+		if n, ok := newest[ref]; ref != "" && ok && n.ID != ev.ID {
+			continue
+		}
+		out = append(out, ev)
+	}
+	return out, nil
+}
+
 // zoneBoardRecapBatch is the number of recaps one read for the board holds.
 const zoneBoardRecapBatch = 4
 
@@ -781,35 +817,22 @@ const zoneBoardRecapBatch = 4
 func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID string, windowStart, historyBefore int64) (zoneHistoryData, error) {
 	var data zoneHistoryData
 	var streamRows []CrewEvent
-	add := func(rows []CrewEvent, olderOnly bool) (kept int) {
-		var streams []CrewEvent
-		for _, ev := range rows {
-			switch ev.Type {
-			case ledgerTypeClip:
-				if c, ok := clipFromRow(ev); ok && (!olderOnly || c.Ts < windowStart) {
-					data.Clips = append(data.Clips, c)
-					kept++
-				}
-			case ledgerTypeStreamSession:
-				if !olderOnly || ev.Timestamp < windowStart {
-					streams = append(streams, ev)
-				}
-			case ledgerTypeWeeklyRecap:
-				if r, ok := recapFromRow(ev); ok {
-					data.Recaps = append(data.Recaps, r)
-				}
-			}
-		}
-		streamRows = append(streamRows, streams...)
-		return kept + len(streams)
-	}
 
 	// The free window.
 	window, err := store.Between(ctx, crewID, windowStart, math.MaxInt64, []string{ledgerTypeClip, ledgerTypeStreamSession})
 	if err != nil {
 		return data, err
 	}
-	add(window, false)
+	for _, ev := range window {
+		switch ev.Type {
+		case ledgerTypeClip:
+			if c, ok := clipFromRow(ev); ok {
+				data.Clips = append(data.Clips, c)
+			}
+		case ledgerTypeStreamSession:
+			streamRows = append(streamRows, ev)
+		}
+	}
 
 	// The newest clip and stream session. They are in the window when the
 	// window holds one.
@@ -851,17 +874,36 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 	}
 
 	// One page of Crew history, and one week more.
+	//
+	// Two rows can hold one session id (stop_stream and the socket drop both
+	// ended the stream). The feed lists the newer one. The older one is
+	// dropped before the weeks are counted (dropSupersededStreamRows), so a
+	// page is not short and no page lists the session a second time.
 	const want = zonesHistoryPageWeeks + 1
 	before := historyBefore
 	if before <= 0 {
 		before = math.MaxInt64
 	}
-	for found := 0; found < want; {
+	weekKept := map[int64]int{}    // week start -> clips and recaps kept
+	weekStreams := map[int64]int{} // week start -> stream sessions kept
+	found := func() int {
+		n := len(weekKept)
+		for w := range weekStreams {
+			if _, ok := weekKept[w]; !ok {
+				n++
+			}
+		}
+		return n
+	}
+	for {
 		weeks, err := store.WeeksBefore(ctx, crewID, zoneHistoryTypes, before, 2*want)
 		if err != nil {
 			return data, err
 		}
+		var fresh []CrewEvent
+		maybe := found()
 		for _, w := range weeks {
+			before = w.WeekStart
 			// A week that starts in the free window has no clip or stream
 			// session for Crew history. Only its recap is read.
 			types := zoneHistoryTypes
@@ -875,32 +917,45 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 			// What zoneHistory takes of this week: the clips and stream
 			// sessions older than the window, and a recap with content that
 			// is not the recap of the board.
-			recaps := 0
+			kept, streams := 0, 0
 			for _, ev := range rows {
-				if ev.Type != ledgerTypeWeeklyRecap {
-					continue
-				}
-				if r, ok := recapFromRow(ev); ok && r.WeekStart > 0 && r.WeekStart != boardWeek && !isEmptyRecap(r) {
-					data.Recaps = append(data.Recaps, r)
-					recaps++
+				switch ev.Type {
+				case ledgerTypeWeeklyRecap:
+					if r, ok := recapFromRow(ev); ok && r.WeekStart > 0 && r.WeekStart != boardWeek && !isEmptyRecap(r) {
+						data.Recaps = append(data.Recaps, r)
+						kept++
+					}
+				case ledgerTypeClip:
+					if c, ok := clipFromRow(ev); ok && c.Ts < windowStart {
+						data.Clips = append(data.Clips, c)
+						kept++
+					}
+				case ledgerTypeStreamSession:
+					if ev.Timestamp < windowStart {
+						fresh = append(fresh, ev)
+						streams++
+					}
 				}
 			}
-			older := make([]CrewEvent, 0, len(rows))
-			for _, ev := range rows {
-				if ev.Type != ledgerTypeWeeklyRecap {
-					older = append(older, ev)
-				}
+			if kept > 0 {
+				weekKept[w.WeekStart] += kept
 			}
-			if add(older, true)+recaps > 0 {
-				if found++; found == want {
+			if kept+streams > 0 {
+				if maybe++; maybe >= want {
 					break
 				}
 			}
 		}
-		if len(weeks) < 2*want {
+		if fresh, err = dropSupersededStreamRows(ctx, store, crewID, fresh); err != nil {
+			return data, err
+		}
+		for _, ev := range fresh {
+			weekStreams[weekStartOf(ev.Timestamp)]++
+		}
+		streamRows = append(streamRows, fresh...)
+		if found() >= want || (maybe < want && len(weeks) < 2*want) {
 			break
 		}
-		before = weeks[len(weeks)-1].WeekStart
 	}
 
 	// Oldest first, as the documents held them.

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -661,6 +662,28 @@ func ledgerPutConformance(ctx context.Context, store ledgerStore, crewID, run st
 	}
 	if got, err = store.ByRef(ctx, crewID, "clip", ref); err != nil || names(got) != "u_dup,u_first" {
 		return fmt.Errorf("by ref of a ref with two rows: [%s] err=%v, want [u_dup,u_first]", names(got), err)
+	}
+	// ByRefs: the rows of several refs of one type in one read.
+	sortedNames := func(events []CrewEvent) string {
+		out := strings.Split(names(events), ",")
+		sort.Strings(out)
+		return strings.Join(out, ",")
+	}
+	manyRefs := []string{ref, clip.Ref, "", id("no_such_ref")}
+	for i := 0; i < 2*ledgerByIDsChunk+5; i++ {
+		manyRefs = append(manyRefs, fmt.Sprintf("missing_ref_%d_%s", i, run))
+	}
+	if got, err = store.ByRefs(ctx, crewID, "clip", manyRefs); err != nil || sortedNames(got) != "p_clip,u_dup,u_first" {
+		return fmt.Errorf("by refs: [%s] err=%v, want [p_clip,u_dup,u_first]", sortedNames(got), err)
+	}
+	if got, err = store.ByRefs(ctx, crewID, "stream_session", []string{ref, stream.Ref}); err != nil || sortedNames(got) != "p_stream,u_stream" {
+		return fmt.Errorf("by refs of another type: [%s] err=%v, want [p_stream,u_stream]", sortedNames(got), err)
+	}
+	if got, err = store.ByRefs(ctx, crewID, "weekly_recap", []string{""}); err != nil || len(got) != 0 {
+		return fmt.Errorf("by refs with no ref: %d rows err=%v", len(got), err)
+	}
+	if got, err = store.ByRefs(ctx, crewID, "clip", nil); err != nil || len(got) != 0 {
+		return fmt.Errorf("by refs of no refs: %d rows err=%v", len(got), err)
 	}
 
 	// Eight calls at once for one new ref store one row.

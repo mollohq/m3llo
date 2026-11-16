@@ -132,6 +132,9 @@ type ledgerStore interface {
 	ByRef(ctx context.Context, crewID, typ, ref string) ([]CrewEvent, error)
 	// ByIDs returns the rows with these ids, in no order.
 	ByIDs(ctx context.Context, crewID string, ids []string) ([]CrewEvent, error)
+	// ByRefs returns the rows of one type with one of these refs, in no
+	// order. An empty ref matches no row.
+	ByRefs(ctx context.Context, crewID, typ string, refs []string) ([]CrewEvent, error)
 }
 
 // ledgerRow is an event and its ref, for Put.
@@ -767,6 +770,18 @@ func (m *memLedgerStore) ByIDs(_ context.Context, crewID string, ids []string) (
 		want[id] = true
 	}
 	return memLedgerEvents(m.selectRows(crewID, func(r *memLedgerRow) bool { return want[r.ev.ID] }, memByTsAsc)), nil
+}
+
+func (m *memLedgerStore) ByRefs(_ context.Context, crewID, typ string, refs []string) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	want := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		if ref != "" {
+			want[ref] = true
+		}
+	}
+	return memLedgerEvents(m.selectRows(crewID, func(r *memLedgerRow) bool { return r.ev.Type == typ && want[r.ref] }, memByTsAsc)), nil
 }
 
 func ledgerSameOrder(a, b []string) bool {

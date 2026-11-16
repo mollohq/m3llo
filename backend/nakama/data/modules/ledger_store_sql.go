@@ -562,6 +562,40 @@ func (s *sqlLedgerStore) ByIDs(ctx context.Context, crewID string, ids []string)
 	return out, nil
 }
 
+func (s *sqlLedgerStore) ByRefs(ctx context.Context, crewID, typ string, refs []string) ([]CrewEvent, error) {
+	out := []CrewEvent{}
+	wanted := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		if ref != "" {
+			wanted = append(wanted, ref)
+		}
+	}
+	for start := 0; start < len(wanted); start += ledgerByIDsChunk {
+		end := start + ledgerByIDsChunk
+		if end > len(wanted) {
+			end = len(wanted)
+		}
+		args := []interface{}{crewID, typ}
+		marks := make([]string, 0, end-start)
+		for _, ref := range wanted[start:end] {
+			args = append(args, ref)
+			marks = append(marks, fmt.Sprintf("$%d", len(args)))
+		}
+		rows, err := s.db.QueryContext(ctx,
+			`SELECT `+ledgerEventColumns+` FROM mello_crew_event
+			 WHERE crew_id = $1 AND type = $2 AND ref <> '' AND ref IN (`+strings.Join(marks, ", ")+`)`, args...)
+		if err != nil {
+			return nil, err
+		}
+		events, err := scanLedgerEvents(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, events...)
+	}
+	return out, nil
+}
+
 func (s *sqlLedgerStore) UpdateData(ctx context.Context, crewID, eventID string, fn func(json.RawMessage) (json.RawMessage, error)) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		var data []byte

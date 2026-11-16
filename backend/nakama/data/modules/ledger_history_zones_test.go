@@ -283,3 +283,63 @@ func TestZonesReadOnePageOfALargeCrew(t *testing.T) {
 		t.Fatalf("the pages hold %d clips and %d stream sessions, want 3000 and %d", clips, streams, 600-window)
 	}
 }
+
+// hStreamEnd ends a stream with its own event id for a session id: the ledger
+// event, then the durable copy, which holds one entry for a session id.
+func hStreamEnd(t *testing.T, nk *fakeQuestsNk, crewID, eventID, sessionID string, ts int64) {
+	t.Helper()
+	data := StreamSessionData{SessionID: sessionID, StreamerID: "u2", StreamerName: "Bo", Title: "Stream " + sessionID, DurationMin: 10, SnapshotURLs: []string{}}
+	ev := CrewEvent{ID: eventID, CrewID: crewID, Type: "stream_session", ActorID: "u2", Timestamp: ts, Score: 30, Data: data}
+	if err := AppendCrewEvent(context.Background(), nk, crewID, ev); err != nil {
+		t.Fatal(err)
+	}
+	if err := UpsertStreamSession(context.Background(), nk, crewID, storedStreamSessionFrom(ev.ID, ev.Timestamp, ev.Score, data)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Two stream_session events for one session id, in different weeks. The
+// store holds two rows and the document one entry. Crew history from the
+// store has the pages of the document: the older row does not count as a
+// week, and no page lists the session a second time.
+func TestZonesFoldTwoRowsOfOneSessionBeforeTheWeeksAreCounted(t *testing.T) {
+	useHistoryStoreReads(t)
+	nk := hCrew(t, "dup")
+	// Session x: the older row alone in week -5, the newer row in week -3.
+	hStreamEnd(t, nk, "dup", "x_old", "sess_x", hAt(-5, 2, 0))
+	hStreamEnd(t, nk, "dup", "x_new", "sess_x", hAt(-3, 2, 0))
+	// Session y: the older row alone in week -9, the newer row in week -2.
+	hStreamEnd(t, nk, "dup", "y_old", "sess_y", hAt(-9, 2, 0))
+	hStreamEnd(t, nk, "dup", "y_new", "sess_y", hAt(-2, 2, 0))
+	for _, week := range []int{-4, -6, -7, -8} {
+		hClip(t, nk, "dup", StoredClip{ClipID: fmt.Sprintf("c%d", -week), ActorID: "u1", Ts: hAt(week, 1, 0), DurationSeconds: 9})
+	}
+
+	fromStore := zonesOfEveryPage(t, nk, "dup", "u2", hNow)
+	t.Setenv("MELLO_LEDGER_HISTORY_READ", "doc")
+	fromDocs := zonesOfEveryPage(t, nk, "dup", "u2", hNow)
+	if len(fromDocs) != 2 {
+		t.Fatalf("the documents give %d pages, want 2", len(fromDocs))
+	}
+	if len(fromStore) != len(fromDocs) {
+		t.Fatalf("%d pages from the store, %d from the documents\nstore:     %v\ndocuments: %v", len(fromStore), len(fromDocs), fromStore, fromDocs)
+	}
+	listed := map[string]int{}
+	for page := range fromStore {
+		if fromStore[page] != fromDocs[page] {
+			t.Fatalf("page %d differs\nstore:     %s\ndocuments: %s", page, fromStore[page], fromDocs[page])
+		}
+		var z FeedZones
+		if err := json.Unmarshal([]byte(fromStore[page]), &z); err != nil {
+			t.Fatal(err)
+		}
+		for _, w := range z.History {
+			for _, item := range w.Items {
+				listed[item.ID]++
+			}
+		}
+	}
+	if listed["x_new"] != 1 || listed["y_new"] != 1 || listed["x_old"] != 0 || listed["y_old"] != 0 {
+		t.Fatalf("stream sessions of the pages = %v, want each session once, the newer row", listed)
+	}
+}
