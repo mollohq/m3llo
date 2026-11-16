@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/heroiclabs/nakama-common/api"
@@ -634,19 +635,105 @@ func AfterLeaveCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	return nil
 }
 
+// kickPending holds the members a kick through the group API of Nakama named,
+// from the before hook to the after hook of the same request. Key: crew id,
+// a zero byte, user id. Value: the time of the before hook.
+var kickPending sync.Map
+
+// kickPendingMaxAge is the life of an entry. A kick that Nakama refused runs
+// no after hook, so its entries are dropped by age.
+const kickPendingMaxAge = time.Minute
+
+func kickPendingKey(crewID, userID string) string { return crewID + "\x00" + userID }
+
+// crewMembersAmong returns which of the user ids are members of the crew now:
+// owner, admin or member. A user with an open join request is not a member.
+func crewMembersAmong(ctx context.Context, nk runtime.NakamaModule, crewID string, userIDs []string) (map[string]bool, error) {
+	want := make(map[string]bool, len(userIDs))
+	for _, id := range userIDs {
+		if id != "" {
+			want[id] = true
+		}
+	}
+	found := map[string]bool{}
+	cursor := ""
+	for len(found) < len(want) {
+		members, next, err := nk.GroupUsersList(ctx, crewID, 100, nil, cursor)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range members {
+			id := m.GetUser().GetId()
+			if want[id] && m.GetState().GetValue() <= 2 {
+				found[id] = true
+			}
+		}
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+	return found, nil
+}
+
+// BeforeKickCrewMembers runs before a kick through the group API of Nakama.
+// It notes which of the named users are members, for AfterKickCrewMembers.
+// It never changes or refuses the request.
+func BeforeKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.KickGroupUsersRequest) (*api.KickGroupUsersRequest, error) {
+	crewID := in.GetGroupId()
+	now := time.Now()
+	kickPending.Range(func(key, at interface{}) bool {
+		if t, ok := at.(time.Time); !ok || now.Sub(t) > kickPendingMaxAge {
+			kickPending.Delete(key)
+		}
+		return true
+	})
+	members, err := crewMembersAmong(ctx, nk, crewID, in.GetUserIds())
+	if err != nil {
+		logger.Warn("kick hook: member read failed for crew %s: %v. No member_left event is written", crewID, err)
+		return in, nil
+	}
+	for id := range members {
+		kickPending.Store(kickPendingKey(crewID, id), now)
+	}
+	return in, nil
+}
+
 // AfterKickCrewMembers runs when a client kicks through the group API of
 // Nakama and not through kick_crew_member. It does what the RPC does after
-// the kick.
+// the kick, and only for a user that the kick removed: a member before the
+// request (BeforeKickCrewMembers) who is not a member now. Nakama does not
+// kick every id of a request: not the owner, not a user who is no member.
 func AfterKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.KickGroupUsersRequest) error {
 	crewID := in.GetGroupId()
+	var were []string
 	for _, userID := range in.GetUserIds() {
-		if userID == "" {
+		if at, ok := kickPending.LoadAndDelete(kickPendingKey(crewID, userID)); ok {
+			if t, isTime := at.(time.Time); isTime && time.Since(t) <= kickPendingMaxAge {
+				were = append(were, userID)
+			}
+		}
+	}
+	if len(were) == 0 {
+		return nil
+	}
+	still, err := crewMembersAmong(ctx, nk, crewID, were)
+	if err != nil {
+		logger.Warn("kick hook: member read failed for crew %s: %v. No member_left event is written", crewID, err)
+		return nil
+	}
+	kicked := false
+	for _, userID := range were {
+		if still[userID] {
 			continue
 		}
+		kicked = true
 		cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
 		recordMemberLeft(ctx, logger, nk, crewID, userID)
 	}
-	InvalidateCrewState(crewID)
+	if kicked {
+		InvalidateCrewState(crewID)
+	}
 	return nil
 }
 

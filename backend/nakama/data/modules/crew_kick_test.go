@@ -44,15 +44,36 @@ func TestKickWritesMemberLeft(t *testing.T) {
 	}
 }
 
-// A kick through the group API of Nakama writes the event too.
-func TestKickHookWritesMemberLeft(t *testing.T) {
+// A kick through the group API of Nakama writes the event for the users that
+// the kick removed, and for no other id of the request: not a member that
+// Nakama did not kick, not a user who was no member, not a join request.
+func TestKickHookWritesMemberLeftOnlyForTheKicked(t *testing.T) {
 	nk := kickFixture(t)
-	in := &api.KickGroupUsersRequest{GroupId: "crew", UserIds: []string{"u2"}}
-	if err := AfterKickCrewMembers(ctxWithUser("owner"), testLogger(), nil, nk, in); err != nil {
+	nk.addMember("crew", "u3", "Cy")
+	nk.members["crew"][2].State = wrapperspb.Int32(2)
+	nk.addMember("crew", "asker", "Asker")
+	nk.members["crew"][3].State = wrapperspb.Int32(3) // an open join request
+	ctx := ctxWithUser("owner")
+	in := &api.KickGroupUsersRequest{GroupId: "crew", UserIds: []string{"u2", "u3", "owner", "stranger", "asker", ""}}
+	if _, err := BeforeKickCrewMembers(ctx, testLogger(), nil, nk, in); err != nil {
+		t.Fatal(err)
+	}
+	// Nakama kicks u2 and rejects the join request. u3 and the owner stay.
+	if err := nk.GroupUsersKick(ctx, "owner", "crew", []string{"u2", "asker"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := AfterKickCrewMembers(ctx, testLogger(), nil, nk, in); err != nil {
 		t.Fatal(err)
 	}
 	ledger, _ := readLedger(context.Background(), nk, "crew")
 	if len(ledger.Events) != 1 || ledger.Events[0].Type != "member_left" || ledger.Events[0].ActorID != "u2" {
-		t.Fatalf("ledger = %+v", ledger.Events)
+		t.Fatalf("ledger = %+v, want one member_left of u2", ledger.Events)
+	}
+	// A second after hook with no before hook writes nothing.
+	if err := AfterKickCrewMembers(ctx, testLogger(), nil, nk, in); err != nil {
+		t.Fatal(err)
+	}
+	if ledger, _ := readLedger(context.Background(), nk, "crew"); len(ledger.Events) != 1 {
+		t.Fatalf("ledger after a second hook = %+v", ledger.Events)
 	}
 }

@@ -105,6 +105,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterAfterLeaveGroup(AfterLeaveCrew); err != nil {
 		return err
 	}
+	if err := initializer.RegisterBeforeKickGroupUsers(BeforeKickCrewMembers); err != nil {
+		return err
+	}
 	if err := initializer.RegisterAfterKickGroupUsers(AfterKickCrewMembers); err != nil {
 		return err
 	}
