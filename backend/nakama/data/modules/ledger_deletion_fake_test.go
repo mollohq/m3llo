@@ -28,13 +28,16 @@ type delNk struct {
 	groupErr error
 	// onRead runs before each storage read of a collection, outside the lock.
 	onRead map[string]func()
+	// onWrite runs before each storage write of a collection, outside the
+	// lock: another writer that gets there first.
+	onWrite map[string]func()
 	// stale counts the writes that a version check refused.
 	stale int
 }
 
 func newDelNk() *delNk {
 	return &delNk{fakeGuestNk: newFakeGuestNk(), failDelete: map[string]bool{}, failWrite: map[string]bool{},
-		versions: map[string]int{}, onRead: map[string]func(){}}
+		versions: map[string]int{}, onRead: map[string]func(){}, onWrite: map[string]func(){}}
 }
 
 func (n *delNk) versionOf(k string) string { return fmt.Sprintf("v%d", n.versions[k]) }
@@ -108,6 +111,11 @@ func (n *delNk) StorageWrite(_ context.Context, writes []*runtime.StorageWrite) 
 	for _, w := range writes {
 		if n.failWrite[w.Collection] {
 			return nil, errors.New("storage write failed")
+		}
+	}
+	for _, w := range writes {
+		if hook := n.onWrite[w.Collection]; hook != nil {
+			hook()
 		}
 	}
 	n.mu.Lock()

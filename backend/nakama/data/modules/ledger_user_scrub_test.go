@@ -1155,3 +1155,47 @@ func TestDeletionJobDoesNotStarveBehindASlowScrub(t *testing.T) {
 		t.Fatal("the slow scrub ended: the test proves nothing")
 	}
 }
+
+// A member posts a clip while the scrub rewrites the clips document. The
+// scrub wrote with the version it read, so its write is refused, it reads
+// again, and neither the new clip nor the scrub is lost.
+func TestScrubDocumentWriteLosesToAConcurrentWriter(t *testing.T) {
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	rec := scrubReady(t, nk, f)
+	tag := scrubCrew[:4]
+	fired := false
+	nk.onWrite[CrewClipsCollection] = func() {
+		if fired {
+			return
+		}
+		fired = true
+		if _, err := AppendClip(context.Background(), nk, scrubCrew, StoredClip{EventID: "ev-racing", ClipID: "racing", ActorID: "u3", ClipperName: "Cy", Ts: time.Now().UnixMilli(), ClipType: clipTypeVoice}); err != nil {
+			t.Error(err)
+		}
+	}
+	stale := nk.stale
+	res := runUserScrub(context.Background(), nk, testLogger(), rec, time.Now().Add(time.Minute))
+	if !fired || nk.stale == stale {
+		t.Fatalf("no write of the scrub was refused: fired=%t stale=%d", fired, nk.stale-stale)
+	}
+	if !res.Done {
+		t.Fatalf("scrub = %+v", res)
+	}
+	ids := map[string]bool{}
+	for _, c := range docClips(nk, scrubCrew) {
+		ids[c.EventID] = true
+		if c.ActorID == goneUser {
+			t.Fatalf("the document keeps a clip of the user: %+v", c)
+		}
+	}
+	if !ids["ev-racing"] || !ids["ev-shared-"+tag] || len(ids) != 2 {
+		t.Fatalf("clips of the document = %v, want the clip of the concurrent writer and the shared clip", ids)
+	}
+	if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+		t.Fatalf("still names the user:\n%s", strings.Join(traces, "\n"))
+	}
+}
