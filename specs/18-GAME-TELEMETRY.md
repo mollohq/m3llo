@@ -495,7 +495,7 @@ type UserGameStats struct {
 }
 ```
 
-The 7-day ledger cannot hold longest-streak history, so this store is the source of truth for streaks/win-rate. It is private to the user.
+The crew ledger holds crew events, not per-user records, so this store is the source of truth for streaks/win-rate. It is private to the user.
 
 ### 5.3 GameSessionEndRPC (enriched)
 
