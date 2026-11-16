@@ -156,7 +156,7 @@ func TestAccountDeleteHandsTheCrewOver(t *testing.T) {
 		if after := crewLeftovers(t, nk, store, f, handCrew); strings.Join(after, "\n") != strings.Join(before, "\n") {
 			t.Fatalf("the data of the crew changed:\n%v\nwas\n%v", after, before)
 		}
-		if left := chatLeftovers(nk, f, chat, handCrew); len(left) != 10 {
+		if left := chatLeftovers(nk, f, chat, handCrew); len(left) != 11 {
 			t.Fatalf("the chat of the crew = %v", left)
 		}
 	})

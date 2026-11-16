@@ -15,7 +15,8 @@ import (
 //
 //   - every message of the group channel of the crew. Nakama keeps them in
 //     its message table. A group delete of Nakama leaves them there;
-//   - the reactions of each message (chat_reactions/{message_id});
+//   - the reactions of the crew (chat_reactions/{message_id}, with the crew
+//     id in the document);
 //   - the chat images, with the other media ({crew_id}/ in the media bucket,
 //     crewMediaPrefixes).
 //
@@ -24,6 +25,12 @@ import (
 // message, runs one statement for each, and sends one event to the channel
 // for each. So the purge uses SQL on the message table, as dev_seed_chat
 // does, with placeholders and a bounded batch.
+//
+// A reactions document has the id of its message as key, and nothing lists
+// the documents of a crew. The purge reads their keys from the storage table
+// with SQL, by the crew id in the document. The read looks at every reactions
+// document of the install: a purge is rare. The delete goes through the
+// storage call of Nakama.
 //
 // A crew has one text channel: the group channel of Nakama (stream mode 3,
 // the subject is the group id). A voice channel has no text. A direct message
@@ -48,6 +55,9 @@ type crewChatStore interface {
 	// DeleteMessages deletes the messages with these ids that are in the
 	// group channel of the crew. It returns the number of deleted messages.
 	DeleteMessages(ctx context.Context, crewID string, ids []string) (int, error)
+	// ReactionKeys returns the keys of up to limit reactions documents of
+	// the crew, in key order.
+	ReactionKeys(ctx context.Context, crewID string, limit int) ([]string, error)
 }
 
 // crewChat returns the message table of this install, or nil when the module
@@ -105,6 +115,25 @@ func (s sqlCrewChat) DeleteMessages(ctx context.Context, crewID string, ids []st
 	return int(n), err
 }
 
+func (s sqlCrewChat) ReactionKeys(ctx context.Context, crewID string, limit int) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT key FROM storage WHERE collection = $1 AND user_id = $2::UUID AND value->>'crew_id' = $3 ORDER BY key LIMIT $4`,
+		ChatReactionsCollection, SystemUserID, crewID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+
 // crewHasChat reports whether the message table holds a message of the crew.
 func crewHasChat(ctx context.Context, crewID string) (bool, error) {
 	chat := crewChat()
@@ -115,10 +144,13 @@ func crewHasChat(ctx context.Context, crewID string) (bool, error) {
 	return len(ids) > 0, err
 }
 
-// purgeCrewChat deletes the chat messages of a crew and their reactions, a
-// batch at a time, until none is left or the deadline passes. In a batch the
-// reactions go first: the id of a message is the only key of its reactions,
-// so a run that is cut between the two finds the messages again.
+// purgeCrewChat deletes the chat messages of a crew and the reactions of the
+// crew, a batch at a time, until none is left or the deadline passes.
+//
+// The reactions are found by the crew id in the document, not by the id of a
+// message: the reactions of a message that is gone already go too. Nakama
+// deletes the messages of an account with the account, so the reactions of
+// those messages have no message.
 func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeResult, crewID string, deadline time.Time) {
 	if !validPurgeCrewID(crewID) {
 		res.fail("chat: the crew id is not a group id")
@@ -140,27 +172,7 @@ func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeR
 			return
 		}
 		if len(ids) == 0 {
-			return
-		}
-		reads := make([]*runtime.StorageRead, 0, len(ids))
-		for _, id := range ids {
-			reads = append(reads, &runtime.StorageRead{Collection: ChatReactionsCollection, Key: id, UserID: SystemUserID})
-		}
-		reactions, err := nk.StorageRead(ctx, reads)
-		if err != nil {
-			res.fail("%s read: %v", ChatReactionsCollection, err)
-			return
-		}
-		if len(reactions) > 0 {
-			deletes := make([]*runtime.StorageDelete, 0, len(reactions))
-			for _, obj := range reactions {
-				deletes = append(deletes, &runtime.StorageDelete{Collection: ChatReactionsCollection, Key: obj.GetKey(), UserID: SystemUserID})
-			}
-			if err := nk.StorageDelete(ctx, deletes); err != nil {
-				res.fail("%s delete: %v", ChatReactionsCollection, err)
-				return
-			}
-			res.ReactionsDeleted += len(deletes)
+			break
 		}
 		n, err := chat.DeleteMessages(ctx, crewID, ids)
 		res.ChatDeleted += n
@@ -173,5 +185,34 @@ func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeR
 			res.fail("chat delete: no message of the batch was deleted")
 			return
 		}
+	}
+	last := ""
+	for {
+		if crewPurgeNow().After(deadline) {
+			res.Incomplete = true
+			return
+		}
+		keys, err := chat.ReactionKeys(ctx, crewID, crewPurgeChatBatch)
+		if err != nil {
+			res.fail("%s read: %v", ChatReactionsCollection, err)
+			return
+		}
+		if len(keys) == 0 {
+			return
+		}
+		if keys[0] == last {
+			res.fail("%s delete: no document of the batch was deleted", ChatReactionsCollection)
+			return
+		}
+		last = keys[0]
+		deletes := make([]*runtime.StorageDelete, 0, len(keys))
+		for _, key := range keys {
+			deletes = append(deletes, &runtime.StorageDelete{Collection: ChatReactionsCollection, Key: key, UserID: SystemUserID})
+		}
+		if err := nk.StorageDelete(ctx, deletes); err != nil {
+			res.fail("%s delete: %v", ChatReactionsCollection, err)
+			return
+		}
+		res.ReactionsDeleted += len(deletes)
 	}
 }

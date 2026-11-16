@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -28,6 +29,32 @@ type memCrewChat struct {
 	readErr, deleteErr error
 	// batches counts the deletes.
 	batches int
+	// nk holds the reactions documents. seedCrewChat sets it.
+	nk *delNk
+}
+
+func (m *memCrewChat) ReactionKeys(_ context.Context, crewID string, limit int) ([]string, error) {
+	if m.readErr != nil {
+		return nil, m.readErr
+	}
+	if m.nk == nil {
+		return nil, nil
+	}
+	objects, _, err := m.nk.StorageList(context.Background(), "", SystemUserID, ChatReactionsCollection, 0, "")
+	if err != nil {
+		return nil, err
+	}
+	var keys []string
+	for _, obj := range objects {
+		var doc ReactionsDoc
+		if json.Unmarshal([]byte(obj.GetValue()), &doc) == nil && doc.CrewID == crewID {
+			keys = append(keys, obj.GetKey())
+		}
+	}
+	if len(keys) > limit {
+		keys = keys[:limit]
+	}
+	return keys, nil
 }
 
 func (m *memCrewChat) add(mode int, subject string, ids ...string) {
@@ -112,10 +139,12 @@ const (
 	chatMemberB = "aaaaaaaa-0000-4000-8000-000000000002"
 )
 
-// seedCrewChat gives a crew five chat messages, reactions on two of them and
-// two chat images.
+// seedCrewChat gives a crew five chat messages, reactions on two of them,
+// the reactions of a message that is gone, and two chat images.
 func seedCrewChat(nk *delNk, f *fakeS3, chat *memCrewChat, crewID string) {
+	chat.nk = nk
 	tag := crewID[:4]
+	nk.put(ChatReactionsCollection, "gone-"+tag, SystemUserID, ReactionsDoc{CrewID: crewID, Reactions: map[string][]string{"🔥": {chatMemberA}}})
 	for _, n := range []string{"1", "2", "3", "4", "5"} {
 		chat.add(chatStreamModeGroup, crewID, "m"+n+"-"+tag)
 	}
@@ -132,9 +161,9 @@ func chatLeftovers(nk *delNk, f *fakeS3, chat *memCrewChat, crewID string) []str
 		left = append(left, "message "+id)
 	}
 	tag := crewID[:4]
-	for _, n := range []string{"1", "2", "3", "4", "5"} {
-		if nk.has(ChatReactionsCollection, "m"+n+"-"+tag) {
-			left = append(left, "reactions m"+n+"-"+tag)
+	for _, key := range []string{"m1-" + tag, "m2-" + tag, "m3-" + tag, "m4-" + tag, "m5-" + tag, "gone-" + tag} {
+		if nk.has(ChatReactionsCollection, key) {
+			left = append(left, "reactions "+key)
 		}
 	}
 	for _, key := range f.keys("media") {
@@ -164,8 +193,9 @@ func TestPurgeCrewRemovesItsChat(t *testing.T) {
 		chat.add(4, chatMemberA, "dm1", "dm2")
 		chat.add(2, purgeCrew, "room1")
 		nk.put(ChatReactionsCollection, "dm1", SystemUserID, ReactionsDoc{Reactions: map[string][]string{"🔥": {chatMemberB}}})
+		chat.nk = nk
 		// The images of the purge seed are counted too.
-		if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 10 {
+		if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 11 {
 			t.Fatalf("seed = %v", left)
 		}
 
@@ -176,7 +206,7 @@ func TestPurgeCrewRemovesItsChat(t *testing.T) {
 		if chat.batches != 3 {
 			t.Fatalf("batches = %d, want 3 for five messages, two at a time", chat.batches)
 		}
-		if left := chatLeftovers(nk, f, chat, otherCrew); len(left) != 10 {
+		if left := chatLeftovers(nk, f, chat, otherCrew); len(left) != 11 {
 			t.Fatalf("the chat of the other crew = %v", left)
 		}
 		if got := chat.ids(4, chatMemberA); len(got) != 2 || !nk.has(ChatReactionsCollection, "dm1") {
@@ -210,8 +240,8 @@ func TestPurgeCrewChatFailsAndRunsAgain(t *testing.T) {
 		t.Fatalf("purge record = %+v", rec)
 	}
 
-	// The delete fails: the reactions of the batch are gone, the messages
-	// stay, and the next run finds them again.
+	// The delete fails: the messages stay, and the next run finds them
+	// again.
 	chat.readErr, chat.deleteErr = nil, errors.New("database down")
 	if res, err := purgeRPC(nk, purgeCrew); err != nil || res.Done || res.ChatDeleted != 0 {
 		t.Fatalf("purge = %+v err=%v", res, err)
@@ -246,7 +276,7 @@ func TestPurgeCrewChatOnlyWhenTheGroupIsGone(t *testing.T) {
 		t.Fatal(err)
 	}
 	purgeCrewData(ctx, nk, testLogger(), purgeCrew, time.Now().Add(time.Minute))
-	if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 10 {
+	if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 11 {
 		t.Fatalf("the chat of a live crew = %v", left)
 	}
 
@@ -259,7 +289,7 @@ func TestPurgeCrewChatOnlyWhenTheGroupIsGone(t *testing.T) {
 	}
 	nk.groupErr = errors.New("database down")
 	purgeCrewData(ctx, nk, testLogger(), purgeCrew, time.Now().Add(time.Minute))
-	if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 10 {
+	if left := chatLeftovers(nk, f, chat, purgeCrew); len(left) != 11 {
 		t.Fatalf("the chat after a failed group read = %v", left)
 	}
 	nk.groupErr = nil
@@ -270,7 +300,7 @@ func TestPurgeCrewChatOnlyWhenTheGroupIsGone(t *testing.T) {
 		t.Fatalf("a purge past its deadline = %+v", res)
 	}
 	res = purgeCrewData(ctx, nk, testLogger(), purgeCrew, time.Now().Add(time.Minute))
-	if !res.Done || res.ChatDeleted != 5 || res.ReactionsDeleted != 2 {
+	if !res.Done || res.ChatDeleted != 5 || res.ReactionsDeleted != 3 {
 		t.Fatalf("purge = %+v", res)
 	}
 }
