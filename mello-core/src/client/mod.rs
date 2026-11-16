@@ -12,6 +12,7 @@ mod game_clip_play;
 mod game_clip_upload;
 mod game_services;
 pub mod log_bundle;
+mod looking_to_play;
 #[cfg(test)]
 pub(crate) mod loop_hold;
 pub mod loop_watchdog;
@@ -849,6 +850,20 @@ impl Client {
             } => {
                 self.handle_register_push_token(token, &platform, environment)
                     .await;
+            }
+            Command::LookingToPlayAsk {
+                crew_id,
+                game,
+                member_ids,
+            } => {
+                self.handle_looking_to_play_ask(&crew_id, game, member_ids)
+                    .await;
+            }
+            Command::LookingToPlayAnswer { ask_id, answer } => {
+                self.handle_looking_to_play_answer(&ask_id, answer).await;
+            }
+            Command::LookingToPlayCancel { ask_id } => {
+                self.handle_looking_to_play_cancel(&ask_id).await;
             }
             Command::LoadPushPrefs { crew_id } => {
                 self.handle_load_push_prefs(&crew_id).await;

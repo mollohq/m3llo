@@ -28,6 +28,7 @@ pub mod giphy;
 mod kwin_windows;
 pub mod library;
 pub mod library_report;
+pub mod looking_to_play;
 pub mod nakama;
 pub mod names;
 pub mod oauth;

@@ -1367,4 +1367,37 @@ export global Tr {
 
     /// The badge of a live stream.
     out property <string> hud-live: @tr("LIVE");
+
+    // --- Looking to play: the ask popover (src/handlers/looking_to_play.rs) ---
+
+    /// What a member does now, in the list of who to ask: in a voice channel.
+    out property <string> looking-to-play-in-voice: @tr("In voice");
+    /// The label of the newest group that the user picked before.
+    out property <string> looking-to-play-last-time: @tr("Last time");
+    /// The server code ASK_TOO_SOON: one ask in a crew each 10 minutes.
+    out property <string> looking-to-play-error-too-soon: @tr("You asked a short time ago. Try again in a few minutes.");
+    /// The server code ASK_NOBODY_WAIT: the last ask closed with nobody in.
+    out property <string> looking-to-play-error-nobody-wait: @tr("No one was in on your last ask. Try again later.");
+    /// The server code ASK_HAS_OPEN: the user is the asker of an open ask.
+    out property <string> looking-to-play-error-has-open: @tr("You have an open ask in this crew.");
+    /// Any other failure of an ask.
+    out property <string> looking-to-play-error-generic: @tr("The ask did not go out. Try again.");
+
+    // --- Looking to play: the OS notification of a new ask while the window
+    //     is hidden. The title is the crew name. ---
+
+    /// {} is the asker.
+    pure public function looking-to-play-notice(name: string) -> string {
+        @tr("{} is looking to play", name)
+    }
+    /// {0} is the asker, {1} is the game.
+    pure public function looking-to-play-notice-game(name: string, game: string) -> string {
+        @tr("{0} is looking to play {1}", name, game)
+    }
+    /// The client does not know the name of the asker.
+    out property <string> looking-to-play-notice-someone: @tr("Someone is looking to play");
+    /// The client does not know the name of the asker. {} is the game.
+    pure public function looking-to-play-notice-someone-game(game: string) -> string {
+        @tr("Someone is looking to play {}", game)
+    }
 }

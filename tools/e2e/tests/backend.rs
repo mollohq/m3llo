@@ -623,6 +623,10 @@ async fn joined_member(code: &str, token: &str) -> (NakamaClient, String) {
 ///    gets none (plans/LOOKING-TO-PLAY.md section 4). The notification
 ///    settings keep a choice across a second write.
 ///
+/// 4. Looking to play: an ask reaches an offline member with the answer
+///    buttons, an answer reaches the asker, a cancel reaches the member who is
+///    in, and a member with Looking to play off gets none.
+///
 /// One test, because the scenarios share the stub's fixed port.
 #[test]
 fn mention_pushes_follow_the_delivery_rules() {
@@ -747,6 +751,88 @@ fn mention_pushes_follow_the_delivery_rules() {
             rest.iter().all(|s| s.body["notification"]["type"] != "message"
                 || s.body["tokens"][0]["token"] != "feedface04"),
             "a member who turned Messages off gets no push"
+        );
+
+        // 4. Looking to play. The member with token 03 asks the crew. The
+        // offline member gets the ask with the answer buttons. The member who
+        // turned Looking to play off (04) gets none. An answer reaches the
+        // asker, and a cancel reaches the member who is in.
+        let reply = listener
+            .looking_to_play_ask(&crew_id, None, &[])
+            .await
+            .expect("looking_to_play_ask");
+        let ask_id = reply.ask.ask_id.clone();
+        assert!(!reply.joined && reply.ask.asks_everyone());
+        assert_eq!(reply.ask.state, mello_core::looking_to_play::AskState::Open);
+        let got = loop {
+            let got = next_send_of_type(&captured, "looking_to_play", "ask to an offline member").await;
+            if got.body["tokens"][0]["token"] == "feedface01" {
+                break got;
+            }
+        };
+        let n = &got.body["notification"];
+        assert_eq!(n["category"], "LOOKING_TO_PLAY");
+        assert_eq!(n["ask_id"], ask_id.as_str());
+        assert!(n["message_id"].as_str().unwrap_or_default().starts_with("ltp-"), "{n}");
+        assert!(n["ttl_seconds"].as_u64().unwrap_or(0) > 0, "{n}");
+        assert!(
+            n["body"].as_str().unwrap_or_default().ends_with("is looking to play"),
+            "{n}"
+        );
+
+        let reply = offline
+            .looking_to_play_answer(&ask_id, mello_core::looking_to_play::Answer::In)
+            .await
+            .expect("looking_to_play_answer");
+        assert_eq!(reply.ask.state, mello_core::looking_to_play::AskState::On);
+        let got = loop {
+            let got = next_send_of_type(&captured, "looking_to_play_result", "answer to the asker").await;
+            if got.body["tokens"][0]["token"] == "feedface03" {
+                break got;
+            }
+        };
+        let n = &got.body["notification"];
+        assert!(n["body"].as_str().unwrap_or_default().ends_with("is in"), "{n}");
+        assert!(n.get("category").is_none(), "a result has no buttons: {n}");
+        assert!(n.get("silent").is_none(), "the first answer has a sound: {n}");
+
+        let asks = owner
+            .looking_to_play_list(&crew_id, &[])
+            .await
+            .expect("looking_to_play_list");
+        assert!(asks.asks.iter().any(|a| a.ask_id == ask_id), "the open ask is in the list");
+
+        let reply = listener
+            .looking_to_play_cancel(&ask_id)
+            .await
+            .expect("looking_to_play_cancel");
+        assert_eq!(reply.ask.closed_reason, "cancelled");
+        let got = loop {
+            let got = next_send_of_type(&captured, "looking_to_play_result", "cancel to the member who is in").await;
+            if got.body["tokens"][0]["token"] == "feedface01" {
+                break got;
+            }
+        };
+        assert!(
+            got.body["notification"]["body"].as_str().unwrap_or_default().ends_with("called it off"),
+            "{}",
+            got.body["notification"]
+        );
+        // The closed ask is still given out by id, for the card in history.
+        let asks = owner
+            .looking_to_play_list(&crew_id, std::slice::from_ref(&ask_id))
+            .await
+            .expect("looking_to_play_list by id");
+        assert!(asks.asks.iter().any(|a| a.ask_id == ask_id && a.closed_reason == "cancelled"));
+
+        let rest = common::drain_sends(&captured, std::time::Duration::from_secs(1)).await;
+        assert!(
+            rest.iter().all(|s| !s.body["notification"]["type"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("looking_to_play")
+                || s.body["tokens"][0]["token"] != "feedface04"),
+            "a member who turned Looking to play off gets no push of an ask"
         );
 
         for c in [offline, away, listener, muted, owner] {

@@ -55,6 +55,19 @@ var pushTextEnglish = map[string]string{
 	"message_sent_image":      "%s sent an image",
 	"message_sender_fallback": "Someone",
 
+	// Looking to play (looking_to_play_push.go). Values: name, then the game,
+	// the minutes or a second name.
+	"ltp_ask":           "%s is looking to play",
+	"ltp_ask_game":      "%s is looking to play %s",
+	"ltp_in":            "%s is in",
+	"ltp_in_due":        "%s is in, %d min",
+	"ltp_two_in":        "%s and %s are in",
+	"ltp_many_in":       "%d are in",
+	"ltp_playing":       "%s and %s are playing",
+	"ltp_nobody":        "No one this time",
+	"ltp_called_off":    "%s called it off",
+	"ltp_name_fallback": "A crew member",
+
 	// Belt labels, by the title_id that the client uses (client/src/head2head.rs).
 	titleTheCarry:   "The Carry",
 	titleLockedIn:   "Locked In",
@@ -102,6 +115,18 @@ var pushTextChinese = map[string]string{
 	"message_sent_gif":        "%s发送了一个GIF",
 	"message_sent_image":      "%s发送了一张图片",
 	"message_sender_fallback": "有人",
+
+	// Looking to play. Not reviewed by a native reader yet.
+	"ltp_ask":           "%s想找人一起玩",
+	"ltp_ask_game":      "%s想找人一起玩%s",
+	"ltp_in":            "%s参加",
+	"ltp_in_due":        "%s参加，%d分钟后到",
+	"ltp_two_in":        "%s和%s参加",
+	"ltp_many_in":       "%d人参加",
+	"ltp_playing":       "%s和%s正在玩",
+	"ltp_nobody":        "这次没人参加",
+	"ltp_called_off":    "%s取消了",
+	"ltp_name_fallback": "一位小队成员",
 
 	titleTheCarry:   "大腿",
 	titleLockedIn:   "上头",

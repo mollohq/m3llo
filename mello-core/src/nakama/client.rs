@@ -1454,6 +1454,56 @@ impl NakamaClient {
         Ok(())
     }
 
+    /// Looking to play: makes an ask, or counts as In on the open ask to
+    /// everyone for the same game (plans/LOOKING-TO-PLAY.md section 3.3).
+    pub async fn looking_to_play_ask(
+        &self,
+        crew_id: &str,
+        game: Option<&crate::looking_to_play::AskGame>,
+        member_ids: &[String],
+    ) -> Result<crate::looking_to_play::AskReply> {
+        let mut payload = serde_json::json!({ "crew_id": crew_id });
+        if let Some(game) = game {
+            payload["game"] = serde_json::to_value(game)?;
+        }
+        if !member_ids.is_empty() {
+            payload["member_ids"] = serde_json::to_value(member_ids)?;
+        }
+        let resp = self.rpc("looking_to_play_ask", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    pub async fn looking_to_play_answer(
+        &self,
+        ask_id: &str,
+        answer: crate::looking_to_play::Answer,
+    ) -> Result<crate::looking_to_play::AskReply> {
+        let payload = serde_json::json!({ "ask_id": ask_id, "answer": answer });
+        let resp = self.rpc("looking_to_play_answer", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    pub async fn looking_to_play_cancel(
+        &self,
+        ask_id: &str,
+    ) -> Result<crate::looking_to_play::AskReply> {
+        let payload = serde_json::json!({ "ask_id": ask_id });
+        let resp = self.rpc("looking_to_play_cancel", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
+    /// The asks with these ids, the open asks of the crew, and the recent
+    /// picks of the user in the crew.
+    pub async fn looking_to_play_list(
+        &self,
+        crew_id: &str,
+        ask_ids: &[String],
+    ) -> Result<crate::looking_to_play::AskListReply> {
+        let payload = serde_json::json!({ "crew_id": crew_id, "ask_ids": ask_ids });
+        let resp = self.rpc("looking_to_play_list", &payload).await?;
+        Ok(serde_json::from_str(&resp)?)
+    }
+
     /// The current user's push switches for one crew, defaults included
     /// (plans/LOOKING-TO-PLAY.md section 4).
     pub async fn push_prefs_get(&self, crew_id: &str) -> Result<crate::push_prefs::PushPrefs> {
@@ -2826,6 +2876,16 @@ fn handle_notification(code: i32, content: &str, event_tx: &std::sync::mpsc::Sen
             }
             Err(e) => log::warn!("Failed to parse voice_update notification: {}", e),
         },
+        // 118 = one Looking to play ask changed
+        118 => match serde_json::from_str::<crate::looking_to_play::AskNotification>(content) {
+            Ok(n) => {
+                let _ = event_tx.send(Event::LookingToPlayUpdated {
+                    ask: n.ask,
+                    notify: n.notify,
+                });
+            }
+            Err(e) => log::warn!("Failed to parse looking_to_play notification: {}", e),
+        },
         // 117 = one message's reactions
         117 => match serde_json::from_str::<crew_state::ReactionUpdate>(content) {
             Ok(update) => {
@@ -2874,6 +2934,28 @@ mod tests {
         }
         handle_notification(116, "not json", &tx);
         assert!(rx.try_recv().is_err(), "a bad payload sends nothing");
+    }
+
+    #[test]
+    fn notification_118_is_an_ask_update_with_the_notify_flag() {
+        const ASK: &str = r#""ask_id":"a1","crew_id":"c1","message_id":"m1","asker_id":"u1",
+            "asked":["u2"],"opened_at":1,"state":"open","answers":{"u1":{"answer":"in","at":1}}"#;
+        let (tx, rx) = std::sync::mpsc::channel();
+        for (content, want) in [
+            (format!(r#"{{{ASK},"notify":true}}"#), true),
+            (format!(r#"{{{ASK},"notify":false}}"#), false),
+            (format!(r#"{{{ASK}}}"#), false),
+        ] {
+            handle_notification(118, &content, &tx);
+            match rx.try_recv() {
+                Ok(Event::LookingToPlayUpdated { ask, notify }) => {
+                    assert_eq!(ask.ask_id, "a1");
+                    assert_eq!(ask.asked, vec!["u2"]);
+                    assert_eq!(notify, want, "{content}");
+                }
+                other => panic!("expected LookingToPlayUpdated, got {:?}", other.is_ok()),
+            }
+        }
     }
 
     fn make_api_msg(content: &str, sender_id: &str, username: &str) -> ApiChannelMessage {
@@ -3585,6 +3667,57 @@ mod push_tests {
         );
     }
 
+    /// A game and picked members are in the payload only when the user chose
+    /// them: the server reads a missing `member_ids` as "everyone".
+    #[tokio::test]
+    async fn looking_to_play_ask_sends_only_what_the_user_chose() {
+        let (port, server) = serve_rpc_once();
+        let _ = signed_in_client(port)
+            .looking_to_play_ask("c1", None, &[])
+            .await;
+        let (head, payload) = server.join().expect("server thread");
+        assert!(
+            head.starts_with("POST /v2/rpc/looking_to_play_ask "),
+            "{head}"
+        );
+        assert_eq!(payload, serde_json::json!({"crew_id": "c1"}));
+
+        let (port, server) = serve_rpc_once();
+        let game = crate::looking_to_play::AskGame {
+            game_id: "steam-730".into(),
+            name: "Counter-Strike 2".into(),
+        };
+        let _ = signed_in_client(port)
+            .looking_to_play_ask("c1", Some(&game), &["u2".to_string()])
+            .await;
+        let (_, payload) = server.join().expect("server thread");
+        assert_eq!(
+            payload,
+            serde_json::json!({
+                "crew_id": "c1",
+                "game": {"game_id": "steam-730", "name": "Counter-Strike 2"},
+                "member_ids": ["u2"],
+            })
+        );
+    }
+
+    #[tokio::test]
+    async fn looking_to_play_answer_sends_the_answer_as_the_server_names_it() {
+        let (port, server) = serve_rpc_once();
+        let _ = signed_in_client(port)
+            .looking_to_play_answer("a1", crate::looking_to_play::Answer::In30)
+            .await;
+        let (head, payload) = server.join().expect("server thread");
+        assert!(
+            head.starts_with("POST /v2/rpc/looking_to_play_answer "),
+            "{head}"
+        );
+        assert_eq!(
+            payload,
+            serde_json::json!({"ask_id": "a1", "answer": "in_30"})
+        );
+    }
+
     #[tokio::test]
     async fn push_prefs_get_sends_the_crew() {
         let (port, server) = serve_rpc_once();
@@ -3700,6 +3833,8 @@ mod history_tests {
             is_system: false,
             is_edited: false,
             is_deleted: false,
+            event: None,
+            data: None,
         }
     }
 

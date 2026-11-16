@@ -68,6 +68,9 @@ pub struct ChatConvertOptions<'a> {
     pub first_unread_id: Option<&'a str>,
     /// The messages of the UI, for the times and the day separators.
     pub tr: &'a crate::Tr<'a>,
+    /// The card of a Looking to play ask, by ask id. `None` when the client
+    /// has no state of the ask: the message is a system line then.
+    pub ask_card: &'a dyn Fn(&str) -> Option<crate::LookingToPlayCardData>,
 }
 
 /// `color` as `#rrggbb` for a `<font color>` tag in styled text.
@@ -125,6 +128,13 @@ pub fn chat_messages_to_slint(
 ) -> Vec<ChatMessageData> {
     let display = mello_core::chat::prepare_messages_for_display(raw);
     let mut out = Vec::with_capacity(display.len() + 1);
+    // The display messages drop the system event: the ask ids by message.
+    let ask_ids: HashMap<&str, String> = raw
+        .iter()
+        .filter_map(|m| {
+            mello_core::looking_to_play::ask_id_of(m).map(|a| (m.message_id.as_str(), a))
+        })
+        .collect();
 
     for mut d in display {
         // The core gives no body for a deleted message. The text, for copy
@@ -243,6 +253,16 @@ pub fn chat_messages_to_slint(
             .unwrap_or_else(|_| StyledText::from_plain_text(&display_text))
         };
 
+        let ask_id = ask_ids
+            .get(d.message_id.as_str())
+            .cloned()
+            .unwrap_or_default();
+        let ask_card = if ask_id.is_empty() {
+            None
+        } else {
+            (opts.ask_card)(&ask_id)
+        };
+
         let slint_links: Vec<ChatLinkData> = links
             .into_iter()
             .map(|l| ChatLinkData {
@@ -301,6 +321,9 @@ pub fn chat_messages_to_slint(
             },
             is_edited: d.is_edited,
             is_deleted: d.is_deleted,
+            ask_id: ask_id.into(),
+            is_ask: ask_card.is_some(),
+            ask: ask_card.unwrap_or_default(),
         });
     }
 
@@ -412,6 +435,54 @@ fn chat_row_same(a: &ChatMessageData, b: &ChatMessageData) -> bool {
         && a.day_label == b.day_label
         && same_reactions(&a.reactions, &b.reactions)
         && a.images.row_count() == b.images.row_count()
+        && a.ask_id == b.ask_id
+        && a.is_ask == b.is_ask
+        && same_card(&a.ask, &b.ask)
+}
+
+fn same_ask_rows(
+    a: &slint::ModelRc<crate::LookingToPlayRow>,
+    b: &slint::ModelRc<crate::LookingToPlayRow>,
+) -> bool {
+    a.row_count() == b.row_count()
+        && (0..a.row_count()).all(|i| match (a.row_data(i), b.row_data(i)) {
+            (Some(x), Some(y)) => {
+                x.user_id == y.user_id
+                    && x.name == y.name
+                    && x.initials == y.initials
+                    && x.color_index == y.color_index
+                    && x.has_avatar == y.has_avatar
+                    && x.state == y.state
+                    && x.due_minutes == y.due_minutes
+            }
+            _ => false,
+        })
+}
+
+/// The fields of a Looking to play card that a refresh can change. The
+/// images are not compared: `has-avatar` and `has-game-icon` say when one
+/// arrives.
+pub fn same_card(a: &crate::LookingToPlayCardData, b: &crate::LookingToPlayCardData) -> bool {
+    a.ask_id == b.ask_id
+        && a.state == b.state
+        && a.closed_reason == b.closed_reason
+        && a.asker_id == b.asker_id
+        && a.asker_name == b.asker_name
+        && a.has_game == b.has_game
+        && a.game_id == b.game_id
+        && a.game_name == b.game_name
+        && a.game_monogram == b.game_monogram
+        && a.game_hue == b.game_hue
+        && a.has_game_icon == b.has_game_icon
+        && a.minutes_left == b.minutes_left
+        && a.more_in == b.more_in
+        && a.no_count == b.no_count
+        && a.viewer_is_asker == b.viewer_is_asker
+        && a.viewer_answer == b.viewer_answer
+        && a.changing == b.changing
+        && a.closed_at == b.closed_at
+        && same_ask_rows(&a.rows, &b.rows)
+        && same_ask_rows(&a.was_in, &b.was_in)
 }
 
 /// Make the crew list equal to `crews`, in place.

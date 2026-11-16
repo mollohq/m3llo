@@ -1003,6 +1003,7 @@ struct MarkRead {
     scroll: Rc<crate::chat_ui::ChatScrollState>,
     cursors: Rc<RefCell<std::collections::HashMap<String, mello_core::chat::ChatReadCursor>>>,
     cmd: tokio::sync::mpsc::UnboundedSender<Command>,
+    looking_to_play: Rc<RefCell<crate::looking_to_play::LtpState>>,
 }
 
 impl MarkRead {
@@ -1013,6 +1014,7 @@ impl MarkRead {
             scroll: ctx.chat_scroll.clone(),
             cursors: ctx.read_cursors.clone(),
             cmd: ctx.cmd_tx.clone(),
+            looking_to_play: ctx.looking_to_play.clone(),
         }
     }
 
@@ -1025,6 +1027,8 @@ impl MarkRead {
         if crew.is_empty() {
             return;
         }
+        // The asks at the bottom of the chat are seen: no mention badge.
+        self.looking_to_play.borrow_mut().mark_read(&crew);
         let newest = self
             .messages
             .borrow()

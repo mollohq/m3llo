@@ -1,0 +1,65 @@
+import {
+    LookingToPlayOpenAsk, LookingToPlayMember, LookingToPlayGroup, LookingToPlayGame,
+} from "looking_to_play_popover.slint";
+import { LookingToPlayToastData } from "looking_to_play.slint";
+
+// ============================================================
+//  Looking to play: the state that Rust gives the chat panel, and the
+//  presses that come back (plans/LOOKING-TO-PLAY.md 3.6).
+//
+//  The cards in the feed come with the chat rows (`ChatMessageData.ask`).
+//  This global holds the composer pill, the ask popover and the toast, and
+//  carries the presses of the cards, the toast and the popover to Rust
+//  (`client/src/handlers/looking_to_play.rs`).
+// ============================================================
+
+export global LookingToPlayUi {
+    /// The crew on screen has an ask that is open or on: the pill gets its pip.
+    in-out property <bool> has-live-ask: false;
+    /// The ask popover over the composer is open.
+    in-out property <bool> popover-open: false;
+
+    // The popover data. Rust fills each list and decides what is picked.
+    in-out property <[LookingToPlayOpenAsk]> open-asks;
+    in-out property <[LookingToPlayMember]> members;
+    in-out property <[LookingToPlayGroup]> groups;
+    in-out property <[LookingToPlayGame]> games;
+    in-out property <bool> large-crew: false;
+    in-out property <bool> everyone-picked: false;
+    in-out property <int> picked-count: 0;
+    in-out property <int> member-count: 0;
+    in-out property <string> crew-initials;
+    in-out property <int> crew-color-index: 1;
+    in-out property <image> crew-avatar;
+    in-out property <bool> has-crew-avatar: false;
+    in-out property <bool> busy: false;
+    in-out property <string> error-text;
+
+    /// The toast in the top right corner of the window (main.slint). Rust
+    /// decides when it shows and fills it.
+    in-out property <bool> toast-open: false;
+    in-out property <LookingToPlayToastData> toast;
+
+    // ---- the card
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback answered(/* ask-id */ string, /* answer */ string);
+    callback change-clicked(/* ask-id */ string);
+    callback cancel-clicked(/* ask-id */ string);
+    callback more-clicked(/* ask-id */ string);
+
+    // ---- the popover
+    /// The pill opened the popover: Rust fills it.
+    callback popover-opened();
+    callback search-edited(/* text */ string);
+    callback group-toggled(/* index */ int);
+    callback member-toggled(/* user-id */ string);
+    callback everyone-toggled();
+    /// Empty `game-id`: Any game.
+    callback game-selected(/* game-id */ string);
+    callback ask-clicked();
+
+    // ---- the toast
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback toast-answered(/* ask-id */ string, /* answer */ string);
+    callback toast-dismissed(/* ask-id */ string);
+}

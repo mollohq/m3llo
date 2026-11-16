@@ -1,0 +1,702 @@
+import { Theme, MelloTextInput, MelloScrollArea } from "../theme.slint";
+import { CutShape } from "cut.slint";
+import { UserAvatar, AvatarOverflow } from "avatar.slint";
+import { GameArt } from "game_art.slint";
+import { StatValue } from "stat.slint";
+import {
+    LookingToPlayCopy, LtpLabel, LtpButton, LtpCrewTile, LtpAnyGameTile,
+} from "looking_to_play.slint";
+
+// ============================================================
+//  Looking to play: the ask popover above the composer (frames 1 and 12).
+//  Built like `GifPopover` in chat_panel.slint: a double CutShape, no
+//  width of its own (the composer gives it), and a height that follows
+//  the content up to `max-height`. The member list scrolls inside it.
+//
+//  Spec: plans/LOOKING-TO-PLAY.md 3.6 and 3.8. Rust fills every list and
+//  decides what is picked. The popover only sends the presses back.
+// ============================================================
+
+/// An open ask of the crew, at the top of the popover.
+export struct LookingToPlayOpenAsk {
+    ask-id: string,
+    /// False: the ask names no game. The row shows "Any game".
+    has-game: bool,
+    game-id: string,
+    game-name: string,
+    game-monogram: string,
+    game-hue: int,
+    game-icon: image,
+    has-game-icon: bool,
+    /// Members who are in, the asker included.
+    count-in: int,
+}
+
+/// A member the asker can pick.
+export struct LookingToPlayMember {
+    user-id: string,
+    name: string,
+    initials: string,
+    /// Identity hue of the initials fallback (0 to 4).
+    color-index: int,
+    avatar: image,
+    has-avatar: bool,
+    /// What the member does now, ready to show: "Counter-Strike 2, 40 min",
+    /// "In voice". Empty: nothing.
+    doing: string,
+    picked: bool,
+}
+
+/// One face of a recent group.
+export struct LookingToPlayFace {
+    initials: string,
+    color-index: int,
+    avatar: image,
+    has-avatar: bool,
+}
+
+/// A group the asker picked before (3.6: the last 3 groups).
+export struct LookingToPlayGroup {
+    /// Sent back by `group-toggled`.
+    index: int,
+    /// Up to 3 faces. Avatars never overlap.
+    faces: [LookingToPlayFace],
+    /// Members of the group beyond `faces`. Shows a "+n" octagon.
+    more: int,
+    /// Ready to show: "Last time". Empty for every group but the first.
+    label: string,
+    /// What a screen reader and the e2e driver read: the names in the group.
+    a11y-label: string,
+    picked: bool,
+}
+
+/// A game chip. "Any game" is not in the list: the popover draws it first.
+export struct LookingToPlayGame {
+    game-id: string,
+    name: string,
+    monogram: string,
+    hue: int,
+    icon: image,
+    has-icon: bool,
+    selected: bool,
+}
+
+/// The pick box: an empty square, or white with a check.
+export component LtpPickBox inherits Rectangle {
+    in property <bool> checked;
+    width: 16px;
+    height: 16px;
+    background: checked ? Theme.action : transparent;
+    border-width: checked ? 0px : 1px;
+    border-color: Theme.graphic-med;
+    if root.checked: Image {
+        source: @image-url("../icons/checkmark.svg");
+        width: 12px;
+        height: 12px;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        colorize: Theme.on-action;
+    }
+}
+
+/// One pickable row: a leading face, a name, what the member does, the box.
+/// The whole row is one checkbox.
+export component LtpPickRow inherits Rectangle {
+    in property <string> name;
+    in property <string> doing;
+    in property <bool> picked;
+    in property <string> a11y-label;
+    callback toggled();
+
+    height: 26px;
+    accessible-role: checkbox;
+    accessible-label: root.a11y-label;
+    accessible-checkable: true;
+    accessible-checked: root.picked;
+
+    if touch.has-hover: Rectangle {
+        x: -6px;
+        width: parent.width + 12px;
+        height: parent.height;
+        background: Theme.hover-overlay;
+    }
+
+    HorizontalLayout {
+        spacing: 10px;
+        cross-axis-alignment: center;
+        @children
+        Text {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            text: root.name;
+            font-family: Theme.font-display;
+            font-weight: Theme.weight-display;
+            font-size: Theme.font-md;
+            color: Theme.text-primary;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+        if root.doing != "": Text {
+            horizontal-stretch: 0;
+            max-width: root.width * 0.45;
+            text: root.doing;
+            font-family: Theme.font-body;
+            font-weight: Theme.weight-sentence;
+            font-size: 12px;
+            color: Theme.text-body;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            width: 2px;
+        }
+        LtpPickBox {
+            checked: root.picked;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        clicked => { root.toggled(); }
+    }
+}
+
+/// The ask popover (frames 1 and 12).
+export component LookingToPlayPopover inherits Rectangle {
+    in property <[LookingToPlayOpenAsk]> open-asks;
+    in property <[LookingToPlayMember]> members;
+    in property <[LookingToPlayGroup]> groups;
+    /// Up to 3 chips after "Any game". More are not shown.
+    in property <[LookingToPlayGame]> games;
+    /// More than 10 members (3.8): the search field, and Everyone last.
+    in property <bool> large-crew: false;
+    in property <bool> everyone-picked: false;
+    /// Members picked one by one or through a group. "Ask {n}".
+    in property <int> picked-count: 0;
+    /// Members that Everyone reaches, shown in a large crew ("49").
+    in property <int> member-count: 0;
+    in property <string> crew-initials;
+    in property <int> crew-color-index: 1;
+    in property <image> crew-avatar;
+    in property <bool> has-crew-avatar: false;
+    /// The ask is on its way: the button is off.
+    in property <bool> busy: false;
+    /// One line above the button. Empty: no line.
+    in property <string> error-text;
+    /// The popover never grows past this. The member list scrolls.
+    in property <length> limit-height: 420px;
+
+    callback open-ask-clicked(/* ask-id */ string);
+    callback search-edited(/* text */ string);
+    callback group-toggled(/* index */ int);
+    callback member-toggled(/* user-id */ string);
+    callback everyone-toggled();
+    /// Empty `game-id`: Any game.
+    callback game-selected(/* game-id */ string);
+    callback ask-clicked();
+    /// Escape.
+    callback close-requested();
+
+    property <bool> can-ask: !root.busy && (root.everyone-picked || root.picked-count > 0);
+    property <bool> any-game: !(root.games.length > 0 && root.games[0].selected)
+        && !(root.games.length > 1 && root.games[1].selected)
+        && !(root.games.length > 2 && root.games[2].selected);
+
+    height: min(lay.preferred-height, root.limit-height);
+    background: transparent;
+
+    CutShape {
+        width: parent.width;
+        height: parent.height;
+        n: Theme.notch;
+        fill: Theme.card-border;
+    }
+    CutShape {
+        width: parent.width;
+        height: parent.height;
+        n: Theme.notch;
+        inset: Theme.keyline;
+        fill: Theme.card-bg;
+    }
+
+    keys := FocusScope {
+        init => {
+            if !root.large-crew {
+                self.focus();
+            }
+        }
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.close-requested();
+                return accept;
+            }
+            reject
+        }
+
+        lay := VerticalLayout {
+            padding: 14px;
+            spacing: 0px;
+
+            // ---- OPEN ----
+            if root.open-asks.length > 0: VerticalLayout {
+                vertical-stretch: 0;
+                spacing: 8px;
+                padding-bottom: 12px;
+                LtpLabel {
+                    text: @tr("OPEN");
+                    height: 12px;
+                }
+                for a in root.open-asks: Rectangle {
+                    height: 28px;
+                    accessible-role: button;
+                    accessible-label: a.has-game ? a.game-name : @tr("Any game");
+                    if open-touch.has-hover: Rectangle {
+                        x: -6px;
+                        width: parent.width + 12px;
+                        height: parent.height;
+                        background: Theme.hover-overlay;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        cross-axis-alignment: center;
+                        if a.has-game: GameArt {
+                            size: 28px;
+                            game-id: a.game-id;
+                            monogram: a.game-monogram;
+                            hue-index: a.game-hue;
+                            icon: a.game-icon;
+                            has-icon: a.has-game-icon;
+                            bg-color: Theme.card-bg;
+                        }
+                        if !a.has-game: LtpAnyGameTile {
+                            size: 28px;
+                        }
+                        Text {
+                            horizontal-stretch: 1;
+                            min-width: 0px;
+                            text: a.has-game ? a.game-name : @tr("Any game");
+                            font-family: Theme.font-display;
+                            font-weight: Theme.weight-display;
+                            font-size: Theme.font-md;
+                            color: Theme.text-primary;
+                            overflow: elide;
+                            vertical-alignment: center;
+                        }
+                        StatValue {
+                            horizontal-stretch: 0;
+                            value: a.count-in;
+                            unit: LookingToPlayCopy.count-in;
+                            value-size: 14px;
+                            unit-size: 9px;
+                            unit-font: Theme.font-label;
+                            unit-weight: Theme.weight-label;
+                            unit-spacing: Theme.track-label;
+                            unit-color: Theme.text-primary;
+                        }
+                    }
+                    open-touch := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.open-ask-clicked(a.ask-id); }
+                    }
+                }
+            }
+
+            // ---- ASK ----
+            LtpLabel {
+                vertical-stretch: 0;
+                text: @tr("ASK");
+                height: 20px;
+                vertical-alignment: top;
+            }
+
+            if root.large-crew: VerticalLayout {
+                vertical-stretch: 0;
+                padding-bottom: 10px;
+                Rectangle {
+                    height: 32px;
+                    background: Theme.bg-app;
+                    border-width: 1px;
+                    border-color: find-input.has-focus ? Theme.graphic-med : Theme.graphic-light;
+
+                    find-input := MelloTextInput {
+                        accessible-label: @tr("Find a member");
+                        x: 10px;
+                        width: parent.width - 20px;
+                        height: parent.height;
+                        font-size: Theme.font-md;
+                        color: Theme.text-primary;
+                        vertical-alignment: center;
+                        init => { self.focus(); }
+                        edited => { root.search-edited(self.text); }
+                    }
+                    if find-input.text == "": Text {
+                        x: 10px;
+                        height: parent.height;
+                        text: @tr("Find a member");
+                        font-family: Theme.font-body;
+                        font-weight: Theme.weight-sentence;
+                        font-size: Theme.font-md;
+                        color: Theme.text-tertiary;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+
+            list-area := MelloScrollArea {
+                vertical-stretch: 1;
+                // Two rows stay when the popover is short of room.
+                min-height: min(list.preferred-height, 2 * 26px + 8px);
+                preferred-height: list.preferred-height;
+                content-height: list.preferred-height;
+
+                list := VerticalLayout {
+                    width: parent.width;
+                    spacing: 8px;
+
+                    // A crew of up to 10: Everyone first.
+                    if !root.large-crew: LtpPickRow {
+                        name: @tr("Everyone");
+                        a11y-label: @tr("Everyone");
+                        picked: root.everyone-picked;
+                        toggled => { root.everyone-toggled(); }
+                        LtpCrewTile {
+                            size: 26px;
+                            initials: root.crew-initials;
+                            color-index: root.crew-color-index;
+                            avatar: root.crew-avatar;
+                            has-avatar: root.has-crew-avatar;
+                        }
+                    }
+
+                    for g in root.groups: LtpPickRow {
+                        name: "";
+                        doing: g.label;
+                        a11y-label: g.a11y-label;
+                        picked: g.picked;
+                        toggled => { root.group-toggled(g.index); }
+                        HorizontalLayout {
+                            spacing: 4px;
+                            for f in g.faces: UserAvatar {
+                                size: 26px;
+                                initials: f.initials;
+                                color-index: f.color-index;
+                                avatar: f.avatar;
+                                has-avatar: f.has-avatar;
+                            }
+                            if g.more > 0: AvatarOverflow {
+                                size: 26px;
+                                count: g.more;
+                            }
+                        }
+                    }
+
+                    for m in root.members: LtpPickRow {
+                        name: m.name;
+                        doing: m.doing;
+                        a11y-label: m.name;
+                        picked: m.picked;
+                        toggled => { root.member-toggled(m.user-id); }
+                        UserAvatar {
+                            size: 26px;
+                            initials: m.initials;
+                            color-index: m.color-index;
+                            avatar: m.avatar;
+                            has-avatar: m.has-avatar;
+                        }
+                    }
+
+                    // A larger crew: Everyone last, with how many it reaches.
+                    if root.large-crew: LtpPickRow {
+                        name: @tr("Everyone");
+                        doing: root.member-count > 0 ? root.member-count : "";
+                        a11y-label: @tr("Everyone");
+                        picked: root.everyone-picked;
+                        toggled => { root.everyone-toggled(); }
+                        LtpCrewTile {
+                            size: 26px;
+                            initials: root.crew-initials;
+                            color-index: root.crew-color-index;
+                            avatar: root.crew-avatar;
+                            has-avatar: root.has-crew-avatar;
+                        }
+                    }
+                }
+            }
+
+            // ---- GAME ----
+            VerticalLayout {
+                vertical-stretch: 0;
+                padding-top: 12px;
+                LtpLabel {
+                    text: @tr("GAME");
+                    height: 20px;
+                    vertical-alignment: top;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+
+                    // Any game: always first.
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        preferred-width: 0px;
+                        min-width: 0px;
+                        border-width: root.any-game ? 1px : 0px;
+                        border-color: Theme.action-line;
+                        background: any-touch.has-hover && !root.any-game ? Theme.hover-overlay : transparent;
+                        accessible-role: radio-button;
+                        accessible-label: @tr("Any game");
+                        accessible-checkable: true;
+                        accessible-checked: root.any-game;
+                        VerticalLayout {
+                            padding-top: 8px;
+                            padding-bottom: 6px;
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            spacing: 6px;
+                            HorizontalLayout {
+                                alignment: center;
+                                LtpAnyGameTile { size: 40px; }
+                            }
+                            Text {
+                                text: @tr("Any game");
+                                height: 28px;
+                                font-family: Theme.font-body;
+                                font-weight: Theme.weight-sentence;
+                                font-size: Theme.font-sm;
+                                color: root.any-game ? Theme.text-primary : Theme.text-secondary;
+                                horizontal-alignment: center;
+                                vertical-alignment: top;
+                                wrap: word-wrap;
+                                overflow: elide;
+                            }
+                        }
+                        any-touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.game-selected(""); }
+                        }
+                    }
+
+                    for gi in 3: Rectangle {
+                        horizontal-stretch: 1;
+                        preferred-width: 0px;
+                        min-width: 0px;
+                        property <bool> has: gi < root.games.length;
+                        property <LookingToPlayGame> game: has ? root.games[gi] : { };
+                        border-width: has && game.selected ? 1px : 0px;
+                        border-color: Theme.action-line;
+                        background: has && chip-touch.has-hover && !game.selected ? Theme.hover-overlay : transparent;
+                        accessible-role: radio-button;
+                        accessible-label: game.name;
+                        accessible-checkable: true;
+                        accessible-checked: game.selected;
+                        accessible-enabled: has;
+                        if has: VerticalLayout {
+                            padding-top: 8px;
+                            padding-bottom: 6px;
+                            padding-left: 4px;
+                            padding-right: 4px;
+                            spacing: 6px;
+                            HorizontalLayout {
+                                alignment: center;
+                                GameArt {
+                                    size: 40px;
+                                    game-id: game.game-id;
+                                    monogram: game.monogram;
+                                    hue-index: game.hue;
+                                    icon: game.icon;
+                                    has-icon: game.has-icon;
+                                    bg-color: Theme.card-bg;
+                                }
+                            }
+                            Text {
+                                text: game.name;
+                                height: 28px;
+                                font-family: Theme.font-body;
+                                font-weight: Theme.weight-sentence;
+                                font-size: Theme.font-sm;
+                                color: game.selected ? Theme.text-primary : Theme.text-secondary;
+                                horizontal-alignment: center;
+                                vertical-alignment: top;
+                                wrap: word-wrap;
+                                overflow: elide;
+                            }
+                        }
+                        chip-touch := TouchArea {
+                            enabled: has;
+                            mouse-cursor: has ? pointer : default;
+                            clicked => { root.game-selected(game.game-id); }
+                        }
+                    }
+                }
+            }
+
+            // ---- error and the one red button ----
+            if root.error-text != "": Text {
+                vertical-stretch: 0;
+                text: root.error-text;
+                height: 28px;
+                font-family: Theme.font-body;
+                font-weight: Theme.weight-sentence;
+                font-size: 12px;
+                color: Theme.live;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+
+            VerticalLayout {
+                vertical-stretch: 0;
+                padding-top: root.error-text != "" ? 0px : 12px;
+                LtpButton {
+                    button-height: 40px;
+                    kind: "go";
+                    enabled: root.can-ask;
+                    text: root.everyone-picked || root.picked-count == 0
+                        ? @tr("ASK THE CREW")
+                        : @tr("ASK {}", root.picked-count);
+                    a11y-label: root.everyone-picked || root.picked-count == 0
+                        ? @tr("Ask the crew")
+                        : @tr("Ask {n} member" | "Ask {n} members" % root.picked-count);
+                    clicked => { root.ask-clicked(); }
+                }
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- previews
+//
+//   slint-viewer --screenshot out.png --component PreviewPopoverSmall \
+//     client/ui/components/looking_to_play_popover.slint
+
+global LtpPopMock {
+    out property <image> cs2: @image-url("../previews/fixtures/capsule-sample-1.png");
+    out property <image> drg: @image-url("../previews/fixtures/capsule-sample-4.png");
+}
+
+/// A 400px chat column on the panel ground, the popover over the composer.
+component LtpPopColumn inherits Rectangle {
+    width: 400px;
+    background: Theme.surface;
+    VerticalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 16px;
+        padding-bottom: 16px;
+        alignment: end;
+        @children
+    }
+}
+
+export component PreviewPopoverSmall inherits LtpPopColumn {
+    LookingToPlayPopover {
+        crew-initials: "NS";
+        crew-color-index: 1;
+        everyone-picked: true;
+        members: [
+            { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, doing: "Counter-Strike 2, 40 min" },
+            { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, doing: "In voice" },
+            { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3 },
+            { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4 },
+        ];
+        games: [
+            { game-id: "steam-730", name: "Counter-Strike 2", monogram: "CS", hue: 0, icon: LtpPopMock.cs2, has-icon: true },
+            { game-id: "steam-548430", name: "Deep Rock Galactic", monogram: "DR", hue: 3, icon: LtpPopMock.drg, has-icon: true },
+            { game-id: "steam-892970", name: "Valheim", monogram: "VH", hue: 2 },
+        ];
+    }
+}
+
+export component PreviewPopoverLarge inherits LtpPopColumn {
+    height: 600px;
+    LookingToPlayPopover {
+        large-crew: true;
+        crew-initials: "NS";
+        crew-color-index: 1;
+        member-count: 49;
+        picked-count: 3;
+        open-asks: [
+            { ask-id: "a1", has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0, game-icon: LtpPopMock.cs2, has-game-icon: true, count-in: 14 },
+            { ask-id: "a2", has-game: true, game-id: "steam-892970", game-name: "Valheim", game-monogram: "VH", game-hue: 2, count-in: 3 },
+        ];
+        groups: [
+            {
+                index: 0, label: "Last time", picked: true,
+                faces: [
+                    { initials: "K0", color-index: 2 },
+                    { initials: "OW", color-index: 1 },
+                    { initials: "FR", color-index: 4 },
+                ],
+            },
+        ];
+        members: [
+            { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, doing: "Valheim, 2 h 10" },
+            { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0, doing: "In voice" },
+            { user-id: "u-morran", name: "morran", initials: "MO", color-index: 2, doing: "Counter-Strike 2, 12 min" },
+        ];
+        games: [
+            { game-id: "steam-730", name: "Counter-Strike 2", monogram: "CS", hue: 0, icon: LtpPopMock.cs2, has-icon: true },
+            { game-id: "steam-548430", name: "Deep Rock Galactic", monogram: "DR", hue: 3, icon: LtpPopMock.drg, has-icon: true, selected: true },
+            { game-id: "steam-892970", name: "Valheim", monogram: "VH", hue: 2 },
+        ];
+    }
+}
+
+/// The member list longer than the room: it scrolls inside 420px. Long
+/// names, a long game, German-length labels, an error line, busy.
+export component PreviewPopoverLong inherits Rectangle {
+    width: 740px;
+    height: 520px;
+    background: Theme.surface;
+    HorizontalLayout {
+        padding: 16px;
+        spacing: 16px;
+        alignment: start;
+        VerticalLayout {
+            width: 340px;
+            alignment: end;
+            LookingToPlayPopover {
+                large-crew: true;
+                crew-initials: "MR";
+                crew-color-index: 2;
+                member-count: 49;
+                picked-count: 2;
+                error-text: "Das hat nicht geklappt. Bitte versuche es gleich noch einmal.";
+                groups: [
+                    {
+                        index: 0, label: "Letztes Mal", picked: false, more: 4,
+                        faces: [
+                            { initials: "K0", color-index: 2 },
+                            { initials: "OW", color-index: 1 },
+                            { initials: "FR", color-index: 4 },
+                        ],
+                    },
+                ];
+                members: [
+                    { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4, doing: "The Elder Scrolls V: Skyrim Special Edition, 2 h 10", picked: true },
+                    { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, doing: "Im Sprachkanal", picked: true },
+                    { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0 },
+                    { user-id: "u-morran", name: "morran", initials: "MO", color-index: 2, doing: "Counter-Strike 2, 12 min" },
+                    { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2 },
+                    { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4 },
+                ];
+                games: [
+                    { game-id: "steam-489830", name: "The Elder Scrolls V: Skyrim Special Edition", monogram: "TES", hue: 3, selected: true },
+                    { game-id: "steam-548430", name: "Deep Rock Galactic", monogram: "DR", hue: 3, icon: LtpPopMock.drg, has-icon: true },
+                ];
+            }
+        }
+        VerticalLayout {
+            width: 340px;
+            alignment: end;
+            LookingToPlayPopover {
+                crew-initials: "MR";
+                crew-color-index: 2;
+                picked-count: 0;
+                busy: true;
+                members: [
+                    { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4, doing: "Im Sprachkanal" },
+                ];
+            }
+        }
+    }
+}

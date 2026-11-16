@@ -31,6 +31,7 @@ pub(crate) struct ChatRefresh {
     media_images: Rc<std::cell::RefCell<std::collections::HashMap<String, Option<slint::Image>>>>,
     rt: tokio::runtime::Handle,
     gif_chat_anim: crate::gif_animator::GifAnimator,
+    looking_to_play: Rc<std::cell::RefCell<crate::looking_to_play::LtpState>>,
 }
 
 impl ChatRefresh {
@@ -45,6 +46,7 @@ impl ChatRefresh {
             media_images: ctx.media_images.clone(),
             rt: ctx.rt.clone(),
             gif_chat_anim: ctx.gif_chat_anim.clone(),
+            looking_to_play: ctx.looking_to_play.clone(),
         }
     }
 
@@ -83,7 +85,12 @@ impl ChatRefresh {
                 .collect()
         };
         let tr = app.global::<crate::Tr>();
+        let ltp = self.looking_to_play.borrow();
+        let cards =
+            crate::handlers::looking_to_play::CardView::new(&app, &self.avatar_cache.borrow());
+        let ask_card = |ask_id: &str| cards.data(&tr, &ltp, ask_id);
         let opts = ChatConvertOptions {
+            ask_card: &ask_card,
             tr: &tr,
             user_id: &uid,
             reactions: &reactions,
@@ -101,6 +108,7 @@ impl ChatRefresh {
         app.set_chat_messages_this_week(mello_core::chat::count_messages_this_week(&raw));
         sync_gif_images(&app.get_messages(), &self.rt, &self.gif_chat_anim);
         self.chat_scroll.apply_to_window(&app, raw.len());
+        crate::handlers::looking_to_play::sync_pip(&app, &ltp);
     }
 }
 
@@ -133,6 +141,8 @@ pub(crate) fn mark_read(ctx: &AppContext) {
     if crew.is_empty() {
         return;
     }
+    // The asks at the bottom of the chat are seen: no mention badge.
+    ctx.looking_to_play.borrow_mut().mark_read(&crew);
     let newest = ctx
         .chat_messages
         .borrow()
@@ -169,16 +179,28 @@ pub(crate) fn mark_read(ctx: &AppContext) {
 
 /// The sidebar badges from the read cursors and the newest messages of
 /// each crew. The crew on screen has no badge; its unread rule is in the feed.
+/// An unread ask that picked the user is a mention (plans/LOOKING-TO-PLAY.md
+/// 3.6). The server posts the ask, so the previews may not hold its message:
+/// then it counts on top.
 pub(crate) fn recompute_badges(ctx: &AppContext) {
     let active = ctx.app.get_active_crew_id().to_string();
     let uid = ctx.app.get_user_id().to_string();
     let cursors = ctx.read_cursors.borrow();
     let previews = ctx.crew_previews.borrow();
+    let ltp = ctx.looking_to_play.borrow();
+    let mut crews: std::collections::BTreeSet<&str> = previews.keys().map(String::as_str).collect();
+    crews.extend(
+        ltp.asks
+            .values()
+            .filter(|a| a.asked.contains(&uid))
+            .map(|a| a.crew_id.as_str()),
+    );
     let mut tracker = ctx.unread_tracker.borrow_mut();
-    for (crew, list) in previews.iter() {
-        if *crew == active {
+    for crew in crews {
+        if crew == active {
             continue;
         }
+        let list = previews.get(crew).map(Vec::as_slice).unwrap_or_default();
         let unread = list
             .iter()
             .filter(|p| p.user_id.as_deref() != Some(uid.as_str()))
@@ -190,11 +212,53 @@ pub(crate) fn recompute_badges(ctx: &AppContext) {
                 None => true,
             })
             .count() as u32;
+        let read_ms = cursors
+            .get(crew)
+            .and_then(|c| mello_core::presence::from_rfc3339_ms(&c.time));
+        let picked = ltp.picked_unread(crew, &uid, read_ms);
+        let extra = picked
+            .iter()
+            .filter(|a| {
+                !list
+                    .iter()
+                    .any(|p| p.message_id.as_deref() == Some(a.message_id.as_str()))
+            })
+            .count() as u32;
+        let unread = unread + extra;
         let had_mention = tracker.get(crew).has_mention;
-        tracker.set(crew, unread, had_mention && unread > 0);
+        tracker.set(
+            crew,
+            unread,
+            (had_mention || !picked.is_empty()) && unread > 0,
+        );
     }
     drop(tracker);
     apply_unread_to_crews(&ctx.app, &ctx.unread_tracker.borrow());
+}
+
+/// True when `message` is the message of an ask that picked the user: a
+/// mention (plans/LOOKING-TO-PLAY.md 3.6). An ask to everyone is not.
+fn ask_picks_user(ctx: &AppContext, message: &mello_core::events::ChatMessage, uid: &str) -> bool {
+    let Some(ask_id) = mello_core::looking_to_play::ask_id_of(message) else {
+        return false;
+    };
+    ctx.looking_to_play
+        .borrow()
+        .asks
+        .get(&ask_id)
+        .is_some_and(|a| a.asked.iter().any(|id| id == uid))
+}
+
+/// The ask of the crew on screen picked the user, and its message counts as
+/// unread (the user is not at the bottom): the badge is a mention.
+pub(crate) fn mark_ask_mention(ctx: &AppContext, crew_id: &str) {
+    let state = ctx.unread_tracker.borrow().get(crew_id);
+    if state.count > 0 && !state.has_mention {
+        ctx.unread_tracker
+            .borrow_mut()
+            .set(crew_id, state.count, true);
+        apply_unread_to_crews(&ctx.app, &ctx.unread_tracker.borrow());
+    }
 }
 
 fn upsert_message(ctx: &AppContext, message: mello_core::events::ChatMessage) {
@@ -307,7 +371,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             let uid = ctx.app.get_user_id().to_string();
             let is_own = sender_id == uid;
 
-            let mentions_self = message.mentions_user(&uid);
+            let mentions_self = message.mentions_user(&uid) || ask_picks_user(ctx, &message, &uid);
             // Only when the user does not look at m3llo. A mention replaces
             // the message sound.
             if !is_own && !message.is_system && !crate::activity_report::window_foreground(&ctx.app)

@@ -134,6 +134,18 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("unregister_push_token", UnregisterPushTokenRPC); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("looking_to_play_ask", LookingToPlayAskRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("looking_to_play_answer", LookingToPlayAnswerRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("looking_to_play_cancel", LookingToPlayCancelRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("looking_to_play_list", LookingToPlayListRPC); err != nil {
+		return err
+	}
 	if err := initializer.RegisterRpc("push_prefs_get", PushPrefsGetRPC); err != nil {
 		return err
 	}
@@ -498,6 +510,8 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	go StartMessageThrottleLoop(nk, logger, 10*time.Second)
 	go startChatActivityTicker(ctx, nk, logger, 30*time.Minute)
 	go StartVoiceRoomGC(ctx, nk, logger, 30*time.Second)
+	// Looking to play: closes asks on time (looking_to_play_store.go).
+	StartLookingToPlayLoop(nk, logger, ltpLoopInterval)
 	go StartVoiceCoalesceLoop(ctx, nk, logger, 200*time.Millisecond)
 	if sfuReconcileEnabled() {
 		go StartVoiceReconcile(ctx, nk, logger, 20*time.Second)

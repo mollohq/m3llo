@@ -45,7 +45,17 @@ export type TextElement = { text: string; x: number; y: number; width: number; h
 export type Point = { x: number; y: number };
 
 /** Roles that the a11y lint requires a label on (client/src/a11y_lint.rs). */
-export const CONTROL_ROLES = ["Button", "Switch", "Tab", "Slider", "Combobox", "TextInput"];
+export const CONTROL_ROLES = [
+  "Button",
+  "Switch",
+  "Tab",
+  "Slider",
+  "Combobox",
+  "TextInput",
+  // A pick box and a one-of-many chip (the Looking to play popover).
+  "Checkbox",
+  "RadioButton",
+];
 
 export class SlintMcp {
   readonly url: string;
@@ -184,8 +194,21 @@ export class SlintMcp {
     const perRole = await Promise.all(
       CONTROL_ROLES.map((role) => this.query(root, { matchElementAccessibleRole: role })),
     );
-    const handles = perRole.flat();
-    const roles = perRole.flatMap((hs, i) => hs.map(() => CONTROL_ROLES[i]));
+    // One query can give the same element more than once (seen for a button
+    // under nested conditional elements in a list row). A control is listed
+    // once: its handle names it.
+    const seen = new Set<string>();
+    const handles: ElementHandle[] = [];
+    const roles: string[] = [];
+    perRole.forEach((hs, i) => {
+      for (const h of hs) {
+        const key = JSON.stringify(h);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        handles.push(h);
+        roles.push(CONTROL_ROLES[i]);
+      }
+    });
     const props = await this.props(handles);
     const out: Control[] = [];
     props.forEach((p, i) => {

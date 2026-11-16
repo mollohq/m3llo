@@ -46,13 +46,15 @@ const EVENT_TAIL: usize = 200;
 /// The most rows in one list of the snapshot.
 const LIST_LIMIT: usize = 20;
 /// The roles that the driver treats as controls (tools/mello-driver/src/slint.ts).
-const CONTROL_ROLES: [AccessibleRole; 6] = [
+const CONTROL_ROLES: [AccessibleRole; 8] = [
     AccessibleRole::Button,
     AccessibleRole::Switch,
     AccessibleRole::Tab,
     AccessibleRole::Slider,
     AccessibleRole::Combobox,
     AccessibleRole::TextInput,
+    AccessibleRole::Checkbox,
+    AccessibleRole::RadioButton,
 ];
 
 static EVENTS: Mutex<VecDeque<EventRecord>> = Mutex::new(VecDeque::new());
@@ -190,6 +192,9 @@ struct Snapshot {
     live_sessions: Vec<LiveSessionSnap>,
     /// Sealed belts and recap in the feed, and the card in the centre.
     sealed: SealedSnap,
+    /// Looking to play: the asks of the crew on screen, the pill, the
+    /// popover and the toast (plans/LOOKING-TO-PLAY.md 3.6).
+    looking_to_play: LookingToPlaySnap,
     /// The chat input has the cursor.
     chat_input_focused: bool,
     /// The audio page of the settings.
@@ -777,6 +782,66 @@ struct StreamMemberSnap {
     user_id: String,
     /// `"host"` or `"viewer"`.
     role: String,
+}
+
+#[derive(Serialize)]
+struct LookingToPlaySnap {
+    /// The asks that are open or on, from the cards in the chat of the crew
+    /// on screen, oldest first.
+    asks: Vec<AskSnap>,
+    /// The composer pill carries its pip.
+    pip: bool,
+    popover_open: bool,
+    /// The ask of the toast on screen. `None` (JSON `null`) when none shows.
+    toast: Option<String>,
+}
+
+#[derive(Serialize)]
+struct AskSnap {
+    ask_id: String,
+    /// `"open"` or `"on"`.
+    state: String,
+    asker_id: String,
+    /// Empty when the ask names no game.
+    game_name: String,
+    /// The members in, in voice or due, with a row on the card. A card of
+    /// more than 10 members holds at most 6 rows: see `more_in`.
+    members_in: Vec<String>,
+    more_in: i32,
+    /// The user's answer: `""`, `"in"`, `"in_15"`, `"in_30"` or `"no"`.
+    my_answer: String,
+}
+
+fn read_looking_to_play(app: &MainWindow) -> LookingToPlaySnap {
+    let ui = app.global::<crate::LookingToPlayUi>();
+    let asks = app
+        .get_messages()
+        .iter()
+        .filter(|m| m.is_ask && m.ask.state != "closed")
+        .map(|m| AskSnap {
+            ask_id: m.ask.ask_id.to_string(),
+            state: m.ask.state.to_string(),
+            asker_id: m.ask.asker_id.to_string(),
+            game_name: m.ask.game_name.to_string(),
+            members_in: m
+                .ask
+                .rows
+                .iter()
+                .filter(|r| matches!(r.state.as_str(), "voice" | "in" | "due"))
+                .map(|r| r.user_id.to_string())
+                .collect(),
+            more_in: m.ask.more_in,
+            my_answer: m.ask.viewer_answer.to_string(),
+        })
+        .collect();
+    LookingToPlaySnap {
+        asks,
+        pip: ui.get_has_live_ask(),
+        popover_open: ui.get_popover_open(),
+        toast: ui
+            .get_toast_open()
+            .then(|| ui.get_toast().ask_id.to_string()),
+    }
 }
 
 #[derive(Serialize)]
@@ -1425,6 +1490,7 @@ fn read(app: &MainWindow) -> Snapshot {
             }
         },
         sealed: read_sealed(app),
+        looking_to_play: read_looking_to_play(app),
         you_strip: {
             let strip = app.get_you_strip();
             YouStripSnap {
@@ -1925,6 +1991,75 @@ mod tests {
                  "deafened": false, "volume": 100, "local_muted": true},
             ])
         );
+    }
+
+    #[test]
+    fn the_snapshot_reads_looking_to_play() {
+        let h = Harness::new();
+        let app = h.app();
+        let none = snapshot_json(app);
+        assert_eq!(
+            none["looking_to_play"],
+            json!({"asks": [], "pip": false, "popover_open": false, "toast": null})
+        );
+
+        let row = |id: &str, state: &str| crate::LookingToPlayRow {
+            user_id: id.into(),
+            state: state.into(),
+            ..Default::default()
+        };
+        let ask = |ask_id: &str, state: &str| crate::ChatMessageData {
+            message_id: format!("m-{ask_id}").into(),
+            ask_id: ask_id.into(),
+            is_ask: true,
+            ask: crate::LookingToPlayCardData {
+                ask_id: ask_id.into(),
+                state: state.into(),
+                asker_id: "u-leo".into(),
+                game_name: "Counter-Strike 2".into(),
+                viewer_answer: "in_15".into(),
+                more_in: 2,
+                rows: model(vec![
+                    row("u-leo", "voice"),
+                    row("u-me", "due"),
+                    row("u-kim", "none"),
+                    row("u-mia", "no"),
+                ]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        app.set_messages(model(vec![
+            crate::ChatMessageData {
+                message_id: "m1".into(),
+                text: "hi".into(),
+                ..Default::default()
+            },
+            ask("a1", "on"),
+            ask("a0", "closed"),
+        ]));
+        let ui = app.global::<crate::LookingToPlayUi>();
+        ui.set_has_live_ask(true);
+        ui.set_popover_open(true);
+        ui.set_toast(crate::LookingToPlayToastData {
+            ask_id: "a9".into(),
+            ..Default::default()
+        });
+        ui.set_toast_open(true);
+
+        let s = snapshot_json(app);
+        assert_eq!(
+            s["looking_to_play"],
+            json!({
+                "asks": [{"ask_id": "a1", "state": "on", "asker_id": "u-leo",
+                          "game_name": "Counter-Strike 2", "members_in": ["u-leo", "u-me"],
+                          "more_in": 2, "my_answer": "in_15"}],
+                "pip": true, "popover_open": true, "toast": "a9"
+            }),
+            "a closed ask is left out"
+        );
+        ui.set_toast_open(false);
+        assert_eq!(snapshot_json(app)["looking_to_play"]["toast"], json!(null));
     }
 
     #[test]

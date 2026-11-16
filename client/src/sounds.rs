@@ -119,12 +119,17 @@ impl SoundCues {
     }
 }
 
+/// The Looking to play sound plays at most once in this time.
+pub(crate) const LOOKING_TO_PLAY_GAP: Duration = Duration::from_secs(60);
+
 /// The shortest time between two plays of one sound. A burst (three members
 /// join at once, a fast chat) plays once.
 fn min_gap(sound: Sound) -> Option<Duration> {
     match sound {
         Sound::MemberJoin | Sound::MemberLeave => Some(Duration::from_millis(500)),
         Sound::Message | Sound::Mention => Some(Duration::from_millis(1000)),
+        // Several asks can arrive close together (plans/LOOKING-TO-PLAY.md 3.6).
+        Sound::LookingToPlay => Some(LOOKING_TO_PLAY_GAP),
         _ => None,
     }
 }
@@ -290,6 +295,29 @@ mod tests {
         assert!(!cues.cue(&settings, Sound::Message));
         assert!(cues.cue(&settings, Sound::Mute));
         assert_eq!(cues.recent(), vec![Sound::Mute]);
+    }
+
+    #[test]
+    fn the_looking_to_play_sound_plays_once_in_60_seconds() {
+        let cues = SoundCues::new(None);
+        let settings = Settings::default();
+        assert_eq!(min_gap(Sound::LookingToPlay), Some(Duration::from_secs(60)));
+        assert!(cues.cue(&settings, Sound::LookingToPlay));
+        assert!(!cues.cue(&settings, Sound::LookingToPlay), "a second ask");
+        // 61 seconds later it plays again.
+        cues.last_played.borrow_mut().insert(
+            Sound::LookingToPlay,
+            Instant::now()
+                .checked_sub(Duration::from_secs(61))
+                .expect("the clock is past 61 s"),
+        );
+        assert!(cues.cue(&settings, Sound::LookingToPlay));
+        // Crew sounds off: nothing.
+        let off = Settings {
+            sound_crew: false,
+            ..Settings::default()
+        };
+        assert!(!SoundCues::new(None).cue(&off, Sound::LookingToPlay));
     }
 
     #[test]

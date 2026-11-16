@@ -256,6 +256,18 @@ type pushAlert struct {
 	Title     string `json:"title"`
 	Body      string `json:"body"`
 
+	// The fields of a Looking to play push (looking_to_play_push.go). The
+	// Worker passes them to APNs. A push of another type leaves them out.
+	//
+	// Category names the notification category with the answer buttons.
+	Category string `json:"category,omitempty"`
+	// Silent is a push with no sound: it replaces one that the member heard.
+	Silent bool `json:"silent,omitempty"`
+	// TTLSeconds is how long the push waits for a phone that is off the net.
+	TTLSeconds int `json:"ttl_seconds,omitempty"`
+	// AskID is the ask, for the answer that a button sends.
+	AskID string `json:"ask_id,omitempty"`
+
 	// Lang is the account language of the recipient. It is not sent: the
 	// limiter uses it for the coalesced text (coalesceHeld).
 	Lang string `json:"-"`

@@ -125,7 +125,7 @@ impl Drop for Harness {
     /// kqueue, open for the rest of the process.
     ///
     /// A few callbacks on `StreamCardUi`, `SealedUi`, `ClipPlayerUi`,
-    /// `BannerPicker`, `InviteNamePicker`, `CrewEmojiUi` and
+    /// `BannerPicker`, `InviteNamePicker`, `CrewEmojiUi`, `LookingToPlayUi` and
     /// `MainWindow::play-clip` capture a strong `AppContext` clone. That
     /// clone owns the `MainWindow` that owns the callback, so the window
     /// never drops, and every closure in it keeps a `Handle` clone that keeps
@@ -158,6 +158,20 @@ impl Drop for Harness {
         eu.on_choose_image(|| {});
         eu.on_save(|| {});
         eu.on_remove(|_| {});
+        let lu = self.ctx.app.global::<crate::LookingToPlayUi>();
+        lu.on_answered(|_, _| {});
+        lu.on_change_clicked(|_| {});
+        lu.on_cancel_clicked(|_| {});
+        lu.on_more_clicked(|_| {});
+        lu.on_popover_opened(|| {});
+        lu.on_search_edited(|_| {});
+        lu.on_group_toggled(|_| {});
+        lu.on_member_toggled(|_| {});
+        lu.on_everyone_toggled(|| {});
+        lu.on_game_selected(|_| {});
+        lu.on_ask_clicked(|| {});
+        lu.on_toast_answered(|_, _| {});
+        lu.on_toast_dismissed(|_| {});
     }
 }
 

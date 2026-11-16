@@ -80,6 +80,17 @@ export { ClipPlayerUi }
 
 
 export { BannerPicker, InviteNamePicker, CrewEmojiUi }
+// Looking to play: the pill, the ask popover and the presses of the cards.
+import { LookingToPlayUi } from "components/looking_to_play_ui.slint";
+import { LookingToPlayToast, LookingToPlayToastData } from "components/looking_to_play.slint";
+import { LookingToPlayRow, LookingToPlayCardData } from "types.slint";
+import {
+    LookingToPlayOpenAsk, LookingToPlayMember, LookingToPlayFace, LookingToPlayGroup, LookingToPlayGame,
+} from "components/looking_to_play_popover.slint";
+export {
+    LookingToPlayUi, LookingToPlayRow, LookingToPlayCardData, LookingToPlayOpenAsk, LookingToPlayToastData,
+    LookingToPlayMember, LookingToPlayFace, LookingToPlayGroup, LookingToPlayGame,
+}
 // The messages that Rust shows (specs/features/LOCALIZATION.md).
 import { Tr } from "tr.slint";
 export { Tr }
@@ -551,9 +562,9 @@ export component MainWindow inherits Window {
     in-out property <bool> crew-settings-push-messages: false;
     in-out property <bool> crew-settings-push-looking-to-play: false;
     in property <bool> crew-settings-push-ready: false;
-    // False until Looking to play is built: its notification setting is
-    // hidden (plans/LOOKING-TO-PLAY.md, phase 1 ships alone).
-    in property <bool> looking-to-play-available: false;
+    // Looking to play is built: its notification setting shows. False
+    // hides the row (plans/LOOKING-TO-PLAY.md, phase 1 shipped without it).
+    in property <bool> looking-to-play-available: true;
     callback crew-settings-opened();
     callback crew-settings-push-messages-toggled(/* on */ bool);
     callback crew-settings-push-looking-to-play-toggled(/* on */ bool);
@@ -1465,6 +1476,20 @@ export component MainWindow inherits Window {
         dismiss-clicked => {
             root.update-dismiss-clicked();
         }
+    }
+
+    // ===================== LOOKING TO PLAY TOAST =====================
+    // A new ask of another member (plans/LOOKING-TO-PLAY.md 3.6). The top
+    // right corner, over the content, 16px in as in the mockup. No scrim
+    // and no focus: input outside the card reaches the window. Rust decides
+    // when it shows (`handlers/looking_to_play.rs`, `sync_toast`).
+    if logged-in && LookingToPlayUi.toast-open: LookingToPlayToast {
+        x: root.width - self.width - 16px;
+        y: 16px;
+        height: self.preferred-height;
+        data: LookingToPlayUi.toast;
+        answered(id, answer) => { LookingToPlayUi.toast-answered(id, answer); }
+        dismissed(id) => { LookingToPlayUi.toast-dismissed(id); }
     }
 
     // ===================== AUDIO DEVICE WARNING MODAL =====================

@@ -41,6 +41,13 @@ pub struct ChatMessage {
     pub is_system: bool,
     pub is_edited: bool,
     pub is_deleted: bool,
+    /// The event of a system message, for example `looking_to_play`.
+    #[serde(default)]
+    pub event: Option<String>,
+    /// The data of a system message. A Looking to play message has the
+    /// `ask_id` here (`looking_to_play::ask_id_of`).
+    #[serde(default)]
+    pub data: Option<serde_json::Value>,
 }
 
 impl ChatMessage {
@@ -498,6 +505,36 @@ pub enum Event {
     /// come from these and the message previews.
     ChatReadCursors {
         cursors: Vec<(String, crate::chat::ChatReadCursor)>,
+    },
+    /// One Looking to play ask changed: notification 118, or the answer to
+    /// `LookingToPlayAsk`, `LookingToPlayAnswer` and `LookingToPlayCancel`.
+    ///
+    /// `notify` is true only for a new ask from notification 118, when this
+    /// member also gets the phone push of it: the client shows the toast and
+    /// plays the sound only then. The replies to the commands have `false`.
+    LookingToPlayUpdated {
+        ask: crate::looking_to_play::Ask,
+        #[serde(default)]
+        notify: bool,
+    },
+    /// The last groups that the user picked in a crew, newest first. Each
+    /// group holds sorted user ids. Sent after each `looking_to_play_list`
+    /// reply, and after an ask to picked members.
+    LookingToPlayPicks {
+        crew_id: String,
+        groups: Vec<Vec<String>>,
+    },
+    /// The asks of the loaded chat history and the open asks of the crew.
+    LookingToPlayLoaded {
+        crew_id: String,
+        asks: Vec<crate::looking_to_play::Ask>,
+    },
+    /// A Looking to play command failed. `code` is the server token
+    /// (`ASK_TOO_SOON`, `ASK_NOBODY_WAIT`, `ASK_HAS_OPEN`, `ASK_CLOSED`, ...),
+    /// empty when the server gave none. `ask_id` is empty for a failed ask.
+    LookingToPlayFailed {
+        ask_id: String,
+        code: String,
     },
     /// The user's push switches for a crew, after a load or a set
     /// (plans/LOOKING-TO-PLAY.md section 4).

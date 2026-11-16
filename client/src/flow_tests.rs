@@ -1462,6 +1462,8 @@ fn a_mention_renders_as_a_name_before_the_member_list_loads() {
             is_system: false,
             is_edited: false,
             is_deleted: false,
+            event: None,
+            data: None,
         }],
         has_more_history: false,
     });
@@ -2241,6 +2243,8 @@ fn chat_message_fixture(id: &str, sender: &str, minute: usize) -> mello_core::ev
         is_system: false,
         is_edited: false,
         is_deleted: false,
+        event: None,
+        data: None,
     }
 }
 
@@ -10282,6 +10286,7 @@ fn the_format_label_follows_the_rung_and_the_decoded_size() {
 }
 
 mod art_worker;
+mod looking_to_play;
 mod push_prefs;
 mod quests;
 mod sealed;
