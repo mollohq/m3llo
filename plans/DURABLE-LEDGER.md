@@ -1,7 +1,7 @@
 # Durable crew ledger
 
-Status: in build on `feat/durable-ledger`. Phase 1a (steps 1 to 6) and phase 1b
-(steps 9 to 13) are built. Steps 7, 8 and 14 are open. This is a plan. Specs
+Status: in build on `feat/durable-ledger`. Phase 1a (steps 1 to 7) and phase 1b
+(steps 9 to 13) are built. Steps 8 and 14 are open. This is a plan. Specs
 change when the code ships.
 
 Paths are relative to `backend/nakama/data/modules/` unless stated.
@@ -89,7 +89,7 @@ mello_crew_event_deleted(crew_id TEXT, event_id TEXT, deleted_ms BIGINT,
   does not store such an id again. A live `Append` of the id clears it.
 - `eventUserIDs(event)` lists every user an event names: actor,
   `participant_ids`, `player_ids`, `viewer_ids`, `streamer_id`, `invited_by`,
-  clip participants.
+  clip participants, and the members a weekly recap lists (`recapUserIDs`).
 
 Type sets, in `ledger_store.go`:
 
@@ -128,6 +128,11 @@ type ledgerStore interface {
     ByRefs(ctx, crewID, typ string, refs []string) ([]CrewEvent, error)                 // rows of several refs, one read
     RefsBefore(ctx, crewID, typ, beforeRef string, n int) ([]CrewEvent, error)          // by ref, the highest first
     TopInRange(ctx, crewID, typ string, fromMs, toMs int64, field, value string, n int) ([]CrewEvent, error)
+    // Step 7: the deletion rules.
+    DeletedIDs(ctx, crewID string, ids []string) (map[string]bool, error)           // the ids that Delete removed
+    UserCrews(ctx, userID string) ([]string, error)                                 // crews of the user index
+    NamingUserInCrew(ctx, userID, crewID string, n int) ([]CrewEvent, error)        // a batch, oldest first
+    ForgetUser(ctx, userID, crewID string, eventIDs []string) error                 // user index only
 }
 ```
 
@@ -498,26 +503,212 @@ Delete. Request `{delete: true, clip_keys?, snapshot_keys?}`.
   session_active, delete_failed, not_configured`.
 - The delete was run only against a local fake in tests.
 
-## 7. Deletion rules (step 7, waits for sign-off)
+## 7. Deletion rules (step 7)
 
-Events used to vanish after 7 days. Now they stay, so these rules ship in phase 1.
+Built. Code: `ledger_scrub.go` (pure rules), `ledger_user_scrub.go` (account
+delete), `ledger_purge.go` (crew delete), `crews.go` (kick).
 
-| Case | Today | Add |
-|---|---|---|
-| Crew deleted | `GroupDelete` only (`crews.go:406-411`) | `purgeCrewData`, called from `DeleteCrewRPC` and a delete-group hook |
-| Member leaves | `member_left` event, earlier events stay | Keep events |
-| Member kicked | No event (`crews.go:536`) | Write `member_left` |
-| Account deleted | Nothing on the server | Delete-account hook calls `scrubUserFromLedger(userID)` |
+Events used to vanish after 7 days. Now they stay, so these rules ship in
+phase 1. They hold on both sides (store rows and legacy documents) in every
+phase: before the cutover, after it, and under both kill switches.
 
-Scrub rule, pure function `scrubEventForUser(ev, userID) (out CrewEvent, drop bool)`:
+| Case | Rule |
+|---|---|
+| Member leaves | `member_left` event. Earlier events stay |
+| Member kicked | The same `member_left` event (`recordMemberLeft`). Earlier events stay |
+| Account deleted | The events the user started are deleted, with their media. The user leaves the events of others and the stored recaps |
+| Crew deleted | Everything of the crew is deleted: rows, documents, media |
+
+### Kick
+
+- `KickCrewMemberRPC` calls `recordMemberLeft`. `GroupUsersKick` of the
+  runtime runs no hook.
+- `RegisterAfterKickGroupUsers(AfterKickCrewMembers)` covers a kick through
+  the group API of Nakama.
+
+### Scrub rules (pure functions)
+
+`scrubEventForUser(ev, userID) (out, drop)`:
 
 - Drop the event when the user is the actor or the streamer.
-- Otherwise remove the user's id and name from the participant, player and
-  viewer lists (keep index alignment) and clear `invited_by`. Drop a
-  `voice_session` left with fewer than two participants.
-- http_key RPC `admin_scrub_user {user_id}` re-runs it after a failed hook.
+- Otherwise remove the user from `participant_ids`, `player_ids`,
+  `viewer_ids` and clip `participants`, and the entry at the same place from
+  `participant_names`, `player_names` and `player_overlap_min`.
+- Clear `invited_by` and `invited_by_name`.
+- Drop a `voice_session` left with fewer than two participants.
+- A list that is not aligned with its id list: a name list loses the entries
+  that are a name of the user. When none is, it is emptied. Another list is
+  removed. `post_clip` skips a participant with no name, so clip lists can
+  differ in length.
 
-Open: clip media and stored recap text that hold a deleted user's voice or name.
+`scrubClipForUser(clip, who) (out, drop)`: drop a clip of the user. In a clip
+of another member, remove the user from `participants` and
+`participant_names`. The clip and its media stay.
+
+`scrubStreamSessionForUser(session, who) (out, drop)`: drop a session of the
+user. The copy names no other user.
+
+`scrubRecapForUser(recap, who) (out, changed)`: a recap is never dropped.
+
+| Recap field | Action |
+|---|---|
+| `top_members`, `game_records`, `belts_held`, `leaderboard` | The entry of the user is removed, by `user_id`, or by name when the entry has no id |
+| `most_clipped`, `most_clipped_user_id`, `most_clipped_count` | Cleared, all three |
+| `most_active` | Cleared when it is a name of the user |
+| `best_streak_name`, `best_streak` | Cleared, both |
+| `awards` | An award with the name of the user is removed. A belt award loses a detail that names the user |
+| `belts_moved` | A move to the user is removed. A move from the user loses `previous_holder_user_id` and `previous_holder_name` |
+| `clip_of_week` | Removed when it is a dropped clip of the user (by `clip_id`) or has the clipper name of the user. Otherwise the user leaves `participant_names` |
+| `longest_session` | The text is cleared when it holds a name of the user |
+| Totals, `top_game`, `games_played` | Stay. They name nobody |
+
+- `who` is the user id, the names of the user, and the `clip_id`s the scrub
+  dropped.
+- Names: the account names at the delete, the names the events of the user
+  hold (`scrubNamesOfEvent`), and the name beside the user id in the same
+  recap.
+- A name field can hold the user id (`resolveOrID`). It is matched too.
+
+### Account delete
+
+The client calls `DELETE /v2/account` of Nakama. Two hooks, nakama-common
+v1.31.0:
+
+| Hook | Does |
+|---|---|
+| `RegisterBeforeDeleteAccount(BeforeDeleteAccount)` | Writes the scrub record: the names and the crews of the user. After the delete neither can be read. Deletes nothing. Always returns nil |
+| `RegisterAfterDeleteAccount(AfterDeleteAccount)` | Marks the record and starts the scrub in a goroutine. Always returns nil |
+
+Scrub record: `ledger_user_scrub/{user_id}`, system-owned, no client read.
+`{names, crews, discovered, scan_step, scan_cursor, media, started_ms,
+deleted_ms, done_ms, second_run, last_error}`.
+
+One run (`runUserScrub`), budget 2 minutes:
+
+1. Find the crews: the crews of the record, `UserCrews` of the store, and a
+   scan of the four legacy collections for the user id as text. The scan
+   saves its cursor in the record.
+2. For each crew (`scrubCrewForUser`), in this order:
+   1. Read the documents. Save the names and the media of what goes.
+   2. Scrub `crew_events`, `crew_clips`, `crew_stream_sessions`. Each write
+      uses the version it read.
+   3. Scrub the store rows that name the user, 200 at a time
+      (`NamingUserInCrew`). A dropped row: `Delete`, which remembers the id.
+      A changed row: `UpdateData`, then `ForgetUser`.
+   4. Scrub every recap of the crew: the document, then the rows.
+   5. Remove the crew from the record.
+3. Delete the media of the dropped clips and streams.
+4. Set `done_ms`.
+
+- The documents come first in every phase. Before the cutover the reconcile
+  copies the documents to the store, so a scrubbed document cannot bring the
+  user back.
+- A crew that is no longer a group is purged whole. Nakama can delete a group
+  with its owner, and then no delete-group hook runs.
+- A crew that fails stays in the record. The other crews still run.
+- Second run: 24 hours after `done_ms` the deletion job runs the scrub again
+  (a voice session that ends after the delete names the user). Then the
+  record is deleted, because it holds names.
+- A record of an account that still exists after 1 hour is deleted. The
+  account delete did not happen.
+
+Media of the user (rule 5):
+
+- A clip: the two exact keys of `gameClipKeys`. A stream: the prefix
+  `snapshots/{crew_id}/{session_id}/`.
+- A key is made only from ids that match `[A-Za-z0-9_-]{1,64}`.
+- Nothing is deleted while the crew still holds a clip with the `clip_id` or
+  a stream session with the session id (`mediaRefIndex.held`).
+
+`admin_scrub_user {user_id}`: `http_key` only. Refuses while the account
+exists. Runs one run and returns `{done, incomplete, crews_scrubbed,
+crews_left, dropped, changed, media_deleted, media_skipped, errors}`. Call it
+again while `done` is false. A call on a finished scrub looks for the crews
+again.
+
+### Crew delete
+
+`purgeCrewData`, started by `DeleteCrewRPC` and by
+`RegisterAfterDeleteGroup(AfterDeleteCrew)`.
+
+Purge record: `ledger_crew_purge/{crew_id}`, system-owned. `{started_ms,
+done_ms, settled_ms, last_error}`. It is kept for good.
+
+- It is written before anything is deleted. With no record nothing is
+  deleted.
+- It is the proof that the crew was a crew of this install. A bucket can be
+  shared, and `admin_media_orphans` never deletes under a crew id that is not
+  a group (`unknown_crew`). So the purge deletes the media itself.
+- The reconcile reads the purge records at each tick. It does not import a
+  document of a purged crew. It deletes the document and the rows of the crew
+  (`dropPurgedDoc`).
+- The purge reads the group on every run and deletes nothing while it exists.
+- The crew id must be a UUID. It is part of object prefixes.
+
+What a purge removes:
+
+| Kind | What |
+|---|---|
+| Store | `DeleteCrew`: the event rows, the user index, the week rollup, the anchor, the memory of deleted ids |
+| Ledger documents | `crew_events`, `crew_clips`, `crew_stream_sessions`, `crew_recaps` |
+| Other documents | `crew_quests`, `crew_profile`, `crew_emoji`, `crew_avatars`, `voice_channels`, `crew_head2head` (`holders_{crew_id}`), `recap_pushes` (`{crew_id}` and `belt_{crew_id}`), `stream_meta`, and `active_streams` of the streamer that `stream_meta` names |
+| Clips bucket | `crews/{crew_id}/`: voice clips, game clip videos and posters |
+| Snapshots bucket | `snapshots/{crew_id}/` |
+| Media bucket | `crew-banners/{crew_id}/`, `crew-emoji/{crew_id}/` |
+
+Not removed:
+
+| What | Why |
+|---|---|
+| `crew_last_seen`, `chat_read` | Owned by each member, key crew id. They hold a time. Nakama deletes them with the account |
+| `invite_codes` | The key is the code. Nothing lists the codes of a crew |
+| `chat_reactions`, `thumbnails`, `media_reports` | Keyed by a message, a stream or a report |
+| Chat messages, chat images (`{crew_id}/` in the media bucket) | Not part of the ledger. Open |
+
+- Each part runs also when another part failed. `done_ms` is set when one run
+  removed everything with no error.
+- Media is deleted in batches of 1000 keys. A run is cut after 2 minutes and
+  the next run continues.
+- Second run: one hour after `done_ms` (the life of a presigned upload URL).
+  A late writer can write for the crew after the group is gone.
+
+`admin_purge_crew {crew_id}`: `http_key` only. Refuses while the group exists
+(code 9). Refuses a crew id this install holds nothing of (code 5): no
+record, no document, no row. Returns `{done, incomplete, media_deleted,
+docs_deleted, store_deleted, media_skipped, errors}`.
+
+### Deletion job
+
+`StartLedgerDeletionJob`, at start and every 5 minutes: the scrubs and the
+purges that are not done, and their second runs. Two nodes can run the same
+one. Every step can run twice.
+
+### The reconcile
+
+| Case | Before the cutover | After the cutover |
+|---|---|---|
+| Entry the scrub dropped | Gone from the document and the store | The same |
+| Entry the scrub changed | The same content on both sides | The same |
+| A document holds a dropped entry again | Not stored: `Backfill` and `Put` skip a deleted id. `putMissingHistoryRows` asks `DeletedIDs` before `PutUnique` | The same |
+| A document holds the user again in an entry that stays | The store takes the document. Run `admin_scrub_user` | The store keeps its content |
+| Document of a purged crew | Deleted, not imported | The same |
+
+### Known limits
+
+- A recap field with only a name is matched by name. Another member with the
+  same name loses that field too.
+- With no durable store, a name the user had more than 7 days ago is in no
+  event. A recap from before recaps held user ids keeps it.
+- An account that is deleted in the Nakama console, or with
+  `AccountDeleteId`, runs no hook. Run `admin_scrub_user`.
+- When the purge record cannot be written, nothing is purged. The log line is
+  `crew_purge_failed`. Run `admin_purge_crew`.
+- A write for a purged crew that makes only a store row, more than one hour
+  after the purge, stays.
+- Outside the ledger, a deleted user can still be named in: `crew_quests`
+  (`friend`, `call`, `owner_id`, `plus_granted`), `crew_emoji` (`added_by`),
+  `crew_head2head`, `invite_codes` (`inviter_user_id`), `media_reports`, chat
+  messages and chat images.
 
 ## 8. Tests
 
@@ -535,7 +726,30 @@ Open: clip media and stored recap text that hold a deleted user's voice or name.
 - `TestConcurrentAppendsLoseNothing`, `TestBackfillIsIdempotent`,
   `TestDualWriteKeepsDocTrimmed`, `TestReadersUseDocUntilMarker`,
   `TestReconcile*`, `TestSoakGate`, `TestAfterCutover*`, `TestBeforeCutover*`,
-  `TestScrubEventForUser`, `TestPurgeCrewData`, `TestInvitePreviewSeesNoClipRows`.
+  `TestInvitePreviewSeesNoClipRows`.
+- Step 7. `delPhases` runs a test before the cutover, after it and under each
+  kill switch:
+  - Rules: `TestScrubEventForUser` (a case for each event type),
+    `TestScrubClipForUser`, `TestScrubStreamSessionForUser`,
+    `TestScrubRecapForUser` (a case for each recap field).
+  - Kick: `TestKickWritesMemberLeft`, `TestKickHookWritesMemberLeft`.
+  - Account: `TestScrubUserFromLedger` (all phases, a crew the user left, a
+    reconcile after it), `TestScrubUserIsRepairedAfterAFailure`,
+    `TestReconcileDoesNotRestoreWhatTheScrubDropped`, `TestScrubUserWithNoStore`,
+    `TestScrubUserInBatchesAndAfterItsBudget`, `TestAdminScrubUserRefuses`,
+    `TestScrubRecordOfAnAccountThatStays`,
+    `TestDeletionJobScrubsWhenTheAfterHookDidNotRun`,
+    `TestScrubKeepsMediaThatAnotherClipHolds`,
+    `TestScrubPurgesACrewThatWentWithTheAccount`.
+  - Crew: `TestPurgeCrewData` (all phases, a reconcile after it),
+    `TestReconcileDoesNotImportADocumentOfAPurgedCrew`, `TestAdminPurgeCrew`,
+    `TestPurgeRefusesACrewThatExists`, `TestPurgeCrewContinuesAfterItsBudget`,
+    `TestPurgeCrewRunsAgainForALateWriter`, `TestDeleteGroupHookPurgesTheCrew`,
+    `TestDeleteObjectsUnderRefusesAWrongPrefix`.
+  - Store: `ledgerScrubConformance` runs in the conformance function, so
+    `dev_ledger_selftest` covers `DeletedIDs`, `UserCrews`, `NamingUserInCrew`
+    and `ForgetUser` on SQL.
+  - Media deletes run only against the loopback S3 fake.
 - Tests that seed `CrewEventsCollection` directly move to a `seedLedger(t, ...)` helper.
 - Phase 1b. `history_characterisation_test.go` pins the read paths of clips,
   stream sessions and recaps. It was written against the code before 1b and
@@ -587,7 +801,7 @@ Phase 1a:
 4. Dual write. `go test -run 'TestDualWrite|TestConcurrentAppends|TestStream|TestSessionTimes' .`
 5. `ledger_migration.go`: reconcile, soak, marker. `go test -run 'TestBackfill|TestReconcile|TestSoakGate' .`
 6. Reader switch behind the marker and `MELLO_LEDGER_READ`. `go test -run 'TestReadersUseDoc|TestAppendCrewEventTrims|TestLedgerTrimAnchors|TestMergedTimeline|TestCatchup|TestWeeklyRecap|TestSnapshotBackfill|TestGuest|TestInvite' .`
-7. Deletion rules (section 7). `go test -run 'TestScrub|TestPurgeCrewData|TestKick' .`
+7. Deletion rules (section 7). Built. `go test -run 'TestScrub|TestPurge|TestAdminPurge|TestAdminScrub|TestKick|TestReconcileDoesNot|TestDeletionJob|TestDeleteGroupHook|TestDeleteObjectsUnder' .`
 8. Specs 16 and 04, `TESTING.md`.
 
 Phase 1b, as built:
