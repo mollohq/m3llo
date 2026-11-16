@@ -131,12 +131,14 @@ func seedScrubCrew(t *testing.T, nk *delNk, f *fakeS3, crewID string, member boo
 var scrubDocCollections = []string{"crew_events", "crew_clips", "crew_stream_sessions", "crew_recaps"}
 
 // userTraces lists where an install still names the user in a crew: in a
-// legacy document or in a row of the store, by id or by a name.
+// legacy document or in a row of the store, by id or by the name the account
+// had at the delete. A name the user had before ("Old Zed") is not looked
+// for: checkScrubbed says where it must be gone and where it stays.
 func userTraces(t *testing.T, nk *delNk, store ledgerStore, crewID string) []string {
 	t.Helper()
 	var out []string
 	names := func(text string) string {
-		for _, needle := range []string{goneUser, goneName, "Old Zed"} {
+		for _, needle := range []string{goneUser, goneName} {
 			if strings.Contains(text, needle) {
 				return needle
 			}
@@ -268,13 +270,34 @@ func checkScrubbed(t *testing.T, nk *delNk, store ledgerStore, f *fakeS3, when s
 			}
 		}
 		// The recaps stay, without the user.
-		for _, r := range docRecaps(nk, crewID) {
-			if len(r.TopMembers) != 1 || r.TopMembers[0].DisplayName != "Ann" || r.MostActive != "" || r.ClipOfWeek != nil || r.TotalMin == 0 {
-				t.Fatalf("%s: recap of crew %s = %+v", when, tag, r)
+		recaps := docRecaps(nk, crewID)
+		if store != nil {
+			var rows []WeeklyRecapData
+			for _, ev := range crewRows(t, store, crewID) {
+				if ev.Type == ledgerTypeWeeklyRecap {
+					r, _ := recapFromRow(ev)
+					rows = append(rows, r)
+				}
+			}
+			if a, b := scrubJSON(t, rows), scrubJSON(t, recaps); a != b {
+				t.Fatalf("%s: the recap rows of crew %s differ from the document:\n%s\n%s", when, tag, a, b)
 			}
 		}
-		if n := len(docRecaps(nk, crewID)); n != 2 {
-			t.Fatalf("%s: crew %s has %d recaps, want 2", when, tag, n)
+		if len(recaps) != 2 {
+			t.Fatalf("%s: crew %s has %d recaps, want 2", when, tag, len(recaps))
+		}
+		// The recap with the id of the user: every field is clean. Its clip
+		// of the week was a clip of the user under an old name, and goes by
+		// its clip_id.
+		if r := recaps[1]; len(r.TopMembers) != 1 || r.TopMembers[0].DisplayName != "Ann" || r.MostActive != "" || r.BestStreakName != "" ||
+			r.LongestSession != "" || r.ClipOfWeek != nil || len(r.Awards) != 1 || r.TotalMin == 0 {
+			t.Fatalf("%s: recap of crew %s = %+v", when, tag, r)
+		}
+		// Known limit: a recap from before recaps held user ids names the
+		// user only by a name the account no longer had at the delete. No
+		// rule says that this name is the user, so it stays.
+		if r := recaps[0]; r.MostActive != "Old Zed" || len(r.TopMembers) != 2 {
+			t.Fatalf("%s: old recap of crew %s = %+v", when, tag, r)
 		}
 		// The media of the clips and the stream of the user is gone. The
 		// media of the others stays.
@@ -363,10 +386,7 @@ func TestScrubUserWaitsForTheStore(t *testing.T) {
 	setLedger(nil)
 	deleteAccount(t, nk, goneUser)
 	for _, crewID := range []string{scrubCrew, leftCrew} {
-		// A name the user had before is known only from an old event, and
-		// the documents hold the events of 7 days.
-		traces := userTraces(t, nk, nil, crewID)
-		if len(traces) != 1 || traces[0] != `doc crew_recaps holds "Old Zed"` {
+		if traces := userTraces(t, nk, nil, crewID); len(traces) != 0 {
 			t.Fatalf("the documents of crew %s still name the user:\n%s", crewID[:4], strings.Join(traces, "\n"))
 		}
 	}
@@ -961,5 +981,51 @@ func TestScrubUserFromHead2head(t *testing.T) {
 		if out, _ := json.Marshal(recap); strings.Contains(string(out), goneUser) {
 			t.Fatalf("a recap after the scrub names the user: %s", out)
 		}
+	}
+}
+
+// Another member of the crew has the display name of the deleted user. The
+// fields that hold only that name stay: they can be the other member. Every
+// field with the id of the user is scrubbed.
+func TestScrubKeepsANameThatAnotherMemberHas(t *testing.T) {
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	nk.addMember(scrubCrew, "u7", strings.ToUpper(goneName))
+	ctx := context.Background()
+	shared := histRecap(time.UnixMilli(weekStartOf(time.Now().Add(-42*24*time.Hour).UnixMilli())), 10)
+	shared.CrewID = scrubCrew
+	shared.MostActive = goneName
+	shared.LongestSession = goneName + " in Lobby (10m)"
+	shared.TopMembers = []RecapMember{{DisplayName: goneName}}
+	if err := AppendRecap(ctx, nk, scrubCrew, shared); err != nil {
+		t.Fatal(err)
+	}
+	deleteAccount(t, nk, goneUser)
+
+	var got *WeeklyRecapData
+	for _, r := range docRecaps(nk, scrubCrew) {
+		if r.WeekStart == shared.WeekStart {
+			r := r
+			got = &r
+		}
+	}
+	if got == nil || got.MostActive != goneName || got.LongestSession == "" || len(got.TopMembers) != 1 {
+		t.Fatalf("the recap with only the shared name = %+v", got)
+	}
+	// The id of the user is gone everywhere, in the documents and the rows.
+	for _, trace := range userTraces(t, nk, store, scrubCrew) {
+		if strings.Contains(trace, goneUser) || strings.HasPrefix(trace, "user index") {
+			t.Fatalf("still holds the id of the user: %s", trace)
+		}
+	}
+	nk.mu.Lock()
+	raw := nk.storage[fakeStorageKey(CrewEventsCollection, scrubCrew, SystemUserID)] + nk.storage[fakeStorageKey(CrewClipsCollection, scrubCrew, SystemUserID)]
+	nk.mu.Unlock()
+	if strings.Contains(raw, goneName) {
+		t.Fatal("an event or a clip still holds the name beside the id of the user")
 	}
 }

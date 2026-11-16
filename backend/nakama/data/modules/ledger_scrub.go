@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/json"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // The scrub rules of a deleted account (plans/DURABLE-LEDGER.md section 7).
@@ -17,13 +19,35 @@ import (
 //   - A weekly recap is never dropped. Every field that names the user is
 //     cleared (scrubRecapForUser).
 
-// scrubWho is the user of a scrub. Names are the names the user had: a field
-// that holds a name and no id is matched against them. ClipIDs are the
-// clip_ids of the clips of the user that the scrub drops.
+// scrubWho is the user of a scrub.
+//
+// Names are the names of the user that a field with a name and no id is
+// matched against: the display name and the username the account had at the
+// delete. A recap adds the name it holds beside the id of the user
+// (scrubRecapForUser). Names the user had before are not used: nothing says
+// that they are names of this user alone.
+//
+// Taken are the display names and usernames of the members the crew has now.
+// A name that another member also has names two people, so a field with only
+// that name is not matched: it stays. A field with the id of the user is
+// always matched.
+//
+// ClipIDs are the clip_ids of the clips of the user that the scrub drops.
 type scrubWho struct {
 	UserID  string
 	Names   []string
+	Taken   []string
 	ClipIDs map[string]bool
+}
+
+// taken reports whether another member of the crew has the name.
+func (w scrubWho) taken(name string) bool {
+	for _, t := range w.Taken {
+		if t != "" && strings.EqualFold(t, name) {
+			return true
+		}
+	}
+	return false
 }
 
 // isName reports whether text is a name of the user. A recap holds the user
@@ -36,33 +60,64 @@ func (w scrubWho) isName(text string) bool {
 		return true
 	}
 	for _, n := range w.Names {
-		if n != "" && n == text {
+		if n != "" && n == text && !w.taken(n) {
 			return true
 		}
 	}
 	return false
 }
 
-// holdsName reports whether a free text holds a name of the user.
+// holdsName reports whether a free text holds a name of the user as a whole
+// name: the text before and after it is not a letter or a digit. The name
+// "Al" is not in "Alex" or in "Sal".
 func (w scrubWho) holdsName(text string) bool {
 	if text == "" {
 		return false
 	}
-	if w.UserID != "" && strings.Contains(text, w.UserID) {
+	if w.UserID != "" && holdsWholeName(text, w.UserID) {
 		return true
 	}
 	for _, n := range w.Names {
-		if n != "" && strings.Contains(text, n) {
+		if n != "" && !w.taken(n) && holdsWholeName(text, n) {
 			return true
 		}
+	}
+	return false
+}
+
+// holdsWholeName reports whether text holds name with no letter or digit
+// right before it or right after it.
+func holdsWholeName(text, name string) bool {
+	if name == "" {
+		return false
+	}
+	wordRune := func(r rune) bool { return unicode.IsLetter(r) || unicode.IsDigit(r) }
+	for from := 0; from <= len(text)-len(name); {
+		i := strings.Index(text[from:], name)
+		if i < 0 {
+			return false
+		}
+		start, end := from+i, from+i+len(name)
+		before, _ := utf8.DecodeLastRuneInString(text[:start])
+		after, _ := utf8.DecodeRuneInString(text[end:])
+		if (start == 0 || !wordRune(before)) && (end == len(text) || !wordRune(after)) {
+			return true
+		}
+		_, size := utf8.DecodeRuneInString(text[start:])
+		from = start + size
 	}
 	return false
 }
 
 // withName returns who with one more name.
 func (w scrubWho) withName(name string) scrubWho {
-	if name == "" || w.isName(name) {
+	if name == "" || name == w.UserID {
 		return w
+	}
+	for _, n := range w.Names {
+		if n == name {
+			return w
+		}
 	}
 	names := make([]string, 0, len(w.Names)+1)
 	names = append(names, w.Names...)
@@ -286,6 +341,8 @@ func scrubStreamSessionForUser(s StoredStreamSession, who scrubWho) (out StoredS
 //
 // A recap resolves all its names at one time. So the name beside the id of
 // the user in this recap is also matched in the fields that hold only a name.
+// A name that another member of the crew has now is never matched alone
+// (scrubWho.Taken): a field with that name and no id stays.
 func scrubRecapForUser(r WeeklyRecapData, who scrubWho) (out WeeklyRecapData, changed bool) {
 	if who.UserID == "" {
 		return r, false
@@ -448,67 +505,6 @@ func recapUserIDs(r WeeklyRecapData) []string {
 		ids = append(ids, h.UserID)
 	}
 	return ids
-}
-
-// scrubNamesOfEvent returns the names an event gives the user: the name at
-// the place of the user id in a list, and the name of the actor, the
-// streamer or the clipper when that is the user. The scrub collects them
-// before it removes the events, for the fields that hold only a name.
-func scrubNamesOfEvent(ev CrewEvent, userID string) []string {
-	var d struct {
-		ParticipantIDs   []string `json:"participant_ids"`
-		Participants     []string `json:"participants"`
-		ParticipantNames []string `json:"participant_names"`
-		PlayerIDs        []string `json:"player_ids"`
-		PlayerNames      []string `json:"player_names"`
-		StreamerID       string   `json:"streamer_id"`
-		StreamerName     string   `json:"streamer_name"`
-		ClipperName      string   `json:"clipper_name"`
-		Username         string   `json:"username"`
-		DisplayName      string   `json:"display_name"`
-		InvitedBy        string   `json:"invited_by"`
-		InvitedByName    string   `json:"invited_by_name"`
-	}
-	raw, err := json.Marshal(ev.Data)
-	if err != nil || json.Unmarshal(raw, &d) != nil {
-		return nil
-	}
-	var out []string
-	aligned := func(ids, names []string) {
-		if len(ids) != len(names) {
-			return
-		}
-		for i, id := range ids {
-			if id == userID {
-				out = append(out, names[i])
-			}
-		}
-	}
-	aligned(d.ParticipantIDs, d.ParticipantNames)
-	aligned(d.Participants, d.ParticipantNames)
-	aligned(d.PlayerIDs, d.PlayerNames)
-	if d.StreamerID == userID {
-		out = append(out, d.StreamerName)
-	}
-	if d.InvitedBy == userID {
-		out = append(out, d.InvitedByName)
-	}
-	typ, _ := ledgerReaderType(ev.Type)
-	if ev.ActorID == userID {
-		switch typ {
-		case ledgerTypeClip:
-			out = append(out, d.ClipperName)
-		case "member_joined", "member_left":
-			out = append(out, d.Username, d.DisplayName)
-		}
-	}
-	names := out[:0]
-	for _, n := range out {
-		if n != "" {
-			names = append(names, n)
-		}
-	}
-	return names
 }
 
 // scrubHead2headForUser removes the user from the head2head holders document

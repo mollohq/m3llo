@@ -80,8 +80,9 @@ const (
 // userScrubRecord is the scrub record of a deleted account.
 type userScrubRecord struct {
 	UserID string `json:"user_id"`
-	// Names are the names the user had: the account names at the delete, and
-	// the names the events of the user hold.
+	// Names are the display name and the username the account had at the
+	// delete (BeforeDeleteAccount). They are matched in the fields that hold a
+	// name and no id. A scrub with no before hook has none.
 	Names []string `json:"names,omitempty"`
 	// Crews are the crews that are still to be scrubbed.
 	Crews []string `json:"crews,omitempty"`
@@ -661,12 +662,58 @@ type crewScrub struct {
 	crewID string
 	// clipIDs are the clip_ids of the clips the scrub dropped in this run.
 	clipIDs map[string]bool
+	// taken are the names of the members the crew has now (scrubWho.Taken).
+	taken []string
 }
 
 func (c *crewScrub) who() scrubWho {
 	who := c.rec.who()
-	who.ClipIDs = c.clipIDs
+	who.Taken = c.taken
+	// The clips an earlier run of this scrub dropped are in the record until
+	// their media is deleted.
+	ids := make(map[string]bool, len(c.clipIDs))
+	for id := range c.clipIDs {
+		ids[id] = true
+	}
+	for _, m := range c.rec.Media {
+		if m.Kind == ledgerTypeClip && m.CrewID == c.crewID {
+			ids[m.Ref] = true
+		}
+	}
+	for _, sk := range c.rec.Skipped {
+		if sk.Kind == ledgerTypeClip && sk.CrewID == c.crewID {
+			ids[sk.Ref] = true
+		}
+	}
+	who.ClipIDs = ids
 	return who
+}
+
+// crewMemberNames returns the display names and the usernames of the members
+// a crew has now.
+func crewMemberNames(ctx context.Context, nk runtime.NakamaModule, crewID string) ([]string, error) {
+	var names []string
+	cursor := ""
+	for {
+		members, next, err := nk.GroupUsersList(ctx, crewID, 100, nil, cursor)
+		if err != nil {
+			return nil, err
+		}
+		for _, m := range members {
+			if m.GetState().GetValue() > 2 {
+				continue
+			}
+			for _, n := range []string{m.GetUser().GetDisplayName(), m.GetUser().GetUsername()} {
+				if n != "" {
+					names = append(names, n)
+				}
+			}
+		}
+		if next == "" {
+			return names, nil
+		}
+		cursor = next
+	}
 }
 
 // dropClip notes a dropped clip: its media goes, and a recap must not show it.
@@ -694,8 +741,8 @@ func (c *crewScrub) dropEvent(ev CrewEvent) {
 	}
 }
 
-// saveRecord writes the names and the media the scrub found so far. It runs
-// before the data that held them is changed.
+// saveRecord writes the media the scrub found so far. It runs before the
+// data that named the media is changed.
 func (c *crewScrub) saveRecord() error {
 	return writeUserScrubRecord(c.ctx, c.nk, c.rec)
 }
@@ -706,13 +753,28 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 	// A crew that is no longer a group is scrubbed as any other crew. The
 	// scrub never purges a crew: what happens to the crew of an owner who
 	// deletes the account is not decided.
-	if exists, err := crewGroupExists(ctx, nk, crewID); err != nil {
+	exists, err := crewGroupExists(ctx, nk, crewID)
+	if err != nil {
 		return false, fmt.Errorf("group read: %w", err)
-	} else if !exists {
+	}
+	if !exists {
 		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged", rec.UserID, crewID)
 	}
 
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
+	if exists {
+		// A name of the user that another member has now is not matched in a
+		// field with no id. The log names no one.
+		if c.taken, err = crewMemberNames(ctx, nk, crewID); err != nil {
+			return false, fmt.Errorf("member read: %w", err)
+		}
+		for _, n := range rec.Names {
+			if c.who().taken(n) {
+				logger.Warn("user_scrub user=%s crew=%s: another member has a name of the user. Fields with only that name stay", rec.UserID, crewID)
+				break
+			}
+		}
+	}
 	if err := c.documents(); err != nil {
 		return false, err
 	}
@@ -736,15 +798,13 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 func (c *crewScrub) documents() error {
 	userID := c.rec.UserID
 
-	// The names the documents give the user, and the media of what goes.
-	// Both are saved before a document changes.
+	// The media of what goes. It is saved before a document changes.
 	err := scrubDoc(c.ctx, c.nk, CrewEventsCollection, c.crewID, func(value string) (string, bool, error) {
 		var doc CrewEventLedger
 		if err := json.Unmarshal([]byte(value), &doc); err != nil {
 			return "", false, err
 		}
 		for _, ev := range doc.Events {
-			c.rec.addNames(scrubNamesOfEvent(ev, userID)...)
 			if _, drop := scrubEventFor(ev, c.who()); drop {
 				c.dropEvent(ev)
 			}
@@ -760,7 +820,6 @@ func (c *crewScrub) documents() error {
 			return "", false, err
 		}
 		for _, clip := range doc.Clips {
-			c.rec.addNames(scrubNamesOfEvent(clipRow(clip).Event, userID)...)
 			if clip.ActorID == userID {
 				c.dropClip(clip.ClipID)
 			}
@@ -777,7 +836,6 @@ func (c *crewScrub) documents() error {
 		}
 		for _, s := range doc.Sessions {
 			if s.StreamerID == userID {
-				c.rec.addNames(s.StreamerName)
 				c.dropStream(s.SessionID)
 			}
 		}
@@ -944,9 +1002,6 @@ func (c *crewScrub) rows(store ledgerStore, deadline time.Time) (done bool, err 
 			data json.RawMessage
 		}
 		plans := make([]plan, 0, len(batch))
-		for _, ev := range batch {
-			c.rec.addNames(scrubNamesOfEvent(ev, userID)...)
-		}
 		for _, ev := range batch {
 			drop, data, err := c.scrubRow(ev)
 			if err != nil {

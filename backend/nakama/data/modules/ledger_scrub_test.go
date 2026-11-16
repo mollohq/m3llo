@@ -334,6 +334,42 @@ func TestScrubRecapForUser(t *testing.T) {
 			in: func(r *WeeklyRecapData) {
 				r.LongestSession, r.LongestSessionMin = "Ann, Cy in Lobby (90m)", 90
 			}},
+		{name: "longest_session with the name at its end",
+			who: scrubWho{Names: []string{"Al"}},
+			in: func(r *WeeklyRecapData) {
+				r.LongestSession, r.LongestSessionMin = "Cy and Al", 90
+			},
+			want: func(r *WeeklyRecapData) { r.LongestSessionMin = 90 }},
+		{name: "a short name is not matched inside another name",
+			who: scrubWho{Names: []string{"Al"}},
+			in: func(r *WeeklyRecapData) {
+				r.LongestSession = "Alex, Sal in Lobby (90m)"
+				r.MostActive = "Alex"
+				r.Awards = []RecapAward{{Kind: "belt", Title: "Most hours", Name: "Sal", Detail: "took it from Alex"}}
+			}},
+		{name: "a name that another member has is not matched alone",
+			who: scrubWho{Names: []string{"Sam"}, Taken: []string{"Ann", "sam"}},
+			in: func(r *WeeklyRecapData) {
+				r.MostActive = "Sam"
+				r.BestStreak, r.BestStreakName = 3, "Sam"
+				r.MostClipped = "Sam"
+				r.LongestSession = "Sam, Ann in Lobby (90m)"
+				r.TopMembers = []RecapMember{{DisplayName: "Sam"}, {DisplayName: "Ann"}}
+				r.Awards = []RecapAward{{Kind: "grinder", Title: "Grinder of the week", Name: "Sam"}}
+				r.ClipOfWeek = &RecapClipOfWeek{ClipID: "c2", ClipperName: "Sam", ParticipantNames: []string{"Sam"}}
+			}},
+		{name: "the id is matched when another member has the name",
+			who: scrubWho{Names: []string{"Sam"}, Taken: []string{"Sam"}},
+			in: func(r *WeeklyRecapData) {
+				r.MostActive = "Sam"
+				r.TopMembers = []RecapMember{{UserID: gone, DisplayName: "Sam"}, {UserID: "u1", DisplayName: "Sam"}}
+				r.GameRecords = []RecapGameRecord{{UserID: gone, DisplayName: "Sam", Wins: 1}}
+			},
+			want: func(r *WeeklyRecapData) {
+				r.MostActive = "Sam"
+				r.TopMembers = []RecapMember{{UserID: "u1", DisplayName: "Sam"}}
+				r.GameRecords = []RecapGameRecord{}
+			}},
 		{name: "a recap that does not name the user",
 			who: scrubWho{Names: []string{"Gone"}},
 			in: func(r *WeeklyRecapData) {
@@ -390,18 +426,6 @@ func TestEventUserIDsOfARecap(t *testing.T) {
 	}
 }
 
-func TestScrubNamesOfEvent(t *testing.T) {
-	got := scrubNamesOfEvent(CrewEvent{Type: "game_session", ActorID: "u1", Data: GameSessionData{
-		PlayerIDs: []string{"u1", "u-gone"}, PlayerNames: []string{"Ann", "Old Name"}}}, "u-gone")
-	if !reflect.DeepEqual(got, []string{"Old Name"}) {
-		t.Fatalf("names = %v", got)
-	}
-	got = scrubNamesOfEvent(clipRow(StoredClip{EventID: "e", ClipID: "c", ActorID: "u-gone", ClipperName: "Clipper"}).Event, "u-gone")
-	if !reflect.DeepEqual(got, []string{"Clipper"}) {
-		t.Fatalf("names of a clip = %v", got)
-	}
-}
-
 func TestScrubHead2headForUser(t *testing.T) {
 	const gone = "u-gone"
 	doc := Head2headDoc{
@@ -454,6 +478,33 @@ func TestScrubHead2headForUser(t *testing.T) {
 	for _, tt := range next.Titles {
 		if tt.PreviousHolderUserID == gone || tt.HolderUserID == gone {
 			t.Fatalf("the recompute names the user: %+v", tt)
+		}
+	}
+}
+
+func TestHoldsWholeName(t *testing.T) {
+	cases := []struct {
+		text, name string
+		want       bool
+	}{
+		{"Al", "Al", true},
+		{"Al, Cy in Lobby (90m)", "Al", true},
+		{"Cy, Al in Lobby", "Al", true},
+		{"took it from Al", "Al", true},
+		{"Alex in Lobby", "Al", false},
+		{"Sal in Lobby", "Al", false},
+		{"Sal, Al", "Al", true},
+		{"Al2 streaming", "Al", false},
+		{"Åsa-Al in Lobby", "Al", true},
+		{"ÅsaAl in Lobby", "Al", false},
+		{"Zed Gone streaming Ranked (9m)", "Zed Gone", true},
+		{"Zed Goner streaming", "Zed Gone", false},
+		{"", "Al", false},
+		{"Al", "", false},
+	}
+	for _, tc := range cases {
+		if got := holdsWholeName(tc.text, tc.name); got != tc.want {
+			t.Errorf("holdsWholeName(%q, %q) = %t, want %t", tc.text, tc.name, got, tc.want)
 		}
 	}
 }
