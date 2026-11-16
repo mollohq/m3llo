@@ -151,25 +151,32 @@ func crewHasChat(ctx context.Context, crewID string) (bool, error) {
 // message: the reactions of a message that is gone already go too. Nakama
 // deletes the messages of an account with the account, so the reactions of
 // those messages have no message.
-func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeResult, crewID string, deadline time.Time) {
+//
+// The read of the reactions looks at every reactions document of the
+// install, so it runs as few times as it can. A batch that is not full is
+// the last one. reactionsDone is true when the reactions of the crew are
+// all gone: a later run passes skipReactions and does not read again. No
+// reaction is written for a crew whose group is gone (chat_react asks for a
+// member).
+func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeResult, crewID string, deadline time.Time, skipReactions bool) (reactionsDone bool) {
 	if !validPurgeCrewID(crewID) {
 		res.fail("chat: the crew id is not a group id")
-		return
+		return false
 	}
 	chat := crewChat()
 	if chat == nil {
-		res.fail("chat: the module has no database handle")
-		return
+		res.fail("chat: %v", errNoDatabase)
+		return false
 	}
 	for {
 		if crewPurgeNow().After(deadline) {
 			res.Incomplete = true
-			return
+			return false
 		}
 		ids, err := chat.MessageIDs(ctx, crewID, crewPurgeChatBatch)
 		if err != nil {
 			res.fail("chat read: %v", err)
-			return
+			return false
 		}
 		if len(ids) == 0 {
 			break
@@ -178,31 +185,34 @@ func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeR
 		res.ChatDeleted += n
 		if err != nil {
 			res.fail("chat delete: %v", err)
-			return
+			return false
 		}
 		if n == 0 {
 			// The same ids would come back for ever.
 			res.fail("chat delete: no message of the batch was deleted")
-			return
+			return false
 		}
+	}
+	if skipReactions {
+		return true
 	}
 	last := ""
 	for {
 		if crewPurgeNow().After(deadline) {
 			res.Incomplete = true
-			return
+			return false
 		}
 		keys, err := chat.ReactionKeys(ctx, crewID, crewPurgeChatBatch)
 		if err != nil {
 			res.fail("%s read: %v", ChatReactionsCollection, err)
-			return
+			return false
 		}
 		if len(keys) == 0 {
-			return
+			return true
 		}
 		if keys[0] == last {
 			res.fail("%s delete: no document of the batch was deleted", ChatReactionsCollection)
-			return
+			return false
 		}
 		last = keys[0]
 		deletes := make([]*runtime.StorageDelete, 0, len(keys))
@@ -211,8 +221,11 @@ func purgeCrewChat(ctx context.Context, nk runtime.NakamaModule, res *crewPurgeR
 		}
 		if err := nk.StorageDelete(ctx, deletes); err != nil {
 			res.fail("%s delete: %v", ChatReactionsCollection, err)
-			return
+			return false
 		}
 		res.ReactionsDeleted += len(deletes)
+		if len(keys) < crewPurgeChatBatch {
+			return true
+		}
 	}
 }

@@ -46,6 +46,8 @@ type delNk struct {
 	promotes []string
 	// groupUpdates counts the group updates.
 	groupUpdates int
+	// lists counts the storage lists of each collection.
+	lists map[string]int
 	// onGroupRead runs before each group read.
 	onGroupRead func()
 	// userGroupsErr makes the list of the crews of a user fail. groupsPage
@@ -228,6 +230,10 @@ func (n *delNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]
 func (n *delNk) StorageList(_ context.Context, _, userID, collection string, _ int, _ string) ([]*api.StorageObject, string, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	if n.lists == nil {
+		n.lists = map[string]int{}
+	}
+	n.lists[collection]++
 	prefix, suffix := collection+"/", "/"+userID
 	var keys []string
 	for k := range n.storage {

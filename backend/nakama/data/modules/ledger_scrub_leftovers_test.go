@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
-
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -199,15 +199,14 @@ func TestAccountDeleteScrubsTheLeftovers(t *testing.T) {
 	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
 		f := useScrubInline(t)
 		seedScrubCrew(t, nk, f, scrubCrew, true)
-		// The user left this crew before the delete. Only its documents
-		// outside the ledger name the user.
-		nk.groups[awayCrew] = &api.Group{Id: awayCrew}
-		nk.addMemberAs(awayCrew, "u1", "Ann", 0)
+		// The user left this crew before the delete. Its ledger names the
+		// user, so the scrub finds the crew.
+		seedScrubCrew(t, nk, f, leftCrew, false)
 		seedLeftovers(nk, scrubCrew)
-		seedLeftovers(nk, awayCrew)
+		seedLeftovers(nk, leftCrew)
 		seedPurgeCrew(t, nk, f, otherCrew)
 		before := crewLeftovers(t, nk, store, f, otherCrew)
-		for _, crewID := range []string{scrubCrew, awayCrew} {
+		for _, crewID := range []string{scrubCrew, leftCrew} {
 			if n := len(leftoverTraces(nk, crewID)); n != 6 {
 				t.Fatalf("seed of %s: %d documents name the user, want 6", crewID, n)
 			}
@@ -215,7 +214,7 @@ func TestAccountDeleteScrubsTheLeftovers(t *testing.T) {
 
 		deleteAccount(t, nk, goneUser)
 
-		for _, crewID := range []string{scrubCrew, awayCrew} {
+		for _, crewID := range []string{scrubCrew, leftCrew} {
 			if left := leftoverTraces(nk, crewID); len(left) != 0 {
 				t.Fatalf("documents of %s that name the user: %v", crewID, left)
 			}
@@ -254,6 +253,28 @@ func TestAccountDeleteScrubsTheLeftovers(t *testing.T) {
 		checkScrubbedCrew(t, nk, store, f, scrubCrew, "after the delete")
 		if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 || rec.LastError != "" {
 			t.Fatalf("scrub record = %+v", rec)
+		}
+		// The scan reads the invite codes once. The second run, one day
+		// later, reads the ledger documents again and not the codes. The
+		// documents of a crew outside the ledger are never listed.
+		nk.mu.Lock()
+		lists := fmt.Sprint(nk.lists[InviteCodeCollection], nk.lists[CrewEventsCollection], nk.lists[CrewQuestsCollection], nk.lists[CrewEmojiCollection], nk.lists[RecapPushCollection])
+		nk.mu.Unlock()
+		if lists != "1 1 0 0 0" {
+			t.Fatalf("lists of the first run = %s", lists)
+		}
+		prev := userScrubNow
+		userScrubNow = func() time.Time { return time.Now().Add(userScrubSettle + time.Minute) }
+		t.Cleanup(func() { userScrubNow = prev })
+		runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+		if rec := scrubRecordOf(t, nk); rec != nil {
+			t.Fatalf("the scrub record stays after the second run: %+v", rec)
+		}
+		nk.mu.Lock()
+		lists = fmt.Sprint(nk.lists[InviteCodeCollection], nk.lists[CrewEventsCollection])
+		nk.mu.Unlock()
+		if lists != "1 2" {
+			t.Fatalf("lists after the second run = %s", lists)
 		}
 		if after := crewLeftovers(t, nk, store, f, otherCrew); strings.Join(after, "\n") != strings.Join(before, "\n") {
 			t.Fatalf("another crew changed: %v", after)

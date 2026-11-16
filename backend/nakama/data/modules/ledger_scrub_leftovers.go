@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/heroiclabs/nakama-common/api"
 )
@@ -313,14 +312,4 @@ func (c *crewScrub) leftovers(exists bool) error {
 		}
 	}
 	return nil
-}
-
-// pushQueueCrewID is the crew id of a push queue document, from its key.
-func pushQueueCrewID(key string) string {
-	for _, prefix := range []string{beltPushKey, crewJoinPushKey} {
-		if crewID, ok := strings.CutPrefix(key, prefix); ok {
-			return crewID
-		}
-	}
-	return key
 }

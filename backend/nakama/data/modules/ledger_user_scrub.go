@@ -474,11 +474,15 @@ func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID strin
 
 // scrubScanCollections are the documents the scrub scans for the id of the
 // user, in order: the legacy documents of the ledger, the head2head holders
-// documents, the documents of a crew outside the ledger, and the invite
-// codes. A scrub record holds its place in this list (ScanStep): a new
-// collection goes at the end.
+// documents, and the invite codes. A scrub record holds its place in this
+// list (ScanStep): a new collection goes at the end.
+//
+// The quests record, the crew emoji and the push queues of a crew are not
+// scanned. They are read by key for each crew of the record: the crews of
+// the user at the delete, and the crews the ledger names the user in. A
+// member has a member_joined event in the ledger of the crew.
 var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection,
-	CrewQuestsCollection, CrewEmojiCollection, RecapPushCollection, InviteCodeCollection}
+	InviteCodeCollection}
 
 // scrubScanCrewID is the crew id of a scanned document, from its key. An
 // invite code has no crew to scrub: the scan clears its inviter.
@@ -490,8 +494,6 @@ func scrubScanCrewID(collection, key string) string {
 			return ""
 		}
 		return crewID
-	case RecapPushCollection:
-		return pushQueueCrewID(key)
 	case InviteCodeCollection:
 		return ""
 	}
@@ -517,6 +519,12 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 			return false, nil
 		}
 		collection := scrubScanCollections[rec.ScanStep]
+		if collection == InviteCodeCollection && rec.SecondRun {
+			// The first run cleared the codes of the user, and a deleted
+			// account makes no code.
+			rec.ScanStep++
+			continue
+		}
 		objects, next, err := nk.StorageList(ctx, "", SystemUserID, collection, 100, rec.ScanCursor)
 		if err != nil {
 			res.fail("scan of %s: %v", collection, err)

@@ -64,8 +64,12 @@ type crewPurgeRecord struct {
 	SettledMs int64 `json:"settled_ms,omitempty"`
 	// StorePending is true when a run had no durable store and removed all
 	// but the rows of the store. The purge is not done.
-	StorePending bool   `json:"store_pending,omitempty"`
-	LastError    string `json:"last_error,omitempty"`
+	StorePending bool `json:"store_pending,omitempty"`
+	// ReactionsDone is true when a run deleted every reactions document of
+	// the crew. A later run does not read them again: the read looks at
+	// every reactions document of the install. admin_purge_crew reads again.
+	ReactionsDone bool   `json:"reactions_done,omitempty"`
+	LastError     string `json:"last_error,omitempty"`
 }
 
 // crewPurgeResult is what one run of a purge did.
@@ -397,7 +401,9 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 	}
 
 	purgeCrewMedia(ctx, logger, &res, crewID, deadline)
-	purgeCrewChat(ctx, nk, &res, crewID, deadline)
+	if purgeCrewChat(ctx, nk, &res, crewID, deadline, rec.ReactionsDone) {
+		rec.ReactionsDone = true
+	}
 
 	// The store can be missing: the schema setup failed at start and is tried
 	// again in the background. The purge then removes the rest and stays
@@ -704,8 +710,16 @@ func AdminPurgeCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		// The id can be the crew of another install that shares a bucket.
 		return "", runtime.NewError("this install holds nothing of that crew", 5)
 	}
-	if _, err := ensureCrewPurgeRecord(ctx, nk, req.CrewID); err != nil {
+	rec, err := ensureCrewPurgeRecord(ctx, nk, req.CrewID)
+	if err != nil {
 		return "", runtime.NewError("failed to write the purge record", 13)
+	}
+	if rec.ReactionsDone {
+		// A repair by hand reads the reactions of the crew again.
+		rec.ReactionsDone = false
+		if err := writeCrewPurgeRecord(ctx, nk, *rec); err != nil {
+			return "", runtime.NewError("failed to write the purge record", 13)
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, crewPurgeBudget+30*time.Second)
 	defer cancel()

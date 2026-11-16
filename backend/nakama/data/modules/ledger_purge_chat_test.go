@@ -29,11 +29,14 @@ type memCrewChat struct {
 	readErr, deleteErr error
 	// batches counts the deletes.
 	batches int
+	// reactionReads counts the reads of the reactions documents.
+	reactionReads int
 	// nk holds the reactions documents. seedCrewChat sets it.
 	nk *delNk
 }
 
 func (m *memCrewChat) ReactionKeys(_ context.Context, crewID string, limit int) ([]string, error) {
+	m.reactionReads++
 	if m.readErr != nil {
 		return nil, m.readErr
 	}
@@ -331,5 +334,46 @@ func TestPurgeCrewWithoutADatabaseIsNotDone(t *testing.T) {
 	deleteCrewByOwner(t, nk, purgeCrew)
 	if rec := purgeRecordOf(t, nk, purgeCrew); rec.DoneMs != 0 || !strings.Contains(rec.LastError, "database handle") {
 		t.Fatalf("purge record = %+v", rec)
+	}
+}
+
+// The read of the reactions looks at every reactions document of the
+// install. A purge reads once for each full batch and once more, and its
+// second run does not read at all. admin_purge_crew reads again.
+func TestPurgeReadsTheReactionsAsFewTimesAsItCan(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := usePurgeBuckets(t)
+	chat := currentMemChat(t)
+	seedPurgeCrew(t, nk, f, purgeCrew)
+	seedCrewChat(nk, f, chat, purgeCrew)
+	prevBatch := crewPurgeChatBatch
+	crewPurgeChatBatch = 2
+	t.Cleanup(func() { crewPurgeChatBatch = prevBatch })
+
+	// Three documents, two for each batch: a full batch, then the rest.
+	deleteCrewByOwner(t, nk, purgeCrew)
+	if chat.reactionReads != 2 {
+		t.Fatalf("reads of the first run = %d, want 2", chat.reactionReads)
+	}
+	if rec := purgeRecordOf(t, nk, purgeCrew); rec.DoneMs == 0 || !rec.ReactionsDone {
+		t.Fatalf("purge record = %+v", rec)
+	}
+	// The second run, one hour later.
+	prev := crewPurgeNow
+	crewPurgeNow = func() time.Time { return time.Now().Add(crewPurgeSettle + time.Minute) }
+	t.Cleanup(func() { crewPurgeNow = prev })
+	runPendingCrewPurges(context.Background(), nk, testLogger(), crewPurgeNow().Add(time.Minute))
+	if rec := purgeRecordOf(t, nk, purgeCrew); rec.SettledMs == 0 {
+		t.Fatalf("purge record = %+v", rec)
+	}
+	if chat.reactionReads != 2 {
+		t.Fatalf("reads after the second run = %d, want 2", chat.reactionReads)
+	}
+	// A repair by hand reads again, and finds a document that is there.
+	nk.put(ChatReactionsCollection, "late", SystemUserID, ReactionsDoc{CrewID: purgeCrew})
+	res, err := purgeRPC(nk, purgeCrew)
+	if err != nil || !res.Done || res.ReactionsDeleted != 1 || chat.reactionReads != 3 {
+		t.Fatalf("admin_purge_crew = %+v err=%v reads=%d", res, err, chat.reactionReads)
 	}
 }
