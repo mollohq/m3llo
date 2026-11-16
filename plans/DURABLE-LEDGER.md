@@ -505,8 +505,9 @@ Delete. Request `{delete: true, clip_keys?, snapshot_keys?}`.
 
 ## 7. Deletion rules (step 7)
 
-Built. Code: `ledger_scrub.go` (pure rules), `ledger_user_scrub.go` (account
-delete), `ledger_purge.go` (crew delete), `crews.go` (kick).
+Built, and changed after a review. Code: `ledger_scrub.go` (pure rules),
+`ledger_user_scrub.go` (account delete), `ledger_purge.go` (crew delete),
+`crews.go` (kick).
 
 Events used to vanish after 7 days. Now they stay, so these rules ship in
 phase 1. They hold on both sides (store rows and legacy documents) in every
@@ -516,15 +517,18 @@ phase: before the cutover, after it, and under both kill switches.
 |---|---|
 | Member leaves | `member_left` event. Earlier events stay |
 | Member kicked | The same `member_left` event (`recordMemberLeft`). Earlier events stay |
-| Account deleted | The events the user started are deleted, with their media. The user leaves the events of others and the stored recaps |
+| Account deleted | The events the user started are deleted, with their media. The user leaves the events of others, the stored recaps and the head2head holders |
 | Crew deleted | Everything of the crew is deleted: rows, documents, media |
 
 ### Kick
 
 - `KickCrewMemberRPC` calls `recordMemberLeft`. `GroupUsersKick` of the
   runtime runs no hook.
-- `RegisterAfterKickGroupUsers(AfterKickCrewMembers)` covers a kick through
-  the group API of Nakama.
+- A kick through the group API of Nakama has two hooks.
+  `BeforeKickCrewMembers` notes which ids of the request are members now
+  (state 0 to 2), in process memory, for one minute. `AfterKickCrewMembers`
+  writes `member_left` and cleans voice only for an id that was noted and is
+  no member now. Nakama does not kick every id of a request.
 
 ### Scrub rules (pure functions)
 
@@ -562,12 +566,26 @@ user. The copy names no other user.
 | `longest_session` | The text is cleared when it holds a name of the user |
 | Totals, `top_game`, `games_played` | Stay. They name nobody |
 
-- `who` is the user id, the names of the user, and the `clip_id`s the scrub
-  dropped.
-- Names: the account names at the delete, the names the events of the user
-  hold (`scrubNamesOfEvent`), and the name beside the user id in the same
-  recap.
+Names (`scrubWho`):
+
+- The names of the user are the display name and the username the account
+  had at the delete. A recap adds the name it holds beside the user id.
+- A name the user had before is not used. Nothing says it is this user.
+- A name is matched whole. In a free text (`longest_session`, an award
+  detail) the text before and after it is not a letter or a digit.
+- A name that another member of the crew has now (`Taken`, no case) is not
+  matched in a field with no id. The field stays, and the log says so without
+  the name.
 - A name field can hold the user id (`resolveOrID`). It is matched too.
+
+`scrubHead2headForUser(doc, userID) (out, changed)`: the weekly recap makes its
+belts from `crew_head2head`, so a recap after the scrub would name the user.
+
+| Holders field | Action |
+|---|---|
+| A title the user holds | Removed from the document. The title is vacant. The next recompute gives it as a first award, with no previous holder, so nothing says it moved |
+| A title taken from the user | Loses `previous_holder_user_id`. The time of the move stays |
+| `members`, `pairs` | The user and every pair of the user are removed |
 
 ### Account delete
 
@@ -580,51 +598,67 @@ v1.31.0:
 | `RegisterAfterDeleteAccount(AfterDeleteAccount)` | Marks the record and starts the scrub in a goroutine. Always returns nil |
 
 Scrub record: `ledger_user_scrub/{user_id}`, system-owned, no client read.
-`{names, crews, discovered, scan_step, scan_cursor, media, started_ms,
-deleted_ms, done_ms, second_run, last_error}`.
+`{names, crews, discovered, scan_step, scan_cursor, media, skipped,
+started_ms, deleted_ms, done_ms, second_run, store_pending, last_error}`.
 
-One run (`runUserScrub`), budget 2 minutes:
+- Every write and the delete of the record carry its storage version. A run
+  on an old copy cannot write. It stops and writes nothing more: the record
+  in storage is the truth, and the job continues from it.
+- One scrub of a user runs at a time in a process (`userScrubRunning`). A
+  second one answers `busy` and does not touch the record.
+- Each delete attempt sets `started_ms` again.
+
+One run (`runUserScrub`), with one deadline for the whole run (2 minutes):
 
 1. Find the crews: the crews of the record, `UserCrews` of the store, and a
-   scan of the four legacy collections for the user id as text. The scan
-   saves its cursor in the record.
+   scan for the user id as text in the four legacy collections and in
+   `crew_head2head`. The scan saves its cursor in the record.
 2. For each crew (`scrubCrewForUser`), in this order:
-   1. Read the documents. Save the names and the media of what goes.
+   1. Read the documents. Save the media of what goes.
    2. Scrub `crew_events`, `crew_clips`, `crew_stream_sessions`. Each write
-      uses the version it read.
+      uses the version it read, and reads again when it loses.
    3. Scrub the store rows that name the user, 200 at a time
       (`NamingUserInCrew`). A dropped row: `Delete`, which remembers the id.
       A changed row: `UpdateData`, then `ForgetUser`.
    4. Scrub every recap of the crew: the document, then the rows.
-   5. Remove the crew from the record.
+   5. Scrub `crew_head2head`.
+   6. Remove the crew from the record.
 3. Delete the media of the dropped clips and streams.
-4. Set `done_ms`.
+4. Set `done_ms`. The names leave the record.
 
 - The documents come first in every phase. Before the cutover the reconcile
   copies the documents to the store, so a scrubbed document cannot bring the
   user back.
-- A crew that is no longer a group is purged whole. Nakama can delete a group
-  with its owner, and then no delete-group hook runs.
+- The scrub never purges a crew. A crew that is no longer a group is scrubbed
+  as any other crew, and the log says so.
 - A crew that fails stays in the record. The other crews still run.
+- With no store loaded the run scrubs the documents and stays pending
+  (`store_pending`). It is not done. The first run with a store looks for the
+  crews again and scrubs the rows. An install whose schema can never be made
+  is not told apart from one that waits: both stay pending and are logged.
 - Second run: 24 hours after `done_ms` the deletion job runs the scrub again
-  (a voice session that ends after the delete names the user). Then the
-  record is deleted, because it holds names.
-- A record of an account that still exists after 1 hour is deleted. The
-  account delete did not happen.
+  (a voice session that ends after the delete names the user). It finds the
+  user by id, so it needs no name. Then the record is deleted.
+- A record of an account that still exists 1 hour after `started_ms` is
+  deleted. The account delete did not happen.
 
 Media of the user (rule 5):
 
 - A clip: the two exact keys of `gameClipKeys`. A stream: the prefix
   `snapshots/{crew_id}/{session_id}/`.
-- A key is made only from ids that match `[A-Za-z0-9_-]{1,64}`.
-- Nothing is deleted while the crew still holds a clip with the `clip_id` or
-  a stream session with the session id (`mediaRefIndex.held`).
+- An entry stays in `media` until its delete is complete. It stays when a
+  delete failed, when the list of a prefix was cut at the deadline, and when
+  the bucket is not configured. The scrub is then not done.
+- Not deleted, and kept in `skipped` with the reason, in the result of every
+  run and in the log: an id that does not match `[A-Za-z0-9_-]{1,64}`, a
+  stream session with no session id (no key can be made), and media that the
+  crew still holds under the same `clip_id` or session id.
 
 `admin_scrub_user {user_id}`: `http_key` only. Refuses while the account
-exists. Runs one run and returns `{done, incomplete, crews_scrubbed,
-crews_left, dropped, changed, media_deleted, media_skipped, errors}`. Call it
-again while `done` is false. A call on a finished scrub looks for the crews
-again.
+exists. Runs one run and returns `{done, incomplete, busy, store_pending,
+crews_scrubbed, crews_left, dropped, changed, media_deleted, media_pending,
+media_skipped, errors}`. Call it again while `done` is false. A call on a
+scrub with no work left looks for the crews again.
 
 ### Crew delete
 
@@ -632,18 +666,27 @@ again.
 `RegisterAfterDeleteGroup(AfterDeleteCrew)`.
 
 Purge record: `ledger_crew_purge/{crew_id}`, system-owned. `{started_ms,
-done_ms, settled_ms, last_error}`. It is kept for good.
+done_ms, settled_ms, store_pending, last_error}`. It is kept for good.
 
 - It is written before anything is deleted. With no record nothing is
   deleted.
 - It is the proof that the crew was a crew of this install. A bucket can be
   shared, and `admin_media_orphans` never deletes under a crew id that is not
   a group (`unknown_crew`). So the purge deletes the media itself.
-- The reconcile reads the purge records at each tick. It does not import a
-  document of a purged crew. It deletes the document and the rows of the crew
-  (`dropPurgedDoc`).
-- The purge reads the group on every run and deletes nothing while it exists.
 - The crew id must be a UUID. It is part of object prefixes.
+- With no store loaded the purge removes the documents and the media and
+  stays pending (`store_pending`).
+
+A record is an order to delete, so three places read the group first:
+
+| Place | The group exists | The group read fails |
+|---|---|---|
+| `startCrewPurge` | No record is written | No record is written |
+| `purgeCrewData` (the job, the RPC) | Nothing is deleted. The record is deleted | Nothing is deleted. The record stays |
+| The reconcile (`dropPurgedDoc`) | The record is deleted. The document is reconciled as any other | Nothing is deleted or imported. The document waits |
+
+- The reconcile does not import a document of a purged crew. It deletes the
+  document and the rows of the crew.
 
 What a purge removes:
 
@@ -651,7 +694,7 @@ What a purge removes:
 |---|---|
 | Store | `DeleteCrew`: the event rows, the user index, the week rollup, the anchor, the memory of deleted ids |
 | Ledger documents | `crew_events`, `crew_clips`, `crew_stream_sessions`, `crew_recaps` |
-| Other documents | `crew_quests`, `crew_profile`, `crew_emoji`, `crew_avatars`, `voice_channels`, `crew_head2head` (`holders_{crew_id}`), `recap_pushes` (`{crew_id}` and `belt_{crew_id}`), `stream_meta`, and `active_streams` of the streamer that `stream_meta` names |
+| Other documents | `crew_quests`, `crew_profile`, `crew_emoji`, `crew_avatars`, `voice_channels`, `crew_head2head` (`holders_{crew_id}`), `recap_pushes` (`{crew_id}`, `belt_{crew_id}`, `join_{crew_id}`), `stream_meta`, and `active_streams` of the streamer that `stream_meta` names |
 | Clips bucket | `crews/{crew_id}/`: voice clips, game clip videos and posters |
 | Snapshots bucket | `snapshots/{crew_id}/` |
 | Media bucket | `crew-banners/{crew_id}/`, `crew-emoji/{crew_id}/` |
@@ -674,14 +717,25 @@ Not removed:
 
 `admin_purge_crew {crew_id}`: `http_key` only. Refuses while the group exists
 (code 9). Refuses a crew id this install holds nothing of (code 5): no
-record, no document, no row. Returns `{done, incomplete, media_deleted,
-docs_deleted, store_deleted, media_skipped, errors}`.
+record, no document, no row. Returns `{done, incomplete, store_pending,
+media_deleted, docs_deleted, store_deleted, media_skipped, errors}`.
 
 ### Deletion job
 
 `StartLedgerDeletionJob`, at start and every 5 minutes: the scrubs and the
 purges that are not done, and their second runs. Two nodes can run the same
 one. Every step can run twice.
+
+- The job starts after the record it handled last (`deletionJobCursor`). A
+  record that takes the whole budget, or fails every time, does not keep the
+  job from the records behind it.
+- The purge records are kept for good, and the reconcile and the job both
+  need them every 5 minutes. A node keeps them in memory. Every write of a
+  record writes a new token to `ledger_migration/purge_token`. A node reads
+  the token (one storage read) and lists the records again only when the
+  token changed or its copy is one hour old.
+- The scrub records are listed on every run. They are few: a record is
+  deleted when its scrub is over.
 
 ### The reconcile
 
@@ -691,24 +745,36 @@ one. Every step can run twice.
 | Entry the scrub changed | The same content on both sides | The same |
 | A document holds a dropped entry again | Not stored: `Backfill` and `Put` skip a deleted id. `putMissingHistoryRows` asks `DeletedIDs` before `PutUnique` | The same |
 | A document holds the user again in an entry that stays | The store takes the document. Run `admin_scrub_user` | The store keeps its content |
-| Document of a purged crew | Deleted, not imported | The same |
+| Document of a purged crew whose group is gone | Deleted, not imported | The same |
+
+### Open decision
+
+Nakama 3.21.0 deletes a group when its only owner deletes the account. This
+was seen on a local stack. No delete-group hook runs, so nothing purges the
+crew: its documents stay. The scrub removes only the user. Whether such a
+crew is removed or handed over is not decided. `admin_purge_crew` removes it
+by hand.
 
 ### Known limits
 
-- A recap field with only a name is matched by name. Another member with the
-  same name loses that field too.
-- With no durable store, a name the user had more than 7 days ago is in no
-  event. A recap from before recaps held user ids keeps it.
-- An account that is deleted in the Nakama console, or with
-  `AccountDeleteId`, runs no hook. Run `admin_scrub_user`.
+- A recap field with only a name is matched by the names at the delete. A
+  name the user had before stays in a recap that has no id for the user.
+- A scrub with no before hook (the Nakama console, `AccountDeleteId`, a lost
+  record) has no names. It matches ids, and the name beside the id in the
+  same recap. Run `admin_scrub_user` for an account with no hook.
+- A field with only a name that another member also has stays.
 - When the purge record cannot be written, nothing is purged. The log line is
   `crew_purge_failed`. Run `admin_purge_crew`.
 - A write for a purged crew that makes only a store row, more than one hour
   after the purge, stays.
+- With no store that ever loads, the records stay pending for good. A scrub
+  record then keeps its names.
+- The noted members of a kick are in process memory. They hold for the node
+  that runs both hooks of one request.
 - Outside the ledger, a deleted user can still be named in: `crew_quests`
   (`friend`, `call`, `owner_id`, `plus_granted`), `crew_emoji` (`added_by`),
-  `crew_head2head`, `invite_codes` (`inviter_user_id`), `media_reports`, chat
-  messages and chat images.
+  `invite_codes` (`inviter_user_id`), `recap_pushes` (a queued push text),
+  `media_reports`, chat messages and chat images.
 
 ## 8. Tests
 
@@ -728,28 +794,46 @@ one. Every step can run twice.
   `TestReconcile*`, `TestSoakGate`, `TestAfterCutover*`, `TestBeforeCutover*`,
   `TestInvitePreviewSeesNoClipRows`.
 - Step 7. `delPhases` runs a test before the cutover, after it and under each
-  kill switch:
+  kill switch. The fake of these tests checks storage versions (`delNk`).
   - Rules: `TestScrubEventForUser` (a case for each event type),
     `TestScrubClipForUser`, `TestScrubStreamSessionForUser`,
-    `TestScrubRecapForUser` (a case for each recap field).
-  - Kick: `TestKickWritesMemberLeft`, `TestKickHookWritesMemberLeft`.
+    `TestScrubRecapForUser` (a case for each recap field and each name rule),
+    `TestHoldsWholeName`, `TestScrubHead2headForUser`.
+  - Kick: `TestKickWritesMemberLeft`,
+    `TestKickHookWritesMemberLeftOnlyForTheKicked`.
   - Account: `TestScrubUserFromLedger` (all phases, a crew the user left, a
     reconcile after it), `TestScrubUserIsRepairedAfterAFailure`,
-    `TestReconcileDoesNotRestoreWhatTheScrubDropped`, `TestScrubUserWithNoStore`,
+    `TestReconcileDoesNotRestoreWhatTheScrubDropped`,
+    `TestScrubNeverPurgesACrew`, `TestScrubUserWaitsForTheStore`,
     `TestScrubUserInBatchesAndAfterItsBudget`, `TestAdminScrubUserRefuses`,
     `TestScrubRecordOfAnAccountThatStays`,
+    `TestScrubRecordOfARetriedDeleteIsNotCleaned`,
     `TestDeletionJobScrubsWhenTheAfterHookDidNotRun`,
-    `TestScrubKeepsMediaThatAnotherClipHolds`,
-    `TestScrubPurgesACrewThatWentWithTheAccount`.
+    `TestSecondScrubRunWorksWithoutNames`, `TestScrubUserFromHead2head`,
+    `TestScrubKeepsANameThatAnotherMemberHas`.
+  - Record and concurrency: `TestStaleScrubRunDoesNotBringBackADeletedRecord`,
+    `TestStaleScrubRunDoesNotDropTheMediaOfANewerRecord`,
+    `TestScrubRecordDeleteIsVersionChecked`, `TestOneScrubOfAUserAtATime`,
+    `TestScrubDocumentWriteLosesToAConcurrentWriter`.
+  - Media: `TestScrubKeepsMediaThatAnotherClipHolds`,
+    `TestScrubMediaStaysWhileItsBucketIsNotConfigured`,
+    `TestScrubMediaIsCutAtTheDeadlineOfTheRun`,
+    `TestScrubReportsMediaItDoesNotDelete`.
   - Crew: `TestPurgeCrewData` (all phases, a reconcile after it),
-    `TestReconcileDoesNotImportADocumentOfAPurgedCrew`, `TestAdminPurgeCrew`,
-    `TestPurgeRefusesACrewThatExists`, `TestPurgeCrewContinuesAfterItsBudget`,
+    `TestPurgeRecordOfALiveCrewDeletesNothing` (all phases, with a group read
+    that fails), `TestReconcileDoesNotImportADocumentOfAPurgedCrew`,
+    `TestAdminPurgeCrew`, `TestPurgeCrewWaitsForTheStore`,
+    `TestPurgeCrewContinuesAfterItsBudget`,
     `TestPurgeCrewRunsAgainForALateWriter`, `TestDeleteGroupHookPurgesTheCrew`,
     `TestDeleteObjectsUnderRefusesAWrongPrefix`.
+  - Job: `TestRotateAfter`, `TestDeletionJobDoesNotStarveBehindASlowScrub`,
+    `TestPurgeRecordsAreListedOnlyWhenTheyChange`.
   - Store: `ledgerScrubConformance` runs in the conformance function, so
     `dev_ledger_selftest` covers `DeletedIDs`, `UserCrews`, `NamingUserInCrew`
     and `ForgetUser` on SQL.
   - Media deletes run only against the loopback S3 fake.
+  - The hooks ran once end to end on a local stack: two test accounts, a
+    crew, an account delete, a crew delete.
 - Tests that seed `CrewEventsCollection` directly move to a `seedLedger(t, ...)` helper.
 - Phase 1b. `history_characterisation_test.go` pins the read paths of clips,
   stream sessions and recaps. It was written against the code before 1b and
@@ -801,7 +885,7 @@ Phase 1a:
 4. Dual write. `go test -run 'TestDualWrite|TestConcurrentAppends|TestStream|TestSessionTimes' .`
 5. `ledger_migration.go`: reconcile, soak, marker. `go test -run 'TestBackfill|TestReconcile|TestSoakGate' .`
 6. Reader switch behind the marker and `MELLO_LEDGER_READ`. `go test -run 'TestReadersUseDoc|TestAppendCrewEventTrims|TestLedgerTrimAnchors|TestMergedTimeline|TestCatchup|TestWeeklyRecap|TestSnapshotBackfill|TestGuest|TestInvite' .`
-7. Deletion rules (section 7). Built. `go test -run 'TestScrub|TestPurge|TestAdminPurge|TestAdminScrub|TestKick|TestReconcileDoesNot|TestDeletionJob|TestDeleteGroupHook|TestDeleteObjectsUnder' .`
+7. Deletion rules (section 7). Built. `go test -run 'TestScrub|TestSecondScrub|TestStaleScrub|TestOneScrub|TestHoldsWholeName|TestPurge|TestAdminPurge|TestAdminScrub|TestKick|TestReconcileDoesNot|TestDeletionJob|TestDeleteGroupHook|TestDeleteObjectsUnder|TestRotateAfter' .`
 8. Specs 16 and 04, `TESTING.md`.
 
 Phase 1b, as built:
