@@ -559,6 +559,7 @@ func (r *ledgerReconciler) reconcileHistoryDoc(ctx context.Context, store ledger
 	r.hist.Inserted += res.Inserted
 	r.hist.Updated += res.Updated
 	r.hist.NoID += res.NoID
+	r.hist.RefHeld += res.RefHeld
 	switch {
 	case res.Err != nil:
 		r.hist.Failed++
@@ -594,8 +595,8 @@ func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histDocWins 
 		histMarker = r.trySetHistoryMarker(ctx, p, h)
 	}
 	r.lastHist, r.lastHistMarker = h, histMarker
-	line = fmt.Sprintf("ledger_history_pass docs=%d inserted=%d updated=%d no_id=%d unclean=%d failed=%d marker=%s",
-		h.Docs, h.Inserted, h.Updated, h.NoID, h.Unclean, h.Failed, histMarker)
+	line = fmt.Sprintf("ledger_history_pass docs=%d inserted=%d updated=%d no_id=%d ref_held=%d unclean=%d failed=%d marker=%s",
+		h.Docs, h.Inserted, h.Updated, h.NoID, h.RefHeld, h.Unclean, h.Failed, histMarker)
 	if h.clean() {
 		r.logger.Info("%s", line)
 	} else {

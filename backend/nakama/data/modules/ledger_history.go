@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -48,6 +49,10 @@ type historyKind struct {
 	same func(doc, stored CrewEvent) bool
 	// merge returns the data a stored row gets when the document wins.
 	merge func(doc CrewEvent, stored json.RawMessage) (json.RawMessage, error)
+	// uniqueRef says the store holds one row for a ref of this kind (the
+	// clip_id of a clip). The reconcile then does not store an entry whose
+	// ref a row outside the document holds.
+	uniqueRef bool
 }
 
 // historyKinds are the documents the reconcile visits after the ledger
@@ -56,7 +61,7 @@ var historyKinds = []*historyKind{streamSessionHistoryKind, clipHistoryKind, rec
 
 // historyPassStats are the totals of phase 1b of one pass.
 type historyPassStats struct {
-	Docs, Inserted, Updated, NoID int
+	Docs, Inserted, Updated, NoID, RefHeld int
 	// Unclean counts the documents with an entry the store does not hold as
 	// the document does. Failed counts the documents with a read or write
 	// error.
@@ -72,8 +77,11 @@ type historyCrewResult struct {
 	Inserted int
 	Updated  int
 	NoID     int
-	Clean    bool
-	Err      error
+	// RefHeld counts the entries that are not stored because a row outside
+	// the document holds their ref (putMissingHistoryRows).
+	RefHeld int
+	Clean   bool
+	Err     error
 }
 
 // historySameJSON compares two values as JSON.
@@ -148,12 +156,13 @@ func reconcileHistoryCrew(ctx context.Context, nk runtime.NakamaModule, store le
 			return res
 		}
 
-		inserted, err := store.Put(ctx, crewID, missing)
+		inserted, refHeld, err := putMissingHistoryRows(ctx, store, kind, crewID, missing, seen)
 		if err != nil {
 			res.Err = fmt.Errorf("store put: %w", err)
 			return res
 		}
 		res.Inserted += inserted
+		res.RefHeld = refHeld
 		for _, row := range differ {
 			doc := row.Event
 			err := store.UpdateData(ctx, crewID, doc.ID, func(raw json.RawMessage) (json.RawMessage, error) {
@@ -172,6 +181,78 @@ func reconcileHistoryCrew(ctx context.Context, nk runtime.NakamaModule, store le
 			return res
 		}
 	}
+}
+
+// putMissingHistoryRows stores the entries of a document that the store
+// lacks. docIDs are the row ids of every entry of the document.
+//
+// A kind with uniqueRef keeps one row for a ref. An entry whose ref a row
+// outside the document holds is not stored: refHeld counts it. The row of the
+// store came first (a node after the cutover wrote it, or the capped document
+// dropped it), and a second row would list the clip twice. A document from
+// before clip_id was checked can hold one clip_id twice. Those entries are
+// rows of the document, and both are stored.
+func putMissingHistoryRows(ctx context.Context, store ledgerStore, kind *historyKind, crewID string, missing []ledgerRow, docIDs map[string]bool) (inserted, refHeld int, err error) {
+	if !kind.uniqueRef {
+		inserted, err = store.Put(ctx, crewID, missing)
+		return inserted, 0, err
+	}
+	perRef := map[string]int{}
+	for _, row := range missing {
+		perRef[row.Ref]++
+	}
+	var plain []ledgerRow
+	for _, row := range missing {
+		if row.Ref == "" {
+			plain = append(plain, row)
+			continue
+		}
+		if perRef[row.Ref] == 1 {
+			// One transaction checks the ref and stores the row.
+			held, err := store.PutUnique(ctx, crewID, row)
+			switch {
+			case errors.Is(err, errLedgerIDTaken):
+				// A writer stored this row since the read. The next round
+				// sees it.
+				continue
+			case err != nil:
+				return inserted, refHeld, err
+			case len(held) == 0:
+				inserted++
+				continue
+			}
+			if historyRefHeldOutside(held, docIDs) {
+				refHeld++
+				continue
+			}
+			// The rows that hold the ref are entries of the document: the
+			// same clip_id twice. This entry is one more of them.
+			plain = append(plain, row)
+			continue
+		}
+		held, err := store.ByRef(ctx, crewID, row.Event.Type, row.Ref)
+		if err != nil {
+			return inserted, refHeld, err
+		}
+		if historyRefHeldOutside(held, docIDs) {
+			refHeld++
+			continue
+		}
+		plain = append(plain, row)
+	}
+	n, err := store.Put(ctx, crewID, plain)
+	return inserted + n, refHeld, err
+}
+
+// historyRefHeldOutside reports whether one of the rows is not an entry of
+// the document.
+func historyRefHeldOutside(held []CrewEvent, docIDs map[string]bool) bool {
+	for _, ev := range held {
+		if !docIDs[ev.ID] {
+			return true
+		}
+	}
+	return false
 }
 
 // ---------------------------------------------------------------------------
@@ -392,6 +473,7 @@ var clipHistoryKind = &historyKind{
 	merge: func(doc CrewEvent, _ json.RawMessage) (json.RawMessage, error) {
 		return json.Marshal(doc.Data)
 	},
+	uniqueRef: true,
 }
 
 // crewClipsBetween returns the clips of a crew with fromMs <= ts <= toMs,

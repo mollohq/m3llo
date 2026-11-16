@@ -532,3 +532,106 @@ func TestClipReadersFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 		t.Fatalf("guest clips = %+v more=%d", got, more)
 	}
 }
+
+func clipsWithID(clips []StoredClip, clipID string) int {
+	n := 0
+	for _, c := range clips {
+		if c.ClipID == clipID {
+			n++
+		}
+	}
+	return n
+}
+
+// Two nodes do not agree about the marker for 30 seconds. The node after the
+// cutover stored a clip in the store. The node before it then takes the same
+// clip_id into the document. The store keeps one row for the clip_id, also
+// after the reconcile.
+func TestClipIDHasOneRowWhenTwoNodesDisagreeAboutTheMarker(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	now := time.Now()
+
+	// The node after the cutover: the store first. Its document write lost.
+	first := histClip("same", "u1", now.Add(-time.Second))
+	if held, err := store.PutUnique(ctx, "crew", clipRow(first)); err != nil || len(held) != 0 {
+		t.Fatalf("put unique: held=%v err=%v", held, err)
+	}
+	// The node before the cutover: the document first, and it is free.
+	second := histClip("same", "u2", now)
+	second.EventID = "ev_same_again"
+	if prev, err := AppendClip(ctx, nk, "crew", second); err != nil || prev != nil {
+		t.Fatalf("append on the node before the cutover: prev=%+v err=%v", prev, err)
+	}
+	if n := clipsWithID(storeClips(t, store, "crew"), "same"); n != 1 {
+		t.Fatalf("the store holds %d rows for the clip_id after the upload, want 1", n)
+	}
+	for pass := 1; pass <= 2; pass++ {
+		r := reconcilePass(t, nk)
+		if r.lastHist.Inserted != 0 || r.lastHist.RefHeld != 1 || !r.lastHist.clean() {
+			t.Fatalf("pass %d = %+v", pass, r.lastHist)
+		}
+		if got := storeClips(t, store, "crew"); len(got) != 1 || got[0].EventID != first.EventID {
+			t.Fatalf("pass %d: store = %+v, want the first row alone", pass, got)
+		}
+	}
+}
+
+// The kill switch on a crew over the document cap. The document dropped a
+// clip that the store holds. An upload of that clip_id is free in the
+// document, which is the truth again. The store does not get a second row.
+func TestKillSwitchOnACrewOverTheCapKeepsOneRowForAClipID(t *testing.T) {
+	noSoak(t)
+	ctx := context.Background()
+	nk := newFakeGuestNk()
+	store := useMemLedger(t)
+	resetLedgerCutover(t)
+	resetHistoryCutover(t)
+	prevRecheck := ledgerMarkerRecheck
+	ledgerMarkerRecheck = 0
+	t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+	now := time.Now()
+
+	const total = CrewClipsMaxRetained + 3
+	for i := 0; i < total; i++ {
+		if _, err := AppendClip(ctx, nk, "crew", histClip(charID(i), "u1", now.Add(-time.Duration(total-i)*time.Minute))); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if reconcilePass(t, nk); historyTruthStore(ctx, nk) == nil {
+		t.Fatal("no cutover")
+	}
+	dropped := charID(0)
+	if clipsWithID(docClips(nk, "crew"), dropped) != 0 || clipsWithID(storeClips(t, store, "crew"), dropped) != 1 {
+		t.Fatal("the seed is wrong: want the oldest clip in the store alone")
+	}
+
+	t.Setenv("MELLO_LEDGER_HISTORY_READ", "doc")
+	again := histClip(dropped, "u1", now)
+	again.EventID = "ev_again"
+	if prev, err := AppendClip(ctx, nk, "crew", again); err != nil || prev != nil {
+		t.Fatalf("append under the kill switch: prev=%+v err=%v", prev, err)
+	}
+	if clipsWithID(docClips(nk, "crew"), dropped) != 1 {
+		t.Fatal("the document did not take the clip")
+	}
+	if n := clipsWithID(storeClips(t, store, "crew"), dropped); n != 1 {
+		t.Fatalf("the store holds %d rows for the clip_id after the upload, want 1", n)
+	}
+	for pass := 1; pass <= 2; pass++ {
+		r := reconcilePass(t, nk)
+		if r.lastHist.Inserted != 0 || r.lastHist.RefHeld != 1 || !r.lastHist.clean() {
+			t.Fatalf("pass %d = %+v", pass, r.lastHist)
+		}
+		if n := clipsWithID(storeClips(t, store, "crew"), dropped); n != 1 {
+			t.Fatalf("pass %d: the store holds %d rows for the clip_id, want 1", pass, n)
+		}
+	}
+	if n := len(storeClips(t, store, "crew")); n != total {
+		t.Fatalf("the store holds %d clips, want %d", n, total)
+	}
+}

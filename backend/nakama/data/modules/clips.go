@@ -176,22 +176,33 @@ func ownVoiceClip(clips []StoredClip, clipID, userID string) (*StoredClip, error
 // truth is written first, and it decides if the clip_id is free: the legacy
 // document before the cutover of phase 1b, the durable store after it. A
 // failure of the other store is logged.
+//
+// The store takes a clip with the ref-checked insert (PutUnique) in both
+// phases, so it holds one row for a clip_id at all times.
 func AppendClip(ctx context.Context, nk runtime.NakamaModule, crewID string, clip StoredClip) (*StoredClip, error) {
 	truth := historyTruthStore(ctx, nk)
 	var prev *StoredClip
 	taken := false
 	err := ledgerWriteOrdered(truth, "clip", crewID, clip.EventID,
 		func(store ledgerStore) error {
-			if truth == nil {
-				if prev != nil {
-					return nil
-				}
-				_, err := store.Put(ctx, crewID, []ledgerRow{clipRow(clip)})
-				return err
+			if truth == nil && prev != nil {
+				return nil
 			}
+			// The ref-checked insert in both phases: the store never holds
+			// two rows for one clip_id.
 			held, err := store.PutUnique(ctx, crewID, clipRow(clip))
 			if err != nil || len(held) == 0 {
 				return err
+			}
+			if truth == nil {
+				// The document took the clip and the store holds the clip_id
+				// under another row: two nodes that do not agree about the
+				// marker, or a clip that the capped document dropped. The row
+				// of the store stays.
+				if held[0].ID != clipRowID(clip.EventID) {
+					ledgerLogError("ledger_clip_ref_held crew=%s clip=%s event=%s: the store holds the clip_id as row %s", crewID, clip.ClipID, clip.EventID, held[0].ID)
+				}
+				return nil
 			}
 			if found, _ := existingClip(clipsFromRows(held), clip.ClipID, clip.ActorID); found != nil {
 				prev = found
