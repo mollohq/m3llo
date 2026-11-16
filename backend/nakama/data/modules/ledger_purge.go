@@ -314,6 +314,7 @@ func crewPurgeDocs(crewID string) []crewPurgeDoc {
 		sys(CrewHead2headCollection, head2headKey(crewID)),
 		sys(RecapPushCollection, crewID),
 		sys(RecapPushCollection, beltPushKey+crewID),
+		sys(RecapPushCollection, crewJoinPushKey+crewID),
 		sys(StreamMetaCollection, crewID),
 	}
 }

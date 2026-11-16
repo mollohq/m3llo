@@ -41,7 +41,7 @@ func purgeTestDocs(crewID string) [][2]string {
 		{"crew_events", crewID}, {"crew_clips", crewID}, {"crew_stream_sessions", crewID}, {"crew_recaps", crewID},
 		{"crew_quests", crewID}, {"crew_profile", crewID}, {"crew_emoji", crewID}, {"crew_avatars", crewID},
 		{"voice_channels", crewID}, {"crew_head2head", "holders_" + crewID},
-		{"recap_pushes", crewID}, {"recap_pushes", "belt_" + crewID}, {"stream_meta", crewID},
+		{"recap_pushes", crewID}, {"recap_pushes", "belt_" + crewID}, {"recap_pushes", "join_" + crewID}, {"stream_meta", crewID},
 	}
 }
 
@@ -283,7 +283,7 @@ func TestAdminPurgeCrew(t *testing.T) {
 		t.Fatal(err)
 	}
 	res, err := purgeRPC(nk, purgeCrew)
-	if err != nil || !res.Done || res.MediaDeleted != 7 || !res.StoreDeleted || res.DocsDeleted < 13 {
+	if err != nil || !res.Done || res.MediaDeleted != 7 || !res.StoreDeleted || res.DocsDeleted < 14 {
 		t.Fatalf("purge = %+v err=%v", res, err)
 	}
 	if left := crewLeftovers(t, nk, store, f, purgeCrew); len(left) != 0 {
