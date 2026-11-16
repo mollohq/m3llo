@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -73,9 +74,9 @@ func TestRecapWriteOrder(t *testing.T) {
 		if len(rows) != 2 || len(docRecaps(nk, "crew")) != 2 {
 			t.Fatalf("store %d recaps, document %d", len(rows), len(docRecaps(nk, "crew")))
 		}
-		// The row: the id of the feed, the week start as its time, no actor.
+		// The row: the id of the feed, the time it was generated, no actor.
 		newest := rows[1]
-		if newest.ID != recapEntryID(monday.UnixMilli()) || newest.Timestamp != monday.UnixMilli() || newest.ActorID != "" || newest.Score != 30 {
+		if newest.ID != recapEntryID(monday.UnixMilli()) || newest.Timestamp != histRecap(monday, 10).GeneratedAt || newest.ActorID != "" || newest.Score != 30 {
 			t.Fatalf("recap row = %+v", newest)
 		}
 		if got := viewIDs(t, store, "crew"); len(got) != 0 {
@@ -191,5 +192,47 @@ func TestRecapReadersFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 	}
 	if state := crewRecapState(ctx, nk, "crew"); state.LastRecapWeek != "2026-W01" {
 		t.Fatalf("recap state = %+v", state)
+	}
+}
+
+// A recap is a counted event, and the counted queries select by time. The
+// time of its row is the time it was generated: a recap written now is among
+// the events of the last day. Crew history still files it under its week.
+func TestRecapRowIsDatedWhenItWasGenerated(t *testing.T) {
+	ctx := context.Background()
+	store := useHistoryStoreReads(t)
+	nk := hCrew(t, "rt")
+	// The recap of last week, written five minutes after the week ended. A
+	// later run wrote the recap of the week before.
+	last := hRecap(t, nk, "rt", WeeklyRecapData{WeekStart: hAt(-1, 0, 0), TotalHangoutMin: 10, TotalMin: 10})
+	late := hRecap(t, nk, "rt", WeeklyRecapData{WeekStart: hAt(-2, 0, 0), TotalHangoutMin: 20, TotalMin: 20, GeneratedAt: hAt(0, 1, 0)})
+	hClip(t, nk, "rt", StoredClip{ClipID: "c", ActorID: "u1", Ts: hAt(-2, 3, 0), DurationSeconds: 9})
+
+	// By time: both recaps are events of this week, the late one the newest.
+	rows, err := store.NewestN(ctx, "rt", ledgerCountedTypes, math.MaxInt64, 2)
+	if err != nil || len(rows) != 2 || rows[0].ID != recapEntryID(late.WeekStart) || rows[0].Timestamp != late.GeneratedAt ||
+		rows[1].ID != recapEntryID(last.WeekStart) || rows[1].Timestamp != last.GeneratedAt {
+		t.Fatalf("newest counted events = %+v err=%v", rows, err)
+	}
+	if n, _ := store.CountOlder(ctx, "rt", []string{"weekly_recap"}, hAt(0, 0, 0)); n != 0 {
+		t.Fatalf("%d recaps are older than this week, want 0", n)
+	}
+	inWeek, err := store.Between(ctx, "rt", hAt(0, 0, 0), hNow, []string{"weekly_recap"})
+	if err != nil || len(inWeek) != 2 {
+		t.Fatalf("recaps written this week = %d err=%v, want 2", len(inWeek), err)
+	}
+
+	// By week: the board has the recap of the newest week, not the one
+	// written last. Crew history files the other one under its week.
+	if got := crewLatestRecap(ctx, nk, "rt"); got == nil || got.WeekStart != last.WeekStart {
+		t.Fatalf("latest recap = %+v, want the one of last week", got)
+	}
+	z := hZones(nk, "rt", "u2", 0, hNow)
+	if z.Board.Recap == nil || z.Board.Recap.ID != recapEntryID(last.WeekStart) {
+		t.Fatalf("board recap = %+v", z.Board.Recap)
+	}
+	if len(z.History) != 1 || z.History[0].WeekStart != hAt(-2, 0, 0) || z.History[0].Recap == nil ||
+		z.History[0].Recap.ID != recapEntryID(late.WeekStart) || z.History[0].ClipCount != 1 {
+		t.Fatalf("history = %v", hWeeks(z.History))
 	}
 }

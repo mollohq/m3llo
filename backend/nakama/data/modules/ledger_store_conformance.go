@@ -686,6 +686,46 @@ func ledgerPutConformance(ctx context.Context, store ledgerStore, crewID, run st
 		return fmt.Errorf("by refs of no refs: %d rows err=%v", len(got), err)
 	}
 
+	// RefsBefore: the rows of one type by ref, the highest ref first. The
+	// refs are numbers of one width, as the week of a recap (recapWeekRef).
+	weekRow := func(name string, week, ts int64) ledgerRow {
+		return ledgerRow{Ref: recapWeekRef(week), Event: CrewEvent{ID: id(name), Type: "weekly_recap", Timestamp: ts, Score: 30,
+			Data: map[string]interface{}{"week_start": week}}}
+	}
+	// The time of a row is not its week: w_9 is the oldest week and has the
+	// newest time.
+	byWeek := []ledgerRow{weekRow("w_100", 100, now-5*day), weekRow("w_9", 9, now-day), weekRow("w_1000", 1000, now-3*day), weekRow("w_20", 20, now-4*day)}
+	if n, err := store.Put(ctx, crewID, byWeek); err != nil || n != 4 {
+		return fmt.Errorf("refs before: put: inserted=%d err=%v, want 4", n, err)
+	}
+	for _, tc := range []struct {
+		before string
+		n      int
+		want   string
+	}{
+		{"", 10, "w_1000,w_100,w_20,w_9"},
+		{"", 2, "w_1000,w_100"},
+		{recapWeekRef(100), 10, "w_20,w_9"},
+		{recapWeekRef(101), 1, "w_100"},
+		{recapWeekRef(9), 10, ""},
+		{"", 0, ""},
+	} {
+		got, err = store.RefsBefore(ctx, crewID, "weekly_recap", tc.before, tc.n)
+		if err != nil || names(got) != tc.want {
+			return fmt.Errorf("refs before %q limit %d: [%s] err=%v, want [%s]", tc.before, tc.n, names(got), err, tc.want)
+		}
+	}
+	// The recap of Put has no ref, and a ref of another type is not seen.
+	if got, err = store.RefsBefore(ctx, crewID, "game_session", "", 10); err != nil || len(got) != 0 {
+		return fmt.Errorf("refs before of a type with no ref: %d rows err=%v", len(got), err)
+	}
+	if got, err = store.NewestN(ctx, crewID, []string{"weekly_recap"}, now+1, 1); err != nil || names(got) != "w_9" {
+		return fmt.Errorf("refs before: newest by time = [%s] err=%v, want [w_9]", names(got), err)
+	}
+	if err := store.Prune(ctx, crewID, []string{id("w_100"), id("w_9"), id("w_1000"), id("w_20")}); err != nil {
+		return fmt.Errorf("refs before: prune: %w", err)
+	}
+
 	// Eight calls at once for one new ref store one row.
 	const racers = 8
 	raceRef := id("race")

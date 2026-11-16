@@ -518,6 +518,10 @@ func (failingClipReads) NewestN(context.Context, string, []string, int64, int) (
 	return nil, context.DeadlineExceeded
 }
 
+func (failingClipReads) RefsBefore(context.Context, string, string, string, int) ([]CrewEvent, error) {
+	return nil, context.DeadlineExceeded
+}
+
 func TestClipReadersFallBackToTheDocumentWhenTheStoreFails(t *testing.T) {
 	ctx := context.Background()
 	useHistoryStoreReads(t)

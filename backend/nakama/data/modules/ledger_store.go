@@ -135,6 +135,11 @@ type ledgerStore interface {
 	// ByRefs returns the rows of one type with one of these refs, in no
 	// order. An empty ref matches no row.
 	ByRefs(ctx context.Context, crewID, typ string, refs []string) ([]CrewEvent, error)
+	// RefsBefore returns up to n rows of one type that have a ref below
+	// beforeRef, the highest ref first. An empty beforeRef is no bound. A row
+	// with no ref is never returned. Refs compare as text, so a caller that
+	// wants an order uses refs of one width (recapWeekRef).
+	RefsBefore(ctx context.Context, crewID, typ, beforeRef string, n int) ([]CrewEvent, error)
 }
 
 // ledgerRow is an event and its ref, for Put.
@@ -782,6 +787,26 @@ func (m *memLedgerStore) ByRefs(_ context.Context, crewID, typ string, refs []st
 		}
 	}
 	return memLedgerEvents(m.selectRows(crewID, func(r *memLedgerRow) bool { return r.ev.Type == typ && want[r.ref] }, memByTsAsc)), nil
+}
+
+func (m *memLedgerStore) RefsBefore(_ context.Context, crewID, typ, beforeRef string, n int) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rows := m.selectRows(crewID, func(r *memLedgerRow) bool {
+		return r.ev.Type == typ && r.ref != "" && (beforeRef == "" || r.ref < beforeRef)
+	}, func(a, b *memLedgerRow) bool {
+		if a.ref != b.ref {
+			return a.ref > b.ref
+		}
+		return memByTsAsc(b, a)
+	})
+	if n < 0 {
+		n = 0
+	}
+	if len(rows) > n {
+		rows = rows[:n]
+	}
+	return memLedgerEvents(rows), nil
 }
 
 func ledgerSameOrder(a, b []string) bool {

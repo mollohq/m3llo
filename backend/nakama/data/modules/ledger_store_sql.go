@@ -596,6 +596,21 @@ func (s *sqlLedgerStore) ByRefs(ctx context.Context, crewID, typ string, refs []
 	return out, nil
 }
 
+func (s *sqlLedgerStore) RefsBefore(ctx context.Context, crewID, typ, beforeRef string, n int) ([]CrewEvent, error) {
+	if n < 0 {
+		n = 0
+	}
+	// The index (crew_id, type, ref) WHERE ref <> '' serves the range.
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+ledgerEventColumns+` FROM mello_crew_event
+		 WHERE crew_id = $1 AND type = $2 AND ref <> '' AND ($3 = '' OR ref < $3)
+		 ORDER BY ref DESC, ts DESC, id DESC LIMIT $4`, crewID, typ, beforeRef, n)
+	if err != nil {
+		return nil, err
+	}
+	return scanLedgerEvents(rows)
+}
+
 func (s *sqlLedgerStore) UpdateData(ctx context.Context, crewID, eventID string, fn func(json.RawMessage) (json.RawMessage, error)) error {
 	return s.inTx(ctx, func(tx *sql.Tx) error {
 		var data []byte

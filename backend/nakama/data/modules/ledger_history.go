@@ -666,8 +666,15 @@ func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID 
 //
 // A weekly recap is one row of type weekly_recap. Its id is recap_{week_start},
 // the id the feed gives the recap, so a crew holds one recap for a week start.
-// Its time is the week start: Crew history files a recap under the week it
-// is about, and the newest recap is the one of the newest week.
+//
+// Its time is the time the recap was written (generated_at). A recap is a
+// counted event, and the counted queries select by time: the newest N, the
+// last D days. A recap dated at its week start would be 7 days old when it is
+// written.
+//
+// Its ref is the week start (recapWeekRef). Crew history files a recap under
+// the week it is about, and the newest recap is the one of the newest week:
+// both read by ref (RefsBefore), not by time.
 //
 // A legacy ledger document can also hold weekly_recap events (the dev seed
 // writes them). The store keeps those as "ledger_weekly_recap" rows, for the
@@ -676,15 +683,50 @@ func updateClipDoc(ctx context.Context, nk runtime.NakamaModule, crewID, clipID 
 // recapRowScore is the score the merged timeline gives a recap.
 const recapRowScore = 30
 
+// recapWeekRef is the ref of the recap of a week: the week start as a number
+// of one width, so that refs order as weeks. A recap with no week start has
+// no ref.
+func recapWeekRef(weekStart int64) string {
+	if weekStart <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("%019d", weekStart)
+}
+
+// recapRowTs is the time of a recap row: generated_at. A recap that does not
+// hold it gets the end of its week, the time a recap is written.
+func recapRowTs(r WeeklyRecapData) int64 {
+	switch {
+	case r.GeneratedAt > 0:
+		return r.GeneratedAt
+	case r.WeekEnd > 0:
+		return r.WeekEnd
+	}
+	return r.WeekStart + weekMs
+}
+
 // recapRow is a weekly recap as a row.
 func recapRow(r WeeklyRecapData) ledgerRow {
-	return ledgerRow{Event: CrewEvent{
-		ID:        recapEntryID(r.WeekStart),
-		Type:      ledgerTypeWeeklyRecap,
-		Timestamp: r.WeekStart,
-		Score:     recapRowScore,
-		Data:      r,
-	}}
+	return ledgerRow{
+		Ref: recapWeekRef(r.WeekStart),
+		Event: CrewEvent{
+			ID:        recapEntryID(r.WeekStart),
+			Type:      ledgerTypeWeeklyRecap,
+			Timestamp: recapRowTs(r),
+			Score:     recapRowScore,
+			Data:      r,
+		},
+	}
+}
+
+// newestWeekRecaps returns up to n recaps of a crew from the store, the
+// newest week first. beforeWeek bounds the week start, 0 is no bound.
+func newestWeekRecaps(ctx context.Context, store ledgerStore, crewID string, beforeWeek int64, n int) ([]WeeklyRecapData, error) {
+	rows, err := store.RefsBefore(ctx, crewID, ledgerTypeWeeklyRecap, recapWeekRef(beforeWeek), n)
+	if err != nil {
+		return nil, err
+	}
+	return recapsFromRows(rows), nil
 }
 
 // recapFromRow is the weekly recap of a row.
@@ -737,9 +779,9 @@ var recapHistoryKind = &historyKind{
 // the crew has none.
 func crewLatestRecap(ctx context.Context, nk runtime.NakamaModule, crewID string) *WeeklyRecapData {
 	if store := historyTruthStore(ctx, nk); store != nil {
-		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeWeeklyRecap}, math.MaxInt64, 1)
+		recaps, err := newestWeekRecaps(ctx, store, crewID, 0, 1)
 		if err == nil {
-			if recaps := recapsFromRows(rows); len(recaps) > 0 {
+			if len(recaps) > 0 {
 				return &recaps[0]
 			}
 			return nil
@@ -765,9 +807,9 @@ func crewLatestRecap(ctx context.Context, nk runtime.NakamaModule, crewID string
 // week in the store.
 func crewRecapState(ctx context.Context, nk runtime.NakamaModule, crewID string) *CrewRecapsDoc {
 	if store := historyTruthStore(ctx, nk); store != nil {
-		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeWeeklyRecap}, math.MaxInt64, 1)
+		recaps, err := newestWeekRecaps(ctx, store, crewID, 0, 1)
 		if err == nil {
-			state := &CrewRecapsDoc{CrewID: crewID, Recaps: recapsFromRows(rows)}
+			state := &CrewRecapsDoc{CrewID: crewID, Recaps: recaps}
 			if len(state.Recaps) > 0 {
 				state.LastRecapWeek = isoWeekKey(time.UnixMilli(state.Recaps[0].WeekEnd))
 			}
@@ -909,37 +951,50 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 		return data, err
 	}
 
-	// The recap of the board: the newest one that is not empty.
+	// The recap of the board: the one of the newest week that is not empty.
 	boardWeek := int64(-1)
-	for before := int64(math.MaxInt64); boardWeek < 0; {
-		rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeWeeklyRecap}, before, zoneBoardRecapBatch)
+	for beforeWeek := int64(0); boardWeek < 0; {
+		recaps, err := newestWeekRecaps(ctx, store, crewID, beforeWeek, zoneBoardRecapBatch)
 		if err != nil {
 			return data, err
 		}
-		for _, ev := range rows {
-			if r, ok := recapFromRow(ev); ok && !isEmptyRecap(r) {
+		for _, r := range recaps {
+			if !isEmptyRecap(r) {
 				data.Recaps = append(data.Recaps, r)
 				boardWeek = r.WeekStart
 				break
 			}
 		}
-		if len(rows) < zoneBoardRecapBatch {
+		if len(recaps) < zoneBoardRecapBatch {
 			break
 		}
-		before = rows[len(rows)-1].Timestamp
+		beforeWeek = recaps[len(recaps)-1].WeekStart
 	}
 
 	// One page of Crew history, and one week more.
+	//
+	// The weeks that hold a clip or a stream session come from the week
+	// rollup (WeeksBefore). The time of a recap row is not in its week, so
+	// the recaps come by their week (newestWeekRecaps). A week counts when
+	// zoneHistory takes something of it: a clip or a stream session older
+	// than the free window, or a recap with content that is not the recap of
+	// the board.
 	//
 	// Two rows can hold one session id (stop_stream and the socket drop both
 	// ended the stream). The feed lists the newer one. The older one is
 	// dropped before the weeks are counted (dropSupersededStreamRows), so a
 	// page is not short and no page lists the session a second time.
 	const want = zonesHistoryPageWeeks + 1
-	before := historyBefore
-	if before <= 0 {
-		before = math.MaxInt64
+	const batch = 2 * want
+	// zoneHistory takes the weeks that start before historyBefore.
+	before := int64(math.MaxInt64)
+	if historyBefore > 0 {
+		before = weekStartOf(historyBefore)
+		if before < historyBefore {
+			before += weekMs
+		}
 	}
+	mediaTypes := []string{ledgerTypeClip, ledgerTypeStreamSession}
 	weekKept := map[int64]int{}    // week start -> clips and recaps kept
 	weekStreams := map[int64]int{} // week start -> stream sessions kept
 	found := func() int {
@@ -952,49 +1007,92 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 		return n
 	}
 	for {
-		weeks, err := store.WeeksBefore(ctx, crewID, zoneHistoryTypes, before, 2*want)
+		mediaWeeks, err := store.WeeksBefore(ctx, crewID, mediaTypes, before, batch)
 		if err != nil {
 			return data, err
 		}
+		recapBefore := before
+		if before == math.MaxInt64 {
+			recapBefore = 0
+		}
+		recaps, err := newestWeekRecaps(ctx, store, crewID, recapBefore, batch)
+		if err != nil {
+			return data, err
+		}
+		// The weeks of this round, newest first. A list that is full can
+		// have more below its last week, so the round stops there: the week
+		// rollup holds a week whole, a list of recaps can end inside one.
+		floor := int64(math.MinInt64)
+		hasMedia := map[int64]bool{}
+		weekRecaps := map[int64][]WeeklyRecapData{}
+		for _, w := range mediaWeeks {
+			hasMedia[w.WeekStart] = true
+		}
+		if len(mediaWeeks) == batch {
+			floor = mediaWeeks[batch-1].WeekStart
+		}
+		for _, r := range recaps {
+			w := weekStartOf(r.WeekStart)
+			weekRecaps[w] = append(weekRecaps[w], r)
+		}
+		if len(recaps) == batch {
+			if last := weekStartOf(recaps[batch-1].WeekStart) + weekMs; last > floor {
+				floor = last
+			}
+		}
+		weeks := make([]int64, 0, len(hasMedia)+len(weekRecaps))
+		for w := range hasMedia {
+			if w >= floor {
+				weeks = append(weeks, w)
+			}
+		}
+		for w := range weekRecaps {
+			if w >= floor && !hasMedia[w] {
+				weeks = append(weeks, w)
+			}
+		}
+		sort.Slice(weeks, func(i, j int) bool { return weeks[i] > weeks[j] })
+		more := len(mediaWeeks) == batch || len(recaps) == batch
+		if len(weeks) == 0 && more {
+			// More recaps of one week than a batch holds. No crew has them.
+			return data, fmt.Errorf("crew %s: the recaps before week %d do not fit one read", crewID, before)
+		}
+
 		var fresh []CrewEvent
 		maybe := found()
 		for _, w := range weeks {
-			before = w.WeekStart
-			// A week that starts in the free window has no clip or stream
-			// session for Crew history. Only its recap is read.
-			types := zoneHistoryTypes
-			if w.WeekStart >= windowStart {
-				types = []string{ledgerTypeWeeklyRecap}
-			}
-			rows, err := store.Between(ctx, crewID, w.WeekStart, w.WeekStart+weekMs-1, types)
-			if err != nil {
-				return data, err
-			}
-			// What zoneHistory takes of this week: the clips and stream
-			// sessions older than the window, and a recap with content that
-			// is not the recap of the board.
+			before = w
 			kept, streams := 0, 0
-			for _, ev := range rows {
-				switch ev.Type {
-				case ledgerTypeWeeklyRecap:
-					if r, ok := recapFromRow(ev); ok && r.WeekStart > 0 && r.WeekStart != boardWeek && !isEmptyRecap(r) {
-						data.Recaps = append(data.Recaps, r)
-						kept++
-					}
-				case ledgerTypeClip:
-					if c, ok := clipFromRow(ev); ok && c.Ts < windowStart {
-						data.Clips = append(data.Clips, c)
-						kept++
-					}
-				case ledgerTypeStreamSession:
-					if ev.Timestamp < windowStart {
-						fresh = append(fresh, ev)
-						streams++
+			for _, r := range weekRecaps[w] {
+				if r.WeekStart != boardWeek && !isEmptyRecap(r) {
+					data.Recaps = append(data.Recaps, r)
+					kept++
+				}
+			}
+			// A week that starts in the free window has no clip or stream
+			// session for Crew history.
+			if hasMedia[w] && w < windowStart {
+				rows, err := store.Between(ctx, crewID, w, w+weekMs-1, mediaTypes)
+				if err != nil {
+					return data, err
+				}
+				for _, ev := range rows {
+					switch ev.Type {
+					case ledgerTypeClip:
+						if c, ok := clipFromRow(ev); ok && c.Ts < windowStart {
+							data.Clips = append(data.Clips, c)
+							kept++
+						}
+					case ledgerTypeStreamSession:
+						if ev.Timestamp < windowStart {
+							fresh = append(fresh, ev)
+							streams++
+						}
 					}
 				}
 			}
 			if kept > 0 {
-				weekKept[w.WeekStart] += kept
+				weekKept[w] += kept
 			}
 			if kept+streams > 0 {
 				if maybe++; maybe >= want {
@@ -1009,7 +1107,7 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 			weekStreams[weekStartOf(ev.Timestamp)]++
 		}
 		streamRows = append(streamRows, fresh...)
-		if found() >= want || (maybe < want && len(weeks) < 2*want) {
+		if found() >= want || (maybe < want && !more) {
 			break
 		}
 	}
