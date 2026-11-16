@@ -13,6 +13,7 @@ import (
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -45,6 +46,8 @@ type delNk struct {
 	promotes []string
 	// groupUpdates counts the group updates.
 	groupUpdates int
+	// onGroupRead runs before each group read.
+	onGroupRead func()
 	// userGroupsErr makes the list of the crews of a user fail. groupsPage
 	// is the page size of that list (0: one page). userGroupsCalls counts
 	// the calls.
@@ -60,11 +63,20 @@ func newDelNk() *delNk {
 
 func (n *delNk) versionOf(k string) string { return fmt.Sprintf("v%d", n.versions[k]) }
 
+// GroupsGetId returns a copy of each group, as a read of Nakama does.
 func (n *delNk) GroupsGetId(ctx context.Context, ids []string) ([]*api.Group, error) {
 	if n.groupErr != nil {
 		return nil, n.groupErr
 	}
-	return n.fakeGuestNk.GroupsGetId(ctx, ids)
+	if n.onGroupRead != nil {
+		n.onGroupRead()
+	}
+	groups, err := n.fakeGuestNk.GroupsGetId(ctx, ids)
+	out := make([]*api.Group, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, proto.Clone(g).(*api.Group))
+	}
+	return out, err
 }
 
 // GroupUsersList lists the members as Nakama does: the members of one state

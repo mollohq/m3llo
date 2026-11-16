@@ -6,6 +6,7 @@ import (
 
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -292,5 +293,54 @@ func TestHandoverMovesTheQuestsOwner(t *testing.T) {
 	}
 	if left := leftoverTraces(nk, scrubCrew); len(left) != 0 {
 		t.Fatalf("documents that name the user: %v", left)
+	}
+}
+
+// The group update has no version check. A group that another writer changes
+// between the two reads of the scrub is not written: the change stays, and
+// the next run removes the user.
+func TestGroupCreatorSkipsAGroupThatChanged(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	useScrubInline(t)
+	memEdgesOf(t, nk)
+	nk.groups[scrubCrew] = &api.Group{Id: scrubCrew, CreatorId: goneUser, Open: wrapperspb.Bool(true),
+		Metadata: `{"created_by":"` + goneUser + `","invite_policy":"admins"}`}
+	nk.addMemberAs(scrubCrew, goneUser, goneName, 0)
+	nk.addMemberAs(scrubCrew, "u1", "Ann", 1)
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	nakamaRemoveAccount(nk, goneUser)
+	// The new owner closes the crew and changes a policy while the scrub is
+	// between its two reads of the group in groupCreator. Before them it
+	// reads the group twice: for the scrub and for the owner repair.
+	changed := `{"created_by":"` + goneUser + `","invite_policy":"everyone"}`
+	reads := 0
+	nk.onGroupRead = func() {
+		if reads++; reads == 4 {
+			nk.groups[scrubCrew].Open = wrapperspb.Bool(false)
+			nk.groups[scrubCrew].Metadata = changed
+		}
+	}
+	if err := AfterDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	g := nk.groups[scrubCrew]
+	if nk.groupUpdates != 0 || g.GetOpen().GetValue() || g.GetMetadata() != changed {
+		t.Fatalf("the scrub wrote over the change: updates=%d open=%t metadata=%s", nk.groupUpdates, g.GetOpen().GetValue(), g.GetMetadata())
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs != 0 || len(rec.Crews) != 1 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+	// The next run removes the user and keeps the change.
+	nk.onGroupRead = nil
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	g = nk.groups[scrubCrew]
+	if g.GetCreatorId() != "u1" || g.GetOpen().GetValue() || g.GetMetadata() != `{"invite_policy":"everyone"}` {
+		t.Fatalf("group = creator %q open %t metadata %s", g.GetCreatorId(), g.GetOpen().GetValue(), g.GetMetadata())
+	}
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
+		t.Fatalf("scrub record = %+v", rec)
 	}
 }

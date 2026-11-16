@@ -2,8 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/heroiclabs/nakama-common/api"
 )
 
 // The scrub of a deleted account outside the ledger
@@ -162,47 +165,83 @@ func (c *crewScrub) crewOwnerNow() (string, error) {
 	return "", nil
 }
 
+// errGroupChanged is the error of a group update that was not made: the
+// group changed between the two reads. The next run of the scrub tries again.
+var errGroupChanged = errors.New("the group changed during the scrub")
+
+// groupCreatorPlan says what a group update must change to remove the user
+// from a group: creator_id, and created_by in the metadata. needed is false
+// for a group that does not name the user. metadata is nil when the metadata
+// stays.
+func groupCreatorPlan(g *api.Group, userID string) (needsCreator bool, metadata map[string]interface{}, err error) {
+	if raw := g.GetMetadata(); raw != "" {
+		var doc map[string]interface{}
+		if err := json.Unmarshal([]byte(raw), &doc); err != nil {
+			return false, nil, err
+		}
+		if by, _ := doc["created_by"].(string); by == userID {
+			delete(doc, "created_by")
+			metadata = doc
+		}
+	}
+	return g.GetCreatorId() == userID, metadata, nil
+}
+
 // groupCreator removes the user from the group of the crew: creator_id, and
 // created_by in the metadata. Nakama keeps both when the account is deleted
 // and the group stays. creator_id becomes the owner the crew has now: the
 // group update of Nakama cannot clear it. created_by is removed.
+//
+// The group update of Nakama (GroupUpdate) has no version check. An empty
+// name, description, avatar, language and creator stay as they are, and so
+// does a nil metadata. The open flag is always written, and a metadata that
+// is given replaces the whole metadata (verified on Nakama 3.21.0,
+// dev_delete_selftest). So the update can undo a change of the open flag or
+// of the metadata that another writer makes at the same time. To keep that
+// time short the group is read again right before the update: when the open
+// flag, the metadata or the creator are not the same, nothing is written.
 func (c *crewScrub) groupCreator() error {
 	userID := c.rec.UserID
-	groups, err := c.nk.GroupsGetId(c.ctx, []string{c.crewID})
+	read := func() (*api.Group, error) {
+		groups, err := c.nk.GroupsGetId(c.ctx, []string{c.crewID})
+		if err != nil {
+			return nil, err
+		}
+		for _, g := range groups {
+			if g.GetId() == c.crewID {
+				return g, nil
+			}
+		}
+		return nil, nil
+	}
+	g, err := read()
+	if err != nil || g == nil {
+		return err
+	}
+	needsCreator, metadata, err := groupCreatorPlan(g, userID)
 	if err != nil {
 		return err
 	}
-	for _, g := range groups {
-		if g.GetId() != c.crewID {
-			continue
-		}
-		// A nil metadata leaves the metadata of the group as it is.
-		var metadata map[string]interface{}
-		if raw := g.GetMetadata(); raw != "" {
-			var doc map[string]interface{}
-			if err := json.Unmarshal([]byte(raw), &doc); err != nil {
-				return err
-			}
-			if by, _ := doc["created_by"].(string); by == userID {
-				delete(doc, "created_by")
-				metadata = doc
-			}
-		}
-		creator := ""
-		if g.GetCreatorId() == userID {
-			if creator, err = c.crewOwnerNow(); err != nil {
-				return err
-			}
-		}
-		if creator == "" && metadata == nil {
-			return nil
-		}
-		// Empty values leave the name, the description and the avatar.
-		if err := c.nk.GroupUpdate(c.ctx, c.crewID, "", "", creator, "", "", "", g.GetOpen().GetValue(), metadata, 0); err != nil {
+	creator := ""
+	if needsCreator {
+		if creator, err = c.crewOwnerNow(); err != nil {
 			return err
 		}
-		c.res.Changed++
 	}
+	if creator == "" && metadata == nil {
+		return nil
+	}
+	now, err := read()
+	if err != nil {
+		return err
+	}
+	if now == nil || now.GetOpen().GetValue() != g.GetOpen().GetValue() || now.GetMetadata() != g.GetMetadata() || now.GetCreatorId() != g.GetCreatorId() {
+		return errGroupChanged
+	}
+	if err := c.nk.GroupUpdate(c.ctx, c.crewID, "", "", creator, "", "", "", now.GetOpen().GetValue(), metadata, 0); err != nil {
+		return err
+	}
+	c.res.Changed++
 	return nil
 }
 
