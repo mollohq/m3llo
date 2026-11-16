@@ -117,6 +117,18 @@ type ledgerStore interface {
 	DeleteCrew(ctx context.Context, crewID string) error
 	// EventsNamingUser returns every event that names the user.
 	EventsNamingUser(ctx context.Context, userID string) ([]CrewEvent, error)
+	// UserCrews returns the ids of the crews that hold an event which names
+	// the user, sorted.
+	UserCrews(ctx context.Context, userID string) ([]string, error)
+	// NamingUserInCrew returns up to n events of one crew that name the user,
+	// oldest first, under the type the store keeps. The scrub of a deleted
+	// account reads a crew in such batches: each event it handled no longer
+	// names the user (Delete, or UpdateData and ForgetUser).
+	NamingUserInCrew(ctx context.Context, userID, crewID string, n int) ([]CrewEvent, error)
+	// ForgetUser removes the user from the user index of these events of a
+	// crew. The data of the events is not changed. With no event ids it
+	// removes the user from the index of the whole crew.
+	ForgetUser(ctx context.Context, userID, crewID string, eventIDs []string) error
 
 	// Put stores rows that do not come from the legacy ledger document: a
 	// clip, a weekly recap, a stream session of the durable copy. Such a row
@@ -717,6 +729,66 @@ func (m *memLedgerStore) EventsNamingUser(_ context.Context, userID string) ([]C
 		out = append(out, memLedgerEvents(rows)...)
 	}
 	return out, nil
+}
+
+func (m *memLedgerStore) UserCrews(_ context.Context, userID string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := []string{}
+	for crewID, rows := range m.rows {
+		for _, r := range rows {
+			if memRowNames(r, userID) {
+				out = append(out, crewID)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out, nil
+}
+
+func memRowNames(r *memLedgerRow, userID string) bool {
+	for _, u := range r.users {
+		if u == userID {
+			return true
+		}
+	}
+	return false
+}
+
+func (m *memLedgerStore) NamingUserInCrew(_ context.Context, userID, crewID string, n int) ([]CrewEvent, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	rows := m.selectRows(crewID, func(r *memLedgerRow) bool { return memRowNames(r, userID) }, memByTsAsc)
+	if n < 0 {
+		n = 0
+	}
+	if len(rows) > n {
+		rows = rows[:n]
+	}
+	return memLedgerEvents(rows), nil
+}
+
+func (m *memLedgerStore) ForgetUser(_ context.Context, userID, crewID string, eventIDs []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	want := make(map[string]bool, len(eventIDs))
+	for _, id := range eventIDs {
+		want[id] = true
+	}
+	for _, r := range m.rows[crewID] {
+		if len(want) > 0 && !want[r.ev.ID] {
+			continue
+		}
+		kept := r.users[:0:0]
+		for _, u := range r.users {
+			if u != userID {
+				kept = append(kept, u)
+			}
+		}
+		r.users = kept
+	}
+	return nil
 }
 
 func (m *memLedgerStore) Put(_ context.Context, crewID string, rows []ledgerRow) (int, error) {

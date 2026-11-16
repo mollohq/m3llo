@@ -827,6 +827,67 @@ func (s *sqlLedgerStore) EventsNamingUser(ctx context.Context, userID string) ([
 	return scanLedgerEvents(rows)
 }
 
+func (s *sqlLedgerStore) UserCrews(ctx context.Context, userID string) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT DISTINCT crew_id FROM mello_crew_event_user WHERE user_id = $1 ORDER BY crew_id ASC`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []string{}
+	for rows.Next() {
+		var crewID string
+		if err := rows.Scan(&crewID); err != nil {
+			return nil, err
+		}
+		out = append(out, crewID)
+	}
+	return out, rows.Err()
+}
+
+func (s *sqlLedgerStore) NamingUserInCrew(ctx context.Context, userID, crewID string, n int) ([]CrewEvent, error) {
+	if n < 0 {
+		n = 0
+	}
+	// The primary key (user_id, crew_id, event_id) serves the user rows.
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT e.crew_id, e.id, e.type, e.actor_id, e.ts, e.score, e.data
+		 FROM mello_crew_event_user u
+		 JOIN mello_crew_event e ON e.crew_id = u.crew_id AND e.id = u.event_id
+		 WHERE u.user_id = $1 AND u.crew_id = $2
+		 ORDER BY e.ts ASC, e.id ASC LIMIT $3`, userID, crewID, n)
+	if err != nil {
+		return nil, err
+	}
+	return scanLedgerEvents(rows)
+}
+
+func (s *sqlLedgerStore) ForgetUser(ctx context.Context, userID, crewID string, eventIDs []string) error {
+	if len(eventIDs) == 0 {
+		_, err := s.db.ExecContext(ctx,
+			`DELETE FROM mello_crew_event_user WHERE user_id = $1 AND crew_id = $2`, userID, crewID)
+		return err
+	}
+	for start := 0; start < len(eventIDs); start += ledgerByIDsChunk {
+		end := start + ledgerByIDsChunk
+		if end > len(eventIDs) {
+			end = len(eventIDs)
+		}
+		args := []interface{}{userID, crewID}
+		marks := make([]string, 0, end-start)
+		for _, id := range eventIDs[start:end] {
+			args = append(args, id)
+			marks = append(marks, fmt.Sprintf("$%d", len(args)))
+		}
+		if _, err := s.db.ExecContext(ctx,
+			`DELETE FROM mello_crew_event_user
+			 WHERE user_id = $1 AND crew_id = $2 AND event_id IN (`+strings.Join(marks, ", ")+`)`, args...); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DevLedgerSelftestRPC runs the store conformance on the real ledger tables.
 // It writes only to two crews with a new random id and deletes them at the
 // end. Gated behind MELLO_ENABLE_DEV_FAULT=1, as the other dev RPCs that

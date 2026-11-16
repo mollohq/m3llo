@@ -134,6 +134,21 @@ func (c *queryCounter) EventsNamingUser(ctx context.Context, userID string) ([]C
 	return c.events("EventsNamingUser", events, err)
 }
 
+func (c *queryCounter) UserCrews(ctx context.Context, userID string) ([]string, error) {
+	c.call("UserCrews", 0)
+	return c.inner.UserCrews(ctx, userID)
+}
+
+func (c *queryCounter) NamingUserInCrew(ctx context.Context, userID, crewID string, n int) ([]CrewEvent, error) {
+	events, err := c.inner.NamingUserInCrew(ctx, userID, crewID, n)
+	return c.events("NamingUserInCrew", events, err)
+}
+
+func (c *queryCounter) ForgetUser(ctx context.Context, userID, crewID string, eventIDs []string) error {
+	c.call("ForgetUser", 0)
+	return c.inner.ForgetUser(ctx, userID, crewID, eventIDs)
+}
+
 func (c *queryCounter) Put(ctx context.Context, crewID string, rows []ledgerRow) (int, error) {
 	c.call("Put", 0)
 	return c.inner.Put(ctx, crewID, rows)

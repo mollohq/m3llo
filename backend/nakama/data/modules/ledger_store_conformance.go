@@ -22,11 +22,12 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 	crewA := "selftest_a_" + run
 	crewB := "selftest_b_" + run
 	crewC := "selftest_c_" + run
+	crewD := "selftest_d_" + run
 	user := "selftest_user_" + run
 	now := ledgerNow().UnixMilli()
 
 	defer func() {
-		for _, crewID := range []string{crewA, crewB, crewC} {
+		for _, crewID := range []string{crewA, crewB, crewC, crewD} {
 			if delErr := store.DeleteCrew(ctx, crewID); delErr != nil && err == nil {
 				err = fmt.Errorf("cleanup of %s: %w", crewID, delErr)
 			}
@@ -441,6 +442,11 @@ func ledgerStoreConformance(ctx context.Context, store ledgerStore) (err error) 
 		return err
 	}
 
+	// The reads and writes of the deletion rules (section 7).
+	if err := ledgerScrubConformance(ctx, store, crewD, run, now); err != nil {
+		return err
+	}
+
 	// DeleteCrew removes everything.
 	if err = store.DeleteCrew(ctx, crewB); err != nil {
 		return fmt.Errorf("delete crew: %w", err)
@@ -802,4 +808,127 @@ func ledgerPutConformance(ctx context.Context, store ledgerStore, crewID, run st
 
 	// None of this moved the view.
 	return view("at the end of put", "p_stream")
+}
+
+// ledgerScrubConformance checks what the scrub of a deleted account and the
+// purge of a crew use: UserCrews, NamingUserInCrew, ForgetUser, the memory of
+// Delete for a row of Put, and DeleteCrew on the user index and that memory.
+// It writes only to crewID.
+func ledgerScrubConformance(ctx context.Context, store ledgerStore, crewID, run string, now int64) error {
+	const hour = int64(60 * 60 * 1000)
+	gone := "selftest_gone_" + run
+	other := "selftest_stays_" + run
+	id := func(name string) string { return name + "_" + run }
+	names := func(events []CrewEvent) string {
+		out := make([]string, 0, len(events))
+		for _, e := range events {
+			out = append(out, strings.TrimSuffix(e.ID, "_"+run))
+		}
+		return strings.Join(out, ",")
+	}
+	crews := func(userID string) (string, error) {
+		list, err := store.UserCrews(ctx, userID)
+		if err != nil {
+			return "", err
+		}
+		mine := []string{}
+		for _, c := range list {
+			if c == crewID {
+				mine = append(mine, "d")
+			}
+		}
+		return strings.Join(mine, ","), nil
+	}
+
+	if got, err := crews(gone); err != nil || got != "" {
+		return fmt.Errorf("user crews of an unknown user = [%s] err=%v", got, err)
+	}
+	own := CrewEvent{ID: id("s_own"), CrewID: crewID, Type: "game_session", ActorID: gone, Timestamp: now - 5*hour,
+		Data: GameSessionData{GameName: "Game", PlayerIDs: []string{gone}}}
+	shared := CrewEvent{ID: id("s_shared"), CrewID: crewID, Type: "voice_session", Timestamp: now - 4*hour,
+		Data: VoiceSessionData{ParticipantIDs: []string{other, gone, "third_" + run}, ParticipantNames: []string{"A", "B", "C"}}}
+	for _, ev := range []CrewEvent{own, shared} {
+		if ok, err := store.Append(ctx, ev, ""); err != nil || !ok {
+			return fmt.Errorf("append %s: inserted=%v err=%v", ev.ID, ok, err)
+		}
+	}
+	clip := clipRow(StoredClip{EventID: id("s_ev"), ClipID: id("s_clipid"), ActorID: other, Ts: now - 3*hour, Participants: []string{gone}})
+	recap := recapRow(WeeklyRecapData{CrewID: crewID, WeekStart: weekStartOf(now - 14*24*hour), GeneratedAt: now - 2*hour,
+		TopMembers: []RecapMember{{UserID: gone, DisplayName: "B"}, {UserID: other, DisplayName: "A"}}})
+	if n, err := store.Put(ctx, crewID, []ledgerRow{clip, recap}); err != nil || n != 2 {
+		return fmt.Errorf("put of a clip and a recap: inserted=%d err=%v", n, err)
+	}
+	if got, err := crews(gone); err != nil || got != "d" {
+		return fmt.Errorf("user crews = [%s] err=%v, want the crew", got, err)
+	}
+
+	// The rows of the user in the crew, in batches, oldest first. A recap row
+	// names the members it lists.
+	got, err := store.NamingUserInCrew(ctx, gone, crewID, 2)
+	if err != nil || names(got) != "s_own,s_shared" {
+		return fmt.Errorf("naming user, first 2: [%s] err=%v", names(got), err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, gone, crewID, 100); err != nil || len(got) != 4 || got[2].ID != clip.Event.ID || got[3].ID != recap.Event.ID {
+		return fmt.Errorf("naming user, all: [%s] err=%v, want 4 rows with the clip and the recap last", names(got), err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, gone, "selftest_no_crew_"+run, 100); err != nil || len(got) != 0 {
+		return fmt.Errorf("naming user in another crew: %d rows err=%v", len(got), err)
+	}
+
+	// Delete removes the row of the user from the index. ForgetUser removes
+	// the user from the index of a row that stays.
+	if err = store.Delete(ctx, crewID, own.ID); err != nil {
+		return fmt.Errorf("delete of the own event: %w", err)
+	}
+	if err = store.ForgetUser(ctx, gone, crewID, []string{shared.ID}); err != nil {
+		return fmt.Errorf("forget user: %w", err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, gone, crewID, 100); err != nil || len(got) != 2 || got[0].ID != clip.Event.ID {
+		return fmt.Errorf("naming user after delete and forget: [%s] err=%v", names(got), err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, other, crewID, 100); err != nil || len(got) != 3 {
+		return fmt.Errorf("the other user after forget: [%s] err=%v, want 3 rows", names(got), err)
+	}
+	if got, err = store.ByIDs(ctx, crewID, []string{shared.ID}); err != nil || len(got) != 1 {
+		return fmt.Errorf("the shared event after forget: %d rows err=%v", len(got), err)
+	}
+	// With no event ids ForgetUser clears the user from the whole crew.
+	if err = store.ForgetUser(ctx, gone, crewID, nil); err != nil {
+		return fmt.Errorf("forget user in the crew: %w", err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, gone, crewID, 100); err != nil || len(got) != 0 {
+		return fmt.Errorf("naming user after forget of the crew: [%s] err=%v", names(got), err)
+	}
+	if got, err := crews(gone); err != nil || got != "" {
+		return fmt.Errorf("user crews after forget = [%s] err=%v", got, err)
+	}
+
+	// A row that Delete removed stays out: of Put and of Backfill.
+	if err = store.Delete(ctx, crewID, clip.Event.ID); err != nil {
+		return fmt.Errorf("delete of the clip row: %w", err)
+	}
+	if n, err := store.Put(ctx, crewID, []ledgerRow{clip}); err != nil || n != 0 {
+		return fmt.Errorf("put of a deleted clip row: inserted=%d err=%v, want 0", n, err)
+	}
+	if n, err := store.Backfill(ctx, crewID, []CrewEvent{own}, now, true); err != nil || n != 0 {
+		return fmt.Errorf("backfill of a deleted event: inserted=%d err=%v, want 0", n, err)
+	}
+
+	// DeleteCrew removes the rows, the user index and the memory of Delete.
+	if err = store.DeleteCrew(ctx, crewID); err != nil {
+		return fmt.Errorf("delete crew: %w", err)
+	}
+	if got, err := crews(other); err != nil || got != "" {
+		return fmt.Errorf("user crews after delete crew = [%s] err=%v", got, err)
+	}
+	if got, err = store.NamingUserInCrew(ctx, other, crewID, 100); err != nil || len(got) != 0 {
+		return fmt.Errorf("naming user after delete crew: %d rows err=%v", len(got), err)
+	}
+	if got, err = store.ByIDs(ctx, crewID, []string{shared.ID, recap.Event.ID}); err != nil || len(got) != 0 {
+		return fmt.Errorf("rows after delete crew: %d err=%v", len(got), err)
+	}
+	if n, err := store.Put(ctx, crewID, []ledgerRow{clip}); err != nil || n != 1 {
+		return fmt.Errorf("put after delete crew: inserted=%d err=%v, want 1: the memory of Delete is gone", n, err)
+	}
+	return nil
 }
