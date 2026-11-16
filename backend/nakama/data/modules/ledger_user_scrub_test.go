@@ -899,3 +899,42 @@ func TestScrubReportsMediaItDoesNotDelete(t *testing.T) {
 		t.Fatalf("admin_scrub_user = %+v err=%v", res, err)
 	}
 }
+
+// The account scrub removes the user from the head2head holders document, so
+// a recap written after the scrub cannot name the user through its belts.
+// A crew that holds the user only in that document is found by the scan.
+func TestScrubUserFromHead2head(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	holders := func(crewID string) Head2headDoc {
+		return Head2headDoc{CrewID: crewID, Members: []string{"u1", goneUser}, MemberCount: 2,
+			Titles: []Head2headTitle{
+				{TitleID: titleTheCarry, HolderUserID: goneUser, SinceMs: 1},
+				{TitleID: titleNightOwl, HolderUserID: "u1", PreviousHolderUserID: goneUser, SinceMs: 2, MovedAtMs: 2},
+			},
+			Pairs: []Head2headPair{{A: "u1", B: goneUser, Values: []Head2headPairValue{}}}}
+	}
+	nk.groups[awayCrew] = &api.Group{Id: awayCrew}
+	for _, crewID := range []string{scrubCrew, awayCrew} {
+		nk.put(CrewHead2headCollection, head2headKey(crewID), SystemUserID, holders(crewID))
+	}
+	deleteAccount(t, nk, goneUser)
+	for _, crewID := range []string{scrubCrew, awayCrew} {
+		doc, _ := readHead2headDoc(context.Background(), nk, crewID)
+		raw, _ := json.Marshal(doc)
+		if doc == nil || strings.Contains(string(raw), goneUser) {
+			t.Fatalf("holders of crew %s = %s", crewID[:4], raw)
+		}
+		if len(doc.Titles) != 1 || doc.Titles[0].HolderUserID != "u1" || doc.Titles[0].MovedAtMs != 2 || len(doc.Pairs) != 0 {
+			t.Fatalf("holders of crew %s = %s", crewID[:4], raw)
+		}
+		recap := WeeklyRecapData{CrewID: crewID}
+		moved, held := buildRecapBelts(doc, 0, time.Now().UnixMilli(), func(id string) string { return id })
+		recap.BeltsMoved, recap.BeltsHeld = moved, held
+		if out, _ := json.Marshal(recap); strings.Contains(string(out), goneUser) {
+			t.Fatalf("a recap after the scrub names the user: %s", out)
+		}
+	}
+}

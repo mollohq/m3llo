@@ -411,9 +411,22 @@ func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID strin
 	})
 }
 
-// scrubScanCollections are the legacy documents the scrub scans for the id of
-// the user, in order.
-var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection}
+// scrubScanCollections are the documents the scrub scans for the id of the
+// user, in order: the legacy documents of the ledger, and the head2head
+// holders documents.
+var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection}
+
+// scrubScanCrewID is the crew id of a scanned document, from its key.
+func scrubScanCrewID(collection, key string) string {
+	if collection == CrewHead2headCollection {
+		crewID, ok := strings.CutPrefix(key, head2headKeyPrefix)
+		if !ok {
+			return ""
+		}
+		return crewID
+	}
+	return key
+}
 
 // discoverUserCrews adds to the record the crews that hold the user: the
 // crews of the user index of the store, and the crews whose legacy documents
@@ -441,8 +454,8 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 		}
 		for _, obj := range objects {
 			// The id of the user anywhere in the document, in any field.
-			if obj.GetKey() != "" && strings.Contains(obj.GetValue(), rec.UserID) {
-				rec.addCrews(obj.GetKey())
+			if strings.Contains(obj.GetValue(), rec.UserID) {
+				rec.addCrews(scrubScanCrewID(collection, obj.GetKey()))
 			}
 		}
 		rec.ScanCursor = next
@@ -680,6 +693,9 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		}
 	}
 	if err := c.recaps(currentLedger()); err != nil {
+		return false, err
+	}
+	if err := c.head2head(); err != nil {
 		return false, err
 	}
 	InvalidateCrewState(crewID)
@@ -1019,6 +1035,30 @@ func (c *crewScrub) recaps(store ledgerStore) error {
 			return fmt.Errorf("store update: %w", err)
 		}
 		c.res.Changed++
+	}
+	return nil
+}
+
+// head2head scrubs the holders document of the crew. The weekly recap makes
+// its belt sections from this document, so without this a recap written
+// after the scrub names the user again (scrubHead2headForUser).
+func (c *crewScrub) head2head() error {
+	err := scrubDoc(c.ctx, c.nk, CrewHead2headCollection, head2headKey(c.crewID), func(value string) (string, bool, error) {
+		var doc Head2headDoc
+		if err := json.Unmarshal([]byte(value), &doc); err != nil {
+			return "", false, err
+		}
+		out, changed := scrubHead2headForUser(doc, c.rec.UserID)
+		if !changed {
+			return "", false, nil
+		}
+		c.res.Changed++
+		out.UpdatedAt = time.Now().UnixMilli()
+		data, err := json.Marshal(out)
+		return string(data), true, err
+	})
+	if err != nil {
+		return fmt.Errorf("%s: %w", CrewHead2headCollection, err)
 	}
 	return nil
 }

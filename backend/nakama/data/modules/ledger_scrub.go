@@ -510,3 +510,51 @@ func scrubNamesOfEvent(ev CrewEvent, userID string) []string {
 	}
 	return names
 }
+
+// scrubHead2headForUser removes the user from the head2head holders document
+// of a crew. The weekly recap reads this document (attachRecapBelts), so a
+// recap written after the scrub would name the user again.
+//
+//   - A title the user holds is removed from the document. The title is then
+//     vacant. The next recompute gives it to a member as a first award: it
+//     has no previous holder, so no recap and no push says that it moved.
+//   - A title another member took from the user loses
+//     previous_holder_user_id. The time of the move stays.
+//   - The user leaves members, and every pair of the user is removed.
+func scrubHead2headForUser(doc Head2headDoc, userID string) (out Head2headDoc, changed bool) {
+	if userID == "" {
+		return doc, false
+	}
+	members := make([]string, 0, len(doc.Members))
+	for _, id := range doc.Members {
+		if id != userID {
+			members = append(members, id)
+		}
+	}
+	titles := make([]Head2headTitle, 0, len(doc.Titles))
+	for _, t := range doc.Titles {
+		if t.HolderUserID == userID {
+			changed = true
+			continue
+		}
+		if t.PreviousHolderUserID == userID {
+			t.PreviousHolderUserID = ""
+			changed = true
+		}
+		titles = append(titles, t)
+	}
+	pairs := make([]Head2headPair, 0, len(doc.Pairs))
+	for _, p := range doc.Pairs {
+		if p.A != userID && p.B != userID {
+			pairs = append(pairs, p)
+		}
+	}
+	if len(members) != len(doc.Members) || len(pairs) != len(doc.Pairs) {
+		changed = true
+	}
+	if !changed {
+		return doc, false
+	}
+	doc.Members, doc.Titles, doc.Pairs = members, titles, pairs
+	return doc, true
+}

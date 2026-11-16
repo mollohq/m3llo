@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -398,5 +399,61 @@ func TestScrubNamesOfEvent(t *testing.T) {
 	got = scrubNamesOfEvent(clipRow(StoredClip{EventID: "e", ClipID: "c", ActorID: "u-gone", ClipperName: "Clipper"}).Event, "u-gone")
 	if !reflect.DeepEqual(got, []string{"Clipper"}) {
 		t.Fatalf("names of a clip = %v", got)
+	}
+}
+
+func TestScrubHead2headForUser(t *testing.T) {
+	const gone = "u-gone"
+	doc := Head2headDoc{
+		CrewID:  "c",
+		Members: []string{"u1", gone, "u3"},
+		Titles: []Head2headTitle{
+			{TitleID: "held", HolderUserID: gone, Value: 9.0, Unit: "h", SinceMs: 5, PreviousHolderUserID: "u1", MovedAtMs: 5},
+			{TitleID: "taken", HolderUserID: "u1", Value: 7.0, Unit: "h", SinceMs: 8, PreviousHolderUserID: gone, MovedAtMs: 8},
+			{TitleID: "other", HolderUserID: "u3", Value: 2.0, Unit: "h", SinceMs: 3, PreviousHolderUserID: "u1", MovedAtMs: 3},
+		},
+		Pairs: []Head2headPair{
+			{A: "u1", B: gone, ACount: 1, BCount: 1, Values: []Head2headPairValue{}},
+			{A: "u1", B: "u3", ACount: 2, Values: []Head2headPairValue{}},
+			{A: gone, B: "u3", Values: []Head2headPairValue{}},
+		},
+		MemberCount: 3, UpdatedAt: 10,
+	}
+	before := scrubJSON(t, doc)
+	out, changed := scrubHead2headForUser(doc, gone)
+	if !changed || scrubJSON(t, doc) != before {
+		t.Fatalf("changed=%t, or the scrub changed its input", changed)
+	}
+	want := Head2headDoc{
+		CrewID:  "c",
+		Members: []string{"u1", "u3"},
+		Titles: []Head2headTitle{
+			// The title the user held is vacant: it is not in the document.
+			{TitleID: "taken", HolderUserID: "u1", Value: 7.0, Unit: "h", SinceMs: 8, MovedAtMs: 8},
+			{TitleID: "other", HolderUserID: "u3", Value: 2.0, Unit: "h", SinceMs: 3, PreviousHolderUserID: "u1", MovedAtMs: 3},
+		},
+		Pairs:       []Head2headPair{{A: "u1", B: "u3", ACount: 2, Values: []Head2headPairValue{}}},
+		MemberCount: 3, UpdatedAt: 10,
+	}
+	if got := scrubJSON(t, out); got != scrubJSON(t, want) {
+		t.Fatalf("doc = %s\nwant  %s", got, scrubJSON(t, want))
+	}
+	if strings.Contains(scrubJSON(t, out), gone) {
+		t.Fatal("the document still holds the user id")
+	}
+	if again, changed := scrubHead2headForUser(out, gone); changed || scrubJSON(t, again) != scrubJSON(t, out) {
+		t.Fatal("a second scrub changed the document")
+	}
+	// The recap of the next week makes its belts from the document.
+	moved, held := buildRecapBelts(&out, 0, 100, func(id string) string { return id })
+	if strings.Contains(scrubJSON(t, moved)+scrubJSON(t, held), gone) {
+		t.Fatalf("the belts of a recap name the user: %s %s", scrubJSON(t, moved), scrubJSON(t, held))
+	}
+	// The next recompute gives the vacant title as a first award, not a move.
+	next := computeHead2head(h2hInput{CrewID: "c", NowMs: 50, Prev: &out})
+	for _, tt := range next.Titles {
+		if tt.PreviousHolderUserID == gone || tt.HolderUserID == gone {
+			t.Fatalf("the recompute names the user: %+v", tt)
+		}
 	}
 }
