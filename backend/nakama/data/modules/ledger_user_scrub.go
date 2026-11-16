@@ -555,7 +555,11 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 				settled = true
 			}
 		}
-
+		if rec.DoneMs > 0 && rec.idle() {
+			// The record waits for its second run. That run finds the user by
+			// id (the user index and the scan), so the names are not kept.
+			rec.Names = nil
+		}
 		var err error
 		if settled {
 			// The second run is over. The record goes.

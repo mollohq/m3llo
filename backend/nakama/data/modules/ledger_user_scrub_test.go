@@ -1066,3 +1066,48 @@ func TestScrubRecordOfARetriedDeleteIsNotCleaned(t *testing.T) {
 	}
 	checkScrubbedCrew(t, nk, store, f, scrubCrew, "after the retried delete")
 }
+
+// When the first run is over the record keeps no name. The second run, one
+// day later, finds by id an event that a late writer made (a voice session
+// that ended after the delete), scrubs it, and deletes the record.
+func TestSecondScrubRunWorksWithoutNames(t *testing.T) {
+	forDelPhases(t, func(t *testing.T, nk *delNk, store *memLedgerStore) {
+		f := useScrubInline(t)
+		seedScrubCrew(t, nk, f, scrubCrew, true)
+		deleteAccount(t, nk, goneUser)
+		rec := scrubRecordOf(t, nk)
+		if rec == nil || rec.DoneMs == 0 || len(rec.Names) != 0 || len(rec.Crews) != 0 {
+			t.Fatalf("record after the first run = %+v", rec)
+		}
+		nk.mu.Lock()
+		raw := nk.storage[fakeStorageKey(UserScrubCollection, goneUser, SystemUserID)]
+		nk.mu.Unlock()
+		if strings.Contains(raw, goneName) {
+			t.Fatalf("the record keeps a name after the first run: %s", raw)
+		}
+
+		scrubAppend(t, nk, scrubCrew, CrewEvent{ID: "late-voice", Type: "voice_session", Timestamp: time.Now().UnixMilli(),
+			Data: VoiceSessionData{ParticipantIDs: []string{"u1", goneUser, "u3"}, ParticipantNames: []string{"Ann", goneName, "Cy"}}})
+		if n := len(userTraces(t, nk, store, scrubCrew)); n == 0 {
+			t.Fatal("the test needs a late event that names the user")
+		}
+		// Before the day is over the job does nothing.
+		runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+		if n := len(userTraces(t, nk, store, scrubCrew)); n == 0 {
+			t.Fatal("the job ran the second run before its time")
+		}
+		prev := userScrubNow
+		userScrubNow = func() time.Time { return time.Now().Add(userScrubSettle + time.Minute) }
+		t.Cleanup(func() { userScrubNow = prev })
+		runPendingUserScrubs(context.Background(), nk, testLogger(), userScrubNow().Add(time.Minute))
+		if traces := userTraces(t, nk, store, scrubCrew); len(traces) != 0 {
+			t.Fatalf("still names the user after the second run:\n%s", strings.Join(traces, "\n"))
+		}
+		if inDocs, _ := crewHolds(t, nk, store, scrubCrew, "late-voice-"+scrubCrew[:4]); !inDocs {
+			t.Fatal("the late event of the other members is gone")
+		}
+		if rec := scrubRecordOf(t, nk); rec != nil {
+			t.Fatalf("the record stays after the second run: %+v", rec)
+		}
+	})
+}
