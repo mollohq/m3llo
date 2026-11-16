@@ -887,6 +887,14 @@ impl LtpState {
     /// Keep an ask. A newer state replaces the older one.
     pub fn store(&mut self, ask: Ask) {
         self.changing.remove(&ask.ask_id);
+        // The server gives the name of the asker. It is the only name that
+        // the client has for an ask of a crew whose members are not loaded.
+        // A name from the member list is newer and stays.
+        if !ask.asker_name.is_empty() {
+            self.names
+                .entry(ask.asker_id.clone())
+                .or_insert_with(|| ask.asker_name.clone());
+        }
         self.asks.insert(ask.ask_id.clone(), ask);
     }
 
@@ -976,6 +984,7 @@ mod tests {
             crew_id: "c1".into(),
             message_id: "m1".into(),
             asker_id: asker.into(),
+            asker_name: String::new(),
             asked: asked.iter().map(|s| s.to_string()).collect(),
             game: None,
             opened_at: NOW - 5 * MIN,
@@ -1629,5 +1638,20 @@ mod tests {
         assert!(!s.answers_pending(&joined, "me"), "another game");
         s.pending = None;
         assert!(!s.answers_pending(&own, "me"));
+    }
+    /// The toast of an ask from a crew that is not on screen needs a name:
+    /// the client has not loaded the members of that crew.
+    #[test]
+    fn the_name_from_the_server_names_an_asker_the_client_has_not_seen() {
+        let mut state = LtpState::default();
+        let mut a = ask("u1", &[], &[]);
+        a.asker_name = "k0ji".into();
+        state.store(a.clone());
+        assert_eq!(state.names.get("u1").map(String::as_str), Some("k0ji"));
+
+        // A name from the member list is newer and stays.
+        state.names.insert("u1".into(), "Koji".into());
+        state.store(a);
+        assert_eq!(state.names.get("u1").map(String::as_str), Some("Koji"));
     }
 }

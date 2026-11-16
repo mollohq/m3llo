@@ -74,6 +74,10 @@ pub struct Ask {
     #[serde(default)]
     pub message_id: String,
     pub asker_id: String,
+    /// The display name of the asker when the ask opened. Empty from a
+    /// server that does not send it.
+    #[serde(default)]
+    pub asker_name: String,
     /// The picked members. Empty means the ask goes to everyone.
     #[serde(default, deserialize_with = "null_as_empty")]
     pub asked: Vec<String>,

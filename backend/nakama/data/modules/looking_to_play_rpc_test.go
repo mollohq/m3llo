@@ -154,7 +154,7 @@ func TestAnAskPostsTheMessageNotifiesTheCrewAndPushes(t *testing.T) {
 	r := newLtpRig(t, 4)
 	a := r.ask("u1", `{"crew_id":"c1"}`)
 
-	if a.State != ltpStateOpen || a.AskerID != "u1" || a.CrewID != "c1" || a.MessageID != "msg-1" || len(a.Asked) != 0 {
+	if a.State != ltpStateOpen || a.AskerID != "u1" || a.AskerName != "user1" || a.CrewID != "c1" || a.MessageID != "msg-1" || len(a.Asked) != 0 {
 		t.Fatalf("ask = %+v", a)
 	}
 	// The chat message: a system message that an older client shows as a line.

@@ -77,6 +77,9 @@ type ltpAsk struct {
 	CrewID    string `json:"crew_id"`
 	MessageID string `json:"message_id"`
 	AskerID   string `json:"asker_id"`
+	// AskerName is the display name of the asker when the ask opened. A
+	// client shows it for an ask of a crew whose members it has not loaded.
+	AskerName string `json:"asker_name,omitempty"`
 	// Asked holds the picked members. Empty means the ask goes to everyone.
 	Asked        []string             `json:"asked"`
 	Game         *ltpGame             `json:"game,omitempty"`

@@ -86,6 +86,7 @@ fn ask(asker: &str, answers: &[(&str, Answer)]) -> Ask {
         crew_id: CREW.into(),
         message_id: "m-ask".into(),
         asker_id: asker.into(),
+        asker_name: String::new(),
         asked: Vec::new(),
         game: None,
         opened_at: now - 60_000,

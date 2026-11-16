@@ -161,7 +161,8 @@ func LookingToPlayAskRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	}
 
 	a := newLtpAsk(generateEventID(), req.CrewID, userID, asked, req.Game, now)
-	a.MessageID, err = sendLtpMessage(ctx, nk, a, resolveUsername(ctx, nk, userID))
+	a.AskerName = resolveUsername(ctx, nk, userID)
+	a.MessageID, err = sendLtpMessage(ctx, nk, a, a.AskerName)
 	if err != nil {
 		return "", rpcFail(logger, errInternal, "looking_to_play_ask: chat message for crew %s: %v", req.CrewID, err)
 	}
