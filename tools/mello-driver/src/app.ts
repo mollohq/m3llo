@@ -274,6 +274,16 @@ export type AppState = {
     /** The card in the centre is at rest: the face shows and a click on the scrim closes it. */
     resting: boolean;
   };
+  /** Looking to play in the crew on screen (plans/LOOKING-TO-PLAY.md 3.6). */
+  looking_to_play: {
+    /** The asks that are open or on, from the cards in chat, oldest first. A closed ask is left out. */
+    asks: Ask[];
+    /** The composer pill carries its pip. */
+    pip: boolean;
+    popover_open: boolean;
+    /** The ask id of the toast on screen, or null when none shows. */
+    toast: string | null;
+  };
   /** The audio page of the settings. */
   audio: { capture_device: string; playback_device: string; push_to_talk: boolean; push_to_talk_key: string };
   riot: { linked: boolean; id: string };
@@ -284,6 +294,20 @@ export type AppState = {
   /** The UI language of this run (BCP 47: "en", "sv", "pt-BR"). The driver starts the app with MELLO_LANG=en. */
   ui_language: string;
   last_event_seq: number;
+};
+
+/** A Looking to play ask on the state port, from its card in chat. */
+export type Ask = {
+  ask_id: string;
+  state: "open" | "on";
+  asker_id: string;
+  /** Empty when the ask names no game. */
+  game_name: string;
+  /** User ids of the members in, in voice or due that have a row on the card. The asker counts as in. */
+  members_in: string[];
+  more_in: number;
+  /** This user's answer. */
+  my_answer: "" | "in" | "in_15" | "in_30" | "no";
 };
 
 /** A chat message on the state port: the last 20 in the active crew, oldest first. */

@@ -384,6 +384,16 @@ flows:
     protocol: []
     issues: []
 
+  # ── Looking to play ───────────────────────────────────────────
+  - id: LTP-01
+    title: Ask the crew from the pill, a member answers In and joins voice, the asker cancels
+    priority: P1
+    users: 2
+    harness: [the_pill_has_the_pip_only_with_an_open_ask, the_popover_asks_the_picked_members_for_a_game, an_ask_in_the_history_shows_its_card, in_answers_and_joins_the_voice_channel_of_the_ask, the_asker_cancels_the_ask]
+    journeys: [qa/journeys/looking-to-play-two-users.ts]
+    protocol: []
+    issues: []
+
   # ── Streaming ─────────────────────────────────────────────────
   - id: STREAM-01
     title: Start a stream, a second user watches it
