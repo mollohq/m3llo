@@ -186,9 +186,9 @@ func ltpAskRecipients(ctx context.Context, logger runtime.Logger, nk runtime.Nak
 	return out
 }
 
-// ltpPushNewAsk sends the New ask push.
-func ltpPushNewAsk(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, a *ltpAsk, members map[string]bool) {
-	to := ltpAskRecipients(ctx, logger, nk, a, members)
+// ltpPushNewAsk sends the New ask push. to is the result of
+// ltpAskRecipients.
+func ltpPushNewAsk(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, a *ltpAsk, to []string) {
 	if len(to) == 0 {
 		return
 	}

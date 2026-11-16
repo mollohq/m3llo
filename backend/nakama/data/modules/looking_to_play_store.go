@@ -291,6 +291,30 @@ func notifyLtpAsk(ctx context.Context, nk runtime.NakamaModule, a *ltpAsk, membe
 	}
 }
 
+// notifyLtpNewAsk sends notification 118 of a new ask. Each member but the
+// asker gets "notify": true when the member is in recipients (the result of
+// ltpAskRecipients), else false. The desktop shows the toast and plays the
+// sound only on true, so they reach the same members as the phone push.
+func notifyLtpNewAsk(ctx context.Context, nk runtime.NakamaModule, a *ltpAsk, members map[string]bool, recipients []string) {
+	notify := make(map[string]bool, len(recipients))
+	for _, uid := range recipients {
+		notify[uid] = true
+	}
+	base := ltpAskContent(a)
+	for _, uid := range ltpMemberIDs(members) {
+		if uid == a.AskerID {
+			pushNotification(ctx, nk, uid, NotifyLookingToPlay, base)
+			continue
+		}
+		content := make(map[string]interface{}, len(base)+1)
+		for k, v := range base {
+			content[k] = v
+		}
+		content["notify"] = notify[uid]
+		pushNotification(ctx, nk, uid, NotifyLookingToPlay, content)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Closing an ask
 // ---------------------------------------------------------------------------

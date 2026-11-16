@@ -25,9 +25,16 @@ impl super::Client {
                 );
                 // The notification reaches every member, this user included;
                 // the answer makes the card show at once.
-                let _ = self
-                    .event_tx
-                    .send(Event::LookingToPlayUpdated { ask: reply.ask });
+                let _ = self.event_tx.send(Event::LookingToPlayUpdated {
+                    ask: reply.ask,
+                    notify: false,
+                });
+                if let Some(groups) = reply.recent_picks {
+                    let _ = self.event_tx.send(Event::LookingToPlayPicks {
+                        crew_id: crew_id.to_string(),
+                        groups,
+                    });
+                }
             }
             Err(e) => self.looking_to_play_failed("ask", "", &e),
         }
@@ -37,9 +44,10 @@ impl super::Client {
         match self.nakama.looking_to_play_answer(ask_id, answer).await {
             Ok(reply) => {
                 log::info!("[looking-to-play] answered {:?} on {}", answer, ask_id);
-                let _ = self
-                    .event_tx
-                    .send(Event::LookingToPlayUpdated { ask: reply.ask });
+                let _ = self.event_tx.send(Event::LookingToPlayUpdated {
+                    ask: reply.ask,
+                    notify: false,
+                });
             }
             Err(e) => self.looking_to_play_failed("answer", ask_id, &e),
         }
@@ -49,9 +57,10 @@ impl super::Client {
         match self.nakama.looking_to_play_cancel(ask_id).await {
             Ok(reply) => {
                 log::info!("[looking-to-play] cancelled {}", ask_id);
-                let _ = self
-                    .event_tx
-                    .send(Event::LookingToPlayUpdated { ask: reply.ask });
+                let _ = self.event_tx.send(Event::LookingToPlayUpdated {
+                    ask: reply.ask,
+                    notify: false,
+                });
             }
             Err(e) => self.looking_to_play_failed("cancel", ask_id, &e),
         }
@@ -65,18 +74,24 @@ impl super::Client {
         });
     }
 
-    /// Loads the asks that `messages` carry, and the open asks of the crew,
-    /// in one call. It runs after each load of chat history.
+    /// Loads the asks that `messages` carry, the open asks of the crew and
+    /// the recent picks of the user, in one call. It runs after each load of
+    /// chat history.
     pub(super) async fn load_looking_to_play(&self, crew_id: &str, messages: &[ChatMessage]) {
         let ids = looking_to_play::ask_ids(messages);
         match self.nakama.looking_to_play_list(crew_id, &ids).await {
-            Ok(asks) => {
-                if asks.is_empty() {
+            Ok(reply) => {
+                // The picks go out with no ask too: the ask popover needs them.
+                let _ = self.event_tx.send(Event::LookingToPlayPicks {
+                    crew_id: crew_id.to_string(),
+                    groups: reply.recent_picks,
+                });
+                if reply.asks.is_empty() {
                     return;
                 }
                 let _ = self.event_tx.send(Event::LookingToPlayLoaded {
                     crew_id: crew_id.to_string(),
-                    asks,
+                    asks: reply.asks,
                 });
             }
             Err(e) => log::warn!("[looking-to-play] asks for {} failed: {}", crew_id, e),

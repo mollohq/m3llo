@@ -10,13 +10,21 @@ use crate::app_context::AppContext;
 
 pub fn handle(_ctx: &AppContext, event: Event) {
     match event {
-        Event::LookingToPlayUpdated { ask } => {
+        Event::LookingToPlayUpdated { ask, notify } => {
             log::debug!(
-                "[looking-to-play] ask {} in crew {} is {:?}, {} in",
+                "[looking-to-play] ask {} in crew {} is {:?}, {} in, notify={}",
                 ask.ask_id,
                 ask.crew_id,
                 ask.state,
-                ask.members_in().len()
+                ask.members_in().len(),
+                notify
+            );
+        }
+        Event::LookingToPlayPicks { crew_id, groups } => {
+            log::debug!(
+                "[looking-to-play] {} recent picks for crew {}",
+                groups.len(),
+                crew_id
             );
         }
         Event::LookingToPlayLoaded { crew_id, asks } => {

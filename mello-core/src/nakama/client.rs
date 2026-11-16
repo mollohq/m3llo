@@ -1492,16 +1492,16 @@ impl NakamaClient {
         Ok(serde_json::from_str(&resp)?)
     }
 
-    /// The asks with these ids, and the open asks of the crew.
+    /// The asks with these ids, the open asks of the crew, and the recent
+    /// picks of the user in the crew.
     pub async fn looking_to_play_list(
         &self,
         crew_id: &str,
         ask_ids: &[String],
-    ) -> Result<Vec<crate::looking_to_play::Ask>> {
+    ) -> Result<crate::looking_to_play::AskListReply> {
         let payload = serde_json::json!({ "crew_id": crew_id, "ask_ids": ask_ids });
         let resp = self.rpc("looking_to_play_list", &payload).await?;
-        let parsed: crate::looking_to_play::AskListReply = serde_json::from_str(&resp)?;
-        Ok(parsed.asks)
+        Ok(serde_json::from_str(&resp)?)
     }
 
     /// The current user's push switches for one crew, defaults included
@@ -2877,9 +2877,12 @@ fn handle_notification(code: i32, content: &str, event_tx: &std::sync::mpsc::Sen
             Err(e) => log::warn!("Failed to parse voice_update notification: {}", e),
         },
         // 118 = one Looking to play ask changed
-        118 => match serde_json::from_str::<crate::looking_to_play::Ask>(content) {
-            Ok(ask) => {
-                let _ = event_tx.send(Event::LookingToPlayUpdated { ask });
+        118 => match serde_json::from_str::<crate::looking_to_play::AskNotification>(content) {
+            Ok(n) => {
+                let _ = event_tx.send(Event::LookingToPlayUpdated {
+                    ask: n.ask,
+                    notify: n.notify,
+                });
             }
             Err(e) => log::warn!("Failed to parse looking_to_play notification: {}", e),
         },
@@ -2931,6 +2934,28 @@ mod tests {
         }
         handle_notification(116, "not json", &tx);
         assert!(rx.try_recv().is_err(), "a bad payload sends nothing");
+    }
+
+    #[test]
+    fn notification_118_is_an_ask_update_with_the_notify_flag() {
+        const ASK: &str = r#""ask_id":"a1","crew_id":"c1","message_id":"m1","asker_id":"u1",
+            "asked":["u2"],"opened_at":1,"state":"open","answers":{"u1":{"answer":"in","at":1}}"#;
+        let (tx, rx) = std::sync::mpsc::channel();
+        for (content, want) in [
+            (format!(r#"{{{ASK},"notify":true}}"#), true),
+            (format!(r#"{{{ASK},"notify":false}}"#), false),
+            (format!(r#"{{{ASK}}}"#), false),
+        ] {
+            handle_notification(118, &content, &tx);
+            match rx.try_recv() {
+                Ok(Event::LookingToPlayUpdated { ask, notify }) => {
+                    assert_eq!(ask.ask_id, "a1");
+                    assert_eq!(ask.asked, vec!["u2"]);
+                    assert_eq!(notify, want, "{content}");
+                }
+                other => panic!("expected LookingToPlayUpdated, got {:?}", other.is_ok()),
+            }
+        }
     }
 
     fn make_api_msg(content: &str, sender_id: &str, username: &str) -> ApiChannelMessage {

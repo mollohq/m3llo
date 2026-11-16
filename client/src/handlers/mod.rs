@@ -114,6 +114,7 @@ fn dispatch(ctx: &AppContext, event: Event) {
         // Looking to play
         Event::LookingToPlayUpdated { .. }
         | Event::LookingToPlayLoaded { .. }
+        | Event::LookingToPlayPicks { .. }
         | Event::LookingToPlayFailed { .. } => looking_to_play::handle(ctx, event),
 
         // Voice

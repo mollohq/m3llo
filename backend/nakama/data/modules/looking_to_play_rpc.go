@@ -3,10 +3,10 @@ package main
 // Looking to play: the RPCs, the chat message of an ask and the voice hook
 // (plans/LOOKING-TO-PLAY.md section 3.3).
 //
-//   looking_to_play_ask    {crew_id, game?, member_ids?}  -> {ask, joined}
+//   looking_to_play_ask    {crew_id, game?, member_ids?}  -> {ask, joined, recent_picks?}
 //   looking_to_play_answer {ask_id, answer}               -> {ask}
 //   looking_to_play_cancel {ask_id}                       -> {ask}
-//   looking_to_play_list   {crew_id, ask_ids?}            -> {asks}
+//   looking_to_play_list   {crew_id, ask_ids?}            -> {asks, recent_picks}
 
 import (
 	"context"
@@ -32,10 +32,16 @@ type ltpAskResponse struct {
 	// Joined is true when the call did not make an ask: it counted as In on
 	// the open ask to everyone for the same game.
 	Joined bool `json:"joined,omitempty"`
+	// RecentPicks is the list of recent picks of the asker after a new ask
+	// to picked members, else absent.
+	RecentPicks [][]string `json:"recent_picks,omitempty"`
 }
 
 type ltpListResponse struct {
 	Asks []*ltpAsk `json:"asks"`
+	// RecentPicks is the list of recent picks of the caller, [] when there
+	// are none.
+	RecentPicks [][]string `json:"recent_picks"`
 }
 
 // ltpRPCError maps a rule error to the token that the client knows
@@ -174,9 +180,22 @@ func LookingToPlayAskRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	ltpMarkCrewOpen(req.CrewID)
 	logger.Info("looking_to_play: ask=%s crew=%s opened asked=%d game=%t", a.AskID, a.CrewID, len(a.Asked), a.Game != nil)
 
-	notifyLtpAsk(ctx, nk, a, members)
-	ltpPushNewAsk(ctx, logger, nk, a, members)
-	return ltpReply(ltpAskResponse{Ask: a})
+	// ltpAskRecipients reads storage: read it once for the notification and
+	// the push.
+	recipients := ltpAskRecipients(ctx, logger, nk, a, members)
+	notifyLtpNewAsk(ctx, nk, a, members, recipients)
+	ltpPushNewAsk(ctx, logger, nk, a, recipients)
+
+	reply := ltpAskResponse{Ask: a}
+	if !a.asksEveryone() {
+		picks, err := storeLtpPick(ctx, nk, userID, req.CrewID, a.Asked, members)
+		if err != nil {
+			logger.Warn("looking_to_play: store recent picks of %s in crew %s: %v", userID, req.CrewID, err)
+			picks = ltpRecentPicks(ctx, logger, nk, userID, req.CrewID, members)
+		}
+		reply.RecentPicks = picks
+	}
+	return ltpReply(reply)
 }
 
 // answerLtpAsk stores the answer of a member and does what follows it: the
@@ -301,14 +320,18 @@ func LookingToPlayListRPC(ctx context.Context, logger runtime.Logger, db *sql.DB
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" || len(req.AskIDs) > ltpListMax {
 		return "", rpcFail(logger, errBadRequest, "looking_to_play_list: bad payload")
 	}
-	if !crewMemberSet(ctx, nk, req.CrewID)[userID] {
+	members := crewMemberSet(ctx, nk, req.CrewID)
+	if !members[userID] {
 		return "", errNotAMember
 	}
 	open, _, err := openLtpAsks(ctx, nk, req.CrewID)
 	if err != nil {
 		return "", rpcFail(logger, errInternal, "looking_to_play_list: open asks of %s: %v", req.CrewID, err)
 	}
-	out := ltpListResponse{Asks: []*ltpAsk{}}
+	out := ltpListResponse{
+		Asks:        []*ltpAsk{},
+		RecentPicks: ltpRecentPicks(ctx, logger, nk, userID, req.CrewID, members),
+	}
 	seen := map[string]bool{}
 	for _, a := range open {
 		seen[a.AskID] = true

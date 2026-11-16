@@ -508,8 +508,21 @@ pub enum Event {
     },
     /// One Looking to play ask changed: notification 118, or the answer to
     /// `LookingToPlayAsk`, `LookingToPlayAnswer` and `LookingToPlayCancel`.
+    ///
+    /// `notify` is true only for a new ask from notification 118, when this
+    /// member also gets the phone push of it: the client shows the toast and
+    /// plays the sound only then. The replies to the commands have `false`.
     LookingToPlayUpdated {
         ask: crate::looking_to_play::Ask,
+        #[serde(default)]
+        notify: bool,
+    },
+    /// The last groups that the user picked in a crew, newest first. Each
+    /// group holds sorted user ids. Sent after each `looking_to_play_list`
+    /// reply, and after an ask to picked members.
+    LookingToPlayPicks {
+        crew_id: String,
+        groups: Vec<Vec<String>>,
     },
     /// The asks of the loaded chat history and the open asks of the crew.
     LookingToPlayLoaded {

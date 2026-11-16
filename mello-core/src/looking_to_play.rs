@@ -91,8 +91,12 @@ pub struct Ask {
     pub answers: BTreeMap<String, AskAnswer>,
 }
 
-fn null_as_empty<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
-    Ok(Option::<Vec<String>>::deserialize(d)?.unwrap_or_default())
+fn null_as_empty<'de, D, T>(d: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: Deserialize<'de> + Default,
+{
+    Ok(Option::<T>::deserialize(d)?.unwrap_or_default())
 }
 
 impl Ask {
@@ -143,6 +147,10 @@ pub struct AskReply {
     /// for the same game.
     #[serde(default)]
     pub joined: bool,
+    /// The recent picks of the asker, newest first, after a new ask to
+    /// picked members. `None` for any other reply.
+    #[serde(default)]
+    pub recent_picks: Option<Vec<Vec<String>>>,
 }
 
 /// The reply of `looking_to_play_list`.
@@ -150,6 +158,23 @@ pub struct AskReply {
 pub struct AskListReply {
     #[serde(default)]
     pub asks: Vec<Ask>,
+    /// The last groups that the user picked in the crew, newest first. Each
+    /// group holds sorted user ids.
+    #[serde(default, deserialize_with = "null_as_empty")]
+    pub recent_picks: Vec<Vec<String>>,
+}
+
+/// The content of notification 118: the state of an ask, and the flag that
+/// says if this member gets the toast and the sound.
+#[derive(Debug, Clone, Deserialize)]
+pub struct AskNotification {
+    #[serde(flatten)]
+    pub ask: Ask,
+    /// True only in the notification of a new ask, for a member who also
+    /// gets the phone push of it. The server decides it, because it depends
+    /// on the picked members, the game libraries and the member's setting.
+    #[serde(default)]
+    pub notify: bool,
 }
 
 #[cfg(test)]
@@ -194,6 +219,40 @@ mod tests {
         let ask: Ask = serde_json::from_str(&OPEN.replace(r#""asked":[]"#, r#""asked":null"#))
             .expect("decodes");
         assert!(ask.asks_everyone());
+    }
+
+    #[test]
+    fn notification_118_carries_the_notify_flag_of_a_new_ask() {
+        let with = OPEN.replacen('{', r#"{"notify":true,"#, 1);
+        let n: AskNotification = serde_json::from_str(&with).expect("decodes with notify");
+        assert!(n.notify);
+        assert_eq!(n.ask.ask_id, "a1");
+        assert_eq!(n.ask.answers["u1"].answer, Answer::In);
+
+        let n: AskNotification = serde_json::from_str(OPEN).expect("decodes without notify");
+        assert!(!n.notify, "no key means no toast");
+        assert_eq!(n.ask.state, AskState::Open);
+    }
+
+    #[test]
+    fn the_replies_carry_the_recent_picks() {
+        let list: AskListReply =
+            serde_json::from_str(r#"{"asks":[],"recent_picks":null}"#).expect("null decodes");
+        assert!(list.recent_picks.is_empty());
+        let list: AskListReply = serde_json::from_str(r#"{"asks":[]}"#).expect("absent decodes");
+        assert!(list.recent_picks.is_empty());
+        let list: AskListReply =
+            serde_json::from_str(r#"{"asks":[],"recent_picks":[["u2","u3"],["u4"]]}"#)
+                .expect("decodes");
+        assert_eq!(list.recent_picks, vec![vec!["u2", "u3"], vec!["u4"]]);
+
+        let reply: AskReply =
+            serde_json::from_str(&format!(r#"{{"ask":{OPEN},"recent_picks":[["u2"]]}}"#))
+                .expect("an ask reply with picks decodes");
+        assert_eq!(reply.recent_picks, Some(vec![vec!["u2".to_string()]]));
+        let reply: AskReply =
+            serde_json::from_str(&format!(r#"{{"ask":{OPEN},"joined":true}}"#)).expect("decodes");
+        assert_eq!(reply.recent_picks, None);
     }
 
     #[test]

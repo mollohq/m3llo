@@ -800,7 +800,7 @@ fn mention_pushes_follow_the_delivery_rules() {
             .looking_to_play_list(&crew_id, &[])
             .await
             .expect("looking_to_play_list");
-        assert!(asks.iter().any(|a| a.ask_id == ask_id), "the open ask is in the list");
+        assert!(asks.asks.iter().any(|a| a.ask_id == ask_id), "the open ask is in the list");
 
         let reply = listener
             .looking_to_play_cancel(&ask_id)
@@ -823,7 +823,7 @@ fn mention_pushes_follow_the_delivery_rules() {
             .looking_to_play_list(&crew_id, std::slice::from_ref(&ask_id))
             .await
             .expect("looking_to_play_list by id");
-        assert!(asks.iter().any(|a| a.ask_id == ask_id && a.closed_reason == "cancelled"));
+        assert!(asks.asks.iter().any(|a| a.ask_id == ask_id && a.closed_reason == "cancelled"));
 
         let rest = common::drain_sends(&captured, std::time::Duration::from_secs(1)).await;
         assert!(
