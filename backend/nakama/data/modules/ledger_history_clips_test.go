@@ -635,3 +635,51 @@ func TestKillSwitchOnACrewOverTheCapKeepsOneRowForAClipID(t *testing.T) {
 		t.Fatalf("the store holds %d clips, want %d", n, total)
 	}
 }
+
+// Under the kill switch of phase 1b the document is the truth again. A store
+// update that fails then (the media URL of a clip) is repaired by the
+// reconcile, as before the marker.
+func TestReconcileRepairsContentUnderTheKillSwitch(t *testing.T) {
+	for _, env := range []string{"MELLO_LEDGER_HISTORY_READ", "MELLO_LEDGER_READ"} {
+		t.Run(env, func(t *testing.T) {
+			noSoak(t)
+			ctx := context.Background()
+			nk := newFakeGuestNk()
+			store := useMemLedger(t)
+			resetLedgerCutover(t)
+			resetHistoryCutover(t)
+			prevRecheck := ledgerMarkerRecheck
+			ledgerMarkerRecheck = 0
+			t.Cleanup(func() { ledgerMarkerRecheck = prevRecheck })
+
+			if _, err := AppendClip(ctx, nk, "crew", histClip("a", "u1", time.Now())); err != nil {
+				t.Fatal(err)
+			}
+			if reconcilePass(t, nk); historyTruthStore(ctx, nk) == nil {
+				t.Fatal("no cutover")
+			}
+
+			t.Setenv(env, "doc")
+			useLedger(t, failingPuts{store})
+			own := func(clips []StoredClip) *StoredClip { c, _ := existingClip(clips, "a", "u1"); return c }
+			if err := updateStoredClip(ctx, nk, "crew", "a", own, func(c *StoredClip) { c.MediaURL = "https://m.test/a.mp4" }); err != nil {
+				t.Fatalf("the update under the kill switch: %v", err)
+			}
+			useLedger(t, store)
+			if got := storeClips(t, store, "crew"); got[0].MediaURL != "" || docClips(nk, "crew")[0].MediaURL == "" {
+				t.Fatalf("the seed is wrong: store %+v, document %+v", got, docClips(nk, "crew"))
+			}
+
+			r := reconcilePass(t, nk)
+			if r.lastHist.Updated != 1 || !r.lastHist.clean() || r.lastHistMarker != "set_before" {
+				t.Fatalf("pass under the kill switch = %+v marker=%s", r.lastHist, r.lastHistMarker)
+			}
+			if got := storeClips(t, store, "crew"); got[0].MediaURL != "https://m.test/a.mp4" {
+				t.Fatalf("store after the repair = %+v", got)
+			}
+			if r = reconcilePass(t, nk); r.lastHist.Updated != 0 || !r.lastHist.clean() {
+				t.Fatalf("second pass = %+v", r.lastHist)
+			}
+		})
+	}
+}

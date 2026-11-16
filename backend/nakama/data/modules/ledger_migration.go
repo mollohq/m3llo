@@ -500,7 +500,11 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		return false
 	}
 	docWins := st.EventsDoneMs == 0
-	histDocWins := hist.DoneMs == 0
+	// The marker of phase 1b is open until it is set. The content repair
+	// follows the truth: a kill switch makes the documents the truth again
+	// after the marker.
+	histMarkerOpen := hist.DoneMs == 0
+	histDocWins := historyDocumentIsTruth(st, hist)
 	steps := ledgerReconcileSteps()
 
 	done := 0
@@ -510,7 +514,7 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		if err != nil {
 			r.logger.Error("ledger_reconcile_failed: list of %s documents: %v", step.collection, err)
 			r.pass.ListFailed = true
-			r.finishPass(ctx, docWins, histDocWins)
+			r.finishPass(ctx, docWins, histMarkerOpen)
 			return true
 		}
 		for _, obj := range objects {
@@ -528,7 +532,7 @@ func (r *ledgerReconciler) tick(ctx context.Context) bool {
 		if next == "" {
 			r.step++
 			if r.step >= len(steps) {
-				r.finishPass(ctx, docWins, histDocWins)
+				r.finishPass(ctx, docWins, histMarkerOpen)
 				return true
 			}
 		}
@@ -572,7 +576,7 @@ func (r *ledgerReconciler) reconcileHistoryDoc(ctx context.Context, store ledger
 
 // finishPass logs the pass and sets each marker when the pass was clean and
 // its soak time is over.
-func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histDocWins bool) {
+func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histMarkerOpen bool) {
 	p, h := r.pass, r.hist
 	r.pass, r.hist = ledgerPassStats{}, historyPassStats{}
 	r.step, r.cursor = 0, ""
@@ -591,7 +595,7 @@ func (r *ledgerReconciler) finishPass(ctx context.Context, docWins, histDocWins 
 	}
 
 	histMarker := "set_before"
-	if histDocWins {
+	if histMarkerOpen {
 		histMarker = r.trySetHistoryMarker(ctx, p, h)
 	}
 	r.lastHist, r.lastHistMarker = h, histMarker
@@ -750,6 +754,18 @@ func historyTruthStore(ctx context.Context, nk runtime.NakamaModule) ledgerStore
 		return store
 	}
 	return nil
+}
+
+// historyDocumentIsTruth reports whether the legacy documents of phase 1b are
+// the truth on this node: until both markers are set, and under a kill switch
+// (historyTruthStore). The reconcile then repairs the content of the store
+// from the documents. A store write that failed while the documents were the
+// truth is repaired this way, also after the marker.
+func historyDocumentIsTruth(events *ledgerMigrationState, hist *historyMigrationState) bool {
+	if os.Getenv("MELLO_LEDGER_HISTORY_READ") == "doc" || os.Getenv("MELLO_LEDGER_READ") == "doc" {
+		return true
+	}
+	return events == nil || events.EventsDoneMs == 0 || hist == nil || hist.DoneMs == 0
 }
 
 // ledgerGroupByCrew splits events that are ordered by crew into one slice
