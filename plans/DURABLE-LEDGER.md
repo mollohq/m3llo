@@ -125,8 +125,17 @@ type ledgerStore interface {
     PutUnique(ctx, crewID string, row ledgerRow) (held []CrewEvent, err error) // one row for a ref of a type
     ByRef(ctx, crewID, typ, ref string) ([]CrewEvent, error)
     ByIDs(ctx, crewID string, ids []string) ([]CrewEvent, error)
+    ByRefs(ctx, crewID, typ string, refs []string) ([]CrewEvent, error)                 // rows of several refs, one read
+    RefsBefore(ctx, crewID, typ, beforeRef string, n int) ([]CrewEvent, error)          // by ref, the highest first
+    TopInRange(ctx, crewID, typ string, fromMs, toMs int64, field, value string, n int) ([]CrewEvent, error)
 }
 ```
+
+- `RefsBefore` reads the index `(crew_id, type, ref)`. Refs compare as text.
+  A caller that wants an order uses refs of one width (`recapWeekRef`).
+- `TopInRange` returns the rows whose data holds the text `value` in `field`
+  first, each group newest first, the lower id first for one time. The store
+  sorts and returns `n` rows.
 
 `PutUnique` takes `pg_advisory_xact_lock` on the crew, the type and the ref,
 then checks and inserts in one transaction.
@@ -255,14 +264,26 @@ Built. Code: `ledger_history.go`, `ledger_migration.go`, `admin_media_orphans.go
 |---|---|---|---|---|---|
 | Clip | `clip` | `clip_{event_id}` | `clip_id` | `ts` of the clip | The stored clip |
 | Stream session | `stream_session` | Id of the ledger event | `session_id` | `ts` of the event | `StreamSessionData` |
-| Weekly recap | `weekly_recap` | `recap_{week_start}` | none | `week_start` | The recap |
+| Weekly recap | `weekly_recap` | `recap_{week_start}` | Week start, 19 digits | `generated_at` | The recap |
 
 - `NewestN` and `CountOlder` see these rows. They are the counted types.
 - The prefix `clip_` keeps a clip id apart from the ids of ledger events. One
   crew holds an id once.
-- The time of a recap is its week start. Crew history files a recap under the
-  week it is about. `generated_at` stays in the data.
+- The time of a recap row is `generated_at`. The counted queries of phase 3
+  select by time ("newest N", "in the last D days"). A recap dated at its
+  week start would be 7 days old when it is written. A recap with no
+  `generated_at` gets the end of its week.
+- The week of a recap is its ref (`recapWeekRef`). Crew history, the board,
+  the merged timeline and the recap job read recaps by week (`RefsBefore`),
+  not by time.
 - The store holds one recap for a week start. The first one wins.
+- An entry with no event id (from before the documents held it) gets a row id
+  made from its other id: `clipref_{clip_id}` for a clip,
+  `session_{session_id}` for a stream session. The data stays as the document
+  holds it, so the readers get the same entry from both.
+- A recap row that an earlier build of this branch wrote has its week start
+  as its time and no ref. The reconcile does not change the time of a row.
+  Reset a dev database that holds such rows (`dev_seed` reset).
 
 ### One row for a stream
 
@@ -306,13 +327,20 @@ The same rule as section 5 (`ledgerWriteOrdered`), with the marker of 1b.
 
 | Write | Before the cutover of 1b | After it |
 |---|---|---|
-| `AppendClip` | Document first: it decides if the `clip_id` is free. Then `Put` | `PutUnique` first: it decides. Then the document |
+| `AppendClip` | Document first: it decides if the `clip_id` is free. Then `PutUnique` | `PutUnique` first: it decides. Then the document |
 | Clip media and poster URL (`updateStoredClip`) | Document, then `UpdateData` | `UpdateData`, then the document |
 | `AppendRecap` | Document, then `Put` | `Put`, then the document |
 | Stream session | `AppendCrewEvent` (phase 1a), then the copy, as today | The same. The copy is no longer read |
 
 - The first write of a clips document is now create-only (version `*`). Two
   uploads at once to a new crew both stay.
+- The store takes a clip with `PutUnique` in both phases. It holds one row for
+  a `clip_id` at all times. Two cases gave two rows before: two nodes that do
+  not agree about the marker for 30 seconds, and the kill switch on a crew
+  over the document cap.
+- When the document took a clip and the store holds the `clip_id` under
+  another row, the row of the store stays. The log line is
+  `ledger_clip_ref_held`.
 - `UpsertStreamSession` and `capClips` stay as the writers of the legacy
   documents. They go with the documents.
 
@@ -328,32 +356,84 @@ The same rule as section 5 (`ledgerWriteOrdered`), with the marker of 1b.
 
 Reconcile of one document (`reconcileHistoryCrew`):
 
-| | Before the cutover | After the cutover |
+| | The document is the truth | The store is the truth |
 |---|---|---|
-| Entry the store lacks | `Put` | `Put` |
+| Entry the store lacks | Store it | Store it |
 | Row the document lacks | Keep | Keep |
 | Content differs | Take the document. A stream row keeps its viewers | Keep the store |
 | Id that `Delete` removed | Not stored again | Not stored again |
-| Entry with no event id | Counted (`no_id`), not stored | The same |
+| Entry with no event id | Stored under an id made from its `clip_id` or `session_id` | The same |
+| Entry with neither id | Counted (`no_id`), not stored | The same |
+| Clip whose `clip_id` a row outside the document holds | Counted (`ref_held`), not stored | The same |
 
+- The document is the truth until both markers are set, and under a kill
+  switch (`MELLO_LEDGER_HISTORY_READ=doc`, `MELLO_LEDGER_READ=doc`). So a
+  store update that failed under a kill switch is repaired after the marker.
+  The marker alone does not decide (`historyDocumentIsTruth`).
+- `no_id` blocks the marker of phase 1b (`not_set_entries_without_id`). Such
+  an entry would vanish from the readers at the cutover. A second clip with
+  no event id and the same `clip_id` counts too.
+- A missing clip is stored with `PutUnique` when the document holds its
+  `clip_id` once. A document from before `clip_id` was checked can hold one
+  `clip_id` twice. Both entries are rows of the document, and both are stored.
+- `ref_held` does not block the marker. The store row came first.
 - A pass visits the ledger documents, then `crew_stream_sessions`,
   `crew_clips`, `crew_recaps`.
-- Log line: `ledger_history_pass docs= inserted= updated= no_id= unclean= failed= marker=`.
+- Log line: `ledger_history_pass docs= inserted= updated= no_id= ref_held= unclean= failed= marker=`.
   A document that does not converge logs `ledger_history_mismatch kind= crew=`.
 
 ### Readers after the cutover
 
 | Reader | Read |
 |---|---|
-| `crew_feed` (`loadZoneHistory`) | The free window (`Between`), the newest recap that is not empty, the newest clip and stream time, and 5 weeks of Crew history from `WeeksBefore`. No whole-crew read |
-| `buildMergedTimeline` | Clips of 7 days (`Between`), the newest recap (`NewestN`) |
-| `crew_catchup` | Clips after `last_seen` (`Between`) |
+| `crew_feed` (`loadZoneHistory`) | The free window (`Between`), the recap of the newest week that is not empty, the newest clip and stream time, and 5 weeks of Crew history. No whole-crew read |
+| `buildMergedTimeline` | Clips of 7 days (`Between`), the recap of the newest week (`RefsBefore`) |
+| `crew_catchup` | The newest 250 clips (`NewestN`), then the ones after `last_seen`. That is what the capped document held, also for `last_seen = 0` |
 | `post_clip`, `clip_upload_url`, `clip_upload_complete` | `ByRef(clip_id)`. Rate limit: clips of the day (`Between`) |
-| Weekly recap job | Clips of the week (`Between`). `recapDue` from the newest recap row |
+| Weekly recap job | Clips of the week (`Between`). `recapDue` from the recap of the newest week |
 | Guest feed | The newest 250 clips (`NewestN`) and the clip count (`CountOlder`) |
 | Invite preview | The ledger only, as before |
 
 A store read that fails falls back to the documents.
+
+One page of Crew history (`loadZoneHistoryFromStore`):
+
+- The weeks with a clip and the weeks with a stream session come from the
+  week rollup, one `WeeksBefore` for each type. The recaps of the page come
+  by week (`RefsBefore`). A week counts when `zoneHistory` takes something
+  of it.
+- An open week reads its clips and stream sessions (`Between`).
+- A locked week that ends before the free window does not read its clips.
+  The clip count is the count of the rollup. The teaser clips are 6 rows of
+  `TopInRange` (game clips first, as `rankClips`). Its stream sessions are
+  read: two rows of one session count once, and the rollup cannot say that.
+- `crewFeedZones` reads the gate (m3llo+, founding weeks) before the history,
+  and passes it as `zoneWeekOpen`.
+- Two rows can hold one session id. The older row is dropped before the
+  weeks are counted (`dropSupersededStreamRows`, one `ByRefs` for a page). A
+  page is not short, and no page lists the session a second time.
+- Clips of one time are ordered by event id. An event id starts with the
+  time it was made, so this is the order of the writes, as in the document.
+
+Store reads of one `crew_feed` call, with W = 5 weeks read for a page of 4.
+`TestCrewFeedLoadQueryCount` counts every store call through the RPC.
+
+| Part | Reads |
+|---|---|
+| Merged timeline: the 7-day view, the clips of 7 days, the newest recap | 3 |
+| The free window | 1 |
+| The newest clip and the newest stream session, when the window has none | 0 to 2 |
+| The recap of the board | 1, and 1 more for each 4 empty recaps |
+| The clip weeks, the stream weeks, the recaps of the page | 3 |
+| An open week | 1 |
+| A locked week | 2 (teaser clips, stream sessions) |
+| The rows of the session ids of the page | 1 |
+
+- A viewer with m3llo+: 3 + 1 + 1 + 3 + W + 1 = 14.
+- A viewer without it: 3 + 1 + 1 + 3 + 2W + 1 = 19. It is 18 on the first
+  page, when the newest week is the one the free window starts in.
+- A page reads fewer rows for a viewer without m3llo+ (134 against 185 in the
+  test crew). It makes more reads. The gain grows with the clips of a week.
 
 ### Known differences after the cutover
 
@@ -364,24 +444,58 @@ A store read that fails falls back to the documents.
 - A stream session whose ledger event write failed, and that only the copy
   held, now counts in the weekly recap of its week (`readLedgerWindow` reads
   every row of the week).
-- Two recaps with one week start are one recap.
+- Two recaps with one week start are one recap: the first one. The board,
+  the merged timeline and the recap job read the first one from the documents
+  too. Crew history from the documents shows the one written last
+  (`TestTwoRecapsForOneWeek`).
 - The guest feed counts clips by row above 250 clips.
+- Clips of one time whose event ids are not in the order of their writes
+  change places. The server makes ids in that order.
 
 ### admin_media_orphans (step 13)
 
-`http_key` RPC. Request `{delete?, max_objects?, clips_after?, snapshots_after?}`.
+`http_key` RPC. Two modes. A delete cannot be undone, so the scan never
+deletes.
+
+Scan. Request `{max_objects?, clips_after?, snapshots_after?}`.
 
 - Lists `crews/` in the clips bucket and `snapshots/` in the snapshots bucket.
-- An object is an orphan when no clip (by `clip_id`) and no stream session (by
-  `session_id`) of the crew points at it, and it is older than 24 hours.
+- An object is an orphan when its crew is a group on this install, no clip
+  (by `clip_id`) and no stream session (by `session_id`) of the crew points at
+  it, and it is older than 24 hours.
 - A crew holds a clip or a session when the legacy document, the ledger
   document, the live stream record or a store row has it.
 - Reports for each prefix: `scanned, orphans, bytes, too_new, unknown,
-  read_failed, deleted, delete_failed, sample, next_after`.
+  unknown_crew, read_failed, sample, incomplete, next_after`.
+- `unknown_crew`: the crew id is not a group on this install. Another install
+  can share the bucket. Such an object is never an orphan here.
+- `too_new` also counts every snapshot of a session that has a snapshot
+  younger than 24 hours. `StopStreamRPC` and `cleanupStreamIfHost` delete the
+  stream record before they write the stream session, so for some seconds
+  nothing holds the session id. The streaming code is not changed.
 - A key that does not follow the layout is `unknown`. A crew that cannot be
-  read is `read_failed`. Neither is deleted.
-- Dry run by default. A delete needs `delete: true`, the env
-  `MELLO_MEDIA_ORPHAN_DELETE=1` and the durable store.
+  read is `read_failed`. Neither is an orphan.
+- `sample` names the orphans of the call, up to 500.
+- `incomplete` is true when the list was cut at `max_objects` or the time
+  budget (2 minutes) ended. `next_after` is then the last key that was
+  judged. An object that was not judged is not counted.
+
+Delete. Request `{delete: true, clip_keys?, snapshot_keys?}`.
+
+- Needs the env `MELLO_MEDIA_ORPHAN_DELETE=1`, the durable store, and at
+  least one key. `delete` with no keys is an error. Keys with no `delete` are
+  an error.
+- Hard cap: 500 keys in one call, both lists together. One key more deletes
+  nothing.
+- Each key is judged again as an orphan, with a new read for that key: the
+  object in the bucket, the group and the documents of the crew, the store
+  row, and for a snapshot the other snapshots of its session. Nothing that
+  was read for an earlier key is used again.
+- Answer: `deleted_clips` and `deleted_snapshots`, each `{deleted: [key],
+  refused: [{key, reason}]}`. Every key of the request is in one of the two
+  lists.
+- Reasons: `unknown_key, unknown_crew, read_failed, held, not_found, too_new,
+  session_active, delete_failed, not_configured`.
 - The delete was run only against a local fake in tests.
 
 ## 7. Deletion rules (step 7, waits for sign-off)
@@ -435,7 +549,30 @@ Open: clip media and stored recap text that hold a deleted user's voice or name.
   `TestClipReconcileKeepsWhatTheDocumentDropped`, `TestStreamSessionHasOneRow`,
   `TestHistoryMarkerGate`, `TestAdminMediaOrphans*`.
 - `ledgerPutConformance` runs in the conformance function, so
-  `dev_ledger_selftest` covers `Put`, `PutUnique`, `ByRef` and `ByIDs` on SQL.
+  `dev_ledger_selftest` covers `Put`, `PutUnique`, `ByRef`, `ByIDs`, `ByRefs`,
+  `RefsBefore` and `TopInRange` on SQL.
+- After the review of phase 1b:
+  - One row for a `clip_id`: `TestClipIDHasOneRowWhenTwoNodesDisagreeAboutTheMarker`,
+    `TestKillSwitchOnACrewOverTheCapKeepsOneRowForAClipID`.
+  - Repair under a kill switch: `TestReconcileRepairsContentUnderTheKillSwitch`.
+  - Two rows of one session: `TestZonesFoldTwoRowsOfOneSessionBeforeTheWeeksAreCounted`.
+  - No event id: `TestClipWithNoEventIDIsImported`,
+    `TestStreamSessionWithNoEventIDIsImported`, `TestEntryWithNoIDBlocksTheHistoryMarker`.
+  - Recap time: `TestRecapRowIsDatedWhenItWasGenerated`.
+  - Cost: `TestCrewFeedLoadQueryCount`, `TestZonesReadOnePageOfALargeCrew`,
+    `TestCatchupOfANewMemberReadsTheNewestClips`. `queryCounter` names every
+    method of the store, so a new method cannot pass it without a count.
+  - Content: `TestZonesContentAtTheOldCapsIsTheSameFromTheStore` (with and
+    without the merged timeline), `TestZonesWithClipsOfOneTime`,
+    `TestReadersFollowTheTruthWhenDocumentAndStoreDisagree`,
+    `TestTwoRecapsForOneWeek`, `TestKillSwitchOnACrewOverTheCapShowsTheDocument`.
+  - `TestAdminMediaOrphans*`: the scan deletes nothing, the session with a new
+    snapshot, `unknown_crew`, the delete by keys with its reasons, the new
+    read for each key, the cap, `next_after` at the end of the time budget.
+- Two tests that pinned what the review changed were edited:
+  `TestClipReconcileKeepsTwoEntriesOfOneClipID` (a clip with no event id is
+  now a row) and `TestRecapWriteOrder` (the row time is `generated_at`). The
+  characterisation files did not change.
 
 ## 9. Build steps
 
@@ -462,6 +599,14 @@ Phase 1b, as built:
 12. `crew_feed` pages from the store. Output shape unchanged. `go test -run 'TestZones|TestChar' .`
 13. `admin_media_orphans` with a dry run. `go test -run 'TestAdminMediaOrphans|TestMediaObject' .`
 14. Specs CLIPS, CREW-FEED-ZONES and 04 (the `admin_media_orphans` row). Open.
+
+Open after the review of phase 1b:
+
+- `MELLO_LEDGER_READ=doc` does not make the reconcile of phase 1a take the
+  content of the ledger document again. Only phase 1b follows the truth.
+- A clip whose `clip_id` the store holds under another row (`ref_held`) is
+  in the document and not in the store. After the cutover the readers have
+  the row of the store.
 
 Different from the first plan:
 
