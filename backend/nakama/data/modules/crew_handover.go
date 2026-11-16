@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -149,4 +150,61 @@ func handOverOwnedCrews(ctx context.Context, nk runtime.NakamaModule, logger run
 		}
 	}
 	return soleCrews
+}
+
+// The membership rows of a deleted account.
+//
+// Nakama 3.21.0 keeps both group_edge rows of a deleted account that was a
+// superadmin or an admin of a group that stays: its delete removes only rows
+// with a state above 1 (member, join request), and lowers the member count
+// in every case. The rows that stay name the deleted user. A superadmin row
+// also counts in the checks of Nakama for the last superadmin: with it, the
+// new owner could leave the crew, and the crew would have no owner.
+//
+// The runtime of Nakama has no call that removes these rows without a second
+// change of the member count (a kick lowers it again). So the scrub deletes
+// them with SQL, after the account is gone. The statement checks again that
+// the account is gone: it never removes a row of an account that exists.
+
+// crewEdgeStore is what the scrub needs of the group_edge table.
+type crewEdgeStore interface {
+	// DropGoneMember deletes the rows between a crew and a user whose
+	// account is gone. It returns the number of deleted rows.
+	DropGoneMember(ctx context.Context, crewID, userID string) (int, error)
+}
+
+// crewEdges returns the group_edge table of this install, or nil when the
+// module has no database handle. A var so a test gives a fake.
+var crewEdges = func() crewEdgeStore {
+	if globalDb == nil {
+		return nil
+	}
+	return sqlCrewEdges{db: globalDb}
+}
+
+type sqlCrewEdges struct {
+	db *sql.DB
+}
+
+func (s sqlCrewEdges) DropGoneMember(ctx context.Context, crewID, userID string) (int, error) {
+	res, err := s.db.ExecContext(ctx,
+		`DELETE FROM group_edge
+		 WHERE ((source_id = $1::UUID AND destination_id = $2::UUID) OR (source_id = $2::UUID AND destination_id = $1::UUID))
+		   AND NOT EXISTS (SELECT 1 FROM users WHERE id = $2::UUID)`,
+		crewID, userID)
+	if err != nil {
+		return 0, err
+	}
+	n, err := res.RowsAffected()
+	return int(n), err
+}
+
+// dropGoneMember removes the membership rows that Nakama left of a deleted
+// account in a crew. Ids that are no UUID are in no row.
+func dropGoneMember(ctx context.Context, crewID, userID string) (int, error) {
+	edges := crewEdges()
+	if edges == nil || !validPurgeCrewID(crewID) || !validPurgeCrewID(userID) {
+		return 0, nil
+	}
+	return edges.DropGoneMember(ctx, crewID, userID)
 }

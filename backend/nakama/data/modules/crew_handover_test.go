@@ -48,6 +48,35 @@ func nakamaDeleteAccount(t *testing.T, nk *delNk, userID string) {
 	}
 }
 
+// memCrewEdges is the group_edge table for the rows that Nakama 3.21.0 keeps
+// of a deleted superadmin or admin. A row is "crew user".
+type memCrewEdges struct {
+	nk   *delNk
+	rows map[string]bool
+	err  error
+}
+
+func (m *memCrewEdges) DropGoneMember(_ context.Context, crewID, userID string) (int, error) {
+	if m.err != nil {
+		return 0, m.err
+	}
+	// The statement never removes a row of an account that exists.
+	if _, ok := m.nk.users[userID]; ok || !m.rows[crewID+" "+userID] {
+		return 0, nil
+	}
+	delete(m.rows, crewID+" "+userID)
+	return 2, nil
+}
+
+func useMemEdges(t *testing.T, nk *delNk) *memCrewEdges {
+	t.Helper()
+	m := &memCrewEdges{nk: nk, rows: map[string]bool{}}
+	prev := crewEdges
+	crewEdges = func() crewEdgeStore { return m }
+	t.Cleanup(func() { crewEdges = prev })
+	return m
+}
+
 func memberState(nk *delNk, crewID, userID string) int {
 	for _, m := range nk.members[crewID] {
 		if m.GetUser().GetId() == userID {
@@ -328,4 +357,31 @@ func TestScrubPurgesOnlyTheCrewOfTheOnlyMember(t *testing.T) {
 			t.Fatalf("record of the second attempt = %+v", rec)
 		}
 	})
+}
+
+// The membership rows that Nakama keeps of a deleted admin go with the
+// scrub. A delete of the rows that fails keeps the crew in the scrub, and the
+// next run removes them. The rows of an account that exists stay.
+func TestScrubRemovesTheMembershipRowsOfADeletedAccount(t *testing.T) {
+	useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	edges := useMemEdges(t, nk)
+	edges.rows[scrubCrew+" "+goneUser] = true
+	edges.rows[scrubCrew+" u1"] = true
+
+	edges.err = errors.New("database down")
+	deleteAccount(t, nk, goneUser)
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs != 0 || len(rec.Crews) != 1 {
+		t.Fatalf("scrub record after a failed delete of the rows = %+v", rec)
+	}
+	edges.err = nil
+	runPendingUserScrubs(context.Background(), nk, testLogger(), time.Now().Add(time.Minute))
+	if rec := scrubRecordOf(t, nk); rec == nil || rec.DoneMs == 0 {
+		t.Fatalf("scrub record = %+v", rec)
+	}
+	if edges.rows[scrubCrew+" "+goneUser] || !edges.rows[scrubCrew+" u1"] {
+		t.Fatalf("rows = %v", edges.rows)
+	}
 }

@@ -814,6 +814,18 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged. To remove it, run admin_purge_crew", rec.UserID, crewID)
 	}
 
+	if exists && rec.DeletedMs > 0 {
+		// Nakama keeps the membership rows of a deleted superadmin or admin
+		// (crew_handover.go).
+		n, err := dropGoneMember(ctx, crewID, rec.UserID)
+		if err != nil {
+			return false, fmt.Errorf("membership rows: %w", err)
+		}
+		if n > 0 {
+			logger.Info("user_scrub user=%s crew=%s: removed %d membership rows that Nakama left", rec.UserID, crewID, n)
+		}
+	}
+
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
 	if exists {
 		// A name of the user that another member has now is not matched in a
