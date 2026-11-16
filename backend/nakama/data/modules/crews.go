@@ -541,6 +541,10 @@ func KickCrewMemberRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 	// Remove the kicked user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, req.UserID, req.CrewID)
 
+	// A kick writes the same member_left event as a leave. GroupUsersKick of
+	// the runtime runs no hook, so the RPC writes it.
+	recordMemberLeft(ctx, logger, nk, req.CrewID, req.UserID)
+
 	InvalidateCrewState(req.CrewID)
 
 	logger.Info("User %s kicked %s from crew %s", callerID, req.UserID, req.CrewID)
@@ -622,6 +626,31 @@ func AfterLeaveCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	// Remove the departing user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
 
+	recordMemberLeft(ctx, logger, nk, crewID, userID)
+
+	return nil
+}
+
+// AfterKickCrewMembers runs when a client kicks through the group API of
+// Nakama and not through kick_crew_member. It does what the RPC does after
+// the kick.
+func AfterKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.KickGroupUsersRequest) error {
+	crewID := in.GetGroupId()
+	for _, userID := range in.GetUserIds() {
+		if userID == "" {
+			continue
+		}
+		cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
+		recordMemberLeft(ctx, logger, nk, crewID, userID)
+	}
+	InvalidateCrewState(crewID)
+	return nil
+}
+
+// recordMemberLeft writes the member_left event of the crew ledger. A leave
+// and a kick both call it. The earlier events of the member stay
+// (plans/DURABLE-LEDGER.md section 7).
+func recordMemberLeft(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, userID string) {
 	displayName := resolveUsername(ctx, nk, userID)
 	event := CrewEvent{
 		ID:        generateEventID(),
@@ -638,6 +667,4 @@ func AfterLeaveCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	if err := AppendCrewEvent(ctx, nk, crewID, event); err != nil {
 		logger.Warn("Failed to write member_left event for crew %s: %v", crewID, err)
 	}
-
-	return nil
 }
