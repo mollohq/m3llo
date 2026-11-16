@@ -240,6 +240,13 @@ func scrubRPC(nk runtime.NakamaModule, userID string) (userScrubResult, error) {
 func checkScrubbed(t *testing.T, nk *delNk, store ledgerStore, f *fakeS3, when string) {
 	t.Helper()
 	for _, crewID := range []string{scrubCrew, leftCrew} {
+		checkScrubbedCrew(t, nk, store, f, crewID, when)
+	}
+}
+
+func checkScrubbedCrew(t *testing.T, nk *delNk, store ledgerStore, f *fakeS3, crewID, when string) {
+	t.Helper()
+	{
 		tag := crewID[:4]
 		if traces := userTraces(t, nk, store, crewID); len(traces) != 0 {
 			t.Fatalf("%s: crew %s still names the user:\n%s", when, tag, strings.Join(traces, "\n"))
@@ -1028,4 +1035,34 @@ func TestScrubKeepsANameThatAnotherMemberHas(t *testing.T) {
 	if strings.Contains(raw, goneName) {
 		t.Fatal("an event or a clip still holds the name beside the id of the user")
 	}
+}
+
+// A new delete attempt starts the wait of the record again: the job must not
+// delete the record of an earlier attempt between the two hooks of this one.
+func TestScrubRecordOfARetriedDeleteIsNotCleaned(t *testing.T) {
+	store := useMemLedger(t)
+	nk := newDelNk()
+	f := useScrubInline(t)
+	seedScrubCrew(t, nk, f, scrubCrew, true)
+	ctx := context.Background()
+	// The first attempt, two hours ago: its before hook ran, the delete did not.
+	old := &userScrubRecord{UserID: goneUser, StartedMs: time.Now().Add(-2 * time.Hour).UnixMilli(), Crews: []string{scrubCrew}}
+	if err := writeUserScrubRecord(ctx, nk, old); err != nil {
+		t.Fatal(err)
+	}
+	// The second attempt.
+	if err := BeforeDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	// The job runs between the two hooks.
+	runPendingUserScrubs(ctx, nk, testLogger(), time.Now().Add(time.Minute))
+	rec := scrubRecordOf(t, nk)
+	if rec == nil || len(rec.Names) == 0 || time.Since(time.UnixMilli(rec.StartedMs)) > time.Minute {
+		t.Fatalf("the record of a retried delete = %+v", rec)
+	}
+	removeAccount(nk, goneUser)
+	if err := AfterDeleteAccount(ctxWithUser(goneUser), testLogger(), nil, nk); err != nil {
+		t.Fatal(err)
+	}
+	checkScrubbedCrew(t, nk, store, f, scrubCrew, "after the retried delete")
 }

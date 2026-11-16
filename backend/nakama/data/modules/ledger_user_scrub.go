@@ -385,6 +385,13 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	_, err := updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
 		rec.addNames(names...)
 		rec.addCrews(crews...)
+		// Each delete attempt starts the wait for the delete again. The job
+		// deletes a record of an account that still exists after
+		// userScrubStale: a record of an earlier attempt must not be cleaned
+		// between the two hooks of this one.
+		if rec.DeletedMs == 0 {
+			rec.StartedMs = userScrubNow().UnixMilli()
+		}
 	})
 	if err != nil {
 		logger.Error("user_scrub_failed user=%s: scrub record write: %v. Run admin_scrub_user after the delete", userID, err)
@@ -548,6 +555,7 @@ func runUserScrub(ctx context.Context, nk runtime.NakamaModule, logger runtime.L
 				settled = true
 			}
 		}
+
 		var err error
 		if settled {
 			// The second run is over. The record goes.
