@@ -475,6 +475,14 @@ func TestInALargeCrewAnAskWithAGameGoesToTheMembersWhoHaveIt(t *testing.T) {
 		t.Fatalf("pushes = %v, want %v", got, want)
 	}
 
+	// A game that no library names: the id of the game catalogue, or a game
+	// that no launcher reports. The libraries tell nothing, so every member
+	// gets the ask.
+	r.ask("u3", `{"crew_id":"c1","game":{"game_id":"counter-strike-2","name":"Counter-Strike 2"}}`)
+	if got := r.takePushes(); len(got) != largeCrewMembers+1 {
+		t.Fatalf("a game that no library names pushed to %d members, want %d", len(got), largeCrewMembers+1)
+	}
+
 	// An ask with no game goes to every member of the large crew.
 	r.ask("u2", `{"crew_id":"c1"}`)
 	if got := r.takePushes(); len(got) != largeCrewMembers+1 {

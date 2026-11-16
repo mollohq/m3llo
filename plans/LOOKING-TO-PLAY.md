@@ -216,7 +216,8 @@ members. Two rules depend on it.
 | Who gets the New ask and the Second call push of an ask to everyone that has a game | Every member | Members who have the game, and members whose games are not known |
 | The Messages switch at the start (section 4) | On | Off |
 
-An ask to everyone with no game goes to every member at every size. An ask
+An ask to everyone with no game goes to every member at every size. The same holds for a
+game that no library of the crew names: the libraries then tell nothing about who has it. An ask
 to picked members goes to those members at every size. A member can ask, answer and see
 every card in chat with no regard to who got the push.
 

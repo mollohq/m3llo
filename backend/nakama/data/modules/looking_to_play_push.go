@@ -70,15 +70,29 @@ func ltpHasGame(lib *LibraryDoc, gameID string) bool {
 // ask, before the Looking to play setting. others holds the members that the
 // ask goes to. In a large crew, an ask to everyone that has a game goes to
 // the members who have the game (section 3.8).
+//
+// When no library names the game, the libraries tell nothing about it: the
+// game is not one that a launcher reports, or the client sent the id of the
+// game catalogue ("counter-strike-2") and not a library id ("steam-730").
+// The ask then goes to every member, as an ask with no game does.
 func ltpAudience(a *ltpAsk, others []string, memberCount int, libs map[string]*LibraryDoc) []string {
 	if !a.asksEveryone() || a.Game == nil || memberCount <= largeCrewMembers {
 		return others
 	}
 	var out []string
+	named := false
 	for _, uid := range others {
-		if ltpHasGame(libs[uid], a.Game.GameID) {
-			out = append(out, uid)
+		lib := libs[uid]
+		if !ltpHasGame(lib, a.Game.GameID) {
+			continue
 		}
+		out = append(out, uid)
+		if lib != nil {
+			named = true
+		}
+	}
+	if !named {
+		return others
 	}
 	return out
 }
