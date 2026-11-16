@@ -1,0 +1,1173 @@
+import { Theme } from "../theme.slint";
+import { CutCard, CutButtonShape, CutTile } from "cut.slint";
+import { UserAvatar, AvatarOverflow } from "avatar.slint";
+import { GameArt } from "game_art.slint";
+import { StatValue } from "stat.slint";
+
+// ============================================================
+//  Looking to play: the card in crew chat and the toast.
+//  The popover that makes an ask is in looking_to_play_popover.slint.
+//
+//  Spec: plans/LOOKING-TO-PLAY.md 3.1, 3.2, 3.6, 3.8.
+//  Mockup: designs/looking-to-play.html, frames 2, 3, 4, 5, 11, 13, 14.
+//
+//  One message is an "ask". Its sender is the "asker". Rust fills every
+//  struct here: the components hold no business logic. They draw the data
+//  they get, in the order they get it, and send ids back as strings.
+//
+//  Red is state (the open pip, the ON tag) and the fill of the one button
+//  that commits: In. White is never a fill here. Identity hues are only on
+//  people, the crew and games.
+// ============================================================
+
+// ---------------------------------------------------------------- data
+
+/// One row of the card: a member and the state of the answer.
+export struct LookingToPlayRow {
+    user-id: string,
+    name: string,
+    /// Two letters for the octagon when there is no picture.
+    initials: string,
+    /// Identity hue of the initials fallback: 0 blue, 1 purple, 2 teal,
+    /// 3 amber, 4 pink (the order of `UserAvatar.color-index`).
+    color-index: int,
+    avatar: image,
+    has-avatar: bool,
+    /// "voice": in a voice channel of the crew. "in": answered In.
+    /// "due": answered In 15 or In 30, see `due-minutes`. "none": asked,
+    /// no answer yet. "no": answered Not now.
+    state: string,
+    /// Minutes until the member is due. Used when `state` is "due".
+    due-minutes: int,
+}
+
+/// One ask, as the card in chat draws it.
+export struct LookingToPlayCardData {
+    ask-id: string,
+    /// "open": nobody else is in yet. "on": one other member is in or more.
+    /// "closed": over, the card keeps its last state.
+    state: string,
+    /// Why a closed ask closed: "nobody", "all_no", "cancelled" or "done".
+    closed-reason: string,
+    asker-name: string,
+    /// The ask names a game. False: no game line.
+    has-game: bool,
+    /// Stable game id of the library report, for example "steam-730".
+    game-id: string,
+    game-name: string,
+    /// `GameArt` fallback: the short name and its identity hue (0 to 4).
+    game-monogram: string,
+    game-hue: int,
+    /// Square game art for `GameArt.icon`.
+    game-icon: image,
+    has-game-icon: bool,
+    /// Minutes until an open ask closes. Shown in the "open" state only.
+    minutes-left: int,
+    /// The rows, in the order to draw them. Rust picks which rows exist
+    /// (3.6: every asked member up to 10, else at most 6 who are in or due).
+    rows: [LookingToPlayRow],
+    /// Members who are in beyond `rows`. Shows "{n} more in" when above 0.
+    more-in: int,
+    /// Members who answered Not now and have no row. Shows "{n} not now".
+    no-count: int,
+    viewer-is-asker: bool,
+    /// The answer of the viewer: "", "in", "in_15", "in_30" or "no".
+    viewer-answer: string,
+    /// The viewer pressed Change: show the four answers again.
+    changing: bool,
+    /// Day and time of a closed card, ready to show: "Tue 20:02".
+    closed-at: string,
+    /// A closed card: the members who were in, in the order to draw them.
+    was-in: [LookingToPlayRow],
+}
+
+/// The toast for an ask that just arrived.
+export struct LookingToPlayToastData {
+    ask-id: string,
+    crew-name: string,
+    crew-initials: string,
+    /// Identity hue of the crew tile when it has no picture (0 to 4).
+    crew-color-index: int,
+    crew-avatar: image,
+    has-crew-avatar: bool,
+    asker-name: string,
+    has-game: bool,
+    game-id: string,
+    game-name: string,
+    game-monogram: string,
+    game-hue: int,
+    game-icon: image,
+    has-game-icon: bool,
+    minutes-left: int,
+    /// Members who are in now, the asker included.
+    count-in: int,
+}
+
+// ---------------------------------------------------------------- copy
+
+/// Every label of this feature, in one place. The defaults are the
+/// translated messages. Only the long-text preview sets them, to prove a
+/// German-length label does not clip. The app never writes them.
+export global LookingToPlayCopy {
+    in-out property <string> looking: @tr("LOOKING TO PLAY");
+    in-out property <string> on-tag: @tr("ON");
+    in-out property <string> min: @tr("MIN");
+    in-out property <string> state-voice: @tr("IN VOICE");
+    in-out property <string> state-in: @tr("IN");
+    in-out property <string> state-none: @tr("NO ANSWER");
+    in-out property <string> state-no: @tr("NOT NOW");
+    in-out property <string> btn-in: @tr("IN");
+    in-out property <string> btn-in-15: @tr("IN 15");
+    in-out property <string> btn-in-30: @tr("IN 30");
+    in-out property <string> btn-no: @tr("NOT NOW");
+    in-out property <string> btn-change: @tr("CHANGE");
+    in-out property <string> btn-cancel: @tr("CANCEL");
+    in-out property <string> count-in: @tr("count of members in" => "IN");
+}
+
+// ---------------------------------------------------------------- parts
+
+/// A label in the 600 register: uppercase, tracked. The text comes in
+/// uppercase from @tr(); this does not change the case.
+export component LtpLabel inherits Text {
+    font-family: Theme.font-label;
+    font-weight: Theme.weight-label;
+    letter-spacing: Theme.track-label;
+    font-size: 9px;
+    color: Theme.text-secondary;
+    vertical-alignment: center;
+}
+
+/// The red dot of an open ask.
+export component LtpPip inherits Rectangle {
+    width: 6px;
+    height: 6px;
+    border-radius: 3px;
+    background: Theme.live;
+}
+
+/// The red ON tag of an ask that is on.
+export component LtpOnTag inherits Rectangle {
+    width: tag.preferred-width + 14px;
+    height: 15px;
+    background: Theme.live;
+    tag := LtpLabel {
+        text: LookingToPlayCopy.on-tag;
+        color: Theme.on-live;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+    }
+}
+
+/// A crew: the two-corner tile in its identity hue, or its picture.
+export component LtpCrewTile inherits Rectangle {
+    in property <string> initials;
+    in property <int> color-index: 1;
+    in property <image> avatar;
+    in property <bool> has-avatar: false;
+    in property <length> size: 26px;
+    /// What is behind the tile. The cut corners of a picture are painted with it.
+    in property <color> bg-color: Theme.card-bg;
+
+    width: size;
+    height: size;
+
+    property <length> notch: max(4px, root.size * 0.23);
+
+    CutTile {
+        width: parent.width;
+        height: parent.height;
+        notch: root.notch;
+        fill-color: root.color-index == 0 ? Theme.id-blue
+            : root.color-index == 1 ? Theme.id-purple
+            : root.color-index == 2 ? Theme.id-teal
+            : root.color-index == 3 ? Theme.id-amber : Theme.id-pink;
+    }
+    if !root.has-avatar: Text {
+        text: root.initials;
+        font-family: Theme.font-display;
+        font-weight: Theme.weight-display-bold;
+        font-size: max(7px, root.size * 0.32);
+        color: Theme.on-action;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    if root.has-avatar: GameArt {
+        // GameArt draws a picture in the two-corner shape and masks the cuts.
+        size: root.size;
+        icon: root.avatar;
+        has-icon: true;
+        monogram: root.initials;
+        bg-color: root.bg-color;
+    }
+}
+
+/// "Any game": a graphite tile with the gamepad.
+export component LtpAnyGameTile inherits Rectangle {
+    in property <length> size: 28px;
+    width: size;
+    height: size;
+    CutTile {
+        width: parent.width;
+        height: parent.height;
+        notch: max(4px, root.size * 0.2);
+        fill-color: Theme.raised;
+    }
+    Image {
+        source: @image-url("../icons/gamepad.svg");
+        width: root.size * 0.45;
+        height: root.size * 0.45;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        colorize: Theme.text-body;
+    }
+}
+
+/// A button of the card, the toast and the popover.
+/// `kind` "go": the red commit fill. "raised": graphite. "quiet": no fill.
+export component LtpButton inherits Rectangle {
+    in property <string> text;
+    /// What a screen reader and the e2e driver read: the label in sentence case.
+    in property <string> a11y-label;
+    in property <string> kind: "raised";
+    /// The graphite fill of a "raised" button. The toast sits on the raised
+    /// fill, so its buttons use the card fill.
+    in property <color> raised-fill: Theme.raised;
+    in property <bool> enabled: true;
+    in property <length> button-height: 34px;
+    /// The width the label needs, with the padding.
+    out property <length> natural-width: label.preferred-width + 24px;
+    callback clicked();
+
+    height: button-height;
+    min-width: natural-width;
+    background: transparent;
+
+    property <color> fill: !root.enabled ? Theme.raised
+        : root.kind == "go" ? (touch.pressed ? Theme.confirm-press : Theme.confirm)
+        : root.kind == "quiet" ? (touch.has-hover ? Theme.hover-overlay : transparent)
+        : (touch.has-hover ? Theme.raised-hover : root.raised-fill);
+
+    CutButtonShape {
+        width: parent.width;
+        height: parent.height;
+        n: 8px;
+        fill: root.fill;
+    }
+
+    label := Text {
+        text: root.text;
+        font-family: Theme.font-label;
+        font-weight: Theme.weight-label;
+        letter-spacing: Theme.track-label;
+        font-size: Theme.font-xs;
+        color: !root.enabled ? Theme.text-tertiary
+            : root.kind == "go" ? Theme.on-confirm
+            : root.kind == "quiet" ? (touch.has-hover ? Theme.text-primary : Theme.text-secondary)
+            : Theme.text-primary;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        accessible-role: button;
+        accessible-label: root.a11y-label;
+        accessible-enabled: root.enabled;
+        mouse-cursor: root.enabled ? pointer : default;
+        clicked => { root.clicked(); }
+    }
+}
+
+/// A hidden label with the button font, to measure a label before the
+/// buttons are laid out.
+export component LtpMeasure inherits Text {
+    visible: false;
+    font-family: Theme.font-label;
+    font-weight: Theme.weight-label;
+    letter-spacing: Theme.track-label;
+    font-size: Theme.font-xs;
+}
+
+/// The four answers: In (red), In 15, In 30, Not now.
+///
+/// One row when each label fits its share (In takes 1.3 of the others, as
+/// in the mockup). Else In on its own row and the three others under it,
+/// as on the phone (frame 8). Else one button on each row.
+export component LtpAnswers inherits Rectangle {
+    in property <color> raised-fill: Theme.raised;
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback answered(/* answer */ string);
+
+    property <length> gap: 6px;
+    property <length> pad: 24px;
+    property <length> need-in: m-in.preferred-width + pad;
+    property <length> widest-rest: max(m-15.preferred-width, m-30.preferred-width, m-no.preferred-width) + pad;
+    property <length> need-rest: m-15.preferred-width + m-30.preferred-width + m-no.preferred-width + 3 * pad;
+    // 1: one row when every label fits beside the others, as flex boxes
+    // do in the mockup. 2: In on its own row, the three others under it.
+    // 3: two by two. 4: one button on each row.
+    property <int> mode: need-in + need-rest + 3 * gap <= self.width ? 1
+        : widest-rest * 3 + 2 * gap <= self.width ? 2
+        : max(need-in, widest-rest) * 2 + gap <= self.width ? 3 : 4;
+    property <int> rows: mode == 1 ? 1 : mode == 4 ? 4 : 2;
+
+    height: rows * 34px + (rows - 1) * gap;
+
+    m-in := LtpMeasure { text: LookingToPlayCopy.btn-in; }
+    m-15 := LtpMeasure { text: LookingToPlayCopy.btn-in-15; }
+    m-30 := LtpMeasure { text: LookingToPlayCopy.btn-in-30; }
+    m-no := LtpMeasure { text: LookingToPlayCopy.btn-no; }
+
+    if root.mode == 1: HorizontalLayout {
+        spacing: root.gap;
+        LtpButton {
+            horizontal-stretch: 1.3;
+            text: LookingToPlayCopy.btn-in;
+            a11y-label: @tr("In");
+            kind: "go";
+            clicked => { root.answered("in"); }
+        }
+        LtpButton {
+            horizontal-stretch: 1;
+            text: LookingToPlayCopy.btn-in-15;
+            a11y-label: @tr("In 15");
+            raised-fill: root.raised-fill;
+            clicked => { root.answered("in_15"); }
+        }
+        LtpButton {
+            horizontal-stretch: 1;
+            text: LookingToPlayCopy.btn-in-30;
+            a11y-label: @tr("In 30");
+            raised-fill: root.raised-fill;
+            clicked => { root.answered("in_30"); }
+        }
+        LtpButton {
+            horizontal-stretch: 1;
+            text: LookingToPlayCopy.btn-no;
+            a11y-label: @tr("Not now");
+            kind: "quiet";
+            clicked => { root.answered("no"); }
+        }
+    }
+
+    if root.mode == 2: VerticalLayout {
+        spacing: root.gap;
+        LtpButton {
+            text: LookingToPlayCopy.btn-in;
+            a11y-label: @tr("In");
+            kind: "go";
+            clicked => { root.answered("in"); }
+        }
+        HorizontalLayout {
+            spacing: root.gap;
+            LtpButton {
+                horizontal-stretch: 1;
+                    text: LookingToPlayCopy.btn-in-15;
+                a11y-label: @tr("In 15");
+                raised-fill: root.raised-fill;
+                clicked => { root.answered("in_15"); }
+            }
+            LtpButton {
+                horizontal-stretch: 1;
+                    text: LookingToPlayCopy.btn-in-30;
+                a11y-label: @tr("In 30");
+                raised-fill: root.raised-fill;
+                clicked => { root.answered("in_30"); }
+            }
+            LtpButton {
+                horizontal-stretch: 1;
+                    text: LookingToPlayCopy.btn-no;
+                a11y-label: @tr("Not now");
+                kind: "quiet";
+                clicked => { root.answered("no"); }
+            }
+        }
+    }
+
+    if root.mode == 3: VerticalLayout {
+        spacing: root.gap;
+        HorizontalLayout {
+            spacing: root.gap;
+            LtpButton {
+                horizontal-stretch: 1;
+                text: LookingToPlayCopy.btn-in;
+                a11y-label: @tr("In");
+                kind: "go";
+                clicked => { root.answered("in"); }
+            }
+            LtpButton {
+                horizontal-stretch: 1;
+                text: LookingToPlayCopy.btn-in-15;
+                a11y-label: @tr("In 15");
+                raised-fill: root.raised-fill;
+                clicked => { root.answered("in_15"); }
+            }
+        }
+        HorizontalLayout {
+            spacing: root.gap;
+            LtpButton {
+                horizontal-stretch: 1;
+                text: LookingToPlayCopy.btn-in-30;
+                a11y-label: @tr("In 30");
+                raised-fill: root.raised-fill;
+                clicked => { root.answered("in_30"); }
+            }
+            LtpButton {
+                horizontal-stretch: 1;
+                text: LookingToPlayCopy.btn-no;
+                a11y-label: @tr("Not now");
+                kind: "quiet";
+                clicked => { root.answered("no"); }
+            }
+        }
+    }
+
+    if root.mode == 4: VerticalLayout {
+        spacing: root.gap;
+        LtpButton {
+            text: LookingToPlayCopy.btn-in;
+            a11y-label: @tr("In");
+            kind: "go";
+            clicked => { root.answered("in"); }
+        }
+        LtpButton {
+            text: LookingToPlayCopy.btn-in-15;
+            a11y-label: @tr("In 15");
+            raised-fill: root.raised-fill;
+            clicked => { root.answered("in_15"); }
+        }
+        LtpButton {
+            text: LookingToPlayCopy.btn-in-30;
+            a11y-label: @tr("In 30");
+            raised-fill: root.raised-fill;
+            clicked => { root.answered("in_30"); }
+        }
+        LtpButton {
+            text: LookingToPlayCopy.btn-no;
+            a11y-label: @tr("Not now");
+            kind: "quiet";
+            clicked => { root.answered("no"); }
+        }
+    }
+}
+
+/// One member row of the card: octagon, name, state at the right.
+export component LtpMemberRow inherits Rectangle {
+    in property <LookingToPlayRow> member;
+    /// What is behind the row, for the avatar corners.
+    in property <color> bg-color: Theme.card-bg;
+
+    height: 28px;
+
+    property <bool> dim: root.member.state == "no";
+
+    HorizontalLayout {
+        spacing: 10px;
+        cross-axis-alignment: center;
+
+        UserAvatar {
+            size: 26px;
+            initials: root.member.initials;
+            color-index: root.member.color-index;
+            avatar: root.member.avatar;
+            has-avatar: root.member.has-avatar;
+            bg-color: root.bg-color;
+            opacity: root.dim ? 0.4 : 1;
+        }
+        Text {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            text: root.member.name;
+            font-family: Theme.font-display;
+            font-weight: Theme.weight-display;
+            font-size: Theme.font-md;
+            color: Theme.text-primary;
+            opacity: root.dim ? 0.4 : 1;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+        if root.member.state == "due": StatValue {
+            horizontal-stretch: 0;
+            value: root.member.due-minutes;
+            unit: LookingToPlayCopy.min;
+            value-size: 15px;
+            unit-size: 9px;
+            unit-font: Theme.font-label;
+            unit-weight: Theme.weight-label;
+            unit-spacing: Theme.track-label;
+            unit-color: Theme.text-primary;
+        }
+        if root.member.state != "due": LtpLabel {
+            horizontal-stretch: 0;
+            text: root.member.state == "voice" ? LookingToPlayCopy.state-voice
+                : root.member.state == "in" ? LookingToPlayCopy.state-in
+                : root.member.state == "no" ? LookingToPlayCopy.state-no
+                : LookingToPlayCopy.state-none;
+            color: root.member.state == "voice" || root.member.state == "in" ? Theme.text-primary
+                : root.member.state == "none" ? Theme.text-tertiary
+                : Theme.text-secondary;
+        }
+    }
+}
+
+/// A member who was in, on a closed card: small octagon and name.
+export component LtpWasIn inherits Rectangle {
+    in property <LookingToPlayRow> member;
+    in property <color> bg-color: Theme.surface;
+    height: 26px;
+    HorizontalLayout {
+        spacing: 7px;
+        cross-axis-alignment: center;
+        UserAvatar {
+            size: 22px;
+            initials: root.member.initials;
+            color-index: root.member.color-index;
+            avatar: root.member.avatar;
+            has-avatar: root.member.has-avatar;
+            bg-color: root.bg-color;
+        }
+        Text {
+            horizontal-stretch: 1;
+            min-width: 0px;
+            text: root.member.name;
+            font-family: Theme.font-display;
+            font-weight: Theme.weight-display;
+            font-size: 12px;
+            color: Theme.text-body;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// ---------------------------------------------------------------- the card
+
+/// The card of an ask in the chat feed (frames 2, 3, 4, 11, 14).
+/// Width comes from the feed. The height follows the content.
+export component LookingToPlayCard inherits CutCard {
+    in property <LookingToPlayCardData> data;
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback answered(/* ask-id */ string, /* answer */ string);
+    /// The viewer wants to answer again: Rust sets `changing`.
+    callback change-clicked(/* ask-id */ string);
+    callback cancel-clicked(/* ask-id */ string);
+    /// "{n} more in": open the full list of who is in.
+    callback more-clicked(/* ask-id */ string);
+
+    property <bool> closed: root.data.state == "closed";
+    property <bool> on: root.data.state == "on";
+    property <color> ground: closed ? Theme.surface : Theme.card-bg;
+    property <bool> show-answers: !closed && !root.data.viewer-is-asker
+        && (root.data.viewer-answer == "" || root.data.changing);
+    property <bool> show-answered: !closed && !root.data.viewer-is-asker && !show-answers;
+    property <bool> show-cancel: !closed && root.data.viewer-is-asker;
+    property <bool> nobody-line: closed && root.data.closed-reason != "cancelled"
+        && root.data.was-in.length == 0;
+    property <bool> cancelled-line: closed && root.data.closed-reason == "cancelled";
+    property <bool> show-was-in: closed && !cancelled-line && root.data.was-in.length > 0;
+    property <int> was-in-cols: root.width >= 360px ? 3 : 2;
+    property <int> was-in-max: was-in-cols * 2;
+    property <int> was-in-rows: min(2, Math.ceil(root.data.was-in.length / was-in-cols));
+
+    fill-color: ground;
+    line-color: Theme.card-border;
+
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 14px;
+        padding-bottom: 12px;
+        spacing: 0px;
+
+        // Top line: state, label, minutes left or the time of a closed card.
+        HorizontalLayout {
+            height: 16px;
+            spacing: 8px;
+            padding-right: 12px;
+            cross-axis-alignment: center;
+
+            if !root.closed && !root.on: LtpPip { }
+            if root.on: LtpOnTag { }
+            LtpLabel {
+                text: LookingToPlayCopy.looking;
+            }
+            Rectangle { horizontal-stretch: 1; }
+            if root.data.state == "open": StatValue {
+                value: root.data.minutes-left;
+                unit: LookingToPlayCopy.min;
+                value-size: 12px;
+                unit-size: 9px;
+                unit-font: Theme.font-label;
+                unit-weight: Theme.weight-label;
+                unit-spacing: Theme.track-label;
+                unit-color: Theme.text-secondary;
+                gap: 3px;
+            }
+            if root.closed: LtpLabel {
+                text: root.data.closed-at;
+            }
+        }
+
+        Rectangle { height: 6px; }
+
+        Text {
+            text: root.closed ? @tr("{} was looking to play", root.data.asker-name)
+                : @tr("{} is looking to play", root.data.asker-name);
+            font-family: Theme.font-display;
+            font-weight: Theme.weight-display;
+            font-size: 15px;
+            color: root.closed ? Theme.text-body : Theme.text-primary;
+            wrap: word-wrap;
+        }
+
+        if root.data.has-game && !root.closed: VerticalLayout {
+            padding-top: 10px;
+            HorizontalLayout {
+                spacing: 10px;
+                cross-axis-alignment: center;
+                GameArt {
+                    size: 40px;
+                    game-id: root.data.game-id;
+                    monogram: root.data.game-monogram;
+                    hue-index: root.data.game-hue;
+                    icon: root.data.game-icon;
+                    has-icon: root.data.has-game-icon;
+                    bg-color: root.ground;
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    min-width: 0px;
+                    text: root.data.game-name;
+                    font-family: Theme.font-display;
+                    font-weight: Theme.weight-display;
+                    font-size: Theme.font-md;
+                    color: Theme.text-primary;
+                    wrap: word-wrap;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        // Rows, under a keyline.
+        if !root.closed && root.data.rows.length > 0: VerticalLayout {
+            padding-top: 12px;
+            spacing: 0px;
+            Rectangle { height: 1px; background: Theme.card-border; }
+            VerticalLayout {
+                padding-top: 10px;
+                spacing: 6px;
+                for r in root.data.rows: LtpMemberRow {
+                    member: r;
+                    bg-color: root.ground;
+                }
+            }
+        }
+
+        // "{n} more in" and "{n} not now". One alone sits at the right.
+        if !root.closed && (root.data.more-in > 0 || root.data.no-count > 0): HorizontalLayout {
+            padding-top: 8px;
+            height: 24px;
+            if !(root.data.more-in > 0 && root.data.no-count > 0): Rectangle { horizontal-stretch: 1; }
+            if root.data.more-in > 0: Rectangle {
+                width: more-text.preferred-width;
+                accessible-role: button;
+                accessible-label: @tr("{n} more in" | "{n} more in" % root.data.more-in);
+                more-text := LtpLabel {
+                    x: 0;
+                    text: @tr("{n} MORE IN" | "{n} MORE IN" % root.data.more-in);
+                    color: more-touch.has-hover ? Theme.action-press : Theme.text-primary;
+                    height: parent.height;
+                }
+                more-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.more-clicked(root.data.ask-id); }
+                }
+            }
+            if root.data.more-in > 0 && root.data.no-count > 0: Rectangle { horizontal-stretch: 1; }
+            if root.data.no-count > 0: LtpLabel {
+                text: @tr("{n} NOT NOW" | "{n} NOT NOW" % root.data.no-count);
+            }
+        }
+
+        // Answers.
+        if root.show-answers: VerticalLayout {
+            padding-top: 12px;
+            LtpAnswers {
+                answered(a) => { root.answered(root.data.ask-id, a); }
+            }
+        }
+
+        // Answered: In (when the answer is not In yet) and Change.
+        if root.show-answered: HorizontalLayout {
+            padding-top: 12px;
+            spacing: 6px;
+            if root.data.viewer-answer == "in": Rectangle { horizontal-stretch: 1; }
+            if root.data.viewer-answer != "in": LtpButton {
+                horizontal-stretch: 1.3;
+                text: LookingToPlayCopy.btn-in;
+                a11y-label: @tr("In");
+                kind: "go";
+                clicked => { root.answered(root.data.ask-id, "in"); }
+            }
+            LtpButton {
+                horizontal-stretch: root.data.viewer-answer == "in" ? 0 : 1;
+                text: LookingToPlayCopy.btn-change;
+                a11y-label: @tr("Change answer");
+                kind: "quiet";
+                clicked => { root.change-clicked(root.data.ask-id); }
+            }
+        }
+
+        // The asker: Cancel.
+        if root.show-cancel: HorizontalLayout {
+            padding-top: 12px;
+            Rectangle { horizontal-stretch: 1; }
+            LtpButton {
+                horizontal-stretch: 0;
+                width: max(self.natural-width, 96px);
+                text: LookingToPlayCopy.btn-cancel;
+                a11y-label: @tr("Cancel the ask");
+                clicked => { root.cancel-clicked(root.data.ask-id); }
+            }
+        }
+
+        // Closed: who was in, three to a line (two when narrow), at most six.
+        if root.show-was-in: VerticalLayout {
+            padding-top: 10px;
+            spacing: 4px;
+            for ri in root.was-in-rows: HorizontalLayout {
+                spacing: 14px;
+                height: 26px;
+                for ci in root.was-in-cols: Rectangle {
+                    property <int> i: ri * root.was-in-cols + ci;
+                    horizontal-stretch: 1;
+                    if i < root.data.was-in.length: LtpWasIn {
+                        width: parent.width;
+                        member: root.data.was-in[i];
+                        bg-color: root.ground;
+                    }
+                }
+            }
+            if root.data.was-in.length > root.was-in-max: LtpLabel {
+                height: 18px;
+                text: @tr("{n} MORE IN" | "{n} MORE IN" % (root.data.was-in.length - root.was-in-max));
+            }
+        }
+
+        if root.nobody-line || root.cancelled-line: Text {
+            text: root.cancelled-line ? @tr("{} called it off", root.data.asker-name) : @tr("No one this time");
+            font-family: Theme.font-body;
+            font-weight: Theme.weight-sentence;
+            font-size: Theme.font-md;
+            color: Theme.text-secondary;
+            wrap: word-wrap;
+        }
+    }
+}
+
+// ---------------------------------------------------------------- the toast
+
+/// The toast in the top right corner of the window (frames 5 and 13).
+/// About 330px wide. It has no scrim, holds no focus scope and takes no
+/// keyboard focus: the window under it keeps working.
+export component LookingToPlayToast inherits CutCard {
+    in property <LookingToPlayToastData> data;
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback answered(/* ask-id */ string, /* answer */ string);
+    callback dismissed(/* ask-id */ string);
+
+    width: 330px;
+    fill-color: Theme.raised;
+    line-color: Theme.graphic-med;
+
+    VerticalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        padding-top: 14px;
+        padding-bottom: 12px;
+        spacing: 0px;
+
+        HorizontalLayout {
+            height: 22px;
+            spacing: 8px;
+            padding-right: 12px;
+            cross-axis-alignment: center;
+
+            LtpCrewTile {
+                size: 22px;
+                initials: root.data.crew-initials;
+                color-index: root.data.crew-color-index;
+                avatar: root.data.crew-avatar;
+                has-avatar: root.data.has-crew-avatar;
+                bg-color: Theme.raised;
+            }
+            LtpLabel {
+                horizontal-stretch: 1;
+                min-width: 0px;
+                // A crew name is data, not a translated message, so the
+                // label register may set its case.
+                text: root.data.crew-name.to-uppercase();
+                overflow: elide;
+            }
+            StatValue {
+                horizontal-stretch: 0;
+                value: root.data.minutes-left;
+                unit: LookingToPlayCopy.min;
+                value-size: 12px;
+                unit-size: 9px;
+                unit-font: Theme.font-label;
+                unit-weight: Theme.weight-label;
+                unit-spacing: Theme.track-label;
+                unit-color: Theme.text-secondary;
+                gap: 3px;
+            }
+            Rectangle {
+                width: 20px;
+                height: 20px;
+                accessible-role: button;
+                accessible-label: @tr("Close");
+                Image {
+                    source: @image-url("../icons/x.svg");
+                    width: 14px;
+                    height: 14px;
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    colorize: close-touch.has-hover ? Theme.text-primary : Theme.text-secondary;
+                }
+                close-touch := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => { root.dismissed(root.data.ask-id); }
+                }
+            }
+        }
+
+        Rectangle { height: 8px; }
+
+        Text {
+            text: @tr("{} is looking to play", root.data.asker-name);
+            font-family: Theme.font-display;
+            font-weight: Theme.weight-display;
+            font-size: 15px;
+            color: Theme.text-primary;
+            wrap: word-wrap;
+        }
+
+        Rectangle { height: 8px; }
+
+        HorizontalLayout {
+            spacing: 10px;
+            cross-axis-alignment: center;
+            min-height: 28px;
+            if root.data.has-game: GameArt {
+                size: 28px;
+                game-id: root.data.game-id;
+                monogram: root.data.game-monogram;
+                hue-index: root.data.game-hue;
+                icon: root.data.game-icon;
+                has-icon: root.data.has-game-icon;
+                bg-color: Theme.raised;
+            }
+            Text {
+                horizontal-stretch: 1;
+                min-width: 0px;
+                text: root.data.has-game ? root.data.game-name : "";
+                font-family: Theme.font-display;
+                font-weight: Theme.weight-display;
+                font-size: Theme.font-md;
+                color: Theme.text-primary;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+            StatValue {
+                horizontal-stretch: 0;
+                value: root.data.count-in;
+                unit: LookingToPlayCopy.count-in;
+                value-size: 14px;
+                unit-size: 9px;
+                unit-font: Theme.font-label;
+                unit-weight: Theme.weight-label;
+                unit-spacing: Theme.track-label;
+                unit-color: Theme.text-primary;
+            }
+        }
+
+        Rectangle { height: 12px; }
+
+        LtpAnswers {
+            raised-fill: Theme.card-bg;
+            answered(a) => { root.answered(root.data.ask-id, a); }
+        }
+    }
+}
+
+// ---------------------------------------------------------------- previews
+//
+//   slint-viewer --screenshot out.png --component PreviewCardOpen \
+//     client/ui/components/looking_to_play.slint
+
+/// Mock people and games of the mockup. Preview only.
+global LtpMock {
+    out property <image> cs2: @image-url("../previews/fixtures/capsule-sample-1.png");
+    out property <image> drg: @image-url("../previews/fixtures/capsule-sample-4.png");
+    out property <LookingToPlayRow> k0ji: { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2 };
+    out property <LookingToPlayRow> bobdev: { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0 };
+    out property <LookingToPlayRow> owe: { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1 };
+    out property <LookingToPlayRow> sannah: { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3 };
+    out property <LookingToPlayRow> frasse: { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4 };
+    out property <LookingToPlayRow> vilse: { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0 };
+    out property <LookingToPlayRow> morran: { user-id: "u-morran", name: "morran", initials: "MO", color-index: 2 };
+}
+
+/// A 400px chat column on the panel ground, as in the app.
+component LtpColumn inherits Rectangle {
+    width: 400px;
+    background: Theme.surface;
+    VerticalLayout {
+        padding: 16px;
+        padding-top: 10px;
+        spacing: 12px;
+        @children
+    }
+}
+
+export component PreviewCardOpen inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "open", asker-name: "k0ji", minutes-left: 28,
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "in" },
+                { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "none" },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "none" },
+                { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, state: "no" },
+            ],
+        };
+    }
+}
+
+export component PreviewCardOn inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "on", asker-name: "k0ji",
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+            viewer-answer: "in_15",
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "voice" },
+                { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "due", due-minutes: 12 },
+                { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4, state: "none" },
+                { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, state: "no" },
+            ],
+        };
+    }
+}
+
+export component PreviewCardClosed inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "closed", closed-reason: "done", asker-name: "k0ji", closed-at: "Tue 20:02",
+            has-game: true, game-name: "Counter-Strike 2",
+            was-in: [LtpMock.k0ji, LtpMock.owe, LtpMock.bobdev],
+        };
+    }
+    LookingToPlayCard {
+        data: { ask-id: "a2", state: "closed", closed-reason: "nobody", asker-name: "bobdev", closed-at: "Wed 21:40" };
+    }
+    LookingToPlayCard {
+        data: { ask-id: "a3", state: "closed", closed-reason: "cancelled", asker-name: "sannah", closed-at: "Thu 18:15" };
+    }
+}
+
+export component PreviewCardMany inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "on", asker-name: "k0ji",
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "voice" },
+                { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4, state: "voice" },
+                { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, state: "in" },
+                { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0, state: "due", due-minutes: 4 },
+                { user-id: "u-morran", name: "morran", initials: "MO", color-index: 2, state: "due", due-minutes: 11 },
+            ],
+            more-in: 8, no-count: 12,
+        };
+    }
+}
+
+export component PreviewCardPicked inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "on", asker-name: "k0ji",
+            has-game: true, game-id: "steam-548430", game-name: "Deep Rock Galactic", game-monogram: "DR", game-hue: 3,
+            game-icon: LtpMock.drg, has-game-icon: true,
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
+                { user-id: "u-vilse", name: "vilse", initials: "VI", color-index: 0, state: "in" },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "due", due-minutes: 9 },
+                { user-id: "u-frasse", name: "frasse", initials: "FR", color-index: 4, state: "none" },
+                { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, state: "no" },
+            ],
+        };
+    }
+}
+
+export component PreviewCardAsker inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "open", asker-name: "bobdev", minutes-left: 24, viewer-is-asker: true,
+            rows: [
+                { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "in" },
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "none" },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "none" },
+            ],
+        };
+    }
+}
+
+export component PreviewCardChanging inherits LtpColumn {
+    LookingToPlayCard {
+        data: {
+            ask-id: "a1", state: "on", asker-name: "k0ji",
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+            viewer-answer: "in_30", changing: true,
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
+                { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "due", due-minutes: 27 },
+                { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "none" },
+            ],
+        };
+    }
+    // The same viewer before Change: answered In, so only Change.
+    LookingToPlayCard {
+        data: {
+            ask-id: "a2", state: "on", asker-name: "k0ji",
+            viewer-answer: "in",
+            rows: [
+                { user-id: "u-k0ji", name: "k0ji", initials: "K0", color-index: 2, state: "voice" },
+                { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "in" },
+            ],
+        };
+    }
+}
+
+/// A toast on the app ground, where it sits in the window.
+component LtpToastStage inherits Rectangle {
+    width: 362px;
+    background: Theme.bg-app;
+    VerticalLayout {
+        padding: 16px;
+        @children
+    }
+}
+
+export component PreviewToast inherits LtpToastStage {
+    LookingToPlayToast {
+        data: {
+            ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
+            asker-name: "k0ji", minutes-left: 28, count-in: 2,
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+        };
+    }
+}
+
+export component PreviewToastMany inherits LtpToastStage {
+    LookingToPlayToast {
+        data: {
+            ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
+            asker-name: "k0ji", minutes-left: 21, count-in: 14,
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMock.cs2, has-game-icon: true,
+        };
+    }
+}
+
+/// Long text: a 24 character name, a long game, German-length labels, in
+/// the narrowest chat column (340px) and the toast.
+export component PreviewLongText inherits Rectangle {
+    width: 740px;
+    background: Theme.bg-app;
+    init => {
+        LookingToPlayCopy.looking = "SUCHT MITSPIELER";
+        LookingToPlayCopy.state-voice = "IM SPRACHKANAL";
+        LookingToPlayCopy.state-in = "DABEI";
+        LookingToPlayCopy.state-none = "KEINE ANTWORT";
+        LookingToPlayCopy.state-no = "JETZT NICHT";
+        LookingToPlayCopy.btn-in = "DABEI";
+        LookingToPlayCopy.btn-in-15 = "IN 15 MIN";
+        LookingToPlayCopy.btn-in-30 = "IN 30 MIN";
+        LookingToPlayCopy.btn-no = "JETZT NICHT";
+        LookingToPlayCopy.btn-change = "ANTWORT ÄNDERN";
+        LookingToPlayCopy.btn-cancel = "ABBRECHEN";
+        LookingToPlayCopy.count-in = "DABEI";
+    }
+    HorizontalLayout {
+        alignment: start;
+        spacing: 16px;
+        Rectangle {
+            width: 340px;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 12px;
+                alignment: start;
+                LookingToPlayCard {
+                    data: {
+                        ask-id: "a1", state: "open", asker-name: "xX_Night_Owl_Sniper_Xx2", minutes-left: 28,
+                        has-game: true, game-id: "steam-489830", game-name: "The Elder Scrolls V: Skyrim Special Edition",
+                        game-monogram: "TES", game-hue: 3,
+                        rows: [
+                            { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4, state: "voice" },
+                            { user-id: "u-bobdev", name: "bobdev", initials: "BO", color-index: 0, state: "due", due-minutes: 27 },
+                            { user-id: "u-owe", name: "oweboweob", initials: "OW", color-index: 1, state: "none" },
+                            { user-id: "u-sannah", name: "sannah", initials: "SA", color-index: 3, state: "no" },
+                        ],
+                        more-in: 12, no-count: 8,
+                    };
+                }
+                LookingToPlayCard {
+                    data: {
+                        ask-id: "a2", state: "on", asker-name: "xX_Night_Owl_Sniper_Xx2", viewer-answer: "in_15",
+                        rows: [
+                            { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4, state: "in" },
+                        ],
+                    };
+                }
+                LookingToPlayCard {
+                    data: {
+                        ask-id: "a3", state: "closed", closed-reason: "done", asker-name: "xX_Night_Owl_Sniper_Xx2",
+                        closed-at: "Di. 20:02",
+                        was-in: [
+                            { user-id: "u-long", name: "xX_Night_Owl_Sniper_Xx2", initials: "XX", color-index: 4 },
+                            LtpMock.owe, LtpMock.k0ji, LtpMock.vilse, LtpMock.morran, LtpMock.frasse, LtpMock.sannah,
+                        ],
+                    };
+                }
+            }
+        }
+        VerticalLayout {
+            padding-top: 16px;
+            alignment: start;
+            LookingToPlayToast {
+                data: {
+                    ask-id: "a1", crew-name: "The Midnight Respawn Society", crew-initials: "MR", crew-color-index: 2,
+                    asker-name: "xX_Night_Owl_Sniper_Xx2", minutes-left: 28, count-in: 14,
+                    has-game: true, game-id: "steam-489830", game-name: "The Elder Scrolls V: Skyrim Special Edition",
+                    game-monogram: "TES", game-hue: 3,
+                };
+            }
+        }
+    }
+}
