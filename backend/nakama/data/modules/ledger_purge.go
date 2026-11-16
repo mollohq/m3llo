@@ -77,12 +77,16 @@ type crewPurgeResult struct {
 	Incomplete bool `json:"incomplete"`
 	// StorePending is true when the durable store is not loaded: the rows of
 	// the crew are not deleted, and the purge is not done.
-	StorePending bool     `json:"store_pending,omitempty"`
-	MediaDeleted int      `json:"media_deleted"`
-	DocsDeleted  int      `json:"docs_deleted"`
-	StoreDeleted bool     `json:"store_deleted"`
-	MediaSkipped []string `json:"media_skipped,omitempty"`
-	Errors       []string `json:"errors,omitempty"`
+	StorePending bool `json:"store_pending,omitempty"`
+	MediaDeleted int  `json:"media_deleted"`
+	DocsDeleted  int  `json:"docs_deleted"`
+	StoreDeleted bool `json:"store_deleted"`
+	// ChatDeleted is the number of deleted chat messages. ReactionsDeleted
+	// is the number of deleted reaction documents of those messages.
+	ChatDeleted      int      `json:"chat_deleted"`
+	ReactionsDeleted int      `json:"reactions_deleted"`
+	MediaSkipped     []string `json:"media_skipped,omitempty"`
+	Errors           []string `json:"errors,omitempty"`
 }
 
 func (r *crewPurgeResult) fail(format string, args ...interface{}) {
@@ -291,8 +295,9 @@ type crewPurgeDoc struct {
 //   - crew_last_seen, chat_read: owned by each member, key crew id. They hold
 //     a time. Nakama deletes them with the account of the member.
 //   - invite_codes: key is the code. Nothing lists the codes of a crew.
-//   - chat_reactions, thumbnails, media_reports: keyed by a message, a stream
-//     or a report.
+//   - chat_reactions: keyed by a message. purgeCrewChat deletes the
+//     reactions of the messages it deletes.
+//   - thumbnails, media_reports: keyed by a stream or a report.
 //   - active_streams: owned by the streamer. purgeCrewDocs deletes it when
 //     stream_meta names the streamer.
 func crewPurgeDocs(crewID string) []crewPurgeDoc {
@@ -320,7 +325,7 @@ func crewPurgeDocs(crewID string) []crewPurgeDoc {
 }
 
 // crewKnownHere reports whether this install holds anything of the crew: a
-// purge record, a document, or a row of the store.
+// purge record, a document, a chat message, or a row of the store.
 func crewKnownHere(ctx context.Context, nk runtime.NakamaModule, store ledgerStore, crewID string) (bool, error) {
 	rec, err := readCrewPurgeRecord(ctx, nk, crewID)
 	if err != nil {
@@ -340,6 +345,9 @@ func crewKnownHere(ctx context.Context, nk runtime.NakamaModule, store ledgerSto
 	if len(objects) > 0 {
 		return true, nil
 	}
+	if has, err := crewHasChat(ctx, crewID); err != nil || has {
+		return has, err
+	}
 	if store != nil {
 		rows, err := store.NewestN(ctx, crewID, nil, math.MaxInt64, 1)
 		if err != nil {
@@ -350,8 +358,8 @@ func crewKnownHere(ctx context.Context, nk runtime.NakamaModule, store ledgerSto
 	return false, nil
 }
 
-// purgeCrewData runs the purge of a crew once: the media, the rows of the
-// store, the documents. It needs the purge record of the crew, and it refuses
+// purgeCrewData runs the purge of a crew once: the media, the chat, the rows
+// of the store, the documents. It needs the purge record of the crew, and it refuses
 // while the group exists. It can run again at any time.
 //
 // Every part runs also when another part failed. The record is done when a
@@ -389,6 +397,7 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 	}
 
 	purgeCrewMedia(ctx, logger, &res, crewID, deadline)
+	purgeCrewChat(ctx, nk, &res, crewID, deadline)
 
 	// The store can be missing: the schema setup failed at start and is tried
 	// again in the background. The purge then removes the rest and stays
@@ -433,11 +442,11 @@ func purgeCrewData(ctx context.Context, nk runtime.NakamaModule, logger runtime.
 	}
 	switch {
 	case res.Done:
-		logger.Info("crew_purge crew=%s media=%d docs=%d store=%t", crewID, res.MediaDeleted, res.DocsDeleted, res.StoreDeleted)
+		logger.Info("crew_purge crew=%s media=%d chat=%d reactions=%d docs=%d store=%t", crewID, res.MediaDeleted, res.ChatDeleted, res.ReactionsDeleted, res.DocsDeleted, res.StoreDeleted)
 	case rec.StorePending:
 		// Logged above as pending. Nothing else failed.
 	default:
-		logger.Error("crew_purge_failed crew=%s media=%d docs=%d incomplete=%t: %s", crewID, res.MediaDeleted, res.DocsDeleted, res.Incomplete, strings.Join(res.Errors, "; "))
+		logger.Error("crew_purge_failed crew=%s media=%d chat=%d docs=%d incomplete=%t: %s", crewID, res.MediaDeleted, res.ChatDeleted, res.DocsDeleted, res.Incomplete, strings.Join(res.Errors, "; "))
 	}
 	return res
 }
@@ -484,9 +493,7 @@ type crewMediaPrefix struct {
 //	snapshots bucket  snapshots/{crew_id}/    stream snapshots
 //	media bucket      crew-banners/{crew_id}/ uploaded banners
 //	media bucket      crew-emoji/{crew_id}/   crew emoji
-//
-// The chat images of a crew ({crew_id}/ in the media bucket) are not in the
-// list: the chat messages are not part of the ledger.
+//	media bucket      {crew_id}/              chat images (chatImageKey)
 func crewMediaPrefixes(crewID string) []crewMediaPrefix {
 	clips, snapshots := mediaOrphanBuckets()
 	gifts, giftsBucket := crewGiftsBucket()
@@ -495,6 +502,7 @@ func crewMediaPrefixes(crewID string) []crewMediaPrefix {
 		{name: "snapshots", client: snapshots.client, bucket: snapshots.bucket, prefix: mediaSnapshotPrefix + crewID + "/"},
 		{name: "banners", client: gifts, bucket: giftsBucket, prefix: bannerKeyPrefix + crewID + "/"},
 		{name: "emoji", client: gifts, bucket: giftsBucket, prefix: emojiKeyPrefix + crewID + "/"},
+		{name: "chat images", client: gifts, bucket: giftsBucket, prefix: crewID + "/"},
 	}
 }
 
@@ -525,9 +533,10 @@ func purgeCrewMedia(ctx context.Context, logger runtime.Logger, res *crewPurgeRe
 
 // deleteObjectsUnder deletes the objects of a bucket under a prefix, a batch
 // of the list at a time, until the list is empty or the deadline passes. The
-// prefix must end with "/{owner}/": a wrong prefix deletes nothing.
+// prefix must be "{owner}/" or end with "/{owner}/": a wrong prefix deletes
+// nothing.
 func deleteObjectsUnder(ctx context.Context, c *s3.Client, bucket, prefix, owner string, deadline time.Time) (deleted int, incomplete bool, err error) {
-	if owner == "" || strings.ContainsAny(owner, "/.") || !strings.HasSuffix(prefix, "/"+owner+"/") {
+	if owner == "" || strings.ContainsAny(owner, "/.") || (prefix != owner+"/" && !strings.HasSuffix(prefix, "/"+owner+"/")) {
 		return 0, false, fmt.Errorf("refusing the prefix %q", prefix)
 	}
 	for {
