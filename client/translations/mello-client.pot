@@ -4756,6 +4756,22 @@ msgstr ""
 msgid "The ask did not go out. Try again."
 msgstr ""
 
+#. The client does not know the name of the asker.
+#: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
+msgid "Someone is looking to play"
+msgstr ""
+
+#. The client does not know the name of the asker. {} is the game.
+#: client/ui/tr.slint
+msgid "Someone is looking to play {}"
+msgstr ""
+
+#. {0} is the asker, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} is looking to play {1}"
+msgstr ""
+
 #: client/ui/tr.slint
 msgid "You asked a short time ago. Try again in a few minutes."
 msgstr ""
@@ -4789,6 +4805,7 @@ msgstr ""
 
 #. The title of an ask. {} is the asker.
 #: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
 msgid "{} is looking to play"
 msgstr ""
 

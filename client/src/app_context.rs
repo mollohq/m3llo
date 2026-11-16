@@ -177,6 +177,9 @@ pub struct AppContext {
     /// Looking to play: the asks, the recent picks and the flags of the
     /// cards and the ask popover (plans/LOOKING-TO-PLAY.md 3.6).
     pub looking_to_play: Rc<RefCell<crate::looking_to_play::LtpState>>,
+    /// Posts the OS notification of a new ask while the window is hidden:
+    /// the title and the body. `None` posts nothing.
+    pub looking_to_play_notice: Rc<RefCell<Option<crate::notifications::ShowText>>>,
 }
 
 #[cfg(any(test, feature = "testkit"))]
@@ -300,6 +303,7 @@ impl AppContext {
             // Never a real OS notification in a test.
             stream_key_notice: Rc::new(RefCell::new(None)),
             looking_to_play: Rc::new(RefCell::new(Default::default())),
+            looking_to_play_notice: Rc::new(RefCell::new(None)),
         }
     }
 }
@@ -381,6 +385,7 @@ impl Clone for AppContext {
             stream_key_action: self.stream_key_action.clone(),
             stream_key_notice: self.stream_key_notice.clone(),
             looking_to_play: self.looking_to_play.clone(),
+            looking_to_play_notice: self.looking_to_play_notice.clone(),
         }
     }
 }

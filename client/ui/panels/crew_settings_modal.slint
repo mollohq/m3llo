@@ -1441,8 +1441,9 @@ component CrewSettingsPreview inherits Rectangle {
         crew-initials: "M3";
         my-role: root.role;
         push-messages: true;
-        push-looking-to-play: false;
+        push-looking-to-play: true;
         push-ready: true;
+        looking-to-play-available: true;
         channels: [
             { id: "c1", name: "General", member-count: 4, is-default: true },
             { id: "c2", name: "Ranked grind", member-count: 2, is-default: false },

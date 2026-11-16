@@ -339,7 +339,7 @@ pub fn art_candidates(
 
 /// `steam-<appid>` ids of the catalogue game that `id` (or else `name`) names.
 /// Cached by key: the reverse index lookup is a linear pass.
-fn steam_ids_of_catalogue_game(id: &str, name: &str) -> Vec<String> {
+pub(crate) fn steam_ids_of_catalogue_game(id: &str, name: &str) -> Vec<String> {
     use std::cell::RefCell;
     use std::collections::HashMap;
     thread_local! {

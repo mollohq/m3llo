@@ -132,8 +132,11 @@ pub fn handle(ctx: &AppContext, event: Event) {
                     crate::platform::exe_icon::load_cached_icon_rgba(&game_id)
                 {
                     let img = crate::avatar::rgba_to_image(&rgba, w, h);
-                    ctx.game_icon_cache.borrow_mut().insert(game_id, img);
+                    ctx.game_icon_cache
+                        .borrow_mut()
+                        .insert(game_id.clone(), img);
                     refresh_stream_cards(ctx);
+                    super::looking_to_play::on_game_art(ctx, None, Some(&game_id));
                 }
             }
         }
@@ -143,6 +146,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             log::info!("[game-art] {} art ready", slot.as_str());
             if slot == mello_core::art::ArtSlot::Icon {
                 super::games::on_icon_art_loaded(ctx, &game_id);
+                super::looking_to_play::on_game_art(ctx, Some(&game_id), None);
             }
             super::clip::refresh_game_art(ctx);
             if slot == mello_core::art::ArtSlot::Hero {

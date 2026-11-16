@@ -1,14 +1,15 @@
 import {
     LookingToPlayOpenAsk, LookingToPlayMember, LookingToPlayGroup, LookingToPlayGame,
 } from "looking_to_play_popover.slint";
+import { LookingToPlayToastData } from "looking_to_play.slint";
 
 // ============================================================
 //  Looking to play: the state that Rust gives the chat panel, and the
 //  presses that come back (plans/LOOKING-TO-PLAY.md 3.6).
 //
 //  The cards in the feed come with the chat rows (`ChatMessageData.ask`).
-//  This global holds the composer pill and the ask popover, and carries the
-//  presses of the cards and the popover to Rust
+//  This global holds the composer pill, the ask popover and the toast, and
+//  carries the presses of the cards, the toast and the popover to Rust
 //  (`client/src/handlers/looking_to_play.rs`).
 // ============================================================
 
@@ -34,6 +35,11 @@ export global LookingToPlayUi {
     in-out property <bool> busy: false;
     in-out property <string> error-text;
 
+    /// The toast in the top right corner of the window (main.slint). Rust
+    /// decides when it shows and fills it.
+    in-out property <bool> toast-open: false;
+    in-out property <LookingToPlayToastData> toast;
+
     // ---- the card
     /// `answer`: "in", "in_15", "in_30" or "no".
     callback answered(/* ask-id */ string, /* answer */ string);
@@ -51,4 +57,9 @@ export global LookingToPlayUi {
     /// Empty `game-id`: Any game.
     callback game-selected(/* game-id */ string);
     callback ask-clicked();
+
+    // ---- the toast
+    /// `answer`: "in", "in_15", "in_30" or "no".
+    callback toast-answered(/* ask-id */ string, /* answer */ string);
+    callback toast-dismissed(/* ask-id */ string);
 }

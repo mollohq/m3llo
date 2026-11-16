@@ -714,6 +714,9 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
             notifications::notify_stream_key,
         )))),
         looking_to_play: Rc::new(RefCell::new(Default::default())),
+        looking_to_play_notice: Rc::new(RefCell::new(Some(Box::new(
+            notifications::notify_looking_to_play,
+        )))),
     };
 
     // --- Wire all callbacks ---

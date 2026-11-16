@@ -31,6 +31,8 @@ pub enum Sound {
     ClipSaved,
     CrewClip,
     NewMember,
+    /// A crew member asks who is in for a game (plans/LOOKING-TO-PLAY.md 3.6).
+    LookingToPlay,
 }
 
 /// The settings group that turns a sound on or off.
@@ -44,7 +46,7 @@ pub enum SoundGroup {
 }
 
 impl Sound {
-    pub const ALL: [Sound; 17] = [
+    pub const ALL: [Sound; 18] = [
         Sound::YouJoin,
         Sound::YouLeave,
         Sound::MemberJoin,
@@ -62,6 +64,7 @@ impl Sound {
         Sound::ClipSaved,
         Sound::CrewClip,
         Sound::NewMember,
+        Sound::LookingToPlay,
     ];
 
     /// The libmello slot (`mello_sound_load`, `mello_sound_play`).
@@ -83,7 +86,7 @@ impl Sound {
             Sound::CrewLive | Sound::YouLive | Sound::StreamEnded => SoundGroup::Streams,
             Sound::Message | Sound::Mention => SoundGroup::Chat,
             Sound::ClipSaved | Sound::CrewClip => SoundGroup::Clips,
-            Sound::NewMember => SoundGroup::Crew,
+            Sound::NewMember | Sound::LookingToPlay => SoundGroup::Crew,
         }
     }
 
@@ -112,6 +115,9 @@ impl Sound {
             Sound::ClipSaved => opus!("clip_saved"),
             Sound::CrewClip => opus!("crew_clip"),
             Sound::NewMember => opus!("new_member"),
+            // No sound of its own yet: the mention sound until the new file
+            // is here (plans/LOOKING-TO-PLAY.md 7.4).
+            Sound::LookingToPlay => opus!("mention"),
         }
     }
 }

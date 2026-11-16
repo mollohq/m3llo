@@ -87,6 +87,19 @@ pub fn notify_message(tr: &crate::Tr<'_>, crew: &str, sender: &str, preview: &st
         .ok();
 }
 
+/// A new ask while the window is hidden (plans/LOOKING-TO-PLAY.md 3.6).
+/// No buttons: notify-rust drops actions on Windows and macOS.
+pub fn notify_looking_to_play(crew: &str, body: &str) {
+    if let Err(e) = notification()
+        .summary(crew)
+        .body(body)
+        .timeout(notify_rust::Timeout::Milliseconds(4000))
+        .show()
+    {
+        log::warn!("[looking-to-play] notification not shown: {e}");
+    }
+}
+
 #[allow(dead_code)]
 pub fn notify_invite(tr: &crate::Tr<'_>, inviter: &str, crew: &str) {
     notification()

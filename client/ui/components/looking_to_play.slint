@@ -14,6 +14,7 @@ export { LookingToPlayRow, LookingToPlayCardData }
 //
 //  Spec: plans/LOOKING-TO-PLAY.md 3.1, 3.2, 3.6, 3.8.
 //  Mockup: designs/looking-to-play.html, frames 2, 3, 4, 5, 11, 13, 14.
+//  The toast is mounted in main.slint (PreviewToastInWindow shows it there).
 //
 //  One message is an "ask". Its sender is the "asker". Rust fills every
 //  struct here: the components hold no business logic. They draw the data
@@ -795,7 +796,10 @@ export component LookingToPlayToast inherits CutCard {
         Rectangle { height: 8px; }
 
         Text {
-            text: @tr("{} is looking to play", root.data.asker-name);
+            // The client knows no name for an asker of a crew it did not
+            // show this run.
+            text: root.data.asker-name == "" ? @tr("Someone is looking to play")
+                : @tr("{} is looking to play", root.data.asker-name);
             font-family: Theme.font-display;
             font-weight: Theme.weight-display;
             font-size: 15px;
@@ -1033,6 +1037,77 @@ export component PreviewToastMany inherits LtpToastStage {
         data: {
             ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
             asker-name: "k0ji", minutes-left: 21, count-in: 14,
+            has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
+            game-icon: LtpMockPreview.cs2, has-game-icon: true,
+        };
+    }
+}
+
+/// Placeholder bars of the window behind the toast. Preview only.
+component LtpStub inherits Rectangle {
+    in property <float> share: 1.0;
+    height: 10px;
+    Rectangle {
+        x: 0;
+        width: parent.width * root.share;
+        background: Theme.raised;
+    }
+}
+
+/// The toast in its place over a window (frame 5): the top right corner,
+/// 16px in, over the content, with no scrim. `main.slint` mounts it so.
+export component PreviewToastInWindow inherits Rectangle {
+    width: 980px;
+    height: 560px;
+    background: Theme.bg-app;
+    HorizontalLayout {
+        Rectangle {
+            width: 200px;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                alignment: start;
+                LtpStub { share: 0.6; }
+                LtpStub { }
+                LtpStub { share: 0.8; }
+                LtpStub { share: 0.5; }
+            }
+        }
+        Rectangle { width: 1px; background: Theme.card-border; }
+        Rectangle {
+            horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                alignment: start;
+                Rectangle { height: 64px; background: Theme.surface; }
+                Rectangle { height: 64px; background: Theme.surface; }
+                Rectangle { height: 64px; background: Theme.surface; }
+            }
+        }
+        Rectangle { width: 1px; background: Theme.card-border; }
+        Rectangle {
+            width: 300px;
+            background: Theme.surface;
+            VerticalLayout {
+                padding: 16px;
+                spacing: 10px;
+                alignment: end;
+                LtpStub { share: 0.4; }
+                LtpStub { }
+                LtpStub { share: 0.7; }
+                LtpStub { share: 0.55; }
+            }
+        }
+    }
+    LookingToPlayToast {
+        x: parent.width - self.width - 16px;
+        y: 16px;
+        height: self.preferred-height;
+        data: {
+            ask-id: "a1", crew-name: "Night Shift", crew-initials: "NS", crew-color-index: 1,
+            asker-name: "k0ji", minutes-left: 28, count-in: 2,
             has-game: true, game-id: "steam-730", game-name: "Counter-Strike 2", game-monogram: "CS", game-hue: 0,
             game-icon: LtpMockPreview.cs2, has-game-icon: true,
         };

@@ -622,27 +622,206 @@ pub fn is_library_id(id: &str) -> bool {
         .any(|p| id.strip_prefix(p).is_some_and(|rest| !rest.is_empty()))
 }
 
-/// The game chips (3.6): the viewer's game, the crew's active games, then
-/// the recent games, each once, at most [`GAME_LIMIT`]. A game without a
-/// library id is left out: the ask must carry that id.
-pub fn game_choices(
-    viewer_game: Option<&GameRef>,
-    crew_games: &[GameRef],
-    recent: &[GameRef],
-) -> Vec<GameRef> {
+/// The library ids that the game catalogue gives a catalogue game (id, name).
+/// `game_icons::steam_ids_of_catalogue_game` in the app, a fake in tests.
+pub type CatalogueIds<'a> = &'a dyn Fn(&str, &str) -> Vec<String>;
+
+fn same_name(a: &str, b: &str) -> bool {
+    let (a, b) = (a.trim(), b.trim());
+    !a.is_empty() && a.eq_ignore_ascii_case(b)
+}
+
+/// The id that an ask carries for `game`. A library id stays. A catalogue
+/// id becomes the id of the viewer's installed game that is the same game
+/// (the same name, case ignored, or an id that the catalogue gives it),
+/// else the first library id of the catalogue. With no mapping the
+/// catalogue id stays: the server sends that ask to every member (3.8).
+pub fn ask_game_id(game: &GameRef, installed: &[GameRef], catalogue: CatalogueIds<'_>) -> String {
+    if is_library_id(&game.game_id) {
+        return game.game_id.clone();
+    }
+    let mapped = catalogue(&game.game_id, &game.name);
+    let mine = installed.iter().find(|i| {
+        is_library_id(&i.game_id) && (same_name(&i.name, &game.name) || mapped.contains(&i.game_id))
+    });
+    if let Some(i) = mine {
+        return i.game_id.clone();
+    }
+    mapped
+        .into_iter()
+        .find(|id| is_library_id(id))
+        .unwrap_or_else(|| game.game_id.clone())
+}
+
+/// Where the game chips come from, in this order (3.6).
+#[derive(Default)]
+pub struct GameSources<'a> {
+    /// The game the viewer plays now.
+    pub viewer_game: Option<&'a GameRef>,
+    /// The games that the crew plays now.
+    pub crew_games: &'a [GameRef],
+    /// The viewer's installed games, hidden games left out.
+    pub installed: &'a [GameRef],
+    /// The installed games of the crew feed (`zones.installed`).
+    pub zone_installed: &'a [GameRef],
+}
+
+/// The game chips (3.6): each game once, at most [`GAME_LIMIT`]. A chip
+/// carries the id of [`ask_game_id`]. Two ids of one game (the same id
+/// after the mapping, or the same name) make one chip.
+pub fn game_choices(sources: &GameSources<'_>, catalogue: CatalogueIds<'_>) -> Vec<GameRef> {
     let mut out: Vec<GameRef> = Vec::new();
-    for g in viewer_game.into_iter().chain(crew_games).chain(recent) {
+    let all = sources
+        .viewer_game
+        .into_iter()
+        .chain(sources.crew_games)
+        .chain(sources.installed)
+        .chain(sources.zone_installed);
+    for g in all {
         if out.len() == GAME_LIMIT {
             break;
         }
-        if is_library_id(&g.game_id)
-            && !g.name.is_empty()
-            && !out.iter().any(|o| o.game_id == g.game_id)
-        {
-            out.push(g.clone());
+        if g.game_id.is_empty() || g.name.trim().is_empty() {
+            continue;
         }
+        let id = ask_game_id(g, sources.installed, catalogue);
+        if out
+            .iter()
+            .any(|o| o.game_id == id || same_name(&o.name, &g.name))
+        {
+            continue;
+        }
+        out.push(GameRef {
+            game_id: id,
+            name: g.name.clone(),
+        });
     }
     out
+}
+
+// ---------------------------------------------------------------- toast
+
+/// A toast hides this long after it shows (3.6).
+pub const TOAST_MS: i64 = 12_000;
+
+/// What a new ask does on this client (3.6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arrival {
+    Nothing,
+    /// The toast, and the sound when it shows.
+    Toast,
+    /// The card of the ask is on screen: no toast, only the sound.
+    Sound,
+    /// The window is hidden or minimised: the OS notification and the sound.
+    Notice,
+}
+
+/// What [`arrival`] needs.
+pub struct ArrivalInput<'a> {
+    pub ask: &'a Ask,
+    pub viewer: &'a str,
+    /// `LookingToPlayUpdated::notify`: the server's notification of a new
+    /// ask, for a member who also gets the phone push of it.
+    pub notify: bool,
+    pub window_visible: bool,
+    /// The crew of the ask is on screen with its chat at the bottom.
+    pub card_on_screen: bool,
+}
+
+/// The ask still calls for the viewer: open or on, the viewer is not the
+/// asker and has not answered.
+pub fn wants_toast(ask: &Ask, viewer: &str) -> bool {
+    ask.state != AskState::Closed && ask.asker_id != viewer && !ask.answers.contains_key(viewer)
+}
+
+/// What the arrival of an ask does. Only a `notify` update does something.
+pub fn arrival(i: &ArrivalInput<'_>) -> Arrival {
+    if !i.notify || !wants_toast(i.ask, i.viewer) {
+        Arrival::Nothing
+    } else if !i.window_visible {
+        Arrival::Notice
+    } else if i.card_on_screen {
+        Arrival::Sound
+    } else {
+        Arrival::Toast
+    }
+}
+
+/// One toast at a time; the next asks wait (3.6).
+#[derive(Debug, Default)]
+pub struct ToastQueue {
+    /// The ask of the toast on screen, and when it showed (Unix ms).
+    shown: Option<(String, i64)>,
+    waiting: std::collections::VecDeque<String>,
+    /// Asks that had their toast, OS notification or sound: once for an ask.
+    announced: HashSet<String>,
+}
+
+impl ToastQueue {
+    /// The ask of the toast on screen.
+    pub fn current(&self) -> Option<&str> {
+        self.shown.as_ref().map(|(id, _)| id.as_str())
+    }
+
+    #[cfg(test)]
+    pub fn waiting(&self) -> Vec<String> {
+        self.waiting.iter().cloned().collect()
+    }
+
+    /// True the first time only: an ask is announced once.
+    pub fn announce(&mut self, ask_id: &str) -> bool {
+        self.announced.insert(ask_id.to_string())
+    }
+
+    /// Show the toast of `ask_id`, now or after the toasts before it.
+    /// True when it shows now.
+    pub fn push(&mut self, ask_id: &str, now_ms: i64) -> bool {
+        if self.current() == Some(ask_id) || self.waiting.iter().any(|w| w == ask_id) {
+            return false;
+        }
+        if self.shown.is_none() {
+            self.shown = Some((ask_id.to_string(), now_ms));
+            true
+        } else {
+            self.waiting.push_back(ask_id.to_string());
+            false
+        }
+    }
+
+    /// Take the ask out: its toast hides, or it waits no more. True when
+    /// the toast on screen changed.
+    pub fn remove(&mut self, ask_id: &str, now_ms: i64) -> bool {
+        self.waiting.retain(|w| w != ask_id);
+        if self.current() == Some(ask_id) {
+            self.next(now_ms);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Hide the toast on screen after [`TOAST_MS`]. True when it changed.
+    pub fn expire(&mut self, now_ms: i64) -> bool {
+        match &self.shown {
+            Some((id, at)) if now_ms - at >= TOAST_MS => {
+                let id = id.clone();
+                self.remove(&id, now_ms)
+            }
+            _ => false,
+        }
+    }
+
+    fn next(&mut self, now_ms: i64) {
+        self.shown = self.waiting.pop_front().map(|id| (id, now_ms));
+    }
+
+    /// Move the time the toast showed back, so a test needs no wait.
+    #[cfg(test)]
+    pub fn backdate(&mut self, ms: i64) {
+        if let Some((_, at)) = &mut self.shown {
+            *at -= ms;
+        }
+    }
 }
 
 // ---------------------------------------------------------------- state
@@ -678,6 +857,13 @@ pub struct LtpState {
     /// The icon of each game of an ask, by game id (resolved when an ask
     /// arrives, so a chat refresh needs no art lookup).
     pub game_icons: HashMap<String, (slint::Image, bool)>,
+    /// The toast and the asks that wait for it.
+    pub toast: ToastQueue,
+    /// Asks whose message the user saw at the bottom of crew chat.
+    pub read_asks: HashSet<String>,
+    /// Names of the members the client saw this run, by user id. An ask of
+    /// a crew that is not on screen names its asker from here.
+    pub names: HashMap<String, String>,
 }
 
 impl LtpState {
@@ -702,6 +888,32 @@ impl LtpState {
     pub fn store(&mut self, ask: Ask) {
         self.changing.remove(&ask.ask_id);
         self.asks.insert(ask.ask_id.clone(), ask);
+    }
+
+    /// The asks of a crew that picked `viewer` and whose message is unread:
+    /// for the viewer each is a mention (3.6). `read_ms` is the read cursor
+    /// of the crew (Unix ms): an ask from before it was read elsewhere.
+    pub fn picked_unread(&self, crew_id: &str, viewer: &str, read_ms: Option<i64>) -> Vec<&Ask> {
+        let mut list: Vec<&Ask> = self
+            .asks
+            .values()
+            .filter(|a| a.crew_id == crew_id && a.asked.iter().any(|id| id == viewer))
+            .filter(|a| !self.read_asks.contains(&a.ask_id))
+            .filter(|a| read_ms.is_none_or(|r| a.opened_at > r))
+            .collect();
+        list.sort_by(|a, b| a.ask_id.cmp(&b.ask_id));
+        list
+    }
+
+    /// The user saw the bottom of the chat of `crew_id`.
+    pub fn mark_read(&mut self, crew_id: &str) {
+        let ids: Vec<String> = self
+            .asks
+            .values()
+            .filter(|a| a.crew_id == crew_id)
+            .map(|a| a.ask_id.clone())
+            .collect();
+        self.read_asks.extend(ids);
     }
 
     /// True when `ask` is the answer to the pending ask: the user's own new
@@ -1181,27 +1393,214 @@ mod tests {
         }
     }
 
+    /// The catalogue of the tests: Counter-Strike 2 and Valheim have Steam
+    /// ids, Hades has none.
+    fn catalogue(id: &str, name: &str) -> Vec<String> {
+        match (id, name) {
+            ("counter-strike-2", _) | (_, "Counter-Strike 2") => vec!["steam-730".into()],
+            ("valheim", _) => vec!["steam-892970".into(), "gog-1".into()],
+            _ => Vec::new(),
+        }
+    }
+
+    fn ids_of(games: &[GameRef]) -> Vec<&str> {
+        games.iter().map(|g| g.game_id.as_str()).collect()
+    }
+
     #[test]
-    fn the_games_come_in_order_once_each_and_only_with_a_library_id() {
+    fn the_games_come_in_order_each_once_at_most_three() {
         let viewer = g("steam-730", "Counter-Strike 2");
         let crew = [
             g("counter-strike-2", "Counter-Strike 2"),
-            g("steam-730", "Counter-Strike 2"),
             g("steam-548430", "Deep Rock Galactic"),
         ];
-        let recent = [
-            g("steam-548430", "Deep Rock Galactic"),
-            g("gog-1", "Valheim"),
-            g("epic-x", "Fortnite"),
-        ];
-        let out = game_choices(Some(&viewer), &crew, &recent);
-        let ids: Vec<&str> = out.iter().map(|g| g.game_id.as_str()).collect();
-        assert_eq!(ids, ["steam-730", "steam-548430", "gog-1"]);
-        let out = game_choices(None, &[], &recent);
-        let ids: Vec<&str> = out.iter().map(|g| g.game_id.as_str()).collect();
-        assert_eq!(ids, ["steam-548430", "gog-1", "epic-x"]);
+        let installed = [g("epic-x", "Fortnite"), g("gog-9", "Valheim")];
+        let zones = [g("steam-1", "Zone game")];
+        let src = GameSources {
+            viewer_game: Some(&viewer),
+            crew_games: &crew,
+            installed: &installed,
+            zone_installed: &zones,
+        };
+        let out = game_choices(&src, &catalogue);
+        assert_eq!(
+            ids_of(&out),
+            ["steam-730", "steam-548430", "epic-x"],
+            "the viewer, the crew, the installed games; CS2 once"
+        );
+
+        let src = GameSources {
+            zone_installed: &zones,
+            ..Default::default()
+        };
+        assert_eq!(ids_of(&game_choices(&src, &catalogue)), ["steam-1"]);
+    }
+
+    #[test]
+    fn a_catalogue_id_maps_to_a_library_id() {
+        let cs = g("counter-strike-2", "Counter-Strike 2");
+        // No installed game: the first library id of the catalogue.
+        assert_eq!(ask_game_id(&cs, &[], &catalogue), "steam-730");
+        // The installed game of the same name wins over the catalogue.
+        let valheim = g("valheim", "Valheim");
+        let installed = [g("gog-1", "VALHEIM ")];
+        assert_eq!(ask_game_id(&valheim, &installed, &catalogue), "gog-1");
+        // An installed game that the catalogue names, under another name.
+        let installed = [g("gog-1", "Valheim (GOG)")];
+        assert_eq!(ask_game_id(&valheim, &installed, &catalogue), "gog-1");
+        assert_eq!(ask_game_id(&valheim, &[], &catalogue), "steam-892970");
+        // No mapping: the catalogue id stays.
+        let hades = g("hades", "Hades");
+        assert_eq!(ask_game_id(&hades, &[], &catalogue), "hades");
+        let installed = [g("epic-h", "hades")];
+        assert_eq!(ask_game_id(&hades, &installed, &catalogue), "epic-h");
+        // A library id stays as it is.
+        assert_eq!(ask_game_id(&g("steam-9", "X"), &[], &catalogue), "steam-9");
         assert!(!is_library_id("steam-"));
         assert!(!is_library_id("local-hades"));
+    }
+
+    #[test]
+    fn one_game_under_two_ids_is_one_chip() {
+        let viewer = g("counter-strike-2", "Counter-Strike 2");
+        let crew = [g("steam-730", "Counter-Strike 2"), g("hades", "Hades")];
+        let installed = [g("epic-h", "HADES"), g("steam-730", "Counter-Strike 2")];
+        let src = GameSources {
+            viewer_game: Some(&viewer),
+            crew_games: &crew,
+            installed: &installed,
+            ..Default::default()
+        };
+        let out = game_choices(&src, &catalogue);
+        assert_eq!(ids_of(&out), ["steam-730", "epic-h"]);
+        assert_eq!(out[1].name, "Hades", "the name of the first source");
+        // Same name, two ids that do not map: one chip.
+        let crew = [g("local-a", "Abc"), g("abc", "abc")];
+        let src = GameSources {
+            crew_games: &crew,
+            ..Default::default()
+        };
+        assert_eq!(ids_of(&game_choices(&src, &catalogue)), ["local-a"]);
+    }
+
+    fn arrival_of(a: &Ask, viewer: &str, notify: bool, visible: bool, on_screen: bool) -> Arrival {
+        arrival(&ArrivalInput {
+            ask: a,
+            viewer,
+            notify,
+            window_visible: visible,
+            card_on_screen: on_screen,
+        })
+    }
+
+    #[test]
+    fn a_new_ask_shows_a_toast_only_when_it_calls_for_the_viewer() {
+        let a = ask("u0", &[], &[("u0", Answer::In, 0, 0)]);
+        assert_eq!(arrival_of(&a, "u1", true, true, false), Arrival::Toast);
+        assert_eq!(arrival_of(&a, "u1", false, true, false), Arrival::Nothing);
+        assert_eq!(
+            arrival_of(&a, "u0", true, true, false),
+            Arrival::Nothing,
+            "the asker"
+        );
+        assert_eq!(
+            arrival_of(&a, "u1", true, true, true),
+            Arrival::Sound,
+            "the card shows"
+        );
+        assert_eq!(
+            arrival_of(&a, "u1", true, false, false),
+            Arrival::Notice,
+            "hidden"
+        );
+        assert_eq!(arrival_of(&a, "u1", true, false, true), Arrival::Notice);
+        let answered = ask(
+            "u0",
+            &[],
+            &[("u0", Answer::In, 0, 0), ("u1", Answer::No, 0, 0)],
+        );
+        assert_eq!(
+            arrival_of(&answered, "u1", true, true, false),
+            Arrival::Nothing
+        );
+        let mut closed = a.clone();
+        closed.state = AskState::Closed;
+        assert_eq!(
+            arrival_of(&closed, "u1", true, true, false),
+            Arrival::Nothing
+        );
+        let mut on = a.clone();
+        on.state = AskState::On;
+        assert_eq!(arrival_of(&on, "u1", true, true, false), Arrival::Toast);
+    }
+
+    #[test]
+    fn one_toast_at_a_time_and_the_next_waits() {
+        let mut q = ToastQueue::default();
+        assert!(q.announce("a1"));
+        assert!(!q.announce("a1"), "once for an ask");
+        assert!(q.push("a1", NOW));
+        assert!(!q.push("a2", NOW), "a second ask waits");
+        assert!(!q.push("a3", NOW));
+        assert!(!q.push("a2", NOW), "an ask waits once");
+        assert_eq!(q.current(), Some("a1"));
+        assert_eq!(q.waiting(), ["a2", "a3"]);
+
+        // A waiting ask that closes or gets an answer leaves the queue.
+        assert!(!q.remove("a2", NOW));
+        assert_eq!(q.waiting(), ["a3"]);
+        // The toast on screen goes: the next shows, from now.
+        assert!(q.remove("a1", NOW + 1_000));
+        assert_eq!(q.current(), Some("a3"));
+        assert!(!q.expire(NOW + 1_000 + TOAST_MS - 1));
+        assert!(
+            q.expire(NOW + 1_000 + TOAST_MS),
+            "12 seconds after it showed"
+        );
+        assert_eq!(q.current(), None);
+        assert!(!q.expire(NOW + 60_000));
+    }
+
+    #[test]
+    fn a_toast_hides_after_twelve_seconds() {
+        let mut q = ToastQueue::default();
+        q.push("a1", NOW);
+        assert!(!q.expire(NOW + 11_999));
+        assert_eq!(q.current(), Some("a1"));
+        assert!(q.expire(NOW + 12_000));
+        assert_eq!(q.current(), None);
+        assert_eq!(TOAST_MS, 12_000);
+    }
+
+    #[test]
+    fn a_picked_ask_is_a_mention_until_its_message_is_read() {
+        let mut s = LtpState::default();
+        let mut picked = ask("u0", &["me", "u2"], &[]);
+        picked.ask_id = "p".into();
+        let mut everyone = ask("u0", &[], &[]);
+        everyone.ask_id = "e".into();
+        let mut other_crew = picked.clone();
+        other_crew.ask_id = "o".into();
+        other_crew.crew_id = "c2".into();
+        for a in [picked.clone(), everyone, other_crew] {
+            s.store(a);
+        }
+        let ids = |s: &LtpState, read: Option<i64>| -> Vec<String> {
+            s.picked_unread("c1", "me", read)
+                .iter()
+                .map(|a| a.ask_id.clone())
+                .collect()
+        };
+        assert_eq!(ids(&s, None), ["p"], "only the ask that picks the viewer");
+        assert!(s.picked_unread("c1", "u9", None).is_empty());
+        assert!(
+            ids(&s, Some(picked.opened_at)).is_empty(),
+            "read on another device"
+        );
+        assert_eq!(ids(&s, Some(picked.opened_at - 1)), ["p"]);
+        s.mark_read("c1");
+        assert!(ids(&s, None).is_empty(), "seen at the bottom of the chat");
+        assert_eq!(s.picked_unread("c2", "me", None).len(), 1, "another crew");
     }
 
     #[test]

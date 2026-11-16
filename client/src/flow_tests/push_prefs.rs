@@ -22,9 +22,6 @@ fn press_menu_item(h: &mut Harness, label: &str) {
 /// NOTIFICATIONS tab. The commands of the way in are read and dropped.
 fn notifications_tab() -> Harness {
     let mut h = crew_menu_open();
-    // The Looking to play row is hidden until the feature is built. These
-    // tests cover both rows, so they turn it on.
-    h.app().set_looking_to_play_available(true);
     press_menu_item(&mut h, "Crew settings");
     assert!(h.app().get_crew_settings_open(), "crew settings are open");
     h.click_label("NOTIFICATIONS");
@@ -269,22 +266,14 @@ fn a_plain_member_gets_the_notifications_tab_only() {
     switch(&h, "Messages");
 }
 
-/// Looking to play is not built yet, so its notification setting does
-/// nothing. The row is not shown until the client says the feature is there.
+/// Looking to play is built, so its notification setting shows beside
+/// Messages. Phase 1 shipped with the row hidden.
 #[test]
-fn the_looking_to_play_setting_is_hidden_until_the_feature_is_built() {
+fn the_looking_to_play_setting_shows_in_crew_settings() {
     let mut h = crew_menu_open();
+    assert!(h.app().get_looking_to_play_available());
     press_menu_item(&mut h, "Notifications");
     switch(&h, "Messages");
-    // The composer pill has the same label, so only a switch counts.
-    assert!(
-        h.controls_labelled("Looking to play")
-            .iter()
-            .all(|e| e.accessible_role() != Some(AccessibleRole::Switch)),
-        "no Looking to play row by default"
-    );
-
-    h.app().set_looking_to_play_available(true);
-    h.pump();
+    // The composer pill has the same label, so `switch` counts the switch only.
     switch(&h, "Looking to play");
 }

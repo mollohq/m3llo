@@ -1,4 +1,4 @@
-//! Looking to play: the presses of the cards and of the ask popover
+//! Looking to play: the presses of the cards, the toast and the ask popover
 //! (plans/LOOKING-TO-PLAY.md 3.6). The work is in
 //! `handlers/looking_to_play.rs`.
 //!
@@ -77,5 +77,13 @@ pub fn wire(ctx: &AppContext) {
     {
         let ctx = ctx.clone();
         ui.on_ask_clicked(move || ltp::send_ask(&ctx));
+    }
+    {
+        let ctx = ctx.clone();
+        ui.on_toast_answered(move |ask_id, answer| ltp::toast_answered(&ctx, &ask_id, &answer));
+    }
+    {
+        let ctx = ctx.clone();
+        ui.on_toast_dismissed(move |ask_id| ltp::toast_dismissed(&ctx, &ask_id));
     }
 }

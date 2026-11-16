@@ -3,9 +3,8 @@
 //!
 //! The rules are pure functions in `crate::looking_to_play`. This module
 //! reads what the client has (the crew members, the voice channels, the
-//! avatars), calls them, and writes the Slint structs. The toast, the sound
-//! and the OS notification are not here: the `notify` flag is passed on
-//! unused until they are built.
+//! avatars), calls them, and writes the Slint structs. A `notify` update
+//! gives the toast, the sound or the OS notification (`on_arrival`).
 
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -21,7 +20,8 @@ use crate::looking_to_play::{
 };
 use crate::{
     LookingToPlayCardData, LookingToPlayFace, LookingToPlayGame, LookingToPlayGroup,
-    LookingToPlayMember, LookingToPlayOpenAsk, LookingToPlayRow, LookingToPlayUi, MainWindow,
+    LookingToPlayMember, LookingToPlayOpenAsk, LookingToPlayRow, LookingToPlayToastData,
+    LookingToPlayUi, MainWindow,
 };
 
 /// A crew member with what the UI has for them.
@@ -197,6 +197,7 @@ impl CardView {
             ask_id: card.ask_id.as_str().into(),
             state: card.state.into(),
             closed_reason: card.closed_reason.as_str().into(),
+            asker_id: card.asker_id.as_str().into(),
             asker_name: card.asker_name.as_str().into(),
             has_game: game.is_some(),
             game_id: game.map(|g| g.game_id.as_str()).unwrap_or("").into(),
@@ -233,6 +234,7 @@ pub(crate) fn sync_pip(app: &MainWindow, state: &LtpState) {
 /// Give every chat row of an ask its card, in place: `set_row_data` on the
 /// rows that changed, the model is kept.
 pub(crate) fn refresh_cards(ctx: &AppContext) {
+    remember_names(ctx);
     let state = ctx.looking_to_play.borrow();
     let view = CardView::new(&ctx.app, &ctx.avatar_cache.borrow());
     let tr = ctx.app.global::<crate::Tr>();
@@ -259,12 +261,18 @@ pub(crate) fn refresh_cards(ctx: &AppContext) {
 /// The timer: the minute counts of the cards count on while the crew on
 /// screen has an ask that is open or on. Nothing to do otherwise.
 pub(crate) fn tick(ctx: &AppContext) {
-    let live = ctx
-        .looking_to_play
-        .borrow()
-        .has_live_ask(ctx.app.get_active_crew_id().as_str());
+    let (live, toast) = {
+        let state = ctx.looking_to_play.borrow();
+        (
+            state.has_live_ask(ctx.app.get_active_crew_id().as_str()),
+            state.toast.current().is_some(),
+        )
+    };
     if live {
         refresh_cards(ctx);
+    }
+    if toast {
+        sync_toast(ctx);
     }
 }
 
@@ -311,7 +319,8 @@ fn popover_people(app: &MainWindow, roster: &[Member]) -> Vec<PopoverPerson> {
         .collect()
 }
 
-/// The games the popover offers, with their icons (3.6).
+/// The games the popover offers, with their icons (3.6). The rules are in
+/// `ltp::game_choices`; this reads the sources.
 fn popover_games(ctx: &AppContext, crew_id: &str) -> Vec<GameRef> {
     let viewer = ctx.app.get_user_id().to_string();
     let groups = ctx.live_games.borrow().groups(&viewer);
@@ -328,7 +337,18 @@ fn popover_games(ctx: &AppContext, crew_id: &str) -> Vec<GameRef> {
         .filter(|g| !g.user_ids.contains(&viewer))
         .map(|g| as_ref(&g.game_id, &g.game_name))
         .collect();
-    let recent: Vec<GameRef> = ctx
+    // The scan gives no play time, so the installed games come in its
+    // order, by name. Games hidden in Steam or in settings stay out.
+    let installed: Vec<GameRef> = {
+        let hidden = &ctx.settings.borrow().hidden_games;
+        ctx.installed_games
+            .borrow()
+            .iter()
+            .filter(|g| !g.steam_hidden && !hidden.contains(&g.game_id))
+            .map(|g| as_ref(&g.game_id, &g.name))
+            .collect()
+    };
+    let zone_installed: Vec<GameRef> = ctx
         .last_feed
         .borrow()
         .as_ref()
@@ -346,7 +366,15 @@ fn popover_games(ctx: &AppContext, crew_id: &str) -> Vec<GameRef> {
                 .collect()
         })
         .unwrap_or_default();
-    let games = ltp::game_choices(viewer_game.as_ref(), &crew_games, &recent);
+    let games = ltp::game_choices(
+        &ltp::GameSources {
+            viewer_game: viewer_game.as_ref(),
+            crew_games: &crew_games,
+            installed: &installed,
+            zone_installed: &zone_installed,
+        },
+        &crate::game_icons::steam_ids_of_catalogue_game,
+    );
     resolve_icons(
         ctx,
         games.iter().map(|g| (g.game_id.as_str(), g.name.as_str())),
@@ -624,6 +652,8 @@ pub(crate) fn answer(ctx: &AppContext, ask_id: &str, key: &str) {
         return;
     };
     log::info!("[looking-to-play] answer {key} on ask {ask_id}");
+    // An answer, on the card or on the toast, ends the toast of the ask.
+    hide_toast(ctx, ask_id);
     let _ = ctx.cmd_tx.send(Command::LookingToPlayAnswer {
         ask_id: ask_id.to_string(),
         answer,
@@ -657,6 +687,332 @@ fn popover_open(ctx: &AppContext) -> bool {
     ctx.app.global::<LookingToPlayUi>().get_popover_open()
 }
 
+// ---------------------------------------------------------------- toast
+
+/// The main window shows and is not minimised.
+fn window_visible(app: &MainWindow) -> bool {
+    let w = app.window();
+    w.is_visible() && !w.is_minimized()
+}
+
+/// The chat panel of the crew on screen shows: the app branch of
+/// `main.slint`, not Discover.
+fn chat_visible(app: &MainWindow) -> bool {
+    let step = app.get_onboarding_step();
+    app.get_logged_in() && (step == 0 || (step > 3 && step != 5)) && !app.get_show_discover()
+}
+
+/// The card of `ask` is on screen: its crew is the crew on screen, and the
+/// chat shows its bottom, where a new ask lands.
+fn card_on_screen(ctx: &AppContext, ask: &Ask) -> bool {
+    ask.crew_id == ctx.app.get_active_crew_id().as_str()
+        && chat_visible(&ctx.app)
+        && ctx.chat_scroll.at_bottom.get()
+}
+
+/// Keep the names of the members the window shows, so an ask of another
+/// crew can name its asker later.
+fn remember_names(ctx: &AppContext) {
+    let mut names: Vec<(String, String)> = Vec::new();
+    let members = ctx.app.get_members();
+    names.extend(
+        (0..members.row_count())
+            .filter_map(|i| members.row_data(i))
+            .map(|m| (m.id.to_string(), m.name.to_string())),
+    );
+    let mentions = ctx.app.get_mention_members();
+    names.extend(
+        (0..mentions.row_count())
+            .filter_map(|i| mentions.row_data(i))
+            .map(|m| (m.user_id.to_string(), m.display_name.to_string())),
+    );
+    for list in ctx.crew_previews.borrow().values() {
+        names.extend(
+            list.iter()
+                .filter_map(|p| Some((p.user_id.clone()?, p.username.clone()))),
+        );
+    }
+    let mut state = ctx.looking_to_play.borrow_mut();
+    for (id, name) in names {
+        if !id.is_empty() && !name.is_empty() {
+            state.names.insert(id, name);
+        }
+    }
+}
+
+/// The crew name of `crew_id` in the sidebar.
+fn crew_name(app: &MainWindow, crew_id: &str) -> String {
+    let crews = app.get_crews();
+    (0..crews.row_count())
+        .filter_map(|i| crews.row_data(i))
+        .find(|c| c.id == crew_id)
+        .map(|c| c.name.to_string())
+        .unwrap_or_default()
+}
+
+fn toast_data(app: &MainWindow, state: &LtpState, ask: &Ask) -> LookingToPlayToastData {
+    let (initials, avatar, has_avatar) = crew_tile(app, &ask.crew_id);
+    let game = ask.game.as_ref();
+    let (icon, has_icon) = game
+        .and_then(|g| state.game_icons.get(&g.game_id).cloned())
+        .unwrap_or_default();
+    let now = crate::converters::current_time_ms();
+    LookingToPlayToastData {
+        ask_id: ask.ask_id.as_str().into(),
+        crew_name: crew_name(app, &ask.crew_id).into(),
+        crew_initials: initials.into(),
+        crew_color_index: avatar_color_index(&ask.crew_id),
+        crew_avatar: avatar,
+        has_crew_avatar: has_avatar,
+        asker_name: state
+            .names
+            .get(&ask.asker_id)
+            .map(String::as_str)
+            .unwrap_or("")
+            .into(),
+        has_game: game.is_some(),
+        game_id: game.map(|g| g.game_id.as_str()).unwrap_or("").into(),
+        game_name: game.map(|g| g.name.as_str()).unwrap_or("").into(),
+        game_monogram: game
+            .map(|g| crate::recent_games::monogram(&g.name))
+            .unwrap_or_default()
+            .into(),
+        game_hue: game.map_or(0, |g| crate::recent_games::hue_index(&g.game_id, &g.name)),
+        game_icon: icon,
+        has_game_icon: has_icon,
+        minutes_left: ltp::minutes_until(ask.opened_at + ltp::OPEN_MS, now) as i32,
+        count_in: (1 + ask.members_in().len()) as i32,
+    }
+}
+
+/// Draw the toast of the queue, or hide it.
+pub(crate) fn sync_toast(ctx: &AppContext) {
+    let ui = ctx.app.global::<LookingToPlayUi>();
+    let data = {
+        let state = ctx.looking_to_play.borrow();
+        state
+            .toast
+            .current()
+            .and_then(|id| state.asks.get(id))
+            .map(|a| toast_data(&ctx.app, &state, a))
+    };
+    match data {
+        Some(d) => {
+            ui.set_toast(d);
+            if !ui.get_toast_open() {
+                ui.set_toast_open(true);
+            }
+        }
+        None => {
+            if ui.get_toast_open() {
+                ui.set_toast_open(false);
+            }
+        }
+    }
+}
+
+fn cue_sound(ctx: &AppContext) {
+    crate::sounds::cue(ctx, mello_core::sounds::Sound::LookingToPlay);
+}
+
+/// The toast of `ask_id` goes (answered, closed, its close control), or
+/// the ask waits no more. The next toast shows, with the sound.
+fn hide_toast(ctx: &AppContext, ask_id: &str) {
+    let now = crate::converters::current_time_ms();
+    let next = {
+        let mut state = ctx.looking_to_play.borrow_mut();
+        state.toast.remove(ask_id, now) && state.toast.current().is_some()
+    };
+    if next {
+        cue_sound(ctx);
+    }
+    sync_toast(ctx);
+}
+
+/// The poll loop: the toast hides 12 seconds after it showed.
+pub(crate) fn toast_tick(ctx: &AppContext) {
+    let now = crate::converters::current_time_ms();
+    let (changed, next) = {
+        let mut state = ctx.looking_to_play.borrow_mut();
+        if state.toast.current().is_none() {
+            return;
+        }
+        let changed = state.toast.expire(now);
+        (changed, state.toast.current().is_some())
+    };
+    if changed {
+        log::debug!("[looking-to-play] the toast timed out");
+        if next {
+            cue_sound(ctx);
+        }
+        sync_toast(ctx);
+    }
+}
+
+/// The text of the OS notification of an ask: (title, body).
+fn notice_text(ctx: &AppContext, ask: &Ask) -> (String, String) {
+    let tr = ctx.app.global::<crate::Tr>();
+    let name = ctx
+        .looking_to_play
+        .borrow()
+        .names
+        .get(&ask.asker_id)
+        .cloned()
+        .unwrap_or_default();
+    let body = match (name.is_empty(), ask.game.as_ref()) {
+        (false, None) => tr.invoke_looking_to_play_notice(name.into()),
+        (false, Some(g)) => {
+            tr.invoke_looking_to_play_notice_game(name.into(), g.name.as_str().into())
+        }
+        (true, None) => tr.get_looking_to_play_notice_someone(),
+        (true, Some(g)) => tr.invoke_looking_to_play_notice_someone_game(g.name.as_str().into()),
+    };
+    (crew_name(&ctx.app, &ask.crew_id), body.into())
+}
+
+/// A new state of `ask_id` arrived. A `notify` update of a new ask gives
+/// the toast, the sound or the OS notification, once for an ask (3.6). An
+/// ask that wants no toast any more leaves the queue.
+fn on_arrival(ctx: &AppContext, ask_id: &str, notify: bool) {
+    let viewer = ctx.app.get_user_id().to_string();
+    let now = crate::converters::current_time_ms();
+    let (decision, wants) = {
+        let state = ctx.looking_to_play.borrow();
+        let Some(ask) = state.asks.get(ask_id) else {
+            return;
+        };
+        let decision = ltp::arrival(&ltp::ArrivalInput {
+            ask,
+            viewer: &viewer,
+            notify,
+            window_visible: window_visible(&ctx.app),
+            card_on_screen: card_on_screen(ctx, ask),
+        });
+        (decision, ltp::wants_toast(ask, &viewer))
+    };
+    if !wants {
+        hide_toast(ctx, ask_id);
+    }
+    if decision == ltp::Arrival::Nothing {
+        sync_toast(ctx);
+        return;
+    }
+    let (first, shows) = {
+        let mut state = ctx.looking_to_play.borrow_mut();
+        let first = state.toast.announce(ask_id);
+        let shows = first && decision == ltp::Arrival::Toast && state.toast.push(ask_id, now);
+        (first, shows)
+    };
+    if !first {
+        sync_toast(ctx);
+        return;
+    }
+    log::info!("[looking-to-play] ask {ask_id} arrived: {decision:?}");
+    match decision {
+        ltp::Arrival::Toast => {
+            if shows {
+                cue_sound(ctx);
+            }
+        }
+        ltp::Arrival::Sound => cue_sound(ctx),
+        ltp::Arrival::Notice => {
+            let ask = ctx.looking_to_play.borrow().asks.get(ask_id).cloned();
+            if let Some(ask) = ask {
+                let (title, body) = notice_text(ctx, &ask);
+                if let Some(show) = ctx.looking_to_play_notice.borrow().as_ref() {
+                    show(&title, &body);
+                }
+            }
+            cue_sound(ctx);
+        }
+        ltp::Arrival::Nothing => {}
+    }
+    sync_toast(ctx);
+}
+
+/// A press on an answer of the toast: the answer of the card. In on an ask
+/// of another crew opens that crew, at the card, and joins no voice.
+pub(crate) fn toast_answered(ctx: &AppContext, ask_id: &str, key: &str) {
+    answer(ctx, ask_id, key);
+    if key != "in" {
+        return;
+    }
+    let crew = ctx
+        .looking_to_play
+        .borrow()
+        .asks
+        .get(ask_id)
+        .map(|a| a.crew_id.clone())
+        .unwrap_or_default();
+    if !crew.is_empty() && crew != ctx.app.get_active_crew_id().as_str() {
+        log::info!("[looking-to-play] In on the toast: opening crew {crew}");
+        ctx.app.set_show_discover(false);
+        ctx.app.invoke_select_crew(crew.into());
+    }
+}
+
+/// The close control of the toast.
+pub(crate) fn toast_dismissed(ctx: &AppContext, ask_id: &str) {
+    log::debug!("[looking-to-play] toast of {ask_id} closed");
+    hide_toast(ctx, ask_id);
+}
+
+// ---------------------------------------------------------------- game art
+
+/// Game art landed: `art_id` is an art Worker id, or `game_id` the id of a
+/// crew-shared exe icon. The asks and chips that have no icon and that it
+/// names look again, and the card, the toast and the popover draw it.
+pub(crate) fn on_game_art(ctx: &AppContext, art_id: Option<&str>, game_id: Option<&str>) {
+    let missing: Vec<(String, String)> = {
+        let state = ctx.looking_to_play.borrow();
+        let installed = ctx.installed_games.borrow();
+        let names = state
+            .asks
+            .values()
+            .filter_map(|a| a.game.as_ref().map(|g| (g.game_id.clone(), g.name.clone())))
+            .chain(
+                state
+                    .popover_games
+                    .iter()
+                    .map(|g| (g.game_id.clone(), g.name.clone())),
+            );
+        let mut out: Vec<(String, String)> = Vec::new();
+        for (id, name) in names {
+            if state.game_icons.get(&id).is_some_and(|(_, has)| *has)
+                || out.iter().any(|(o, _)| *o == id)
+            {
+                continue;
+            }
+            let hit = game_id == Some(id.as_str())
+                || art_id.is_some_and(|art| {
+                    crate::game_icons::worker_ids(&id, &id, &name, &installed)
+                        .iter()
+                        .any(|w| w == art)
+                });
+            if hit {
+                out.push((id, name));
+            }
+        }
+        out
+    };
+    if missing.is_empty() {
+        return;
+    }
+    log::debug!("[looking-to-play] art for {} games", missing.len());
+    {
+        let mut state = ctx.looking_to_play.borrow_mut();
+        for (id, _) in &missing {
+            state.game_icons.remove(id);
+        }
+    }
+    resolve_icons(ctx, missing.iter().map(|(i, n)| (i.as_str(), n.as_str())));
+    refresh_cards(ctx);
+    sync_toast(ctx);
+    if popover_open(ctx) {
+        sync_popover(ctx);
+    }
+}
+
 pub fn handle(ctx: &AppContext, event: Event) {
     match event {
         Event::LookingToPlayUpdated { ask, notify } => {
@@ -671,8 +1027,12 @@ pub fn handle(ctx: &AppContext, event: Event) {
             if let Some(g) = &ask.game {
                 resolve_icons(ctx, [(g.game_id.as_str(), g.name.as_str())]);
             }
+            remember_names(ctx);
             let viewer = ctx.app.get_user_id().to_string();
-            let on_screen = ask.crew_id == ctx.app.get_active_crew_id().as_str();
+            let ask_id = ask.ask_id.clone();
+            let crew_id = ask.crew_id.clone();
+            let picks_viewer = ask.asked.contains(&viewer);
+            let on_screen = crew_id == ctx.app.get_active_crew_id().as_str();
             let answered = {
                 let mut state = ctx.looking_to_play.borrow_mut();
                 let answered = state.answers_pending(&ask, &viewer);
@@ -692,6 +1052,17 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 refresh_cards(ctx);
                 if popover_open(ctx) || answered {
                     sync_popover(ctx);
+                }
+            }
+            on_arrival(ctx, &ask_id, notify);
+            // A picked member sees the ask as a mention (3.6).
+            if picks_viewer {
+                if !on_screen {
+                    super::chat::recompute_badges(ctx);
+                } else if !ctx.chat_scroll.at_bottom.get()
+                    && !ctx.looking_to_play.borrow().read_asks.contains(&ask_id)
+                {
+                    super::chat::mark_ask_mention(ctx, &crew_id);
                 }
             }
         }

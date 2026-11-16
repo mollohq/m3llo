@@ -389,11 +389,13 @@ fn the_popover_asks_the_picked_members_for_a_game() {
         ui(&h).get_everyone_picked(),
         "a small crew starts with Everyone"
     );
+    let games = ui(&h).get_games();
+    assert_eq!(games.row_count(), 2, "both games of the feed");
     assert_eq!(
-        ui(&h).get_games().row_count(),
-        1,
-        "only a game with a library id"
+        games.row_data(0).map(|g| g.game_id),
+        Some("steam-730".into())
     );
+    assert_eq!(games.row_data(1).map(|g| g.name), Some("Valheim".into()));
 
     h.click_label("kim");
     assert!(!ui(&h).get_everyone_picked(), "a member unpicks Everyone");
@@ -487,5 +489,325 @@ fn a_large_crew_starts_with_the_last_picks() {
     assert_eq!(
         ask_button(&h, "Ask 2 members").accessible_enabled(),
         Some(true)
+    );
+}
+
+// ------------------------------------------- the toast, the sound, the notice
+
+const CREW2: &str = "crew-2";
+
+/// The chat of crew-1 on screen in a window that shows, crew-2 in the
+/// sidebar too.
+fn two_crews() -> Harness {
+    let mut h = small_crew();
+    h.app()
+        .set_crews(slint::ModelRc::new(slint::VecModel::from(vec![
+            CrewData {
+                id: CREW.into(),
+                name: "Night Shift".into(),
+                ..Default::default()
+            },
+            CrewData {
+                id: CREW2.into(),
+                name: "Day Shift".into(),
+                ..Default::default()
+            },
+        ])));
+    h.app().show().expect("show the window");
+    h.pump();
+    h
+}
+
+/// An ask of crew-2 by leo (u3, a member of both crews).
+fn other_ask(ask_id: &str) -> Ask {
+    let mut a = ask("u3", &[("u3", Answer::In)]);
+    a.ask_id = ask_id.into();
+    a.crew_id = CREW2.into();
+    a.message_id = format!("m-{ask_id}");
+    a
+}
+
+fn arrive(h: &mut Harness, a: Ask, notify: bool) {
+    h.emit(Event::LookingToPlayUpdated { ask: a, notify });
+    next_frame();
+}
+
+/// The ask of the toast on screen.
+fn toast(h: &Harness) -> Option<String> {
+    let ui = ui(h);
+    ui.get_toast_open()
+        .then(|| ui.get_toast().ask_id.to_string())
+}
+
+fn toasts_on_screen(h: &Harness) -> usize {
+    ElementHandle::find_by_element_type_name(h.app(), "LookingToPlayToast").count()
+}
+
+fn ask_sounds(h: &Harness) -> usize {
+    h.ctx()
+        .sounds
+        .recent()
+        .iter()
+        .filter(|s| **s == mello_core::sounds::Sound::LookingToPlay)
+        .count()
+}
+
+/// (title, body) of each OS notification of an ask.
+fn record_notices(h: &Harness) -> Rc<std::cell::RefCell<Vec<(String, String)>>> {
+    let seen = Rc::new(std::cell::RefCell::new(Vec::new()));
+    let sink = seen.clone();
+    *h.ctx().looking_to_play_notice.borrow_mut() = Some(Box::new(move |t: &str, b: &str| {
+        sink.borrow_mut().push((t.to_string(), b.to_string()));
+    }));
+    seen
+}
+
+/// A new ask of another crew shows the toast in the window, names the crew
+/// and the asker, and plays the sound once.
+#[test]
+fn a_new_ask_of_another_crew_shows_the_toast_and_plays_the_sound() {
+    let mut h = two_crews();
+    let notices = record_notices(&h);
+    arrive(&mut h, other_ask("a2"), true);
+
+    assert_eq!(toast(&h).as_deref(), Some("a2"));
+    assert_eq!(toasts_on_screen(&h), 1);
+    let data = ui(&h).get_toast();
+    assert_eq!(data.crew_name, "Day Shift");
+    assert_eq!(data.asker_name, "leo");
+    assert_eq!(data.count_in, 1, "the asker counts as in");
+    assert_eq!(data.minutes_left, 29);
+    assert!(ElementHandle::find_by_accessible_label(h.app(), "leo is looking to play").count() > 0);
+    assert_eq!(ask_sounds(&h), 1);
+    assert!(
+        notices.borrow().is_empty(),
+        "the window shows: no OS notification"
+    );
+
+    // The same ask again: once for an ask.
+    arrive(&mut h, other_ask("a2"), true);
+    assert_eq!(ask_sounds(&h), 1);
+}
+
+/// Only the server's notification of a new ask (`notify`) does something.
+#[test]
+fn an_update_without_notify_shows_nothing() {
+    let mut h = two_crews();
+    let notices = record_notices(&h);
+    arrive(&mut h, other_ask("a2"), false);
+    assert_eq!(toast(&h), None);
+    assert_eq!(toasts_on_screen(&h), 0);
+    assert_eq!(ask_sounds(&h), 0);
+    assert!(notices.borrow().is_empty());
+}
+
+/// The user's own ask shows no toast and plays nothing.
+#[test]
+fn the_users_own_ask_shows_nothing() {
+    let mut h = two_crews();
+    let mut own = other_ask("a2");
+    own.asker_id = VIEWER.into();
+    own.answers.clear();
+    arrive(&mut h, own, true);
+    assert_eq!(toast(&h), None);
+    assert_eq!(ask_sounds(&h), 0);
+}
+
+/// The ask of the crew on screen, with the chat at its bottom: the card is
+/// on screen, so no toast, but the sound plays.
+#[test]
+fn an_ask_of_the_crew_on_screen_plays_the_sound_with_no_toast() {
+    let mut h = two_crews();
+    load(&mut h, Vec::new());
+    assert!(h.ctx().chat_scroll.at_bottom.get());
+    arrive(&mut h, ask("u3", &[("u3", Answer::In)]), true);
+    assert_eq!(toast(&h), None);
+    assert_eq!(toasts_on_screen(&h), 0);
+    assert_eq!(ask_sounds(&h), 1);
+}
+
+/// In on the toast of another crew sends the answer, opens that crew so
+/// the user lands on the card, joins no voice, and hides the toast.
+#[test]
+fn in_on_the_toast_answers_opens_the_crew_and_hides_it() {
+    let mut h = two_crews();
+    voice_channels(&h, &[("lobby", true, &[])]);
+    arrive(&mut h, other_ask("a2"), true);
+
+    h.click_label("In");
+
+    let cmds: Vec<Command> = h
+        .commands()
+        .into_iter()
+        .filter(|c| {
+            matches!(
+                c,
+                Command::LookingToPlayAnswer { .. }
+                    | Command::JoinVoice { .. }
+                    | Command::SelectCrew { .. }
+            )
+        })
+        .collect();
+    assert!(
+        matches!(
+            cmds.as_slice(),
+            [
+                Command::LookingToPlayAnswer { ask_id, answer: Answer::In },
+                Command::SelectCrew { crew_id },
+            ] if ask_id == "a2" && crew_id == CREW2
+        ),
+        "{cmds:?}"
+    );
+    assert_eq!(toast(&h), None);
+    next_frame();
+    assert_eq!(toasts_on_screen(&h), 0);
+}
+
+/// The close control hides the toast and sends nothing.
+#[test]
+fn the_close_control_hides_the_toast_and_sends_nothing() {
+    let mut h = two_crews();
+    arrive(&mut h, other_ask("a2"), true);
+    h.commands();
+    h.click_label("Close");
+    assert_eq!(toast(&h), None);
+    assert!(ltp_commands(&mut h).is_empty());
+}
+
+/// One toast at a time: the next ask waits. A waiting ask that closes
+/// leaves the queue. The toast hides after 12 seconds.
+#[test]
+fn the_next_ask_waits_for_the_toast() {
+    let mut h = two_crews();
+    arrive(&mut h, other_ask("a2"), true);
+    arrive(&mut h, other_ask("a3"), true);
+    arrive(&mut h, other_ask("a4"), true);
+    assert_eq!(toast(&h).as_deref(), Some("a2"));
+    assert_eq!(toasts_on_screen(&h), 1, "one toast at a time");
+
+    let mut closed = other_ask("a3");
+    closed.state = AskState::Closed;
+    closed.closed_reason = "cancelled".into();
+    arrive(&mut h, closed, false);
+    assert_eq!(toast(&h).as_deref(), Some("a2"));
+
+    h.ctx().looking_to_play.borrow_mut().toast.backdate(11_000);
+    h.pump();
+    assert_eq!(toast(&h).as_deref(), Some("a2"), "11 seconds: still there");
+    h.ctx().looking_to_play.borrow_mut().toast.backdate(1_000);
+    h.pump();
+    assert_eq!(
+        toast(&h).as_deref(),
+        Some("a4"),
+        "12 seconds: the next, a3 left"
+    );
+    assert_eq!(
+        ask_sounds(&h),
+        1,
+        "the sound plays at most once in 60 seconds"
+    );
+
+    // An answer from elsewhere (the card, the phone) hides it.
+    let mut answered = other_ask("a4");
+    answered.answers.insert(
+        VIEWER.into(),
+        AskAnswer {
+            answer: Answer::No,
+            at: now_ms(),
+            due_at: 0,
+            arrived_at: 0,
+        },
+    );
+    arrive(&mut h, answered, false);
+    assert_eq!(toast(&h), None);
+}
+
+/// A hidden window: the OS notification with the crew and the asker, the
+/// sound, and no toast.
+#[test]
+fn a_hidden_window_posts_the_notification_and_no_toast() {
+    let mut h = small_crew();
+    h.app()
+        .set_crews(slint::ModelRc::new(slint::VecModel::from(vec![CrewData {
+            id: CREW2.into(),
+            name: "Day Shift".into(),
+            ..Default::default()
+        }])));
+    assert!(!h.app().window().is_visible());
+    let notices = record_notices(&h);
+    let mut a = other_ask("a2");
+    a.game = Some(mello_core::looking_to_play::AskGame {
+        game_id: "steam-730".into(),
+        name: "Counter-Strike 2".into(),
+    });
+    arrive(&mut h, a, true);
+
+    assert_eq!(
+        notices.borrow().as_slice(),
+        [(
+            "Day Shift".to_string(),
+            "leo is looking to play Counter-Strike 2".to_string()
+        )]
+    );
+    assert_eq!(toast(&h), None);
+    assert_eq!(ask_sounds(&h), 1);
+    arrive(&mut h, other_ask("a2"), true);
+    assert_eq!(notices.borrow().len(), 1, "once for an ask");
+}
+
+fn crew_row(h: &Harness, id: &str) -> CrewData {
+    let crews = h.app().get_crews();
+    (0..crews.row_count())
+        .filter_map(|i| crews.row_data(i))
+        .find(|c| c.id == id)
+        .expect("the crew is in the sidebar")
+}
+
+/// A member that an ask picks sees it as a mention: the unread badge of the
+/// crew uses the mention colour. An ask to everyone is a plain message.
+#[test]
+fn a_picked_member_sees_the_ask_as_a_mention() {
+    let mut h = two_crews();
+    let mut everyone = other_ask("a2");
+    everyone.asked = Vec::new();
+    arrive(&mut h, everyone, true);
+    assert!(!crew_row(&h, CREW2).unread_mention, "an ask to everyone");
+
+    let mut picked = other_ask("a3");
+    picked.asked = vec![VIEWER.into(), "u4".into()];
+    arrive(&mut h, picked, true);
+    let row = crew_row(&h, CREW2);
+    assert!(row.unread_mention, "the ask picked the user");
+    assert!(row.unread_count >= 1, "the badge shows");
+}
+
+/// Presence carries the catalogue id of the game the user plays. The
+/// popover offers it, and the ask carries the library id of the catalogue.
+#[test]
+fn the_popover_offers_the_game_the_user_plays_with_its_library_id() {
+    let mut h = small_crew();
+    h.ctx()
+        .live_games
+        .borrow_mut()
+        .start_own(crate::live_session::LiveGame {
+            game_id: "brawlhalla".into(),
+            game_name: "Brawlhalla".into(),
+            started_ms: now_ms() - 60_000,
+        });
+    open_popover(&mut h);
+    let first = ui(&h).get_games().row_data(0).expect("a game chip");
+    assert_eq!(first.name, "Brawlhalla");
+    assert_eq!(first.game_id, "steam-291550");
+
+    h.click_label("Brawlhalla");
+    h.click_label("Ask the crew");
+    let cmds = ltp_commands(&mut h);
+    assert!(
+        matches!(
+            cmds.as_slice(),
+            [Command::LookingToPlayAsk { game: Some(g), .. }]
+                if g.game_id == "steam-291550" && g.name == "Brawlhalla"
+        ),
+        "{cmds:?}"
     );
 }

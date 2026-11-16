@@ -170,6 +170,8 @@ impl Drop for Harness {
         lu.on_everyone_toggled(|| {});
         lu.on_game_selected(|_| {});
         lu.on_ask_clicked(|| {});
+        lu.on_toast_answered(|_, _| {});
+        lu.on_toast_dismissed(|_| {});
     }
 }
 

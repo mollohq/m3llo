@@ -713,6 +713,8 @@ export struct LookingToPlayCardData {
     state: string,
     /// Why a closed ask closed: "nobody", "all_no", "cancelled" or "done".
     closed-reason: string,
+    /// The user id of the asker. Not drawn: the e2e state reads it.
+    asker-id: string,
     asker-name: string,
     /// The ask names a game. False: no game line.
     has-game: bool,

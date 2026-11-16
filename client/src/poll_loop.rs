@@ -85,6 +85,8 @@ impl PollState {
             self.ask_cards_at.set(std::time::Instant::now());
             crate::handlers::looking_to_play::tick(poll_ctx);
         }
+        // The Looking to play toast hides 12 seconds after it showed.
+        crate::handlers::looking_to_play::toast_tick(poll_ctx);
         let update_event_rx = &self.update_event_rx;
         let event_rx = &self.event_rx;
         let saved_timer_ref = &self.saved_timer;

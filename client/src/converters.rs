@@ -466,6 +466,7 @@ pub fn same_card(a: &crate::LookingToPlayCardData, b: &crate::LookingToPlayCardD
     a.ask_id == b.ask_id
         && a.state == b.state
         && a.closed_reason == b.closed_reason
+        && a.asker_id == b.asker_id
         && a.asker_name == b.asker_name
         && a.has_game == b.has_game
         && a.game_id == b.game_id
