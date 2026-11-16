@@ -45,6 +45,12 @@ type delNk struct {
 	promotes []string
 	// groupUpdates counts the group updates.
 	groupUpdates int
+	// userGroupsErr makes the list of the crews of a user fail. groupsPage
+	// is the page size of that list (0: one page). userGroupsCalls counts
+	// the calls.
+	userGroupsErr   error
+	groupsPage      int
+	userGroupsCalls int
 }
 
 func newDelNk() *delNk {
@@ -81,8 +87,13 @@ func (n *delNk) GroupUsersList(_ context.Context, id string, limit int, state *i
 }
 
 // UserGroupsList is the list of the base fake, with the state of the user in
-// each crew.
-func (n *delNk) UserGroupsList(_ context.Context, userID string, _ int, _ *int, _ string) ([]*api.UserGroupList_UserGroup, string, error) {
+// each crew. With groupsPage set it returns that many crews for each call,
+// and a cursor.
+func (n *delNk) UserGroupsList(_ context.Context, userID string, _ int, _ *int, cursor string) ([]*api.UserGroupList_UserGroup, string, error) {
+	if n.userGroupsErr != nil {
+		return nil, "", n.userGroupsErr
+	}
+	n.userGroupsCalls++
 	var crews []string
 	for crew := range n.members {
 		crews = append(crews, crew)
@@ -96,7 +107,21 @@ func (n *delNk) UserGroupsList(_ context.Context, userID string, _ int, _ *int, 
 			}
 		}
 	}
-	return out, "", nil
+	if n.groupsPage <= 0 {
+		return out, "", nil
+	}
+	from := 0
+	if cursor != "" {
+		fmt.Sscanf(cursor, "%d", &from)
+	}
+	if from >= len(out) {
+		return nil, "", nil
+	}
+	to := from + n.groupsPage
+	if to >= len(out) {
+		return out[from:], "", nil
+	}
+	return out[from:to], fmt.Sprintf("%d", to), nil
 }
 
 // GroupUsersPromote moves each member one rank up, as Nakama does.

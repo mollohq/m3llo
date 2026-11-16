@@ -372,7 +372,12 @@ func accountExists(ctx context.Context, nk runtime.NakamaModule, userID string) 
 // cannot be read, so this hook writes them to the scrub record. A crew whose
 // only owner is the user gets a new owner here (crew_handover.go): Nakama
 // deletes a group whose last superadmin deletes the account. The hook deletes
-// nothing: the delete can still fail. It never fails the delete.
+// nothing: the delete can still fail.
+//
+// The hook fails the delete in one case: a crew with other members could not
+// be handed over, or the crews of the user could not be read. The crew would
+// go with the account. The user can try again. Nothing else fails the
+// delete: not the account read, not the write of the scrub record.
 func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error {
 	userID, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if userID == "" {
@@ -392,8 +397,9 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	for {
 		groups, next, err := nk.UserGroupsList(ctx, userID, 100, nil, cursor)
 		if err != nil {
-			logger.Error("user_scrub_failed user=%s: crews read: %v", userID, err)
-			break
+			// The user can be the only owner of a crew that was not read.
+			logger.Error("crew_handover_failed user=%s: crews read: %v. Crews of other members may be at stake. The account delete is refused", userID, err)
+			return errAccountDeleteHandover
 		}
 		for _, g := range groups {
 			crews = append(crews, g.GetGroup().GetId())
@@ -406,7 +412,13 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 		}
 		cursor = next
 	}
-	soleCrews := handOverOwnedCrews(ctx, nk, logger, userID, owned)
+	soleCrews, failed := handOverOwnedCrews(ctx, nk, logger, userID, owned)
+	if failed > 0 {
+		// A crew that was handed over before the failure keeps its new
+		// owner, beside the user.
+		logger.Error("crew_handover_failed user=%s: %d of %d owned crews were not handed over. The account delete is refused", userID, failed, len(owned))
+		return errAccountDeleteHandover
+	}
 	_, err := updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
 		rec.addNames(names...)
 		rec.addCrews(crews...)
@@ -845,6 +857,11 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		}
 		if n > 0 {
 			logger.Info("user_scrub user=%s crew=%s: removed %d membership rows that Nakama left", rec.UserID, crewID, n)
+		}
+		// Two owners who delete their accounts at the same time leave a
+		// crew with no owner.
+		if _, err := repairOwnerlessCrew(ctx, nk, logger, crewID); err != nil {
+			return false, fmt.Errorf("owner repair: %w", err)
 		}
 	}
 
@@ -1420,6 +1437,7 @@ func StartLedgerDeletionJob(ctx context.Context, nk runtime.NakamaModule, logger
 		deadline := time.Now().Add(userScrubBudget)
 		runPendingUserScrubs(ctx, nk, logger, deadline)
 		runPendingCrewPurges(ctx, nk, logger, time.Now().Add(crewPurgeBudget))
+		sweepGoneMembers(ctx, nk, logger, time.Now().Add(userScrubBudget))
 		select {
 		case <-ctx.Done():
 			return

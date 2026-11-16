@@ -27,6 +27,7 @@ func usePurgeBuckets(t *testing.T) *fakeS3 {
 	f := newFakeS3(t)
 	useFakeBuckets(t, f)
 	useMemChat(t)
+	useMemEdges(t)
 	prevGifts, prevAsync := crewGiftsBucket, crewPurgeAsync
 	client := newS3Client(f.server.URL, "test", "test")
 	crewGiftsBucket = func() (*s3.Client, string) { return client, "media" }

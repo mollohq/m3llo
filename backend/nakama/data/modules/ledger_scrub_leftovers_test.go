@@ -276,7 +276,8 @@ func TestHandoverMovesTheQuestsOwner(t *testing.T) {
 	nk.groups[otherCrew] = &api.Group{Id: otherCrew, CreatorId: "u1", Metadata: `{"created_by":"u1"}`}
 	nk.addMemberAs(otherCrew, "u1", "Ann", 0)
 	nk.addMemberAs(otherCrew, goneUser, goneName, 2)
-	nakamaDeleteAccount(t, nk, goneUser)
+	memEdgesOf(t, nk)
+	mustDeleteAccount(t, nk, goneUser)
 	g := nk.groups[scrubCrew]
 	if g.GetCreatorId() != "u3" || g.GetMetadata() != `{"invite_only":false,"max_members":10000}` || !g.GetOpen().GetValue() {
 		t.Fatalf("group = creator %q metadata %s open %t", g.GetCreatorId(), g.GetMetadata(), g.GetOpen().GetValue())
