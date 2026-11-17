@@ -379,8 +379,15 @@ pub enum Event {
     },
     /// The account was deleted server-side and the local session cleared.
     AccountDeleted,
+    /// The account delete failed. The account and the session stay.
     AccountDeleteFailed {
+        /// The error as core saw it. For the log, not for the UI.
         reason: String,
+        /// The text of the server when it refused the delete (code 14,
+        /// UNAVAILABLE). Spec 16 section 10.2 makes this text safe to show.
+        /// `None` for any other failure: the client shows its own text.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        message: Option<String>,
     },
 
     EmailLinked,

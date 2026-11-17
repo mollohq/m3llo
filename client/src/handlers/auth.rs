@@ -111,7 +111,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
         Event::AccountDeleted => {
             log::info!("[auth] account deleted — session cleared");
         }
-        Event::AccountDeleteFailed { reason } => {
+        Event::AccountDeleteFailed { reason, .. } => {
             log::warn!("[auth] account-delete-failed  reason={}", reason);
         }
         Event::SocialLinkFailed { reason } => {
