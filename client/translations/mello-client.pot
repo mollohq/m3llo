@@ -1943,6 +1943,20 @@ msgstr ""
 msgid "default"
 msgstr ""
 
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "m3llo restarts to switch to {}."
+msgstr ""
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "Keep {}"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "Restart now"
+msgstr ""
+
 #: client/ui/panels/settings_modal.slint
 msgid "Activation Sensitivity"
 msgstr ""
@@ -2016,10 +2030,6 @@ msgstr ""
 
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
-msgstr ""
-
-#: client/ui/panels/settings_modal.slint
-msgid "Takes effect after restart"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint

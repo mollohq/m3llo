@@ -399,8 +399,18 @@ The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
 - A release build with no catalog shows "System" and "English". A debug
   build shows `qps` too.
 - A change saves `Settings.language` and applies at the next start. When the
-  choice differs from the setting of this run, the row shows "Takes effect
-  after restart".
+  choice differs from the setting of this run, a panel shows under the row:
+  "m3llo restarts to switch to {}." with two buttons.
+  - "Keep {}" (white) names the language of this run. It sets the setting
+    back to the value of this run, saves it and sends the account language
+    again. No restart.
+  - "Restart now" (red) asks for a restart (`restart::request`, through the
+    `AppContext::restart` seam) and quits the same way as the tray "Quit"
+    (`quit_voice::request_quit`). After `run_app` returns, `lib.rs::run`
+    starts `current_exe()` again with the arguments of this run, without a
+    `mello://` link and without `--reset`.
+- The window close does not apply a change: the app keeps running in the
+  tray.
 
 ### Tests run in English
 

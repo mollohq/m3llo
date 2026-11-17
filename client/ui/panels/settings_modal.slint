@@ -1,6 +1,6 @@
 import { Theme, MelloInputField, MelloScrollArea } from "../theme.slint";
 import { UserAvatar } from "../components/avatar.slint";
-import { CutShape, CutButtonShape } from "../components/cut.slint";
+import { CutShape, CutButtonShape, CutCard } from "../components/cut.slint";
 import { AudioDeviceData, GameIntegrationData, InstalledGameData, NoticeEntryData, SoundSettings, TesterData } from "../types.slint";
 import { AvatarCard } from "../components/avatar_card.slint";
 import { GameIcon } from "../components/game_icon.slint";
@@ -294,6 +294,97 @@ component ToggleRow inherits Rectangle {
                 checked <=> root.checked;
                 label: root.title;
                 toggled(v) => { root.toggled(v); }
+            }
+        }
+    }
+}
+
+// ─── Language restart panel ───────────────────────────────────────────────
+// A button of the panel. `commit` gives the red fill of a button that
+// commits; else the white fill of an action.
+component PanelButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> commit: false;
+    callback clicked();
+
+    width: label.preferred-width + 2 * Theme.spacing-md;
+    height: 34px;
+    background: transparent;
+
+    CutButtonShape {
+        width: parent.width;
+        height: parent.height;
+        n: Theme.cut;
+        fill: root.commit
+            ? (ta.has-hover ? Theme.confirm-press : Theme.confirm)
+            : (ta.has-hover ? Theme.action-press : Theme.action);
+    }
+
+    label := Text {
+        text: root.text;
+        font-family: Theme.font-label;
+        font-size: Theme.font-md;
+        font-weight: Theme.weight-label;
+        letter-spacing: Theme.track-label;
+        color: root.commit ? Theme.on-confirm : Theme.on-action;
+        width: parent.width;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    ta := TouchArea {
+        accessible-role: button;
+        accessible-label: root.text;
+        mouse-cursor: pointer;
+        clicked => { root.clicked(); }
+    }
+}
+
+// Under the Language row when the choice differs from the language of this
+// run (specs/features/LOCALIZATION.md section 9). "Keep" reverts the
+// choice; "Restart now" restarts the app.
+component LanguageRestartPanel inherits CutCard {
+    // The chosen language, by the name that the dropdown shows.
+    in property <string> language-name;
+    // The language of this run, by its own name.
+    in property <string> keep-name;
+    callback keep-clicked();
+    callback restart-clicked();
+
+    height: row.preferred-height;
+
+    row := HorizontalLayout {
+        padding: Theme.spacing-md;
+        spacing: Theme.spacing-md;
+
+        Text {
+            horizontal-stretch: 1;
+            vertical-alignment: center;
+            wrap: word-wrap;
+            // The name of a language, in its own script.
+            text: @tr("m3llo restarts to switch to {}.", root.language-name);
+            font-family: Theme.font-body;
+            font-weight: Theme.weight-sentence;
+            font-size: Theme.font-md;
+            color: Theme.text-body;
+        }
+
+        VerticalLayout {
+            alignment: center;
+            PanelButton {
+                // The name of a language, in its own script.
+                text: @tr("Keep {}", root.keep-name);
+                clicked => { root.keep-clicked(); }
+            }
+        }
+
+        VerticalLayout {
+            alignment: center;
+            PanelButton {
+                text: @tr("Restart now");
+                commit: true;
+                clicked => { root.restart-clicked(); }
             }
         }
     }
@@ -669,7 +760,11 @@ component GeneralTab inherits VerticalLayout {
     in-out property <string> language-name: "";
     // The choice differs from the language of this run: a restart applies it.
     in property <bool> language-restart: false;
+    // The name of the language of this run, for the "Keep" button.
+    in property <string> language-keep-name: "";
     callback language-selected(string);
+    callback language-keep-clicked();
+    callback language-restart-clicked();
 
     callback setting-changed-start-on-boot(bool);
     callback setting-changed-start-minimized(bool);
@@ -768,15 +863,6 @@ component GeneralTab inherits VerticalLayout {
                             color: Theme.text-primary;
                             letter-spacing: 0.3px;
                         }
-
-                        if root.language-restart: Text {
-                            font-weight: Theme.weight-display;
-                            font-family: Theme.font-display;
-                            text: @tr("Takes effect after restart");
-                            font-size: 13px;
-                            color: Theme.text-secondary;
-                            wrap: word-wrap;
-                        }
                     }
 
                     VerticalLayout {
@@ -792,6 +878,15 @@ component GeneralTab inherits VerticalLayout {
                         }
                     }
                 }
+            }
+
+            // The app keeps running in the tray after a close, so a choice
+            // that needs a restart gets its own restart or revert.
+            if root.language-restart: LanguageRestartPanel {
+                language-name: root.language-name;
+                keep-name: root.language-keep-name;
+                keep-clicked => { root.language-keep-clicked(); }
+                restart-clicked => { root.language-restart-clicked(); }
             }
 
             ToggleRow {
@@ -3180,12 +3275,16 @@ export component SettingsModal inherits Rectangle {
     in property <bool> show-openh264: false;
     in-out property <bool> openh264-enabled: true;
     // The UI language: the choices, the saved tag ("" is System), the name
-    // that the dropdown shows, and the restart hint.
+    // that the dropdown shows, the restart panel and the name of the
+    // language of this run.
     in property <[AudioDeviceData]> languages: [];
     in property <string> language: "";
     in-out property <string> language-name: "";
     in property <bool> language-restart: false;
+    in property <string> language-keep-name: "";
     callback setting-changed-language(string);
+    callback language-keep-clicked();
+    callback language-restart-clicked();
 
     // Audio settings
     in-out property <float> input-volume: 1.0;
@@ -3917,7 +4016,10 @@ export component SettingsModal inherits Rectangle {
                             language: root.language;
                             language-name <=> root.language-name;
                             language-restart: root.language-restart;
+                            language-keep-name: root.language-keep-name;
                             language-selected(tag) => { root.setting-changed-language(tag); }
+                            language-keep-clicked => { root.language-keep-clicked(); }
+                            language-restart-clicked => { root.language-restart-clicked(); }
                         }
 
                         audio-tab := AudioTab {
@@ -4172,6 +4274,7 @@ component SettingsPreview inherits Rectangle {
         language: root.language-restart ? "sv" : "";
         language-name: root.language-restart ? "Svenska" : "System";
         language-restart: root.language-restart;
+        language-keep-name: "English";
         notices: [
             { names: "serde 1.0.228\nserde_json 1.0.145", license: "MIT OR Apache-2.0", text: "Copyright (c) David Tolnay" },
             { names: "opus (vcpkg)", license: "BSD-3-Clause", text: "Licence: BSD-3-Clause. The full text is at https://spdx.org/licenses/BSD-3-Clause.html and in the opus source." },
@@ -4221,7 +4324,8 @@ component SettingsPreview inherits Rectangle {
 
 export component Preview inherits SettingsPreview { tab: 0; }
 export component PreviewGeneral inherits SettingsPreview { tab: 1; }
-export component PreviewGeneralLanguage inherits SettingsPreview { tab: 1; language-restart: true; }
+// The Language row with the restart panel under it.
+export component PreviewGeneralLanguage inherits SettingsPreview { tab: 1; language-restart: true; scroll: 380px; }
 export component PreviewAudio inherits SettingsPreview { tab: 2; }
 export component PreviewAudioVideo inherits SettingsPreview { tab: 2; scroll: 1400px; }
 export component PreviewAudioSounds inherits SettingsPreview { tab: 2; scroll: 470px; }

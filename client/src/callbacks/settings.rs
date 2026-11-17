@@ -160,7 +160,8 @@ fn language_choices(tr: &crate::Tr<'_>, bundled: &[&str]) -> Vec<crate::AudioDev
 }
 
 /// Shows the Language row as these settings have it. `started_with` is the
-/// setting of this run: another value needs a restart, and the row says so.
+/// setting of this run: another value needs a restart, and the restart
+/// panel shows under the row.
 fn show_language_settings(app: &MainWindow, settings: &Settings, started_with: &str) {
     let tag = settings.language.as_str();
     let name = if tag.is_empty() {
@@ -171,6 +172,32 @@ fn show_language_settings(app: &MainWindow, settings: &Settings, started_with: &
     app.set_settings_language(tag.into());
     app.set_settings_language_name(name);
     app.set_settings_language_restart(tag != started_with);
+    app.set_settings_language_keep_name(
+        crate::locale::native_name(&crate::locale::ui_language()).into(),
+    );
+}
+
+/// Saves the Language setting and sends the account the language of the
+/// next start (specs/features/LOCALIZATION.md section 9a).
+fn save_language(
+    settings: &mut Settings,
+    tag: &str,
+    cmd: &UnboundedSender<Command>,
+    app: Option<&MainWindow>,
+    started_with: &str,
+) {
+    settings.language = tag.trim().to_string();
+    settings.save();
+    log::info!(
+        "[settings] language = {:?} (applies at the next start)",
+        settings.language
+    );
+    let _ = cmd.send(Command::SetAccountLanguage {
+        lang_tag: crate::locale::language_for_setting(&settings.language),
+    });
+    if let Some(app) = app {
+        show_language_settings(app, settings, started_with);
+    }
 }
 
 fn stop_diagnostic_capture(app: &MainWindow, cmd: &UnboundedSender<Command>) {
@@ -455,20 +482,46 @@ pub fn wire(ctx: &AppContext) {
         let app_weak = ctx.app.as_weak();
         let started_with_language = started_with_language.clone();
         ctx.app.on_setting_changed_language(move |tag| {
-            let mut settings = s.borrow_mut();
-            settings.language = tag.trim().to_string();
-            settings.save();
-            log::info!(
-                "[settings] language = {:?} (applies at the next start)",
-                settings.language
+            save_language(
+                &mut s.borrow_mut(),
+                &tag,
+                &cmd,
+                app_weak.upgrade().as_ref(),
+                &started_with_language,
             );
-            // The account gets the language of the next start.
-            let _ = cmd.send(Command::SetAccountLanguage {
-                lang_tag: crate::locale::language_for_setting(&settings.language),
-            });
-            if let Some(app) = app_weak.upgrade() {
-                show_language_settings(&app, &settings, &started_with_language);
+        });
+    }
+    // "Keep": the setting goes back to the value of this run. No restart.
+    {
+        let s = ctx.settings.clone();
+        let cmd = ctx.cmd_tx.clone();
+        let app_weak = ctx.app.as_weak();
+        let started_with_language = started_with_language.clone();
+        ctx.app.on_language_keep_clicked(move || {
+            log::info!(
+                "[settings] keep the language of this run ({:?})",
+                &*started_with_language
+            );
+            save_language(
+                &mut s.borrow_mut(),
+                &started_with_language,
+                &cmd,
+                app_weak.upgrade().as_ref(),
+                &started_with_language,
+            );
+        });
+    }
+    // "Restart now": ask for a restart, then quit the same way as the tray
+    // "Quit". `lib.rs::run` starts the app again after the quit.
+    {
+        let restart = ctx.restart.clone();
+        ctx.app.on_language_restart_clicked(move || {
+            log::info!("[settings] restart now to apply the language");
+            match restart.borrow().as_ref() {
+                Some(request) => request(),
+                None => log::warn!("[settings] no restart hook: the app only quits"),
             }
+            crate::quit_voice::request_quit("restart to apply the language");
         });
     }
     // HUD settings
