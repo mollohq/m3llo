@@ -1,10 +1,10 @@
 # Looking to play
 
 > Status: direction and mockup approved by Bob, 12 Nov 2026. Phase 1 merged (#260, 13 Nov 2026).
-> Phases 2 and 3 built on `feat/looking-to-play-ask`. Bob approved the phase 3 renders on
-> 16 Nov 2026. The two-client journey is not run yet. Phase 4 not started.
-> Branch: `feat/looking-to-play-ask` (worktree `mello-wt-looking-to-play`) for phases 2 to 4. The
-> iOS app and the push Worker get a branch of the same name in their own repos.
+> Phases 2 and 3 merged (#263, 16 Nov 2026). Phase 4 built on 17 Nov 2026: the iOS app on
+> `feat/looking-to-play-ask` in its own repo, two core changes on `feat/looking-to-play-ios`
+> here. Bob approved the phase 4 renders on 17 Nov 2026. The answer with a locked phone is
+> not proved on a real phone yet (section 6c).
 > Mockup: `designs/looking-to-play.html` (phase 0, approved 12 Nov 2026).
 > Specs to write or update after it ships: `specs/features/LOOKING-TO-PLAY.md` (new),
 > `specs/features/TEXT-CHAT.md` (message push, the `looking_to_play` system event),
@@ -315,6 +315,60 @@ These points differ from the sections above, or add to them.
   the client does that today.
 - **Chinese.** The push lines of an ask are not reviewed by a native reader. The new UI
   messages have no Chinese text.
+
+## 6c. As built in phase 4
+
+The spike of 3.7 was done by reading the code, then by a run on the simulator.
+
+- **The session on a locked phone.** The `keyring` crate adds its Keychain item with no
+  class, so iOS used "when unlocked" and a locked phone refused the read. On iOS the core
+  now writes the item itself with the class "after first unlock" (`session/ios.rs`). An
+  item of an older build moves to that class in place at the next restore. `mello-core`
+  has `security-framework-sys` and `core-foundation` as direct dependencies on iOS only.
+  Both were in `Cargo.lock` before.
+- **A restore keeps the saved session.** A failed refresh for any reason, and a failed
+  socket connect, cleared the saved session on every platform. A lock-screen answer with a
+  bad network would sign the member out. Only a 4xx answer to the refresh (not 408 or 429)
+  clears it now. The events do not change.
+- **The start with no scene.** `AppModel.start()` owns the event loop and is safe to call
+  twice. `RootView` calls it, and so does the notification action. It sends the real
+  window activity before the restore: a core that starts reports "foreground", and the
+  backend then holds back phone pushes.
+- **The answer buttons.** Category `LOOKING_TO_PLAY`, actions In, In 15, In 30 and Not now,
+  with no unlock and no app start in front. The action waits up to 15 seconds for the
+  session and up to 15 seconds for the result.
+- **The fallback.** An answer that cannot go out is stored (ask, answer, time). A local
+  notice says "Could not send your answer. Open m3llo to send it." The next session sends
+  a stored answer that is less than 30 minutes old. An ask that is over gives "This ask is
+  over." and nothing is stored. A restore that fails in the background does not show
+  onboarding: the app tries the restore again when it comes to the front.
+- **An ask with the app open.** The backend sends no phone push to an active phone. The app
+  posts a local notice with the same four buttons when `notify` is true, the member is not
+  the asker, has not answered, and the chat of that crew is not open. It uses the collapse
+  id of the push (`ltp-<short ask>`), so one replaces the other. This is not in 3.7.
+- **Unread.** An ask in the joined crew counts as a message. An ask that picked the member
+  in another crew adds 1. The badge has no mention colour on iOS. An ask to everyone in
+  another crew adds nothing (point 2 of section 7).
+- **Game chips.** Any game, then at most 3: the games of the asks of the crew, the
+  installed games of the crew feed, the game sessions of the feed. The phone has no game
+  catalogue, so a catalogue id goes out as it is, and the backend then sends the ask to
+  everyone in a large crew.
+- **The card and the sheet** follow frames 8 and 9. Game tiles show the identity hue and a
+  short code: the iOS app has no game art. A debug gallery (`MELLO_SMOKE_LTP`) shows each
+  state on mock data.
+- **`LoginFailed` on iOS.** The app decoded the reason as a string. The core sends a tagged
+  object since 9 Nov 2026, so the event was dropped and an install with no session stayed
+  on the connecting screen. Fixed in its own commit in the iOS repo.
+
+Run on the simulator (iPhone 18 Pro, iOS 27.0, local stack, 17 Nov 2026): the card with
+live data, an answer from the card, an ask from the sheet to one picked member, the
+answer path from a cold start (session restored, answer on the server in about 1 second),
+the fallback with the server not reachable (session kept, answer stored, notice shown),
+and the stored answer sent at the next start.
+
+Not proved, needs a real phone: the four buttons on the lock screen (a script cannot hold
+a notification down on the simulator), the start with no scene, the Keychain read with
+the phone locked, and a remote push that replaces a local notice.
 
 ## 7. Open points
 
