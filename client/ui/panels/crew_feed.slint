@@ -15,6 +15,7 @@ import { GameArt } from "../components/game_art.slint";
 import { ClipPlayRing, DotWaveform } from "../components/clip_wave.slint";
 import { RecapDur, RecapKicker } from "../components/recap_parts.slint";
 import { StatValue } from "../components/stat.slint";
+import { Tr } from "../tr.slint";
 import { MediaChip, FootageWash } from "../components/stream_hero.slint";
 
 component NewBadge inherits Rectangle {
@@ -1951,6 +1952,8 @@ component HistoryRow inherits Rectangle {
     callback seek-clip-ms(int);
     callback plus-clicked();
 
+    property <bool> sessions-only: root.week.teasers.length == 0 && root.week.sessions > 0;
+
     HorizontalLayout {
         spacing: 12px;
         if root.week.locked: SealedRecap {
@@ -1977,7 +1980,26 @@ component HistoryRow inherits Rectangle {
                 item: t;
                 clicked => { root.plus-clicked(); }
             }
-            if root.week.more > 0: Rectangle {
+            // A week of game sessions only has no teaser: one tile with
+            // the number of sessions.
+            if root.sessions-only: BoardShell {
+                horizontal-stretch: 1;
+                corner: "tr";
+                VerticalLayout {
+                    x: 20px;
+                    width: parent.width - 40px;
+                    alignment: center;
+                    spacing: 4px;
+                    StatValue {
+                        value: root.week.sessions;
+                        value-size: 34px;
+                        unit-size: 17px;
+                        hue: Theme.text-primary;
+                    }
+                    Kicker { text: Tr.stat-label-sessions; }
+                }
+            }
+            if root.week.more > 0 && !root.sessions-only: Rectangle {
                 width: 80px;
                 horizontal-stretch: 0;
                 BoardShell { width: parent.width; height: parent.height; corner: "tr"; }

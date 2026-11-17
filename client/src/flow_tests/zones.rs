@@ -150,6 +150,80 @@ fn a_locked_week_of_the_payload_is_sealed_with_teasers() {
     assert!(!z.history_more);
 }
 
+/// A locked week counts its game sessions. A game session has no teaser, so
+/// a week of game sessions only shows the count.
+#[test]
+fn a_locked_week_counts_its_game_sessions() {
+    let mut h = Harness::new();
+    zones_on(&mut h, 12);
+    h.emit(Event::FeedLoaded {
+        response: zones_response(serde_json::json!({
+            "board": {"mode": "tabs"},
+            "history": [
+                {"week_start": 1_792_368_000_000_i64, "week_number": 44, "locked": true,
+                 "clip_count": 1, "stream_count": 0, "session_count": 5,
+                 "teasers": [{"kind": "clip", "actor_name": "Leo", "duration_seconds": 30.0, "ts": 1_792_400_000_000_i64}]},
+                {"week_start": 1_791_763_200_000_i64, "week_number": 43, "locked": true,
+                 "clip_count": 0, "stream_count": 0, "session_count": 3}],
+            "history_next": 0
+        })),
+    });
+    let z = h.app().get_feed_zones();
+    let week = z.history.row_data(0).expect("week 44");
+    assert_eq!(week.teasers.row_count(), 1);
+    assert_eq!(week.more, 5, "six items, one teaser shown");
+    let quiet = z.history.row_data(1).expect("week 43");
+    assert!(quiet.locked && quiet.seal.sealed);
+    assert_eq!(quiet.teasers.row_count(), 0);
+    assert_eq!(quiet.more, 3, "three game sessions");
+    assert_eq!(quiet.sessions, 3);
+    assert_eq!(quiet.clips.row_count(), 0, "nothing shows in a locked week");
+}
+
+/// An open week shows its game sessions as session cards after its clips. A
+/// week with no recap shows its counts: a week of game sessions only leads
+/// with them.
+#[test]
+fn an_open_week_shows_its_game_sessions() {
+    let session = |id: &str| {
+        serde_json::json!({"id": id, "type": "session", "ts": 1_792_400_000_000_i64,
+            "data": {"game_name": "Counter-Strike 2", "duration_min": 60, "player_ids": ["user-1"]}})
+    };
+    let mut h = Harness::new();
+    zones_on(&mut h, 12);
+    h.emit(Event::FeedLoaded {
+        response: zones_response(serde_json::json!({
+            "plus": true,
+            "board": {"mode": "tabs"},
+            "history": [
+                {"week_start": 1_792_368_000_000_i64, "locked": false,
+                 "clip_count": 1, "stream_count": 0, "session_count": 2,
+                 "items": [clip_json("c1", "game"), session("s1"), session("s2")]},
+                {"week_start": 1_791_763_200_000_i64, "locked": false,
+                 "clip_count": 0, "stream_count": 0, "session_count": 14,
+                 "items": [session("s3")]}],
+            "history_next": 0
+        })),
+    });
+    let z = h.app().get_feed_zones();
+    let week = z.history.row_data(0).expect("the week with a clip");
+    let cards: Vec<String> = week.clips.iter().map(|c| c.card_type.to_string()).collect();
+    assert_eq!(cards, ["clip", "game-session", "game-session"]);
+    assert_eq!(week.big.value.as_str(), "1");
+    assert_eq!(week.big.label.as_str(), "CLIPS AND STREAMS");
+    let stat = week.stats.row_data(0).expect("the session count");
+    assert_eq!(
+        (stat.value.as_str(), stat.label.as_str()),
+        ("2", "SESSIONS")
+    );
+
+    let quiet = z.history.row_data(1).expect("the week of game sessions");
+    assert_eq!(quiet.big.value.as_str(), "14");
+    assert_eq!(quiet.big.label.as_str(), "SESSIONS");
+    assert_eq!(quiet.stats.row_count(), 0);
+    assert_eq!(quiet.clips.row_count(), 1);
+}
+
 /// Scrolling near the end asks for the next page once; the page appends its
 /// weeks and the next scroll asks for nothing more.
 #[test]

@@ -601,8 +601,10 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                             })
                             .collect(),
                     );
-                    let total = (w.clip_count + w.stream_count).max(0) as usize;
-                    h.more = total.saturating_sub(TEASERS) as i32;
+                    // A game session has no teaser: it is in the count.
+                    let total = (w.clip_count + w.stream_count + w.session_count).max(0) as usize;
+                    h.more = total.saturating_sub(h.teasers.row_count()) as i32;
+                    h.sessions = w.session_count.max(0);
                 } else {
                     if let Some(r) = w.recap.as_ref().map(card) {
                         let mut tmp = ZonesData::default();
@@ -612,9 +614,10 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                         h.has_top = tmp.week_has_top;
                         h.top = tmp.week_top;
                     } else {
-                        h.big = count_stat(
+                        (h.big, h.stats) = week_counts(
+                            &tr,
                             i64::from(w.clip_count + w.stream_count),
-                            &tr.get_stat_label_clips_and_streams(),
+                            i64::from(w.session_count),
                         );
                     }
                     h.clips = model(w.items.iter().map(card).collect());
@@ -674,6 +677,22 @@ fn week_numbers(tr: &crate::Tr<'_>, z: &mut ZonesData, r: &FeedCardData) {
     );
     z.games_more = games.len().saturating_sub(3) as i32;
     z.past_age = r.age_label.clone();
+}
+
+/// The numbers of an open week with no recap: the clips and streams, and the
+/// game sessions. A week of game sessions only leads with them.
+fn week_counts(
+    tr: &crate::Tr<'_>,
+    clips_and_streams: i64,
+    sessions: i64,
+) -> (BoardStat, ModelRc<BoardStat>) {
+    let media = count_stat(clips_and_streams, &tr.get_stat_label_clips_and_streams());
+    let played = count_stat(sessions, &tr.get_stat_label_sessions());
+    match (clips_and_streams > 0, sessions > 0) {
+        (false, true) => (played, model(Vec::new())),
+        (true, true) => (media, model(vec![played])),
+        _ => (media, model(Vec::new())),
+    }
 }
 
 /// The sealed look of a locked week: the recap field of the week, its own key.
