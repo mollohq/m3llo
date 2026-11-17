@@ -1,4 +1,4 @@
-//! Looking to play on desktop (plans/LOOKING-TO-PLAY.md 3.6): the card of an
+//! Looking to play on desktop (specs/features/LOOKING-TO-PLAY.md 3.6): the card of an
 //! ask in the chat feed, its answers and Cancel, the pip on the composer
 //! pill, and the ask popover.
 

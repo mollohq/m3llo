@@ -1,6 +1,6 @@
 package main
 
-// Looking to play: the rules of an ask (plans/LOOKING-TO-PLAY.md section 3).
+// Looking to play: the rules of an ask (specs/features/LOOKING-TO-PLAY.md section 3).
 //
 // A member asks the crew, or picked members, if they are up for a game. One
 // such message is an ask, and the member who sends it is the asker. This file

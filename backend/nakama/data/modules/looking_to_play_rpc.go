@@ -1,7 +1,7 @@
 package main
 
 // Looking to play: the RPCs, the chat message of an ask and the voice hook
-// (plans/LOOKING-TO-PLAY.md section 3.3).
+// (specs/features/LOOKING-TO-PLAY.md section 3.3).
 //
 //   looking_to_play_ask    {crew_id, game?, member_ids?}  -> {ask, joined, recent_picks?}
 //   looking_to_play_answer {ask_id, answer}               -> {ask}

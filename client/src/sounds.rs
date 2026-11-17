@@ -128,7 +128,7 @@ fn min_gap(sound: Sound) -> Option<Duration> {
     match sound {
         Sound::MemberJoin | Sound::MemberLeave => Some(Duration::from_millis(500)),
         Sound::Message | Sound::Mention => Some(Duration::from_millis(1000)),
-        // Several asks can arrive close together (plans/LOOKING-TO-PLAY.md 3.6).
+        // Several asks can arrive close together (specs/features/LOOKING-TO-PLAY.md 3.6).
         Sound::LookingToPlay => Some(LOOKING_TO_PLAY_GAP),
         _ => None,
     }

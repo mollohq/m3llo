@@ -175,7 +175,7 @@ System messages are sent by the server (not users) for crew events.
 {
   "v": 1,
   "type": "system",
-  "event": "stream_started | stream_ended | member_joined | member_left",
+  "event": "stream_started | stream_ended | member_joined | member_left | looking_to_play",
   "body": "bobdev started streaming",
   "data": { "user_id": "...", "stream_title": "..." }
 }
@@ -184,6 +184,14 @@ System messages are sent by the server (not users) for crew events.
 The `body` is pre-formatted display text. The `data` object carries structured
 fields specific to the event type for client rendering (e.g., linking to a user
 profile).
+
+**`looking_to_play`.** The message of a Looking to play ask
+(`LOOKING-TO-PLAY.md` section 3.3). The sender is the system user. `data` has
+`ask_id`, `asker_id`, and `game` (`{game_id, name}`) when the ask has a game.
+The body is "Leo is looking to play" or "Leo is looking to play
+Counter-Strike 2". A client that knows the event draws the message as the card
+of the ask. A client that does not know the event, or has no state of the ask,
+shows the body as a system line.
 
 ---
 
@@ -411,6 +419,7 @@ on the dim fill with the button's cut corners.
 | Attach | paperclip | File dialog, up to four images (2.3) |
 | GIF | filmstrip | Opens the GIF popover (§6) |
 | Emoji | smiley | Opens the emoji picker (§8) |
+| Looking to play | gamepad | Opens the ask popover (`LOOKING-TO-PLAY.md` 3.6). It has a red pip while the crew has an open ask |
 
 The send button sits inside the field at its right: red when there is text or
 a ready image (it commits), graphite when the field is empty. Enter sends too.
@@ -694,6 +703,7 @@ the crew channel when events occur:
 | Stream ended | `stream_ended` | "{username} stopped streaming" |
 | Member joined crew | `member_joined` | "{username} joined the crew" |
 | Member left crew | `member_left` | "{username} left the crew" |
+| Looking to play ask | `looking_to_play` | "{display name} is looking to play", with " {game}" when the ask has a game (`looking_to_play_rpc.go`) |
 
 Use `nk.ChannelMessageSend()` with the system user context. Set
 `persistent: true` so system messages appear in history.
@@ -713,8 +723,12 @@ A crew message sends a phone push to the members who cannot see it
 | Bursts | The first message goes at once. More messages in the next 30 seconds leave as one push when the 30 seconds end: one message as it is, several as "3 new messages". |
 
 **Notification settings.** The server keeps two settings of a member for each
-crew, Messages and Looking to play (`push_prefs.go`). Looking to play has no
-effect and no row in the UI until that feature ships.
+crew, Messages and Looking to play (`push_prefs.go`).
+
+| Setting | What it does |
+|---|---|
+| Messages | Turns the message push of this section on or off for the crew |
+| Looking to play | Turns the phone push of a new ask and of the Second call on or off for the crew. Off also gives the member no toast, no sound and no OS notification of a new ask on desktop (`LOOKING-TO-PLAY.md` sections 3.4 and 3.6) |
 
 - `push_prefs_get {crew_id}` and `push_prefs_set {crew_id, messages?, looking_to_play?}`
   return `{crew_id, messages, looking_to_play}` with the defaults filled in. A
@@ -726,12 +740,12 @@ effect and no row in the UI until that feature ships.
 - A mention push ignores both settings.
 - mello-core: `Command::LoadPushPrefs`, `Command::SetPushPrefs`,
   `Event::PushPrefsLoaded`, `Event::PushPrefsFailed`.
-- Desktop: the NOTIFICATIONS tab of crew settings, with the Messages setting.
-  Every member opens it from the Notifications item of the crew menu. A plain
-  member sees that tab only. The setting is disabled until the server answers,
-  and a set that fails puts it back. The Looking to play row shows when
-  `looking-to-play-available` is true (`main.slint`), which nothing sets yet.
-- iOS: the Notifications section of the crew sheet, with the Messages switch.
+- Desktop: the NOTIFICATIONS tab of crew settings, with a Messages row and a
+  Looking to play row. Every member opens it from the Notifications item of the
+  crew menu. A plain member sees that tab only. The settings are disabled until
+  the server answers, and a set that fails puts the setting back.
+- iOS: the Notifications section of the crew sheet, with the Messages switch
+  and the Looking to play switch.
 
 ---
 

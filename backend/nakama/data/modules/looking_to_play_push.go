@@ -1,6 +1,6 @@
 package main
 
-// Looking to play: the phone pushes of an ask (plans/LOOKING-TO-PLAY.md
+// Looking to play: the phone pushes of an ask (specs/features/LOOKING-TO-PLAY.md
 // sections 3.4 and 3.8).
 //
 // | Push        | To                              | When                          |

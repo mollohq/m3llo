@@ -1,5 +1,5 @@
 //! Looking to play: the presses of the cards, the toast and the ask popover
-//! (plans/LOOKING-TO-PLAY.md 3.6). The work is in
+//! (specs/features/LOOKING-TO-PLAY.md 3.6). The work is in
 //! `handlers/looking_to_play.rs`.
 //!
 //! These callbacks are on the `LookingToPlayUi` global and capture a strong

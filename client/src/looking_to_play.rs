@@ -1,5 +1,5 @@
 //! Looking to play on desktop: the state of the asks and the rules of the
-//! card and the ask popover (plans/LOOKING-TO-PLAY.md 3.1, 3.2, 3.6, 3.8).
+//! card and the ask popover (specs/features/LOOKING-TO-PLAY.md 3.1, 3.2, 3.6, 3.8).
 //!
 //! One message is an ask, its sender is the asker. The functions here take
 //! plain data (the ask, the crew members, who is in voice, the viewer, the

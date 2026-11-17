@@ -770,6 +770,9 @@ const (
     NotifyPresenceChange = 113  // Member presence changed
     NotifyVoiceUpdate    = 114  // Voice state changed
     NotifyMessagePreview = 115  // Throttled message preview
+    NotifyFeedChanged    = 116  // The crew feed has new content
+    NotifyChatReaction   = 117  // The reactions of one message
+    NotifyLookingToPlay  = 118  // The full state of one Looking to play ask
 )
 ```
 
@@ -949,6 +952,38 @@ Recent messages updated (throttled 10s for sidebar).
     { "username": "vex_r", "preview": "new message here...", "timestamp": "..." },
     { "username": "lune", "preview": "previous message...", "timestamp": "..." }
   ]
+}
+```
+
+#### Code 118: `looking_to_play`
+
+The full state of one Looking to play ask after a change
+(`looking_to_play_store.go`, `features/LOOKING-TO-PLAY.md` section 3.3). The
+content is the stored state of the ask, as the RPCs return it.
+
+- Who gets it: every member of the crew of the ask, on each change. Each
+  member gets it whether or not the crew is the active crew, so a member with
+  another crew open learns of a new ask.
+- When: a new ask, an answer, a voice join that changes the ask, a cancel, and
+  a close.
+- `notify`: only in the notification of a new ask, for each member but the
+  asker. It is true for a member that the ask reaches: the push audience of the
+  ask with the Looking to play switch of the crew on. The desktop shows the
+  toast and plays the sound only on true. The asker gets no `notify` field.
+
+```json
+{
+  "ask_id": "...",
+  "crew_id": "crew_abc",
+  "message_id": "...",
+  "asker_id": "...",
+  "asker_name": "Leo",
+  "asked": [],
+  "game": { "game_id": "steam-730", "name": "Counter-Strike 2" },
+  "opened_at": 1790000000000,
+  "state": "open",
+  "answers": { "<asker id>": { "answer": "in", "at": 1790000000000 } },
+  "notify": true
 }
 ```
 

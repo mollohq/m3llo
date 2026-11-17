@@ -179,7 +179,7 @@ pub(crate) fn mark_read(ctx: &AppContext) {
 
 /// The sidebar badges from the read cursors and the newest messages of
 /// each crew. The crew on screen has no badge; its unread rule is in the feed.
-/// An unread ask that picked the user is a mention (plans/LOOKING-TO-PLAY.md
+/// An unread ask that picked the user is a mention (specs/features/LOOKING-TO-PLAY.md
 /// 3.6). The server posts the ask, so the previews may not hold its message:
 /// then it counts on top.
 pub(crate) fn recompute_badges(ctx: &AppContext) {
@@ -237,7 +237,7 @@ pub(crate) fn recompute_badges(ctx: &AppContext) {
 }
 
 /// True when `message` is the message of an ask that picked the user: a
-/// mention (plans/LOOKING-TO-PLAY.md 3.6). An ask to everyone is not.
+/// mention (specs/features/LOOKING-TO-PLAY.md 3.6). An ask to everyone is not.
 fn ask_picks_user(ctx: &AppContext, message: &mello_core::events::ChatMessage, uid: &str) -> bool {
     let Some(ask_id) = mello_core::looking_to_play::ask_id_of(message) else {
         return false;

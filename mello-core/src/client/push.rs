@@ -1,6 +1,6 @@
 //! Remote push: device registration (spec 23 §3), the activity report the
 //! server uses to hold phone pushes while the user is at this app (§6.2), and
-//! the push switches of a crew (plans/LOOKING-TO-PLAY.md section 4).
+//! the push switches of a crew (specs/features/LOOKING-TO-PLAY.md section 4).
 //! Registration and the report are best-effort: a failed call is logged, never
 //! surfaced, and retried later. A failed switch call is reported, so the UI
 //! can put the switch back.

@@ -274,7 +274,7 @@ export type AppState = {
     /** The card in the centre is at rest: the face shows and a click on the scrim closes it. */
     resting: boolean;
   };
-  /** Looking to play in the crew on screen (plans/LOOKING-TO-PLAY.md 3.6). */
+  /** Looking to play in the crew on screen (specs/features/LOOKING-TO-PLAY.md 3.6). */
   looking_to_play: {
     /** The asks that are open or on, from the cards in chat, oldest first. A closed ask is left out. */
     asks: Ask[];
