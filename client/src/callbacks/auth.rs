@@ -1,6 +1,7 @@
 use slint::ComponentHandle;
 
 use crate::app_context::AppContext;
+use crate::DeleteAccountUi;
 use mello_core::Command;
 
 pub fn wire(ctx: &AppContext) {
@@ -30,23 +31,7 @@ pub fn wire(ctx: &AppContext) {
             avatar_cache_ref.borrow_mut().clear();
             let _ = cmd.send(Command::Logout);
             if let Some(app) = app_weak.upgrade() {
-                app.set_logged_in(false);
-                app.set_user_name("".into());
-                app.set_user_initials("".into());
-                app.set_user_tag("".into());
-                // The device card on step 1 waits for the device auth below.
-                // Its "Sign in" opens the app on core's session, which logout
-                // just ended, so a card from an earlier answer must not show.
-                app.set_is_returning_user(false);
-                app.set_user_avatar(slint::Image::default());
-                app.set_has_user_avatar(false);
-                crate::converters::set_active_crew(&app, "");
-                crate::onboarding::advance_with(
-                    &app,
-                    &settings_ref,
-                    &fx,
-                    crate::onboarding::Input::LoggedOut,
-                );
+                show_signed_out(&app, &settings_ref, &fx);
             }
             let s = settings_ref.borrow();
             log::info!("Logged out — returning to crew selection");
@@ -55,6 +40,29 @@ pub fn wire(ctx: &AppContext) {
                     device_id: device_id.clone(),
                 });
             }
+        });
+    }
+
+    // --- Delete account (plans/ACCOUNT-DELETE.md section 4) ---
+    //
+    // The dialog sends one delete at a time. `busy` stays set until core
+    // answers with `AccountDeleted` or `AccountDeleteFailed`.
+    {
+        let cmd = ctx.cmd_tx.clone();
+        let app_weak = ctx.app.as_weak();
+        ctx.app.global::<DeleteAccountUi>().on_confirm(move || {
+            let Some(app) = app_weak.upgrade() else {
+                return;
+            };
+            let ui = app.global::<DeleteAccountUi>();
+            if ui.get_busy() {
+                log::debug!("[auth] account delete already sent, press ignored");
+                return;
+            }
+            log::info!("[auth] account delete confirmed, sending");
+            ui.set_busy(true);
+            ui.set_error("".into());
+            let _ = cmd.send(Command::DeleteAccount);
         });
     }
 
@@ -152,4 +160,26 @@ fn begin_sign_in(app: &crate::MainWindow) {
 fn clear_sign_in_error(app: &crate::MainWindow) {
     app.set_login_error("".into());
     app.set_login_account_missing(false);
+}
+
+/// Put the window in the signed-out state: no user, no crew, onboarding
+/// step 1. Logout and a deleted account both end here. It sends no command:
+/// each caller decides what core must do.
+pub(crate) fn show_signed_out(
+    app: &crate::MainWindow,
+    settings: &std::rc::Rc<std::cell::RefCell<crate::Settings>>,
+    fx: &crate::onboarding::EffectCtx,
+) {
+    app.set_logged_in(false);
+    app.set_user_name("".into());
+    app.set_user_initials("".into());
+    app.set_user_tag("".into());
+    // The device card on step 1 waits for a device auth. Its "Sign in"
+    // opens the app on core's session, which just ended, so a card from an
+    // earlier answer must not show.
+    app.set_is_returning_user(false);
+    app.set_user_avatar(slint::Image::default());
+    app.set_has_user_avatar(false);
+    crate::converters::set_active_crew(app, "");
+    crate::onboarding::advance_with(app, settings, fx, crate::onboarding::Input::LoggedOut);
 }

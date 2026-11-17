@@ -1,6 +1,7 @@
 import { CrewEmojiModal } from "panels/crew_emoji_modal.slint";
 import { CrewEmojiUi } from "components/crew_emoji.slint";
 import { InviteNameModal, InviteNamePicker } from "panels/invite_name_modal.slint";
+import { DeleteAccountModal, DeleteAccountUi } from "panels/delete_account_modal.slint";
 import { CrewBannerModal, BannerPicker } from "panels/crew_banner_modal.slint";
 import { Theme } from "theme.slint";
 import {
@@ -79,7 +80,7 @@ export { ClipPlayerUi }
 // --- end stage 9 ---
 
 
-export { BannerPicker, InviteNamePicker, CrewEmojiUi }
+export { BannerPicker, InviteNamePicker, CrewEmojiUi, DeleteAccountUi }
 // Looking to play: the pill, the ask popover and the presses of the cards.
 import { LookingToPlayUi } from "components/looking_to_play_ui.slint";
 import { LookingToPlayToast, LookingToPlayToastData } from "components/looking_to_play.slint";
@@ -744,6 +745,16 @@ export component MainWindow inherits Window {
     callback update-dismiss-clicked();
     callback login(string, string);
     callback logout();
+    /// Close the settings modal: the Close button, the backdrop, and the
+    /// delete of the account. A running mic test stops.
+    public function close-settings() {
+        root.settings-open = false;
+        root.settings-active-tab = 0;
+        if root.mic-testing {
+            root.mic-testing = false;
+            root.mic-test-toggled();
+        }
+    }
     callback create-crew(/* name */ string, /* description */ string, /* is-private */ bool);
     callback select-crew(string);
     callback new-crew-avatar-pick();
@@ -2013,13 +2024,10 @@ export component MainWindow inherits Window {
             root.riot-disconnect-clicked();
         }
         // Callbacks
-        close-requested => {
-            root.settings-open = false;
-            root.settings-active-tab = 0;
-            if root.mic-testing {
-                root.mic-testing = false;
-                root.mic-test-toggled();
-            }
+        close-requested => { root.close-settings(); }
+        delete-account-clicked => {
+            DeleteAccountUi.error = "";
+            DeleteAccountUi.open = true;
         }
         capture-device-selected(id) => {
             root.selected-capture-id = id;
@@ -2141,6 +2149,18 @@ export component MainWindow inherits Window {
         setting-changed-hud-clip-toasts(v) => {
             root.settings-show-saved = true;
             root.setting-changed-hud-clip-toasts(v);
+        }
+    }
+
+    // Settings, PROFILE, ACCOUNT: the delete confirm, over the settings.
+    if DeleteAccountUi.open: DeleteAccountModal {
+        busy: DeleteAccountUi.busy;
+        error: DeleteAccountUi.error;
+        confirm => { DeleteAccountUi.confirm(); }
+        close-requested => {
+            if !DeleteAccountUi.busy {
+                DeleteAccountUi.open = false;
+            }
         }
     }
 

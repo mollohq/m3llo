@@ -154,6 +154,49 @@ fn signup_and_crew_creation_round_trip() {
     });
 }
 
+/// The delete of Settings (plans/ACCOUNT-DELETE.md): `DELETE /v2/account`,
+/// the call `Command::DeleteAccount` makes. After it, the old session reaches
+/// no account, and the same device id makes a new account. That is why the
+/// desktop client forgets its device id after a delete: its logout path runs
+/// device auth, which would make that new account at once.
+#[test]
+fn a_deleted_account_is_gone_and_its_device_id_makes_a_new_account() {
+    if !e2e_enabled("a_deleted_account_is_gone_and_its_device_id_makes_a_new_account") {
+        return;
+    }
+
+    rt().block_on(async {
+        let device_id = random_device_id();
+        let mut client = NakamaClient::new(e2e_config());
+        let (user, created) = client
+            .authenticate_device(&device_id)
+            .await
+            .expect("device auth");
+        assert!(created);
+        let refresh = client
+            .refresh_token()
+            .expect("a session has a refresh token")
+            .to_string();
+
+        client.delete_account().await.expect("the delete succeeds");
+
+        let mut again = NakamaClient::new(e2e_config());
+        assert!(
+            again.refresh_session(&refresh).await.is_err(),
+            "the session of a deleted account must not refresh"
+        );
+
+        let (next, created) = again
+            .authenticate_device(&device_id)
+            .await
+            .expect("device auth with the old id");
+        assert!(created, "the old device id makes a new account");
+        assert_ne!(next.id, user.id, "the deleted account does not come back");
+
+        let _ = again.delete_account().await;
+    });
+}
+
 /// Presence at connect belongs to the server. `OnSessionStart` sets a fresh
 /// account online when its socket registers. The client sends no
 /// `presence_update` at connect: it wrote the same row at the same moment,

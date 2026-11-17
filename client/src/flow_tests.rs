@@ -10285,6 +10285,7 @@ fn the_format_label_follows_the_rung_and_the_decoded_size() {
     viewer_format::reset_viewer_format();
 }
 
+mod account_delete;
 mod art_worker;
 mod looking_to_play;
 mod push_prefs;

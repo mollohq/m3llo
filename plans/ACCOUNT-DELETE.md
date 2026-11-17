@@ -1,6 +1,6 @@
 # Account delete in the clients
 
-> Status: plan, 17 Nov 2026. Not built.
+> Status: built on the branch, 17 Nov 2026. Renders wait for approval from Bob. Not pushed.
 > Branch: `feat/account-delete` (worktree `mello-wt-account-delete`). The iOS app gets a
 > branch of the same name in `mello-ios`.
 > Depends on `feat/delete-followups` (local only, not on origin). The copy below states its
@@ -47,8 +47,8 @@ AccountDeleteFailed {
 
 Settings, PROFILE tab, a new section at the bottom: `ACCOUNT`.
 
-- One row: the title "Delete account", one sentence, and an outline button "Delete account".
-  The button opens the confirm. It does not commit, so it is not red.
+- One row: the title "Delete account", the sentence "This cannot be undone.", and an outline
+  button "DELETE ACCOUNT". The button opens the confirm. It does not commit, so it is not red.
 - The confirm is a dialog inside the settings modal, on a black wash. A card with one cut corner.
 
 Confirm copy:
@@ -61,14 +61,18 @@ Confirm copy:
 | STAYS | The clips and events of other members, without you. The totals of weekly recaps |
 | YOUR CREWS | A crew you own goes to an admin, or to the member who joined first. A crew where you are the only member is deleted |
 | Last line | This cannot be undone |
-| Buttons | "Cancel" (secondary), "Delete account" (red fill, bottom-right) |
+| Buttons | "CANCEL" (outline), "DELETE MY ACCOUNT" (red fill, bottom-right) |
+
+The commit button has a label of its own ("Delete my account"). The row button stays
+labelled "Delete account". Both are on screen at once, and the e2e driver and a screen
+reader find a control by its label.
 
 States:
 
 | State | UI |
 |---|---|
 | Idle | As above |
-| Busy | The red button shows "Deleting", both buttons are disabled, Escape and the backdrop do nothing |
+| Busy | The red button shows "DELETING", both buttons are disabled, Escape and the backdrop do nothing |
 | Refused (`message` is set) | The server text in red above the buttons. Both buttons work again: the user can retry |
 | Other failure | "Your account was not deleted. Check the connection and try again." Same as refused |
 | Deleted | The dialog and the settings modal close. The client goes to onboarding step 1 |
@@ -100,6 +104,8 @@ Renders: `slint-viewer` Previews for the ACCOUNT section and the confirm in idle
 - `AppModel`: `deleteAccount()`, the busy flag, the error text. On `accountDeleted` it runs the
   state reset of `logout()` without sending `.logout`.
 - iOS has no test target. The proof is a simulator run against the local Nakama.
+- The device id is not forgotten on iOS. iOS sends it only at the finalize of onboarding,
+  and runs no device auth after a logout. So no account is made until the user signs up again.
 
 ## 6. Proof against the local stack
 

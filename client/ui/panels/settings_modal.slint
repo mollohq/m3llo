@@ -5,6 +5,7 @@ import { AudioDeviceData, GameIntegrationData, InstalledGameData, NoticeEntryDat
 import { AvatarCard } from "../components/avatar_card.slint";
 import { GameIcon } from "../components/game_icon.slint";
 import { SmallToggle } from "../components/small_toggle.slint";
+import { ZoneButton } from "../components/feed_board.slint";
 
 // ─── Reusable: Device Dropdown ─────────────────────────────────────────────
 export component DeviceDropdown inherits Rectangle {
@@ -1593,6 +1594,7 @@ component ProfileTab inherits VerticalLayout {
     callback profile-nickname-accepted(string);
     callback profile-expand-grid();
     callback profile-use-avatar(int);
+    callback delete-account-clicked();
 
     // ── PROFILE HEADER ──
     HorizontalLayout {
@@ -1896,6 +1898,58 @@ component ProfileTab inherits VerticalLayout {
                             color: Theme.text-secondary;
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // ── ACCOUNT ──
+    // The delete opens a confirm (delete_account_modal.slint). This button
+    // does not commit, so it is an outline and not red.
+    VerticalLayout {
+        padding-top: 16px;
+        spacing: 8px;
+
+        SectionHeader { title: @tr("ACCOUNT"); }
+
+        HorizontalLayout {
+            padding-top: 14px;
+            padding-bottom: 14px;
+            padding-left: 20px;
+            padding-right: 20px;
+            spacing: 32px;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 6px;
+                alignment: center;
+
+                Text {
+                    font-family: Theme.font-display;
+                    text: @tr("Delete account");
+                    font-size: 15px;
+                    font-weight: Theme.weight-display;
+                    color: Theme.text-primary;
+                    letter-spacing: 0.3px;
+                }
+                Text {
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    text: @tr("This cannot be undone.");
+                    font-size: 13px;
+                    color: Theme.text-secondary;
+                    wrap: word-wrap;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                horizontal-stretch: 0;
+                ZoneButton {
+                    label: @tr("DELETE ACCOUNT");
+                    a11y-label: @tr("Delete account");
+                    tone: "line";
+                    clicked => { root.delete-account-clicked(); }
                 }
             }
         }
@@ -3295,6 +3349,8 @@ export component SettingsModal inherits Rectangle {
 
     // Callbacks
     callback close-requested();
+    // Settings, PROFILE, ACCOUNT: open the delete confirm.
+    callback delete-account-clicked();
     callback profile-avatar-clicked(int);
     callback profile-reroll();
     callback profile-upload-clicked();
@@ -3890,6 +3946,7 @@ export component SettingsModal inherits Rectangle {
                             profile-nickname-accepted(name) => { root.profile-nickname-accepted(name); }
                             profile-expand-grid => { root.profile-expand-grid(); }
                             profile-use-avatar(idx) => { root.profile-use-avatar(idx); }
+                            delete-account-clicked => { root.delete-account-clicked(); }
                         }
 
                         general-tab := GeneralTab {
