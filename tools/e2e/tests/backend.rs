@@ -197,6 +197,73 @@ fn a_deleted_account_is_gone_and_its_device_id_makes_a_new_account() {
     });
 }
 
+/// The refused delete of Settings (plans/ACCOUNT-DELETE.md, spec 16 section
+/// 10.2). The only owner of a crew with another member deletes the account,
+/// and the handover fails. The answer is code 14 with a text the client shows
+/// as it is (`AccountDeleteFailed.message`). The account stays. A retry
+/// deletes it, and the other member owns the crew.
+///
+/// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+#[test]
+fn a_refused_delete_carries_a_text_to_show_and_a_retry_hands_the_crew_over() {
+    if !e2e_enabled("a_refused_delete_carries_a_text_to_show_and_a_retry_hands_the_crew_over") {
+        return;
+    }
+
+    rt().block_on(async {
+        let (owner, crew_id, code) = crew_with_invite(false).await;
+        let mut joiner = NakamaClient::new(e2e_config());
+        let (joiner_user, _) = joiner
+            .authenticate_device(&random_device_id())
+            .await
+            .expect("device auth for the joiner");
+        joiner
+            .join_by_invite_code(&code)
+            .await
+            .expect("the joiner joins by the invite code");
+
+        owner
+            .rpc(
+                "dev_fault",
+                &serde_json::json!({"action": "fail_next_handover", "count": 1}),
+            )
+            .await
+            .unwrap_or_else(|e| {
+                panic!("dev_fault failed ({e}). The stack needs MELLO_ENABLE_DEV_FAULT=1")
+            });
+
+        let refused = owner
+            .delete_account()
+            .await
+            .expect_err("a failed handover refuses the delete");
+        assert_eq!(refused.server_code(), Some(14), "the refusal: {refused}");
+        assert_eq!(
+            refused.server_message().as_deref(),
+            Some(
+                "Your account was not deleted. A crew you own could not be handed to another \
+                 member. Try again in a moment."
+            ),
+            "the client shows this text as it is"
+        );
+        assert!(
+            owner.list_user_groups().await.is_ok(),
+            "the account and the session stay after a refusal"
+        );
+
+        owner
+            .delete_account()
+            .await
+            .expect("the retry deletes the account");
+        assert_eq!(
+            crew_member_state(&joiner, &crew_id, &joiner_user.id).await,
+            Some(GROUP_STATE_SUPERADMIN),
+            "the other member owns the crew after the delete"
+        );
+
+        let _ = joiner.delete_account().await;
+    });
+}
+
 /// Presence at connect belongs to the server. `OnSessionStart` sets a fresh
 /// account online when its socket registers. The client sends no
 /// `presence_update` at connect: it wrote the same row at the same moment,
@@ -442,6 +509,7 @@ fn a_second_user_can_join_a_crew_by_invite_code() {
 }
 
 /// Nakama `group_edge` states the invite tests assert on.
+const GROUP_STATE_SUPERADMIN: i64 = 0;
 const GROUP_STATE_MEMBER: i64 = 2;
 const GROUP_STATE_JOIN_REQUEST: i64 = 3;
 

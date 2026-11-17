@@ -157,6 +157,37 @@ The e2e state port reports `id`, `volume` and `local_muted` for each voice membe
 The settings modal (`settings_modal.slint`) has six tabs, in this order:
 PROFILE, GENERAL, AUDIO, GAMES, ABOUT, KEYBINDS.
 
+#### PROFILE tab: ACCOUNT
+
+The last section of the PROFILE tab is ACCOUNT. It has one row: "Delete account", the
+sentence "This cannot be undone.", and the outline button "DELETE ACCOUNT". The button opens
+the confirm (`delete_account_modal.slint`, global `DeleteAccountUi`). The button does not commit,
+so it is not red.
+
+The confirm lists what the delete does (spec 16 section 10.2):
+
+| Label | Lines |
+|---|---|
+| DELETED | Your account, your name and your sign-in. The clips, streams and events you started. Your chat messages and the images you posted. |
+| REMOVED | Your name, from the events, clips and weekly recaps of other members. |
+| STAYS | The clips and events of other members, without you. The totals of weekly recaps. |
+| YOUR CREWS | A crew you own goes to an admin, or to the member who joined first. A crew where you are the only member is deleted. |
+
+Then "This cannot be undone.", the outline button CANCEL and the red button DELETE MY ACCOUNT.
+
+| State | The confirm |
+|---|---|
+| Sent | The red button reads DELETING. Both buttons, Escape and the backdrop do nothing. A second press sends nothing |
+| Refused | The `message` of `AccountDeleteFailed` (the server text of code 14) shows in red. Both buttons work: the user can retry |
+| Other failure | "Your account was not deleted. Check the connection and try again." Same as refused |
+| Deleted (`AccountDeleted`) | The confirm and Settings close. The window goes to onboarding step 1 |
+
+After a delete the client forgets `Settings::device_id` and sends no `Logout` and no
+`DeviceAuth`: core already logged out, and device auth with the old id makes a new account.
+Finalize makes a new id, as on a fresh install.
+
+The iOS app has the same copy and states in Settings, Account (a sheet).
+
 #### KEYBINDS tab
 
 The KEYBINDS tab has two sections: CLIPS, then STREAMING. Each row is a `KeybindRow`: a title, one sentence, and a key field.

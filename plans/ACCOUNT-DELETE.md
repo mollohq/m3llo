@@ -3,13 +3,9 @@
 > Status: built on the branch. Bob approved the renders on 17 Nov 2026. Not pushed.
 > Branch: `feat/account-delete` (worktree `mello-wt-account-delete`). The iOS app gets a
 > branch of the same name in `mello-ios`.
-> Depends on `feat/delete-followups` (local only, not on origin). The copy below states its
-> rules: the handover of a crew, the purge of a sole member's crew, the refused delete.
-> This branch merges after that branch. On origin/main today, the crew of an only owner
-> is deleted with the account, so the copy is not true there.
-> Specs to update after it ships: `specs/01-CLIENT.md` (Settings tabs, PROFILE),
-> `specs/16-CREW-EVENT-LEDGER.md` section 10.2 (the line "The clients have no account
-> delete in the UI today").
+> The backend rules it states merged in mollohq/m3llo#264 (`feat/delete-followups`).
+> Specs updated on the branch: `specs/01-CLIENT.md` (PROFILE tab, ACCOUNT) and
+> `specs/16-CREW-EVENT-LEDGER.md` section 10.2.
 
 ## 1. Why
 
