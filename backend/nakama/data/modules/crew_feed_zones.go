@@ -33,6 +33,13 @@ const (
 	zonesBeltHeroDays = 14
 	// zonesInstalledMax is the most installed games on a quiet week.
 	zonesInstalledMax = 3
+	// zonesWeekSessionsMax is the most game sessions one week of Crew history
+	// lists, newest first. The count of the week carries the rest.
+	zonesWeekSessionsMax = 12
+	// zonesWeekSessionsReadMax is the most game sessions of one week that the
+	// store read loads with the clips of the week. Of a week with more, it
+	// reads the number and the newest zonesWeekSessionsMax.
+	zonesWeekSessionsReadMax = 48
 )
 
 // FeedZones is the zones payload.
@@ -93,19 +100,25 @@ type ZonePeople struct {
 }
 
 // ZoneHistoryWeek is one past week of Crew history. Locked: the viewer has no
-// m3llo+, so the week has counts and teasers only.
+// m3llo+, so the week has counts and teasers only. A game session has no
+// teaser: a locked week holds its number.
 type ZoneHistoryWeek struct {
 	WeekStart  int64 `json:"week_start"`
 	WeekNumber int   `json:"week_number,omitempty"`
 	Locked     bool  `json:"locked"`
 	// Founding marks a week of the crew's first 7 days after the first clip
 	// quest step: it is open for every member (crew quests gift 4).
-	Founding    bool         `json:"founding,omitempty"`
-	ClipCount   int          `json:"clip_count"`
-	StreamCount int          `json:"stream_count"`
-	Recap       *FeedEntry   `json:"recap,omitempty"`
-	Items       []FeedEntry  `json:"items,omitempty"`
-	Teasers     []ZoneTeaser `json:"teasers,omitempty"`
+	Founding    bool `json:"founding,omitempty"`
+	ClipCount   int  `json:"clip_count"`
+	StreamCount int  `json:"stream_count"`
+	// SessionCount is the number of game sessions of the week. Items holds
+	// at most the newest zonesWeekSessionsMax of them.
+	SessionCount int        `json:"session_count"`
+	Recap        *FeedEntry `json:"recap,omitempty"`
+	// Items of an open week: the clips, then the stream sessions, then the
+	// game sessions.
+	Items   []FeedEntry  `json:"items,omitempty"`
+	Teasers []ZoneTeaser `json:"teasers,omitempty"`
 }
 
 // ZoneTeaser is one locked clip or stream: who, what kind, how long. It holds
@@ -145,10 +158,18 @@ type zonesInput struct {
 	// week start (zoneLockedWeek). Clips does not hold the clips of such a
 	// week. Nil when Clips holds every clip.
 	LockedWeeks map[int64]zoneLockedWeek
-	H2h         *Head2headFeedData
-	Libs        map[string]*LibraryDoc
-	Joins       []FeedJoin
-	Belts       []RecapBeltMoved
+	// HistorySessions holds the game sessions of the weeks of this page of
+	// Crew history that the store gave (zoneHistoryData.GameSessions). The
+	// game sessions of the ledger document are in Cards.
+	HistorySessions []CrewEvent
+	// SessionCounts holds the number of game sessions of the weeks whose
+	// sessions are not read whole, by week start
+	// (zoneHistoryData.SessionCounts).
+	SessionCounts map[int64]int
+	H2h           *Head2headFeedData
+	Libs          map[string]*LibraryDoc
+	Joins         []FeedJoin
+	Belts         []RecapBeltMoved
 	// Quests is the quest record of the crew, nil when it has none.
 	Quests *CrewQuests
 	// Profile and Emoji fill the gifts of the quest card. Nil when the card
@@ -484,6 +505,10 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		// locked is set when the read gave the clip count and the first
 		// clips of the week in place of its clips.
 		locked *zoneLockedWeek
+		// sessions are the game sessions of the week. sessionCount is set
+		// when the read gave their number and not every one of them.
+		sessions     []feedCard
+		sessionCount int
 	}
 	weeks := map[int64]*week{}
 	at := func(ws int64) *week {
@@ -518,6 +543,35 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 			at(ws).locked = &lw
 		}
 	}
+	// The game sessions older than the free window: the cards of the ledger
+	// (the document holds 7 days, so they are here only under a free window
+	// shorter than that) and the rows of the store. A session counts once.
+	// Voice sessions do not fill Crew history.
+	seenSession := map[string]bool{}
+	addSession := func(c feedCard) {
+		if c.ts >= start || seenSession[c.id] {
+			return
+		}
+		seenSession[c.id] = true
+		w := at(weekStartOf(c.ts))
+		w.sessions = append(w.sessions, c)
+	}
+	for _, c := range in.Cards {
+		if c.backendType == ledgerTypeGameSession {
+			addSession(c)
+		}
+	}
+	for _, ev := range in.HistorySessions {
+		c := feedCard{id: ev.ID, feedType: "session", backendType: ledgerTypeGameSession, ts: ev.Timestamp, data: ev.Data}
+		if cardHasContent(c.feedType, c.backendType, c.data) {
+			addSession(c)
+		}
+	}
+	for ws, n := range in.SessionCounts {
+		if ws < start && n > 0 {
+			at(ws).sessionCount = n
+		}
+	}
 
 	starts := make([]int64, 0, len(weeks))
 	for ws := range weeks {
@@ -550,12 +604,26 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 			rankClips(w.clips)
 		}
 		sort.SliceStable(w.streams, func(i, j int) bool { return w.streams[i].Ts > w.streams[j].Ts })
+		sort.SliceStable(w.sessions, func(i, j int) bool {
+			if w.sessions[i].ts != w.sessions[j].ts {
+				return w.sessions[i].ts > w.sessions[j].ts
+			}
+			return w.sessions[i].id < w.sessions[j].id
+		})
+		sessionCount := len(w.sessions)
+		if w.sessionCount > sessionCount {
+			sessionCount = w.sessionCount
+		}
+		if len(w.sessions) > zonesWeekSessionsMax {
+			w.sessions = w.sessions[:zonesWeekSessionsMax]
+		}
 		h := ZoneHistoryWeek{
-			WeekStart:   ws,
-			Locked:      !open,
-			Founding:    founding[ws],
-			ClipCount:   clipCount,
-			StreamCount: len(w.streams),
+			WeekStart:    ws,
+			Locked:       !open,
+			Founding:     founding[ws],
+			ClipCount:    clipCount,
+			StreamCount:  len(w.streams),
+			SessionCount: sessionCount,
 		}
 		if w.recap != nil {
 			h.WeekNumber = w.recap.WeekNumber
@@ -569,6 +637,9 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 			}
 			for _, s := range w.streams {
 				h.Items = append(h.Items, streamEntry(s))
+			}
+			for _, c := range w.sessions {
+				h.Items = append(h.Items, feedEntryFromCard(c))
 			}
 		} else {
 			h.Teasers = weekTeasers(w.clips, w.streams)
