@@ -81,19 +81,19 @@ has a different word. "check": a native reviewer must look at the row first.
 | hangout | Time together in a voice channel | 开黑 | check. A board label and "hung out in". Rejected: 语音聊天室. |
 | voice | Voice chat | 语音 | |
 | call | People in a voice channel now | 语音 | "in the call": 在语音中. Rejected: 通话 (a phone call). |
-| session / sesh | One stretch of play or of voice | 时段 | check. Game session: 游戏时段. Rejected: 会话 (software word). |
+| session / sesh | One stretch of play or of voice | 开黑 | check. A session card in the feed: 开黑回放. Session replay of a stream: 直播回放. Count: 开黑次数. Use 时段 only for a span of time or a technical session ("The stream has no session to join"). Rejected: 时段 for play (a time limit), 会话 (software word). |
 | match | One game round with a result | 对局 | Count: 局. |
 | win, loss, draw | The result of a match | 胜, 负, 平 | Short forms W, L, D: 胜, 负, 平. "took an L": 输了一局. |
 | record, win rate | Wins and losses ("4W–2L"), wins per match | 战绩, 胜率 | |
 | stream (noun) | A live video of a game to the crew | 直播 | |
 | stream (verb), go live, live | Start a stream, streaming now | 开播, 直播中 | |
 | watch | Look at a stream | 观看 | Viewer: 观众. Host of a stream: 主播. |
-| clip (noun) | The saved last 30 seconds of game or voice | 片段 | check. Voice clip: 语音片段. Game clip: 游戏片段. Rejected: 剪辑 (an edit). |
+| clip (noun) | The saved last 30 seconds of game or voice | 高光 | check. Measure word 条: 9条高光. Voice clip: 语音高光. Game clip: 游戏高光. "Highlight clip": 高光片段, only where the text says highlight. Rejected: 片段 (dry, a video-editing word), 剪辑 (an edit). |
 | clip (verb) | Save a clip | 截取 | check. "{} clipped that": {}截了这段. |
-| moment | A marked win or highlight after a match | 精彩时刻 | check. Rejected: 高光, kept for the moment kind "Highlight". |
+| moment | A marked win or highlight after a match | 精彩时刻 | check. The moment kind "Highlight" is 名场面. Rejected: 高光, which is a clip. |
 | recap | The weekly summary of the crew | 周报 | Rejected: 回顾 (formal). |
 | feed | The list of crew events | 动态 | Crew feed: 小队动态. |
-| catch up | The line of what you missed while away | 离开期间 | check. Rejected: 补课 (school word). |
+| catch up | The line of what you missed while away | 错过动态 | check. The title. The body can use 你不在时. Rejected: 离开期间 (flat), 补课 (school word). |
 | crew history | All past weeks of the crew | 小队历史 | |
 | belt, title | A title that one member holds and another can take | 称号 | check. Rejected: 金腰带 (boxing). Belt and title are the same thing. Hold: 持有. Take: 抢走. |
 | The Carry | Most hours in the top shared game | 大腿 | "抱大腿" is the gamer word for a carry. |
