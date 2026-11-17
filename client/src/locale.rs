@@ -467,6 +467,36 @@ mod tests {
         assert!(setting_choices(&bundled()).contains(&"zh-CN".to_string()));
     }
 
+    /// The seven catalogues of `client/translations/` are bundled. The
+    /// setting selects each, and the settings list each by its own name.
+    #[test]
+    fn the_build_bundles_the_seven_catalogues() {
+        const LANGUAGES: [(&str, &str); 7] = [
+            ("de", "Deutsch"),
+            ("es", "Español"),
+            ("fr", "Français"),
+            ("ja", "日本語"),
+            ("pt-BR", "Português (Brasil)"),
+            ("sv", "Svenska"),
+            ("zh-CN", "中文（简体）"),
+        ];
+        let bundled = bundled();
+        let choices = setting_choices(&bundled);
+        for (tag, name) in LANGUAGES {
+            assert!(bundled.contains(&tag), "{tag}: bundled {bundled:?}");
+            assert!(choices.contains(&tag.to_string()), "{tag}: {choices:?}");
+            assert_eq!(native_name(tag), name);
+            assert_eq!(
+                choose(None, tag, Some("en-US"), &bundled),
+                Choice {
+                    language: tag.into(),
+                    source: Source::Setting
+                },
+                "{tag}"
+            );
+        }
+    }
+
     /// English is a choice also when it has no catalog, and comes one time.
     #[test]
     fn the_setting_choices_are_english_then_the_bundled_languages() {

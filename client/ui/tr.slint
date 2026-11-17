@@ -1392,12 +1392,14 @@ export global Tr {
     }
     /// {0} is the asker, {1} is the game.
     pure public function looking-to-play-notice-game(name: string, game: string) -> string {
+        // {0} is the asker, {1} is the game.
         @tr("{0} is looking to play {1}", name, game)
     }
     /// The client does not know the name of the asker.
     out property <string> looking-to-play-notice-someone: @tr("Someone is looking to play");
     /// The client does not know the name of the asker. {} is the game.
     pure public function looking-to-play-notice-someone-game(game: string) -> string {
+        // The client does not know the name of the asker. {} is the game.
         @tr("Someone is looking to play {}", game)
     }
 }

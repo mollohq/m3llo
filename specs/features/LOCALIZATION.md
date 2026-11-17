@@ -503,6 +503,18 @@ translations of the messages that did not change.
   selects `zh-CN` and checks the day of a feed card, the recap title and the
   catch-up line in Chinese.
 
+### The six other catalogues
+
+- `es`, `pt-BR`, `de`, `ja`, `fr` and `sv` are bundled the same way as
+  `zh-CN`. Each is a best-try draft. It waits for a native review of the
+  "check" rows of its glossary table in `TRANSLATING.md`.
+- `ja` has one plural form. The other five have two.
+- Each language has a push table in `push_text.go` with the same words.
+- Each language has a feed journey in `client/src/flow_tests.rs`:
+  `the_feed_reads_in_spanish`, `the_feed_reads_in_brazilian_portuguese`,
+  `the_feed_reads_in_german`, `the_feed_reads_in_japanese`,
+  `the_feed_reads_in_french` and `the_feed_reads_in_swedish`.
+
 ## 11. Tools
 
 | Tool | Use | Licence |

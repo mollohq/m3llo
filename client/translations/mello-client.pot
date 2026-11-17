@@ -203,7 +203,7 @@ msgstr ""
 msgid "QUESTS"
 msgstr ""
 
-#: client/ui/components/head2head.slint client/ui/components/looking_to_play_popover.slint
+#: client/ui/components/head2head.slint
 msgid "OPEN"
 msgstr ""
 
@@ -219,6 +219,166 @@ msgstr ""
 #: client/ui/components/head2head.slint
 msgid "NOW HELD BY"
 msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "LOOKING TO PLAY"
+msgstr ""
+
+#. The members who were on today.
+#: client/ui/components/looking_to_play.slint client/ui/tr.slint
+msgid "ON"
+msgstr ""
+
+#. The unit after the minutes until an ask closes, or until a member is due.
+#: client/ui/components/looking_to_play.slint
+msgid "MIN"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN VOICE"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "NO ANSWER"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "NOT NOW"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 15"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 30"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "CHANGE"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "CANCEL"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgctxt "count of members in"
+msgid "IN"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "In"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 15"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 30"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "Not now"
+msgstr ""
+
+#. The title of a closed ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} was looking to play"
+msgstr ""
+
+#. The title of an ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint client/ui/tr.slint
+msgid "{} is looking to play"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} more in"
+msgid_plural "{n} more in"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} MORE IN"
+msgid_plural "{n} MORE IN"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} NOT NOW"
+msgid_plural "{n} NOT NOW"
+msgstr[0] ""
+msgstr[1] ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "Change answer"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "Cancel the ask"
+msgstr ""
+
+#. A closed ask that the asker cancelled. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} called it off"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "No one this time"
+msgstr ""
+
+#: client/ui/components/looking_to_play.slint
+msgid "Close"
+msgstr ""
+
+#. The client does not know the name of the asker.
+#: client/ui/components/looking_to_play.slint client/ui/tr.slint
+msgid "Someone is looking to play"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Any game"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Find a member"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Everyone"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "GAME"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK THE CREW"
+msgstr ""
+
+#. The red button of the ask popover. {} is the count of picked members.
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK {}"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask the crew"
+msgstr ""
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask {n} member"
+msgid_plural "Ask {n} members"
+msgstr[0] ""
+msgstr[1] ""
 
 #: client/ui/components/quality_pills.slint
 msgid "QUALITY"
@@ -693,6 +853,10 @@ msgid "Emoji"
 msgstr ""
 
 #: client/ui/panels/chat_panel.slint
+msgid "Looking to play"
+msgstr ""
+
+#: client/ui/panels/chat_panel.slint
 msgid "Message crewmates"
 msgstr ""
 
@@ -893,10 +1057,6 @@ msgstr ""
 
 #: client/ui/panels/crew_banner_modal.slint
 msgid "Choose image"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint client/ui/panels/crew_banner_modal.slint
-msgid "CANCEL"
 msgstr ""
 
 #: client/ui/panels/crew_banner_modal.slint
@@ -1199,10 +1359,6 @@ msgstr ""
 msgid "All members can generate invite codes"
 msgstr ""
 
-#: client/ui/components/looking_to_play_popover.slint client/ui/panels/crew_settings_modal.slint
-msgid "Everyone"
-msgstr ""
-
 #: client/ui/panels/crew_settings_modal.slint
 msgid "Admins"
 msgstr ""
@@ -1279,20 +1435,12 @@ msgstr ""
 msgid "A phone push for each new message in this crew"
 msgstr ""
 
-#: client/ui/panels/chat_panel.slint client/ui/panels/crew_settings_modal.slint
-msgid "Looking to play"
-msgstr ""
-
 #: client/ui/panels/crew_settings_modal.slint
 msgid "A push, a toast and a sound when a crew member asks"
 msgstr ""
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "CREW SETTINGS"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint client/ui/panels/crew_settings_modal.slint
-msgid "Close"
 msgstr ""
 
 #: client/ui/panels/crew_settings_modal.slint
@@ -1532,10 +1680,6 @@ msgstr ""
 
 #: client/ui/panels/join_crew_modal.slint
 msgid "Join crew"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint client/ui/panels/join_crew_modal.slint
-msgid "Not now"
 msgstr ""
 
 #: client/ui/panels/member_volume_popover.slint
@@ -4100,11 +4244,6 @@ msgstr ""
 msgid "SESSIONS"
 msgstr ""
 
-#. The members who were on today.
-#: client/ui/components/looking_to_play.slint client/ui/tr.slint
-msgid "ON"
-msgstr ""
-
 #: client/ui/tr.slint
 msgid "CLIPS AND STREAMS"
 msgstr ""
@@ -4644,6 +4783,46 @@ msgstr ""
 msgid "Clip the last moments of voice"
 msgstr ""
 
+#. What a member does now, in the list of who to ask: in a voice channel.
+#: client/ui/tr.slint
+msgid "In voice"
+msgstr ""
+
+#. The label of the newest group that the user picked before.
+#: client/ui/tr.slint
+msgid "Last time"
+msgstr ""
+
+#. The server code ASK_TOO_SOON: one ask in a crew each 10 minutes.
+#: client/ui/tr.slint
+msgid "You asked a short time ago. Try again in a few minutes."
+msgstr ""
+
+#. The server code ASK_NOBODY_WAIT: the last ask closed with nobody in.
+#: client/ui/tr.slint
+msgid "No one was in on your last ask. Try again later."
+msgstr ""
+
+#. The server code ASK_HAS_OPEN: the user is the asker of an open ask.
+#: client/ui/tr.slint
+msgid "You have an open ask in this crew."
+msgstr ""
+
+#. Any other failure of an ask.
+#: client/ui/tr.slint
+msgid "The ask did not go out. Try again."
+msgstr ""
+
+#. {0} is the asker, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} is looking to play {1}"
+msgstr ""
+
+#. The client does not know the name of the asker. {} is the game.
+#: client/ui/tr.slint
+msgid "Someone is looking to play {}"
+msgstr ""
+
 #: hud/ui/mini_player.slint
 msgid "{n} online"
 msgid_plural "{n} online"
@@ -4652,179 +4831,4 @@ msgstr[1] ""
 
 #: hud/ui/mini_player.slint
 msgid "{} is streaming"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "ASK"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "ASK THE CREW"
-msgstr ""
-
-#. The red button of the ask popover. {} is the count of picked members.
-#: client/ui/components/looking_to_play_popover.slint
-msgid "ASK {}"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "Any game"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "Ask the crew"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "Ask {n} member"
-msgid_plural "Ask {n} members"
-msgstr[0] ""
-msgstr[1] ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "CHANGE"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "Cancel the ask"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "Change answer"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "Find a member"
-msgstr ""
-
-#: client/ui/components/looking_to_play_popover.slint
-msgid "GAME"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "IN"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "IN 15"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "IN 30"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "IN VOICE"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "In"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "In 15"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "In 30"
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "In voice"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "LOOKING TO PLAY"
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "Last time"
-msgstr ""
-
-#. The unit after the minutes until an ask closes, or until a member is due.
-#: client/ui/components/looking_to_play.slint
-msgid "MIN"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "NO ANSWER"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "NOT NOW"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "No one this time"
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "No one was in on your last ask. Try again later."
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "The ask did not go out. Try again."
-msgstr ""
-
-#. The client does not know the name of the asker.
-#: client/ui/components/looking_to_play.slint
-#: client/ui/tr.slint
-msgid "Someone is looking to play"
-msgstr ""
-
-#. The client does not know the name of the asker. {} is the game.
-#: client/ui/tr.slint
-msgid "Someone is looking to play {}"
-msgstr ""
-
-#. {0} is the asker, {1} is the game.
-#: client/ui/tr.slint
-msgid "{0} is looking to play {1}"
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "You asked a short time ago. Try again in a few minutes."
-msgstr ""
-
-#: client/ui/tr.slint
-msgid "You have an open ask in this crew."
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "{n} MORE IN"
-msgid_plural "{n} MORE IN"
-msgstr[0] ""
-msgstr[1] ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "{n} NOT NOW"
-msgid_plural "{n} NOT NOW"
-msgstr[0] ""
-msgstr[1] ""
-
-#: client/ui/components/looking_to_play.slint
-msgid "{n} more in"
-msgid_plural "{n} more in"
-msgstr[0] ""
-msgstr[1] ""
-
-#. A closed ask that the asker cancelled. {} is the asker.
-#: client/ui/components/looking_to_play.slint
-msgid "{} called it off"
-msgstr ""
-
-#. The title of an ask. {} is the asker.
-#: client/ui/components/looking_to_play.slint
-#: client/ui/tr.slint
-msgid "{} is looking to play"
-msgstr ""
-
-#. The title of a closed ask. {} is the asker.
-#: client/ui/components/looking_to_play.slint
-msgid "{} was looking to play"
-msgstr ""
-
-#: client/ui/components/looking_to_play.slint
-msgctxt "count of members in"
-msgid "IN"
 msgstr ""

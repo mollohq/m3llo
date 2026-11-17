@@ -7128,27 +7128,27 @@ impl Drop for SourceLanguageOnDrop {
     }
 }
 
-/// The first catalogue on the real UI: under `zh-CN` the feed shows the day
-/// of a card, the recap title and the catch-up line in Chinese, with the
+/// The words of the feed journey in one catalogue: the days of the week from
+/// Sunday, the recap title of week 4, and the catch-up line of a win of Ann
+/// in Valorant.
+struct FeedWords {
+    lang: &'static str,
+    weekdays: [&'static str; 7],
+    week_4: &'static str,
+    catchup: &'static str,
+}
+
+/// A catalogue on the real UI: under `words.lang` the feed shows the day of
+/// a card, the recap title and the catch-up line in that language, with the
 /// names and the numbers in place.
-#[test]
-fn the_feed_reads_in_chinese() {
-    const WEEKDAYS: [&str; 7] = [
-        "星期日",
-        "星期一",
-        "星期二",
-        "星期三",
-        "星期四",
-        "星期五",
-        "星期六",
-    ];
+fn the_feed_reads_in(words: FeedWords) {
     let mut h = Harness::new();
     app_with_crew_of(&mut h, 2);
-    crate::locale::select("zh-CN").expect("select zh-CN");
+    crate::locale::select(words.lang).expect("select the language");
     let _english_after = SourceLanguageOnDrop;
 
     // A clip of three days ago: the card shows the day of the week.
-    let mut clip = clip_entry("clip-zh");
+    let mut clip = clip_entry("clip-l10n");
     clip.ts = now_ms() - 3 * DAY_MS - 3_600_000;
     let weekday = (clip.ts.div_euclid(DAY_MS) + 4).rem_euclid(7) as usize;
     let mut week = recap_entry(serde_json::json!({}));
@@ -7159,10 +7159,10 @@ fn the_feed_reads_in_chinese() {
     let cards = zone_cards(&h);
     let clip_card = cards
         .iter()
-        .find(|c| c.id == "clip-zh")
+        .find(|c| c.id == "clip-l10n")
         .expect("the clip card");
-    assert_eq!(clip_card.timestamp.as_str(), WEEKDAYS[weekday]);
-    assert_eq!(first_recap(&h).recap_week.as_str(), "第4周");
+    assert_eq!(clip_card.timestamp.as_str(), words.weekdays[weekday]);
+    assert_eq!(first_recap(&h).recap_week.as_str(), words.week_4);
 
     // The catch-up line of the crew, from a win of a member.
     h.emit(Event::CatchupLoaded {
@@ -7178,10 +7178,116 @@ fn the_feed_reads_in_chinese() {
             has_events: true,
         },
     });
-    assert_eq!(
-        crew_row(&h, "crew-0").catchup_text.as_str(),
-        "Ann在Valorant赢了一局"
-    );
+    assert_eq!(crew_row(&h, "crew-0").catchup_text.as_str(), words.catchup);
+}
+
+/// The first catalogue: the feed in Simplified Chinese.
+#[test]
+fn the_feed_reads_in_chinese() {
+    the_feed_reads_in(FeedWords {
+        lang: "zh-CN",
+        weekdays: [
+            "星期日",
+            "星期一",
+            "星期二",
+            "星期三",
+            "星期四",
+            "星期五",
+            "星期六",
+        ],
+        week_4: "第4周",
+        catchup: "Ann在Valorant赢了一局",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_spanish() {
+    the_feed_reads_in(FeedWords {
+        lang: "es",
+        weekdays: [
+            "domingo",
+            "lunes",
+            "martes",
+            "miércoles",
+            "jueves",
+            "viernes",
+            "sábado",
+        ],
+        week_4: "Semana 4",
+        catchup: "Ann ganó una en Valorant",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_brazilian_portuguese() {
+    the_feed_reads_in(FeedWords {
+        lang: "pt-BR",
+        weekdays: [
+            "Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado",
+        ],
+        week_4: "Semana 4",
+        catchup: "Ann ganhou uma em Valorant",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_german() {
+    the_feed_reads_in(FeedWords {
+        lang: "de",
+        weekdays: [
+            "Sonntag",
+            "Montag",
+            "Dienstag",
+            "Mittwoch",
+            "Donnerstag",
+            "Freitag",
+            "Samstag",
+        ],
+        week_4: "Woche 4",
+        catchup: "Ann hat in Valorant gewonnen",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_japanese() {
+    the_feed_reads_in(FeedWords {
+        lang: "ja",
+        weekdays: [
+            "日曜日",
+            "月曜日",
+            "火曜日",
+            "水曜日",
+            "木曜日",
+            "金曜日",
+            "土曜日",
+        ],
+        week_4: "第4週",
+        catchup: "AnnがValorantで勝った",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_french() {
+    the_feed_reads_in(FeedWords {
+        lang: "fr",
+        weekdays: [
+            "dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+        ],
+        week_4: "Semaine 4",
+        catchup: "Ann a gagné une partie de Valorant",
+    });
+}
+
+#[test]
+fn the_feed_reads_in_swedish() {
+    the_feed_reads_in(FeedWords {
+        lang: "sv",
+        weekdays: [
+            "Söndag", "Måndag", "Tisdag", "Onsdag", "Torsdag", "Fredag", "Lördag",
+        ],
+        week_4: "Vecka 4",
+        catchup: "Ann tog en vinst i Valorant",
+    });
 }
 
 /// ★ Regression (#105): another crew leaves the list. The rows change, and
@@ -11028,7 +11134,18 @@ fn the_language_row_lists_system_and_the_bundled_languages() {
     assert_eq!(h.app().get_settings_language_name(), "System");
 
     let names = language_names();
-    assert!(names.contains(&"English".to_string()), "{names:?}");
+    for name in [
+        "English",
+        "Deutsch",
+        "Español",
+        "Français",
+        "日本語",
+        "Português (Brasil)",
+        "Svenska",
+        "中文（简体）",
+    ] {
+        assert!(names.contains(&name.to_string()), "{name:?} in {names:?}");
+    }
     #[cfg(debug_assertions)]
     assert!(names.contains(&"Pseudo (qps)".to_string()), "{names:?}");
     let rows: Vec<String> = h
@@ -11073,6 +11190,34 @@ fn a_language_choice_is_saved_and_shows_the_restart_hint() {
         account_languages(&h.commands()),
         [crate::locale::language_for_setting("")]
     );
+}
+
+/// Each translated language is a row of the dropdown by its own name. A pick
+/// saves its tag and sends the account that language.
+#[test]
+fn each_translated_language_can_be_chosen() {
+    let _dir = ThreadConfigDir::new();
+    let mut h = general_settings();
+    for (tag, name) in [
+        ("de", "Deutsch"),
+        ("es", "Español"),
+        ("fr", "Français"),
+        ("ja", "日本語"),
+        ("pt-BR", "Português (Brasil)"),
+        ("sv", "Svenska"),
+        ("zh-CN", "中文（简体）"),
+    ] {
+        h.commands();
+        pick_language(&mut h, name);
+        assert_eq!(h.settings().borrow().language, tag);
+        assert_eq!(h.app().get_settings_language_name(), name);
+        assert!(restart_hint_shown(&h), "{tag}: the restart panel");
+        assert_eq!(
+            account_languages(&h.commands()),
+            [crate::locale::language_for_setting(tag)],
+            "{tag}"
+        );
+    }
 }
 
 /// The pseudo language is in debug builds only. Its tag goes to the
