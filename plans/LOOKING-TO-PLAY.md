@@ -3,7 +3,8 @@
 > Status: direction and mockup approved by Bob, 12 Nov 2026. Phase 1 merged (#260, 13 Nov 2026).
 > Phases 2 and 3 merged (#263, 16 Nov 2026). Phase 4 built on 17 Nov 2026: the iOS app on
 > `feat/looking-to-play-ask` in its own repo, two core changes on `feat/looking-to-play-ios`
-> here. The answer with a locked phone is not proved on a real phone yet (section 6c).
+> here. Bob approved the phase 4 renders on 17 Nov 2026. The answer with a locked phone is
+> not proved on a real phone yet (section 6c).
 > Mockup: `designs/looking-to-play.html` (phase 0, approved 12 Nov 2026).
 > Specs to write or update after it ships: `specs/features/LOOKING-TO-PLAY.md` (new),
 > `specs/features/TEXT-CHAT.md` (message push, the `looking_to_play` system event),
