@@ -4,6 +4,23 @@ use crate::oauth::OAuthError;
 use crate::presence::PresenceStatus;
 use crate::session;
 
+/// What a restore does with the saved refresh token.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum SavedSession {
+    Keep,
+    Clear,
+}
+
+/// Only a refresh token that the server refused clears the saved session. A
+/// transport error, a 5xx or a failed account read after a good refresh
+/// keeps it for the next try.
+fn saved_session_after(error: &crate::Error) -> SavedSession {
+    match error {
+        crate::Error::RefreshRejected(_) => SavedSession::Clear,
+        _ => SavedSession::Keep,
+    }
+}
+
 /// Why a browser flow ended without an identity.
 fn flow_failure_reason(provider: SocialProvider, error: &OAuthError) -> AuthFailure {
     let label = provider.label().to_string();
@@ -58,9 +75,20 @@ impl super::Client {
             }
         };
 
+        if self.restore_session(&token).await == SavedSession::Clear {
+            session::clear();
+        }
+    }
+
+    /// Restores the session from a saved refresh token and sends the result
+    /// as events. It returns what to do with the saved session, so a test
+    /// can run it without the OS keyring. Only a refresh token that the
+    /// server refuses clears it. A lock-screen action with a bad network
+    /// must not sign the user out.
+    pub(super) async fn restore_session(&mut self, token: &str) -> SavedSession {
         let _ = self.event_tx.send(Event::Restoring);
 
-        match self.nakama.refresh_session(&token).await {
+        match self.nakama.refresh_session(token).await {
             Ok(user) => {
                 log::info!("Session restored for {}", user.display_name);
 
@@ -69,24 +97,30 @@ impl super::Client {
                 }
 
                 if let Err(e) = self.nakama.connect_ws(self.event_tx.clone()).await {
-                    log::error!("WebSocket connect failed on restore: {}", e);
-                    session::clear();
+                    // The token is good. The next start or retry can use it.
+                    log::warn!("WebSocket connect failed on restore ({}), session kept", e);
                     let _ = self.event_tx.send(Event::LoginFailed {
                         reason: AuthFailure::Socket(e.to_string()),
                     });
-                    return;
+                    return SavedSession::Keep;
                 }
 
                 self.on_connected().await;
                 let _ = self.event_tx.send(Event::LoggedIn { user });
                 self.load_crews().await;
+                SavedSession::Keep
             }
             Err(e) => {
-                log::warn!("Session restore failed ({}), clearing", e);
-                session::clear();
+                let saved = saved_session_after(&e);
+                let outcome = match saved {
+                    SavedSession::Keep => "session kept",
+                    SavedSession::Clear => "session cleared",
+                };
+                log::warn!("Session restore failed ({}), {}", e, outcome);
                 let _ = self.event_tx.send(Event::LoginFailed {
                     reason: AuthFailure::NoSession,
                 });
+                saved
             }
         }
     }
@@ -787,6 +821,22 @@ impl super::Client {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_a_refused_refresh_token_clears_the_saved_session() {
+        assert_eq!(
+            saved_session_after(&crate::Error::RefreshRejected(401)),
+            SavedSession::Clear
+        );
+        for kept in [
+            crate::Error::AuthFailed("refresh failed (503 Service Unavailable)".into()),
+            crate::Error::Server("Failed to get account".into()),
+            crate::Error::WebSocket("connection refused".into()),
+            crate::Error::NotConnected,
+        ] {
+            assert_eq!(saved_session_after(&kept), SavedSession::Keep, "{kept}");
+        }
+    }
 
     #[test]
     fn a_refusal_at_the_provider_reads_as_a_cancel() {
