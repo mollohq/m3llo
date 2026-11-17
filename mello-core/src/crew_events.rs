@@ -430,8 +430,12 @@ pub struct ZoneHistoryWeek {
     pub clip_count: i32,
     #[serde(default)]
     pub stream_count: i32,
+    /// The game sessions of the week. `items` holds at most the newest 12.
+    #[serde(default)]
+    pub session_count: i32,
     #[serde(default)]
     pub recap: Option<FeedEntry>,
+    /// An open week: the clips, then the streams, then the game sessions.
     #[serde(default)]
     pub items: Vec<FeedEntry>,
     #[serde(default)]

@@ -171,6 +171,24 @@ global Hist {
         game-record: "2W 1L", game-wins: 2, game-losses: 1, game-matches: 3, participant-count: 2,
         part0-initials: "MA", part0-avatar: Crew.max.avatar, part0-has-avatar: true,
         part1-initials: "TH", part1-avatar: Crew.theo.avatar, part1-has-avatar: true };
+    // Game sessions of past weeks, for Crew history.
+    out property <FeedCardData> p-cs: { id: "p-cs", card-type: "game-session", game-name: "Counter-Strike 2", game-capsule: Crew.cs2, game-has-capsule: true,
+        actor-name: "Jonas", actor-initials: "JO", actor-avatar: Crew.jonas.avatar, actor-has-avatar: true, duration-human: "2h 16m", timestamp: "30 October", timestamp-upper: "30 OCTOBER",
+        game-record: "1W 2L", game-wins: 1, game-losses: 2, game-matches: 3, participant-count: 3,
+        part0-initials: "JO", part0-avatar: Crew.jonas.avatar, part0-has-avatar: true,
+        part1-initials: "SA", part1-avatar: Crew.sara.avatar, part1-has-avatar: true,
+        part2-initials: "B0", part2-avatar: Crew.bob.avatar, part2-has-avatar: true };
+    out property <FeedCardData> p-drg: { id: "p-drg", card-type: "game-session", game-name: "Deep Rock Galactic", game-capsule: Crew.drg, game-has-capsule: true,
+        actor-name: "Nils", actor-initials: "NI", actor-avatar: Crew.nils.avatar, actor-has-avatar: true, duration-human: "2h 05m", duration-value: "2", duration-unit: "h", duration-tail: "05", timestamp: "24 October", timestamp-upper: "24 OCTOBER", participant-count: 3,
+        participants-line: "Nils, Alva +1",
+        part0-initials: "NI", part0-avatar: Crew.nils.avatar, part0-has-avatar: true,
+        part1-initials: "AL", part1-avatar: Crew.alva.avatar, part1-has-avatar: true,
+        part2-initials: "HU", part2-avatar: Crew.hugo.avatar, part2-has-avatar: true };
+    out property <FeedCardData> p-rl: { id: "p-rl", card-type: "game-session", game-name: "Rocket League", game-capsule: Crew.rl, game-has-capsule: true,
+        actor-name: "Max", actor-initials: "MA", actor-avatar: Crew.max.avatar, actor-has-avatar: true, duration-human: "48m", duration-value: "48", duration-unit: "m", timestamp: "22 October", timestamp-upper: "22 OCTOBER", participant-count: 2,
+        participants-line: "Max, Theo",
+        part0-initials: "MA", part0-avatar: Crew.max.avatar, part0-has-avatar: true,
+        part1-initials: "TH", part1-avatar: Crew.theo.avatar, part1-has-avatar: true };
     out property <FeedCardData> belt-hero: { id: "head2head-belt", card-type: "head2head",
         head2head: { variant: "belt", belt: {
             title-id: "night_owl", title: "Night Owl", title-upper: "NIGHT OWL", icon: Crew.i-owl, hue-index: Crew.sara.hue-index,
@@ -200,6 +218,29 @@ global Hist {
           stats: [ { value: "17", label: "CLIPS" }, { value: "2", unit: "h", tail: "10", label: "LONGEST" }, { value: "4", label: "GAMES" } ],
           has-top: true, top: { name: "Rocket League", art: Crew.rl },
           clips: [Hist.g2, Hist.v1] },
+    ];
+    /// Weeks with game sessions, open: a week with a clip and sessions, and
+    /// a quiet week (game sessions only, no recap).
+    out property <[HistoryWeek]> open-sessions: [
+        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: false,
+          big: { value: "38", unit: "h", tail: "05", label: "HANGOUT" },
+          stats: [ { value: "22", label: "CLIPS" }, { value: "3", unit: "h", tail: "58", label: "LONGEST" }, { value: "5", label: "GAMES" } ],
+          has-top: true, top: { name: "Counter-Strike 2", art: Crew.cs2 },
+          clips: [Hist.g3, Hist.p-cs, Hist.p-drg] },
+        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: false,
+          big: { value: "3", label: "SESSIONS" },
+          clips: [Hist.p-drg, Hist.p-rl, Hist.p-cs] },
+    ];
+    /// Without m3llo+. Week 44: a game session has no teaser, the week
+    /// counts it in "+N". Week 43 has a recap and game sessions only: the
+    /// week card alone. A week of game sessions with no recap is not sent.
+    out property <[HistoryWeek]> locked-sessions: [
+        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: true, seal: Data.week-seal, more: 30,
+          teasers: [
+            { person: Crew.leo, kind: "clip", duration: "0:18", code: SealedFixtures.carry-code },
+            { person: Crew.sara, kind: "VOICE", duration: "0:30", code: SealedFixtures.owl-code },
+          ] },
+        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: true, seal: { key: "plus:43", sealed: true, seed: 911, bright: SealedFixtures.recap-bright, dim: SealedFixtures.recap-dim } },
     ];
 }
 
@@ -360,6 +401,40 @@ export component PreviewFeedHistoryPlus inherits Panel {
         clips: [Hist.g1, Hist.v1, Hist.g2],
         sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
         history: Hist.open, plus: true,
+    };
+}
+
+/// 7b · Crew history with m3llo+: game sessions in the weeks. Week 44 has a
+/// clip and sessions. Week 43 is a quiet week: game sessions only.
+export component PreviewFeedHistorySessions inherits Panel {
+    height: 1620px;
+    zones: {
+        you: Crew.bob,
+        stage: "card", stage-card: Hist.hero-sara,
+        board: "tabs",
+        today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
+        week-big: Base.week-big, week-stats: Base.week-stats,
+        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        clips: [Hist.g1, Hist.v1, Hist.g2],
+        sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
+        history: Hist.open-sessions, plus: true,
+    };
+}
+
+/// 7c · Without m3llo+: a locked week counts its game sessions in "+N". A
+/// locked week with a recap and game sessions only is the week card alone.
+export component PreviewFeedHistorySessionsLocked inherits Panel {
+    height: 1700px;
+    zones: {
+        you: Crew.bob,
+        stage: "card", stage-card: Hist.hero-sara,
+        board: "tabs",
+        today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
+        week-big: Base.week-big, week-stats: Base.week-stats,
+        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        clips: [Hist.g1, Hist.v1, Hist.g2],
+        sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
+        history: Hist.locked-sessions,
     };
 }
 

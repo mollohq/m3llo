@@ -644,6 +644,8 @@ func crewFeedZones(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 	in.LastClipMs = hist.LastClipMs
 	in.LastStreamMs = hist.LastStreamMs
 	in.LockedWeeks = hist.Locked
+	in.HistorySessions = hist.GameSessions
+	in.SessionCounts = hist.SessionCounts
 	in.H2h = h2h
 	in.Libs = crewLibraryDocs(ctx, nk, req.CrewID)
 	in.Joins = joins
