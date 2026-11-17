@@ -20,12 +20,14 @@ const (
 )
 
 // usePurgeBuckets points the purge at the fake: the clips bucket, the
-// snapshots bucket and the bucket of the banners and the emoji. The purge
-// runs inline.
+// snapshots bucket and the media bucket (banners, emoji, chat images). It
+// gives the purge a message table in memory. The purge runs inline.
 func usePurgeBuckets(t *testing.T) *fakeS3 {
 	t.Helper()
 	f := newFakeS3(t)
 	useFakeBuckets(t, f)
+	useMemChat(t)
+	useMemEdges(t)
 	prevGifts, prevAsync := crewGiftsBucket, crewPurgeAsync
 	client := newS3Client(f.server.URL, "test", "test")
 	crewGiftsBucket = func() (*s3.Client, string) { return client, "media" }
@@ -96,7 +98,7 @@ func seedPurgeCrew(t *testing.T, nk *delNk, f *fakeS3, crewID string) {
 	f.put("snaps", "snapshots/"+crewID+"/s1/2.jpg", 10, time.Hour)
 	f.put("media", "crew-banners/"+crewID+"/b.jpg", 10, time.Hour)
 	f.put("media", "crew-emoji/"+crewID+"/e.png", 10, time.Hour)
-	// The chat images of the crew are not part of the purge.
+	// A chat image of the crew.
 	f.put("media", crewID+"/u1/img.jpg", 10, time.Hour)
 }
 
@@ -123,9 +125,6 @@ func crewLeftovers(t *testing.T, nk *delNk, store ledgerStore, f *fakeS3, crewID
 	}
 	for _, bucket := range []string{"clips", "snaps", "media"} {
 		for _, key := range f.keys(bucket) {
-			if strings.HasPrefix(key, crewID+"/") {
-				continue // chat images
-			}
 			if strings.Contains(key, crewID) {
 				left = append(left, "object "+bucket+"/"+key)
 			}
@@ -178,9 +177,9 @@ func TestPurgeCrewData(t *testing.T) {
 		if after := crewLeftovers(t, nk, store, f, otherCrew); strings.Join(after, "\n") != strings.Join(before, "\n") {
 			t.Fatalf("the other crew changed:\n%v\nwas\n%v", after, before)
 		}
-		// The chat images are not part of the purge.
-		if keys := strings.Join(f.keys("media"), ","); !strings.Contains(keys, purgeCrew+"/u1/img.jpg") {
-			t.Fatalf("the chat image is gone: %s", keys)
+		// The chat images go with the crew. The image of the other crew stays.
+		if keys := strings.Join(f.keys("media"), ","); strings.Contains(keys, purgeCrew+"/u1/img.jpg") || !strings.Contains(keys, otherCrew+"/u1/img.jpg") {
+			t.Fatalf("the chat images = %s", keys)
 		}
 	})
 }
@@ -283,7 +282,7 @@ func TestAdminPurgeCrew(t *testing.T) {
 		t.Fatal(err)
 	}
 	res, err := purgeRPC(nk, purgeCrew)
-	if err != nil || !res.Done || res.MediaDeleted != 7 || !res.StoreDeleted || res.DocsDeleted < 14 {
+	if err != nil || !res.Done || res.MediaDeleted != 8 || !res.StoreDeleted || res.DocsDeleted < 14 {
 		t.Fatalf("purge = %+v err=%v", res, err)
 	}
 	if left := crewLeftovers(t, nk, store, f, purgeCrew); len(left) != 0 {
@@ -401,8 +400,21 @@ func TestDeleteObjectsUnderRefusesAWrongPrefix(t *testing.T) {
 	if _, _, err := deleteObjectsUnder(context.Background(), client, "clips", "crews//", "", time.Now().Add(time.Minute)); err == nil {
 		t.Fatal("an empty owner passed")
 	}
-	if len(f.deletes) != 0 || len(f.keys("clips")) != 1 {
+	// A prefix at the root of a bucket needs a group id as its owner.
+	f.put("clips", "crews/x.mp4", 10, time.Hour)
+	f.put("clips", "u1/x.mp4", 10, time.Hour)
+	for _, owner := range []string{"crews", "u1", "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA"} {
+		if n, _, err := deleteObjectsUnder(context.Background(), client, "clips", owner+"/", owner, time.Now().Add(time.Minute)); err == nil || n != 0 {
+			t.Fatalf("root prefix %q: deleted=%d err=%v", owner+"/", n, err)
+		}
+	}
+	if len(f.deletes) != 0 || len(f.keys("clips")) != 3 {
 		t.Fatalf("deletes = %v", f.deletes)
+	}
+	// The root prefix of a group id passes.
+	f.put("clips", purgeCrew+"/u1/x.png", 10, time.Hour)
+	if n, _, err := deleteObjectsUnder(context.Background(), client, "clips", purgeCrew+"/", purgeCrew, time.Now().Add(time.Minute)); err != nil || n != 1 {
+		t.Fatalf("root prefix of a group id: deleted=%d err=%v", n, err)
 	}
 }
 

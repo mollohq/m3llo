@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -12,6 +13,8 @@ import (
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // delNk is fakeGuestNk with the calls the deletion rules use: the kick, the
@@ -33,20 +36,155 @@ type delNk struct {
 	onWrite map[string]func()
 	// stale counts the writes that a version check refused.
 	stale int
+	// memberErr makes the member lists of one crew fail.
+	memberErr map[string]error
+	// promoteErr makes every promote fail. promoteNoop makes a promote
+	// change nothing and return no error.
+	promoteErr  error
+	promoteNoop bool
+	// promotes are the promotes that changed a member: "crew user state".
+	promotes []string
+	// groupUpdates counts the group updates.
+	groupUpdates int
+	// lists counts the storage lists of each collection.
+	lists map[string]int
+	// onGroupRead runs before each group read.
+	onGroupRead func()
+	// userGroupsErr makes the list of the crews of a user fail. groupsPage
+	// is the page size of that list (0: one page). userGroupsCalls counts
+	// the calls.
+	userGroupsErr   error
+	groupsPage      int
+	userGroupsCalls int
 }
 
 func newDelNk() *delNk {
 	return &delNk{fakeGuestNk: newFakeGuestNk(), failDelete: map[string]bool{}, failWrite: map[string]bool{},
-		versions: map[string]int{}, onRead: map[string]func(){}, onWrite: map[string]func(){}}
+		versions: map[string]int{}, onRead: map[string]func(){}, onWrite: map[string]func(){}, memberErr: map[string]error{}}
 }
 
 func (n *delNk) versionOf(k string) string { return fmt.Sprintf("v%d", n.versions[k]) }
 
+// GroupsGetId returns a copy of each group, as a read of Nakama does.
 func (n *delNk) GroupsGetId(ctx context.Context, ids []string) ([]*api.Group, error) {
 	if n.groupErr != nil {
 		return nil, n.groupErr
 	}
-	return n.fakeGuestNk.GroupsGetId(ctx, ids)
+	if n.onGroupRead != nil {
+		n.onGroupRead()
+	}
+	groups, err := n.fakeGuestNk.GroupsGetId(ctx, ids)
+	out := make([]*api.Group, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, proto.Clone(g).(*api.Group))
+	}
+	return out, err
+}
+
+// GroupUsersList lists the members as Nakama does: the members of one state
+// when a state is given, in the order they joined, up to the limit.
+func (n *delNk) GroupUsersList(_ context.Context, id string, limit int, state *int, _ string) ([]*api.GroupUserList_GroupUser, string, error) {
+	if err := n.memberErr[id]; err != nil {
+		return nil, "", err
+	}
+	var out []*api.GroupUserList_GroupUser
+	for _, m := range n.members[id] {
+		if state != nil && int(m.GetState().GetValue()) != *state {
+			continue
+		}
+		out = append(out, m)
+	}
+	if state != nil && limit > 0 && len(out) > limit {
+		out = out[:limit]
+	}
+	return out, "", nil
+}
+
+// UserGroupsList is the list of the base fake, with the state of the user in
+// each crew. With groupsPage set it returns that many crews for each call,
+// and a cursor.
+func (n *delNk) UserGroupsList(_ context.Context, userID string, _ int, _ *int, cursor string) ([]*api.UserGroupList_UserGroup, string, error) {
+	if n.userGroupsErr != nil {
+		return nil, "", n.userGroupsErr
+	}
+	n.userGroupsCalls++
+	var crews []string
+	for crew := range n.members {
+		crews = append(crews, crew)
+	}
+	sort.Strings(crews)
+	var out []*api.UserGroupList_UserGroup
+	for _, crew := range crews {
+		for _, m := range n.members[crew] {
+			if m.GetUser().GetId() == userID {
+				out = append(out, &api.UserGroupList_UserGroup{Group: &api.Group{Id: crew}, State: wrapperspb.Int32(m.GetState().GetValue())})
+			}
+		}
+	}
+	if n.groupsPage <= 0 {
+		return out, "", nil
+	}
+	from := 0
+	if cursor != "" {
+		fmt.Sscanf(cursor, "%d", &from)
+	}
+	if from >= len(out) {
+		return nil, "", nil
+	}
+	to := from + n.groupsPage
+	if to >= len(out) {
+		return out[from:], "", nil
+	}
+	return out[from:to], fmt.Sprintf("%d", to), nil
+}
+
+// GroupUsersPromote moves each member one rank up, as Nakama does.
+func (n *delNk) GroupUsersPromote(_ context.Context, _ string, groupID string, userIDs []string) error {
+	if n.promoteErr != nil {
+		return n.promoteErr
+	}
+	if n.promoteNoop {
+		return nil
+	}
+	for _, m := range n.members[groupID] {
+		for _, id := range userIDs {
+			if m.GetUser().GetId() == id && m.GetState().GetValue() > 0 {
+				m.State = wrapperspb.Int32(m.GetState().GetValue() - 1)
+				n.promotes = append(n.promotes, fmt.Sprintf("%s %s %d", groupID, id, m.GetState().GetValue()))
+			}
+		}
+	}
+	return nil
+}
+
+// GroupUpdate changes the creator and the metadata of a group, as Nakama
+// does: an empty creator and a nil metadata change nothing.
+func (n *delNk) GroupUpdate(_ context.Context, id, _, _, creatorID, _, _, _ string, open bool, metadata map[string]interface{}, _ int) error {
+	g, ok := n.groups[id]
+	if !ok {
+		return errors.New("group not found")
+	}
+	if creatorID != "" {
+		g.CreatorId = creatorID
+	}
+	if metadata != nil {
+		data, err := json.Marshal(metadata)
+		if err != nil {
+			return err
+		}
+		g.Metadata = string(data)
+	}
+	g.Open = wrapperspb.Bool(open)
+	n.groupUpdates++
+	return nil
+}
+
+// addMemberAs adds a member with a state: 0 superadmin, 1 admin, 2 member,
+// 3 join request. The order of the calls is the order of the joins.
+func (n *delNk) addMemberAs(crewID, userID, name string, state int32) {
+	n.addMember(crewID, userID, name)
+	ms := n.members[crewID]
+	ms[len(ms)-1].State = wrapperspb.Int32(state)
 }
 
 func (n *delNk) GroupUsersKick(_ context.Context, _ string, groupID string, userIDs []string) error {
@@ -82,7 +220,8 @@ func (n *delNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]
 	for _, r := range reads {
 		k := fakeStorageKey(r.Collection, r.Key, r.UserID)
 		if v, ok := n.storage[k]; ok {
-			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v, Version: n.versionOf(k)})
+			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v, Version: n.versionOf(k),
+				PermissionRead: int32(n.perms[k][0]), PermissionWrite: int32(n.perms[k][1])})
 		}
 	}
 	return out, nil
@@ -91,6 +230,10 @@ func (n *delNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]
 func (n *delNk) StorageList(_ context.Context, _, userID, collection string, _ int, _ string) ([]*api.StorageObject, string, error) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	if n.lists == nil {
+		n.lists = map[string]int{}
+	}
+	n.lists[collection]++
 	prefix, suffix := collection+"/", "/"+userID
 	var keys []string
 	for k := range n.storage {

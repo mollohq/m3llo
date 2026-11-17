@@ -502,6 +502,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("dev_ledger_selftest", DevLedgerSelftestRPC); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("dev_delete_selftest", DevDeleteSelftestRPC); err != nil {
+		return err
+	}
 
 	// -----------------------------------------------------------------------
 	// Background goroutines

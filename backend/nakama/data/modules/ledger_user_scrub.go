@@ -71,6 +71,11 @@ type scrubSkipped struct {
 	Reason string `json:"reason"`
 }
 
+// scrubKindChatImages is the kind of a scrubMedia entry for the chat images
+// the user posted in a crew: every object under {crew_id}/{user_id}/ in the
+// media bucket (chatImageKey). Ref is the user id.
+const scrubKindChatImages = "chat_images"
+
 const (
 	scrubSkipUnsafeID  = "the id is not safe in an object key"
 	scrubSkipNoSession = "the stream session has no session id, so no key can be made"
@@ -86,6 +91,11 @@ type userScrubRecord struct {
 	Names []string `json:"names,omitempty"`
 	// Crews are the crews that are still to be scrubbed.
 	Crews []string `json:"crews,omitempty"`
+	// SoleCrews are the crews the user was the only member of at the last
+	// delete attempt (BeforeDeleteAccount). Nakama deletes such a group with
+	// the account. The scrub purges a crew of this list when its group is
+	// gone, and no other crew.
+	SoleCrews []string `json:"sole_crews,omitempty"`
 	// Discovered is true when the user index of the store and the scan of the
 	// legacy documents have added their crews. ScanStep and ScanCursor are
 	// the place of the scan.
@@ -173,6 +183,17 @@ func (r *userScrubRecord) addCrews(crews ...string) {
 	}
 }
 
+// soleMemberOf reports whether the user was the only member of the crew at
+// the delete.
+func (r *userScrubRecord) soleMemberOf(crewID string) bool {
+	for _, c := range r.SoleCrews {
+		if c == crewID {
+			return true
+		}
+	}
+	return false
+}
+
 func (r *userScrubRecord) addMedia(m scrubMedia) {
 	if m.CrewID == "" {
 		return
@@ -217,10 +238,13 @@ type userScrubResult struct {
 	// the store are not scrubbed, and the scrub is not done.
 	StorePending  bool `json:"store_pending,omitempty"`
 	CrewsScrubbed int  `json:"crews_scrubbed"`
-	CrewsLeft     int  `json:"crews_left"`
-	Dropped       int  `json:"dropped"`
-	Changed       int  `json:"changed"`
-	MediaDeleted  int  `json:"media_deleted"`
+	// CrewsPurged is the number of crews the run started a purge of: the
+	// user was their only member, and their group went with the account.
+	CrewsPurged  int `json:"crews_purged,omitempty"`
+	CrewsLeft    int `json:"crews_left"`
+	Dropped      int `json:"dropped"`
+	Changed      int `json:"changed"`
+	MediaDeleted int `json:"media_deleted"`
 	// MediaPending is the number of clips and streams whose media is still
 	// to be deleted. MediaSkipped names the media the scrub will not delete.
 	MediaPending int      `json:"media_pending"`
@@ -350,8 +374,15 @@ func accountExists(ctx context.Context, nk runtime.NakamaModule, userID string) 
 
 // BeforeDeleteAccount runs before Nakama deletes an account
 // (DELETE /v2/account). After the delete the names and the crews of the user
-// cannot be read, so this hook writes them to the scrub record. It deletes
-// nothing: the delete can still fail. It never fails the delete.
+// cannot be read, so this hook writes them to the scrub record. A crew whose
+// only owner is the user gets a new owner here (crew_handover.go): Nakama
+// deletes a group whose last superadmin deletes the account. The hook deletes
+// nothing: the delete can still fail.
+//
+// The hook fails the delete in one case: a crew with other members could not
+// be handed over, or the crews of the user could not be read. The crew would
+// go with the account. The user can try again. Nothing else fails the
+// delete: not the account read, not the write of the scrub record.
 func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule) error {
 	userID, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if userID == "" {
@@ -359,7 +390,7 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	}
 	// The account is read once. The record is then written with a version
 	// check, and read again when the deletion job wrote it in between.
-	var names, crews []string
+	var names, crews, owned []string
 	if users, err := nk.UsersGetId(ctx, []string{userID}, nil); err != nil {
 		logger.Error("user_scrub_failed user=%s: account read: %v", userID, err)
 	} else {
@@ -371,20 +402,34 @@ func BeforeDeleteAccount(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	for {
 		groups, next, err := nk.UserGroupsList(ctx, userID, 100, nil, cursor)
 		if err != nil {
-			logger.Error("user_scrub_failed user=%s: crews read: %v", userID, err)
-			break
+			// The user can be the only owner of a crew that was not read.
+			logger.Error("crew_handover_failed user=%s: crews read: %v. Crews of other members may be at stake. The account delete is refused", userID, err)
+			return errAccountDeleteHandover
 		}
 		for _, g := range groups {
 			crews = append(crews, g.GetGroup().GetId())
+			if g.GetState().GetValue() == groupStateSuperadmin {
+				owned = append(owned, g.GetGroup().GetId())
+			}
 		}
 		if next == "" {
 			break
 		}
 		cursor = next
 	}
+	soleCrews, failed := handOverOwnedCrews(ctx, nk, logger, userID, owned)
+	if failed > 0 {
+		// A crew that was handed over before the failure keeps its new
+		// owner, beside the user.
+		logger.Error("crew_handover_failed user=%s: %d of %d owned crews were not handed over. The account delete is refused", userID, failed, len(owned))
+		return errAccountDeleteHandover
+	}
 	_, err := updateUserScrubRecord(ctx, nk, userID, func(rec *userScrubRecord) {
 		rec.addNames(names...)
 		rec.addCrews(crews...)
+		// The list of this attempt replaces the list of an earlier one: a
+		// crew can have a member now that it did not have then.
+		rec.SoleCrews = soleCrews
 		// Each delete attempt starts the wait for the delete again. The job
 		// deletes a record of an account that still exists after
 		// userScrubStale: a record of an earlier attempt must not be cleaned
@@ -433,25 +478,36 @@ func confirmUserScrub(ctx context.Context, nk runtime.NakamaModule, userID strin
 }
 
 // scrubScanCollections are the documents the scrub scans for the id of the
-// user, in order: the legacy documents of the ledger, and the head2head
-// holders documents.
-var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection}
+// user, in order: the legacy documents of the ledger, the head2head holders
+// documents, and the invite codes. A scrub record holds its place in this
+// list (ScanStep): a new collection goes at the end.
+//
+// The quests record, the crew emoji and the push queues of a crew are not
+// scanned. They are read by key for each crew of the record: the crews of
+// the user at the delete, and the crews the ledger names the user in. A
+// member has a member_joined event in the ledger of the crew.
+var scrubScanCollections = []string{CrewEventsCollection, CrewClipsCollection, CrewStreamSessionsCollection, CrewRecapsCollection, CrewHead2headCollection,
+	InviteCodeCollection}
 
-// scrubScanCrewID is the crew id of a scanned document, from its key.
+// scrubScanCrewID is the crew id of a scanned document, from its key. An
+// invite code has no crew to scrub: the scan clears its inviter.
 func scrubScanCrewID(collection, key string) string {
-	if collection == CrewHead2headCollection {
+	switch collection {
+	case CrewHead2headCollection:
 		crewID, ok := strings.CutPrefix(key, head2headKeyPrefix)
 		if !ok {
 			return ""
 		}
 		return crewID
+	case InviteCodeCollection:
+		return ""
 	}
 	return key
 }
 
 // discoverUserCrews adds to the record the crews that hold the user: the
-// crews of the user index of the store, and the crews whose legacy documents
-// hold the id of the user. The crews the user was a member of at the delete
+// crews of the user index of the store, and the crews whose documents hold
+// the id of the user. It clears the user from the invite codes on the way. The crews the user was a member of at the delete
 // are in the record already. It returns false when the deadline cut the scan.
 func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userScrubRecord, res *userScrubResult, deadline time.Time) (bool, error) {
 	if store := currentLedger(); store != nil && rec.ScanStep == 0 && rec.ScanCursor == "" {
@@ -468,6 +524,12 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 			return false, nil
 		}
 		collection := scrubScanCollections[rec.ScanStep]
+		if collection == InviteCodeCollection && rec.SecondRun {
+			// The first run cleared the codes of the user, and a deleted
+			// account makes no code.
+			rec.ScanStep++
+			continue
+		}
 		objects, next, err := nk.StorageList(ctx, "", SystemUserID, collection, 100, rec.ScanCursor)
 		if err != nil {
 			res.fail("scan of %s: %v", collection, err)
@@ -475,9 +537,22 @@ func discoverUserCrews(ctx context.Context, nk runtime.NakamaModule, rec *userSc
 		}
 		for _, obj := range objects {
 			// The id of the user anywhere in the document, in any field.
-			if strings.Contains(obj.GetValue(), rec.UserID) {
-				rec.addCrews(scrubScanCrewID(collection, obj.GetKey()))
+			if !strings.Contains(obj.GetValue(), rec.UserID) {
+				continue
 			}
+			if collection == InviteCodeCollection {
+				// The key of an invite code is the code, so nothing lists
+				// the codes of a user but this scan.
+				err := scrubDoc(ctx, nk, InviteCodeCollection, obj.GetKey(), func(value string) (string, bool, error) {
+					return scrubInviteCodeForUser(value, rec.UserID)
+				})
+				if err != nil {
+					res.fail("%s: %v", InviteCodeCollection, err)
+					return false, nil
+				}
+				continue
+			}
+			rec.addCrews(scrubScanCrewID(collection, obj.GetKey()))
 		}
 		rec.ScanCursor = next
 		if next == "" {
@@ -762,15 +837,52 @@ func (c *crewScrub) saveRecord() error {
 // scrubCrewForUser scrubs one crew: the legacy documents, the rows of the
 // store, then the recaps. done is false when the deadline cut it.
 func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runtime.Logger, rec *userScrubRecord, res *userScrubResult, crewID string, deadline time.Time) (done bool, err error) {
-	// A crew that is no longer a group is scrubbed as any other crew. The
-	// scrub never purges a crew: what happens to the crew of an owner who
-	// deletes the account is not decided.
+	// A group read that fails is never a group that is gone.
 	exists, err := crewGroupExists(ctx, nk, crewID)
 	if err != nil {
 		return false, fmt.Errorf("group read: %w", err)
 	}
+	if !exists && rec.DeletedMs > 0 && rec.soleMemberOf(crewID) && validPurgeCrewID(crewID) {
+		// The user was the only member, and Nakama deleted the group with
+		// the account. No delete-group hook ran, so the purge starts here.
+		// The purge record is the order: with the record written, the
+		// deletion job and admin_purge_crew end a purge that fails here.
+		if _, err := ensureCrewPurgeRecord(ctx, nk, crewID); err != nil {
+			return false, fmt.Errorf("purge record write: %w", err)
+		}
+		logger.Info("user_scrub user=%s crew=%s: the user was the only member and the group is gone. The crew is purged", rec.UserID, crewID)
+		purgeCrewData(ctx, nk, logger, crewID, deadline)
+		res.CrewsPurged++
+		return true, nil
+	}
 	if !exists {
-		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged", rec.UserID, crewID)
+		// Any other crew with no group is scrubbed as a crew with a group,
+		// and never purged: nothing says here that no member is left.
+		logger.Warn("user_scrub user=%s crew=%s: the crew is not a group. Its data is scrubbed, not purged. To remove it, run admin_purge_crew", rec.UserID, crewID)
+	}
+
+	if exists && rec.DeletedMs > 0 {
+		// Nakama keeps the membership rows of a deleted superadmin or admin
+		// (crew_handover.go).
+		n, err := dropGoneMember(ctx, crewID, rec.UserID)
+		if err != nil {
+			return false, fmt.Errorf("membership rows: %w", err)
+		}
+		if n > 0 {
+			logger.Info("user_scrub user=%s crew=%s: removed %d membership rows that Nakama left", rec.UserID, crewID, n)
+		}
+		// Two owners who delete their accounts at the same time leave a
+		// crew with no owner.
+		if _, err := repairOwnerlessCrew(ctx, nk, logger, crewID); err != nil {
+			return false, fmt.Errorf("owner repair: %w", err)
+		}
+	}
+
+	// The chat images the user posted in the crew go with the account. An
+	// install with no media bucket has none. The entry is saved with the
+	// record before a document of the crew changes (crewScrub.documents).
+	if client, bucket := crewGiftsBucket(); client != nil && bucket != "" && validPurgeCrewID(crewID) && validPurgeCrewID(rec.UserID) {
+		rec.addMedia(scrubMedia{Kind: scrubKindChatImages, CrewID: crewID, Ref: rec.UserID})
 	}
 
 	c := &crewScrub{ctx: ctx, nk: nk, rec: rec, res: res, crewID: crewID, clipIDs: map[string]bool{}}
@@ -799,6 +911,9 @@ func scrubCrewForUser(ctx context.Context, nk runtime.NakamaModule, logger runti
 		return false, err
 	}
 	if err := c.head2head(); err != nil {
+		return false, err
+	}
+	if err := c.leftovers(exists); err != nil {
 		return false, err
 	}
 	InvalidateCrewState(crewID)
@@ -1160,7 +1275,7 @@ func (c *crewScrub) head2head() error {
 }
 
 // deleteScrubMedia deletes the media of the dropped clips and streams of the
-// user, up to the deadline of the run. A delete cannot be undone, so:
+// user, and the chat images the user posted, up to the deadline of the run. A delete cannot be undone, so:
 //
 //   - a key is made only from a crew id, a clip_id or a session id that is
 //     safe in a key. Anything else is not deleted. It moves to the skipped
@@ -1191,6 +1306,34 @@ func deleteScrubMedia(ctx context.Context, nk runtime.NakamaModule, rec *userScr
 			res.Incomplete = true
 			left = append(left, rec.Media[i:]...)
 			break
+		}
+		if m.Kind == scrubKindChatImages {
+			// The exact prefix of one user in one crew, from two ids that
+			// are UUIDs.
+			if !validPurgeCrewID(m.CrewID) || !validPurgeCrewID(m.Ref) {
+				rec.addSkipped(m, scrubSkipUnsafeID)
+				continue
+			}
+			client, bucket := crewGiftsBucket()
+			if client == nil || bucket == "" {
+				res.fail("media %s: the bucket is not configured. The entry stays in the record", name)
+				left = append(left, m)
+				continue
+			}
+			n, incomplete, err := deleteObjectsUnder(ctx, client, bucket, m.CrewID+"/"+m.Ref+"/", m.Ref, deadline)
+			res.MediaDeleted += n
+			if err != nil {
+				res.fail("media %s: %v", name, err)
+			}
+			if incomplete {
+				res.Incomplete = true
+				rec.Media = append(left, rec.Media[i:]...)
+				return
+			}
+			if err != nil {
+				left = append(left, m)
+			}
+			continue
 		}
 		if !validGameClipID(m.CrewID) || !validGameClipID(m.Ref) {
 			rec.addSkipped(m, scrubSkipUnsafeID)
@@ -1342,6 +1485,7 @@ func StartLedgerDeletionJob(ctx context.Context, nk runtime.NakamaModule, logger
 		deadline := time.Now().Add(userScrubBudget)
 		runPendingUserScrubs(ctx, nk, logger, deadline)
 		runPendingCrewPurges(ctx, nk, logger, time.Now().Add(crewPurgeBudget))
+		sweepGoneMembers(ctx, nk, logger, time.Now().Add(userScrubBudget))
 		select {
 		case <-ctx.Done():
 			return

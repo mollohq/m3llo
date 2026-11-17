@@ -61,7 +61,8 @@ func requireGift(ctx context.Context, nk runtime.NakamaModule, crewID, gift stri
 	return nil
 }
 
-// isCrewOwner is the superadmin of the crew: the member who made it.
+// isCrewOwner is a superadmin of the crew: the member who made it, or the
+// member a handover made the owner (crew_handover.go).
 func isCrewOwner(ctx context.Context, nk runtime.NakamaModule, crewID, userID string) bool {
 	state, err := callerCrewState(ctx, nk, userID, crewID)
 	return err == nil && state != nil && *state == 0
