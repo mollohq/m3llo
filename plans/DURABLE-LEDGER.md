@@ -47,14 +47,14 @@ CREW-FEED-ZONES.md section 7.
   (section 2). The first plan of this phase had it.
 - One `crew_feed` call reads the store 15 times with m3llo+ and at most 20
   times without it. Before phase 2 it was 14 and 19.
+- A locked week shows nothing of a game session but the number in "+N". A
+  locked week of game sessions only, with no recap, is not sent.
 
 Still a plan:
 
 - iOS (`mello-ios`). It shows the game sessions of an open week now: they are
-  entries of `items`. It does not read `session_count`. A locked week of
-  game sessions only shows on iOS with no count.
-- A locked week has no teaser for a game session. A teaser costs one read
-  more for each locked week. Not decided.
+  entries of `items`. It does not read `session_count`, so the "+N" of
+  a locked week does not count the game sessions.
 - The Sessions zone reads the 7-day view. With `free_days` above 7 a game
   session between 7 days and the free window is in no zone. Phase 3 changes
   the free window, so it must read the sessions of the window from the store.

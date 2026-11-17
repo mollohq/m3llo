@@ -1215,7 +1215,9 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 			}
 			// The game sessions. A week that ends before the free window
 			// and is locked keeps its number from the rollup and costs no
-			// read. A week with more than zonesWeekSessionsReadMax sessions
+			// read. Its game sessions do not make it a week of Crew
+			// history: a locked week needs a clip, a stream session or a
+			// recap (zoneHistory). A week with more than zonesWeekSessionsReadMax sessions
 			// keeps its number from the rollup and costs one read, of the
 			// newest zonesWeekSessionsMax. Every other week reads its
 			// sessions with its clips and stream sessions.
@@ -1224,7 +1226,6 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 				switch {
 				case whole && open != nil && !open(w):
 					data.setSessionCount(w, n)
-					kept += n
 				case whole && n > zonesWeekSessionsReadMax:
 					rows, err := store.NewestN(ctx, crewID, []string{ledgerTypeGameSession}, w+weekMs, zonesWeekSessionsMax)
 					if err != nil {
@@ -1261,7 +1262,10 @@ func loadZoneHistoryFromStore(ctx context.Context, store ledgerStore, crewID str
 					case ledgerTypeGameSession:
 						if ev.Timestamp < windowStart && gameSessionRowHasContent(ev) {
 							data.GameSessions = append(data.GameSessions, ev)
-							kept++
+							// Not for a locked week, as above.
+							if open == nil || open(w) {
+								kept++
+							}
 						}
 					}
 				}

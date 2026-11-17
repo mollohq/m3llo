@@ -101,7 +101,8 @@ type ZonePeople struct {
 
 // ZoneHistoryWeek is one past week of Crew history. Locked: the viewer has no
 // m3llo+, so the week has counts and teasers only. A game session has no
-// teaser: a locked week holds its number.
+// teaser: a locked week with a clip or a stream session holds its number.
+// A locked week with game sessions only is not sent.
 type ZoneHistoryWeek struct {
 	WeekStart  int64 `json:"week_start"`
 	WeekNumber int   `json:"week_number,omitempty"`
@@ -573,8 +574,24 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		}
 	}
 
+	founding := map[int64]bool{}
+	for _, ws := range foundingWeeks(in.Quests) {
+		founding[ws] = true
+	}
+	// A week that the viewer cannot open is in Crew history only when it has
+	// a clip, a stream session or a recap. Its game sessions show nothing to
+	// that viewer, so they do not make a week and are not counted.
+	lockedSessionsOnly := func(ws int64, w *week) bool {
+		if in.Plus || founding[ws] {
+			return false
+		}
+		return w.recap == nil && len(w.clips) == 0 && len(w.streams) == 0 && w.locked == nil
+	}
 	starts := make([]int64, 0, len(weeks))
-	for ws := range weeks {
+	for ws, w := range weeks {
+		if lockedSessionsOnly(ws, w) {
+			continue
+		}
 		if in.HistoryBefore <= 0 || ws < in.HistoryBefore {
 			starts = append(starts, ws)
 		}
@@ -586,10 +603,6 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		next = starts[len(starts)-1]
 	}
 
-	founding := map[int64]bool{}
-	for _, ws := range foundingWeeks(in.Quests) {
-		founding[ws] = true
-	}
 	out := make([]ZoneHistoryWeek, 0, len(starts))
 	for _, ws := range starts {
 		w := weeks[ws]
@@ -616,6 +629,11 @@ func zoneHistory(in zonesInput, start, boardWeek int64) ([]ZoneHistoryWeek, int6
 		}
 		if len(w.sessions) > zonesWeekSessionsMax {
 			w.sessions = w.sessions[:zonesWeekSessionsMax]
+		}
+		// A locked week counts its game sessions only next to a clip or a
+		// stream session: the client adds them to the "+N" of the teasers.
+		if !open && clipCount == 0 && len(w.streams) == 0 {
+			sessionCount = 0
 		}
 		h := ZoneHistoryWeek{
 			WeekStart:    ws,

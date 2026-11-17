@@ -231,15 +231,16 @@ global Hist {
           big: { value: "3", label: "SESSIONS" },
           clips: [Hist.p-drg, Hist.p-rl, Hist.p-cs] },
     ];
-    /// The same weeks without m3llo+. A game session has no teaser: the
-    /// week counts it.
+    /// Without m3llo+. Week 44: a game session has no teaser, the week
+    /// counts it in "+N". Week 43 has a recap and game sessions only: the
+    /// week card alone. A week of game sessions with no recap is not sent.
     out property <[HistoryWeek]> locked-sessions: [
-        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: true, seal: Data.week-seal, more: 30, sessions: 9,
+        { label: "Week 44", label-upper: "WEEK 44", age: "Last week", locked: true, seal: Data.week-seal, more: 30,
           teasers: [
             { person: Crew.leo, kind: "clip", duration: "0:18", code: SealedFixtures.carry-code },
             { person: Crew.sara, kind: "VOICE", duration: "0:30", code: SealedFixtures.owl-code },
           ] },
-        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: true, seal: { key: "plus:43", sealed: true, seed: 911, bright: SealedFixtures.recap-bright, dim: SealedFixtures.recap-dim }, more: 3, sessions: 3 },
+        { label: "Week 43", label-upper: "WEEK 43", age: "2 weeks ago", locked: true, seal: { key: "plus:43", sealed: true, seed: 911, bright: SealedFixtures.recap-bright, dim: SealedFixtures.recap-dim } },
     ];
 }
 
@@ -420,7 +421,8 @@ export component PreviewFeedHistorySessions inherits Panel {
     };
 }
 
-/// 7c · The same weeks without m3llo+: locked, the game sessions counted.
+/// 7c · Without m3llo+: a locked week counts its game sessions in "+N". A
+/// locked week with a recap and game sessions only is the week card alone.
 export component PreviewFeedHistorySessionsLocked inherits Panel {
     height: 1700px;
     zones: {

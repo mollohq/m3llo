@@ -601,10 +601,10 @@ fn build_from_zones(ctx: &AppContext, zs: &mello_core::crew_events::FeedZones) -
                             })
                             .collect(),
                     );
-                    // A game session has no teaser: it is in the count.
+                    // A game session has no teaser: it is in the count. The
+                    // server sends the number only next to a clip or stream.
                     let total = (w.clip_count + w.stream_count + w.session_count).max(0) as usize;
                     h.more = total.saturating_sub(h.teasers.row_count()) as i32;
-                    h.sessions = w.session_count.max(0);
                 } else {
                     if let Some(r) = w.recap.as_ref().map(card) {
                         let mut tmp = ZonesData::default();

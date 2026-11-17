@@ -132,14 +132,20 @@ Everything older is Crew history, which is m3llo+.
   no media, poster or snapshot URL for a locked week.
 - A viewer with m3llo+ gets the week open: its numbers and its clips, its
   streams and its game sessions.
-- A week holds its game sessions. A week with game sessions and nothing else
-  is a week of Crew history. A voice session is not in Crew history.
+- A week holds its game sessions. For a viewer who can open it, a week with
+  game sessions and nothing else is a week of Crew history. A voice session
+  is not in Crew history.
 - An open week lists at most its newest 12 game sessions, after its clips
   and streams. `session_count` holds the number of all of them.
-- A locked week holds `session_count` only. A game session has no teaser, and
-  the server sends no game name for a locked week. The client adds the
-  number to the "+N" tile. A locked week of game sessions only shows one tile
-  with the number.
+- A locked week shows nothing of a game session: no teaser, no game name.
+  The rule: a locked week that gives the viewer no value is not there.
+  - A locked week with a clip or a stream holds `session_count`. The client
+    adds the number to the "+N" tile.
+  - A locked week with a recap and no clip or stream is the week card alone.
+    Its `session_count` is 0.
+  - A locked week with game sessions and no recap, clip or stream is not
+    sent. It is not in the list, not in a page of four and not in the week
+    count of the m3llo+ strip. A viewer with m3llo+ gets it as an open week.
 - The founding week of a crew is open for every member once its quest step 4
   is done: the weeks that overlap the first 7 days of the crew
   (`CREW-QUESTS.md` section 3.4). Such a week carries `founding: true`.
@@ -169,6 +175,9 @@ Everything older is Crew history, which is m3llo+.
 - One `crew_feed` call reads the store 15 times for a viewer with m3llo+ and
   at most 20 times for a viewer without it. Each week of the page with more
   than 48 game sessions adds one read for a viewer with m3llo+.
+- A week that is not sent costs no read of its own. The server looks at 10
+  weeks of the rollup in one round of 4 reads. A viewer without m3llo+ whose
+  next 10 weeks hold fewer than 5 weeks to send costs one more round.
 
 ## 8. Payload
 

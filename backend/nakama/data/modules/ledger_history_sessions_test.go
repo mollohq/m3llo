@@ -82,14 +82,17 @@ func TestHistoryWeeksHoldGameSessionsFromTheStore(t *testing.T) {
 		t.Fatalf("the Sessions zone holds the free window only: %s", hEntries(z.Sessions))
 	}
 
-	// u1 has not.
+	// u1 has not: the week with a clip counts its sessions. The week of
+	// game sessions only is not there.
 	z = hZones(nk, "gs", "u1", 0, hNow)
-	if len(z.History) != 2 {
-		t.Fatalf("locked history = %v, want the weeks -3 and -5", hWeeks(z.History))
+	if len(z.History) != 1 || z.History[0].WeekStart != hAt(-3, 0, 0) || z.HistoryNext != 0 {
+		t.Fatalf("locked history = %v, want the week -3 only", hWeeks(z.History))
 	}
 	for _, w := range z.History {
-		if !w.Locked || len(w.Items) != 0 || w.SessionCount == 0 {
-			t.Fatalf("locked week = %+v, want the number of sessions and no item", w)
+		// The number of a locked week is the one of the week rollup: it
+		// counts the session of zero minutes.
+		if !w.Locked || len(w.Items) != 0 || w.SessionCount != 3 || w.ClipCount != 1 {
+			t.Fatalf("locked week = %+v, want one clip, three sessions and no item", w)
 		}
 		for _, teaser := range w.Teasers {
 			if teaser.Kind != "voice" && teaser.Kind != "clip" && teaser.Kind != "stream" {
@@ -142,9 +145,8 @@ func TestHistoryTakesTheGameSessionCardsOlderThanTheFreeWindow(t *testing.T) {
 		t.Fatalf("history = %+v, want one week with the older game session", z.History)
 	}
 	in.Plus = false
-	z = buildFeedZones(in)
-	if w := z.History[0]; !w.Locked || w.SessionCount != 1 || len(w.Items) != 0 {
-		t.Fatalf("locked week = %+v", w)
+	if z = buildFeedZones(in); len(z.History) != 0 {
+		t.Fatalf("locked history = %+v, want no week of game sessions only", z.History)
 	}
 }
 
@@ -184,20 +186,68 @@ func TestHistoryWeekListsTheNewestGameSessions(t *testing.T) {
 	if _, rows := counter.total(); rows != 0 {
 		t.Fatalf("the locked page read %d rows: %s", rows, counter)
 	}
-	if w := weekOf(z, hAt(-4, 0, 0)); w == nil || !w.Locked || w.SessionCount != many {
-		t.Fatalf("locked week -4 = %+v", w)
+	if len(z.History) != 0 {
+		t.Fatalf("locked history = %v, want no week of game sessions only", hWeeks(z.History))
 	}
 }
 
-// Weeks that hold only game sessions page as the other weeks: four to a
-// page, and every week once.
+// A locked week whose only content is game sessions. With a recap it is the
+// week card of before: no session count. With no recap it is not sent, and a
+// page still holds four weeks that the viewer can see.
+func TestLockedWeekOfGameSessionsOnly(t *testing.T) {
+	useHistoryStoreReads(t)
+	nk := hCrew(t, "lk")
+	// Weeks -2 to -9 hold game sessions only. Week -4 has a recap. The
+	// weeks -10 to -14 hold a clip.
+	for week := -2; week >= -9; week-- {
+		hGameSession(t, nk, "lk", fmt.Sprintf("g%d", -week), "u1", hAt(week, 3, 20), 40)
+	}
+	hRecap(t, nk, "lk", WeeklyRecapData{WeekStart: hAt(-4, 0, 0), TotalHangoutMin: 40, TotalMin: 40})
+	// The newest recap is the one of the board, so it is not history.
+	hRecap(t, nk, "lk", WeeklyRecapData{WeekStart: hAt(-1, 0, 0), TotalHangoutMin: 10, TotalMin: 10})
+	for week := -10; week >= -14; week-- {
+		hClip(t, nk, "lk", StoredClip{ClipID: fmt.Sprintf("c%d", -week), ActorID: "u1", Ts: hAt(week, 1, 0), DurationSeconds: 9})
+	}
+
+	// u1 has no m3llo+.
+	z := hZones(nk, "lk", "u1", 0, hNow)
+	want := []int64{hAt(-4, 0, 0), hAt(-10, 0, 0), hAt(-11, 0, 0), hAt(-12, 0, 0)}
+	if len(z.History) != len(want) || z.HistoryNext == 0 {
+		t.Fatalf("locked page 1 = %v next %d, want four weeks and a next page", hWeeks(z.History), z.HistoryNext)
+	}
+	for i, w := range z.History {
+		if w.WeekStart != want[i] || !w.Locked {
+			t.Fatalf("locked page 1 = %v, want the recap week and the clip weeks", hWeeks(z.History))
+		}
+	}
+	if w := z.History[0]; w.SessionCount != 0 || w.ClipCount != 0 || w.StreamCount != 0 || len(w.Teasers) != 0 || len(w.Items) != 0 {
+		t.Fatalf("the locked recap week = %+v, want the week card and nothing of its sessions", w)
+	}
+	z = hZones(nk, "lk", "u1", z.HistoryNext, hNow)
+	if len(z.History) != 2 || z.HistoryNext != 0 {
+		t.Fatalf("locked page 2 = %v next %d, want the last two clip weeks", hWeeks(z.History), z.HistoryNext)
+	}
+
+	// u2 has m3llo+: every week is there, open.
+	z = hZones(nk, "lk", "u2", 0, hNow)
+	if len(z.History) != zonesHistoryPageWeeks || z.History[0].WeekStart != hAt(-2, 0, 0) || z.History[0].Locked || z.History[0].SessionCount != 1 {
+		t.Fatalf("m3llo+ page 1 = %v", hWeeks(z.History))
+	}
+}
+
+// Weeks that hold only game sessions page as the other weeks for a viewer
+// with m3llo+: four to a page, and every week once. A viewer without it gets
+// none of them.
 func TestHistoryPagesWeeksOfGameSessions(t *testing.T) {
 	useHistoryStoreReads(t)
 	nk := hCrew(t, "pg")
 	for week := -2; week >= -11; week-- {
 		hGameSession(t, nk, "pg", fmt.Sprintf("g%d", -week), "u1", hAt(week, 3, 20), 40)
 	}
-	for _, viewer := range []string{"u1", "u2"} {
+	if z := hZones(nk, "pg", "u1", 0, hNow); len(z.History) != 0 || z.HistoryNext != 0 {
+		t.Fatalf("locked history = %v next %d, want none", hWeeks(z.History), z.HistoryNext)
+	}
+	for _, viewer := range []string{"u2"} {
 		seen := map[int64]int{}
 		pages := 0
 		for before := int64(0); ; pages++ {

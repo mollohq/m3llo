@@ -150,8 +150,9 @@ fn a_locked_week_of_the_payload_is_sealed_with_teasers() {
     assert!(!z.history_more);
 }
 
-/// A locked week counts its game sessions. A game session has no teaser, so
-/// a week of game sessions only shows the count.
+/// A locked week with a clip counts its game sessions in "+N". A game session
+/// has no teaser. A locked week with a recap and no clip or stream is the
+/// week card alone: the server sends no session count for it.
 #[test]
 fn a_locked_week_counts_its_game_sessions() {
     let mut h = Harness::new();
@@ -164,7 +165,7 @@ fn a_locked_week_counts_its_game_sessions() {
                  "clip_count": 1, "stream_count": 0, "session_count": 5,
                  "teasers": [{"kind": "clip", "actor_name": "Leo", "duration_seconds": 30.0, "ts": 1_792_400_000_000_i64}]},
                 {"week_start": 1_791_763_200_000_i64, "week_number": 43, "locked": true,
-                 "clip_count": 0, "stream_count": 0, "session_count": 3}],
+                 "clip_count": 0, "stream_count": 0, "session_count": 0}],
             "history_next": 0
         })),
     });
@@ -175,8 +176,7 @@ fn a_locked_week_counts_its_game_sessions() {
     let quiet = z.history.row_data(1).expect("week 43");
     assert!(quiet.locked && quiet.seal.sealed);
     assert_eq!(quiet.teasers.row_count(), 0);
-    assert_eq!(quiet.more, 3, "three game sessions");
-    assert_eq!(quiet.sessions, 3);
+    assert_eq!(quiet.more, 0, "the week card and nothing beside it");
     assert_eq!(quiet.clips.row_count(), 0, "nothing shows in a locked week");
 }
 
