@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -490,6 +491,70 @@ func TestInALargeCrewAnAskWithAGameGoesToTheMembersWhoHaveIt(t *testing.T) {
 	}
 }
 
+// A client sends the id of the game catalogue when it cannot map the game to
+// a library id. That id has no hyphen ("valorant").
+func TestAnAskWithACatalogueGameIDOpensAndReachesTheLargeCrew(t *testing.T) {
+	r := newLtpRig(t, largeCrewMembers+2) // u1..u12
+	for i := 2; i <= 12; i++ {
+		r.nk.put(UserLibraryCollection, UserLibraryKey, fmt.Sprintf("u%d", i),
+			LibraryDoc{Games: []LibraryGame{{GameID: "steam-730", Name: "Counter-Strike 2"}}})
+	}
+	a := r.ask("u1", `{"crew_id":"c1","game":{"game_id":"valorant","name":"Valorant"}}`)
+
+	if a.State != ltpStateOpen || a.Game == nil || a.Game.GameID != "valorant" || a.Game.Name != "Valorant" {
+		t.Fatalf("ask = %+v", a)
+	}
+	msg := r.nk.messages[0]
+	if msg["body"] != "user1 is looking to play Valorant" {
+		t.Fatalf("message = %v", msg)
+	}
+	data, _ := msg["data"].(map[string]interface{})
+	if game, _ := data["game"].(map[string]interface{}); game["game_id"] != "valorant" || game["name"] != "Valorant" {
+		t.Fatalf("message data = %v", msg["data"])
+	}
+	// No library names the game, so every member but the asker gets the push
+	// and "notify": true.
+	if got := r.takePushes(); len(got) != largeCrewMembers+1 {
+		t.Fatalf("pushed to %d members, want %d: %v", len(got), largeCrewMembers+1, got)
+	}
+	if len(r.nk.notes) != largeCrewMembers+2 {
+		t.Fatalf("notified %d members, want %d", len(r.nk.notes), largeCrewMembers+2)
+	}
+	for _, n := range r.nk.notes {
+		game, _ := n.Content["game"].(map[string]interface{})
+		if n.Code != NotifyLookingToPlay || game["game_id"] != "valorant" {
+			t.Fatalf("note = %+v", n)
+		}
+		if n.UserID != "u1" && n.Content["notify"] != true {
+			t.Fatalf("%s gets notify = %v, want true", n.UserID, n.Content["notify"])
+		}
+	}
+
+	// The longest valid id has maxLibraryIDLen bytes.
+	long := strings.Repeat("a", maxLibraryIDLen)
+	if b := r.ask("u2", `{"crew_id":"c1","game":{"game_id":"`+long+`","name":"A"}}`); b.Game.GameID != long {
+		t.Fatalf("ask = %+v", b)
+	}
+}
+
+func TestASecondAskForTheSameCatalogueGameCountsAsIn(t *testing.T) {
+	r := newLtpRig(t, 4)
+	game := `{"crew_id":"c1","game":{"game_id":"valorant","name":"Valorant"}}`
+	a := r.ask("u1", game)
+	r.takePushes()
+
+	out, err := r.call(LookingToPlayAskRPC, "u2", game)
+	if err != nil || !out.Joined || out.Ask.AskID != a.AskID || out.Ask.State != ltpStateOn {
+		t.Fatalf("join: %v %+v", err, out)
+	}
+	if got := r.takePushes(); !reflect.DeepEqual(got, []string{"u1: user2 is in"}) {
+		t.Fatalf("pushes = %v", got)
+	}
+	if len(r.nk.messages) != 1 {
+		t.Fatalf("a join posts no second message: %d", len(r.nk.messages))
+	}
+}
+
 func TestListGivesTheOpenAsksAndTheAsksOfTheHistory(t *testing.T) {
 	r := newLtpRig(t, 3)
 	closed := r.ask("u1", `{"crew_id":"c1"}`)
@@ -528,7 +593,10 @@ func TestBadCallsAreRefused(t *testing.T) {
 	r := newLtpRig(t, 2)
 	cases := []struct{ name, user, payload, token string }{
 		{"no crew", "u1", `{}`, "BAD_REQUEST"},
-		{"bad game id", "u1", `{"crew_id":"c1","game":{"game_id":"x","name":"X"}}`, "BAD_REQUEST"},
+		{"empty game id", "u1", `{"crew_id":"c1","game":{"game_id":"","name":"X"}}`, "BAD_REQUEST"},
+		{"game id with a space", "u1", `{"crew_id":"c1","game":{"game_id":"steam 730","name":"X"}}`, "BAD_REQUEST"},
+		{"game id with a control character", "u1", `{"crew_id":"c1","game":{"game_id":"valorant\u0007","name":"X"}}`, "BAD_REQUEST"},
+		{"game id longer than the limit", "u1", `{"crew_id":"c1","game":{"game_id":"` + strings.Repeat("a", maxLibraryIDLen+1) + `","name":"X"}}`, "BAD_REQUEST"},
 		{"game with no name", "u1", `{"crew_id":"c1","game":{"game_id":"steam-1","name":""}}`, "BAD_REQUEST"},
 		{"picked members who are not in the crew", "u1", `{"crew_id":"c1","member_ids":["stranger"]}`, "BAD_REQUEST"},
 		{"not a member", "stranger", `{"crew_id":"c1"}`, "NOT_A_MEMBER"},

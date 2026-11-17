@@ -143,11 +143,13 @@ from `looking_to_play_open` at start.
 | `answers` | User id to `{answer, at, due_at, arrived_at}`. Times in Unix ms. The asker has `in` from the start |
 | `second_call_at` | Unix ms of the Second call push (3.4), else absent |
 
-**The game of an ask.** `game_id` must have the form `<prefix>-<rest>`, with no
-space and at most 128 bytes. `name` must not be empty and has at most 128
-characters. The stable id of the library report (`steam-730`) has this form. A
-client sends that id when it can map the game. Else it sends the id of the
-game catalogue (3.6, 3.7). Section 3.8 says what each id does.
+**The game of an ask.** `game_id` must not be empty, has no whitespace or
+control character, and has at most 128 bytes. A hyphen is not necessary.
+`name` must not be empty and has at most 128 characters. A client sends the
+stable id of the library report (`steam-730`) when it can map the game. Else
+it sends the id of the game catalogue (`valorant`) (3.6, 3.7). The library
+report keeps its own rule: its ids have the form `<prefix>-<rest>`. Section
+3.8 says what each id does.
 
 **The chat message.** The backend posts the message of an ask with
 `ChannelMessageSend`. It is a system message:
@@ -613,7 +615,7 @@ section is the contract.
 | File | Covers |
 |---|---|
 | `looking_to_play_test.go` | The rules of 3.1 and 3.2: the states, the answers, the due times, all no, the windows of 30 and 60 minutes, the voice join, the picked members, the rules and waits of a new ask |
-| `looking_to_play_rpc_test.go` | The RPCs on a fake Nakama: the message, notification 118, each push of 3.4, the join of an ask for the same game, the loop, the restart, the voice join and the Second call, the switch and the activity rule, the large crew, the list, bad calls |
+| `looking_to_play_rpc_test.go` | The RPCs on a fake Nakama: the message, notification 118, each push of 3.4, the join of an ask for the same game, the loop, the restart, the voice join and the Second call, the switch and the activity rule, the large crew, an ask and a join with a catalogue id, the list, bad calls and bad game ids |
 | `looking_to_play_picks_test.go` | The recent picks, and `notify` for the members that an ask reaches, in a small and a large crew |
 | `push_prefs_test.go` | The defaults by crew size, a stored choice, the RPCs |
 | `message_push_test.go`, `push_coalesce_test.go`, `push_text_test.go`, `push_remote_test.go` | The message push: recipients, body, language, collapse id, bursts, the limiter for each crew |
@@ -714,12 +716,9 @@ local SFU. Any other call path fails the journey.
 8. **The size limit differs at 11 members.** The backend counts every member,
    the desktop counts the others (3.8). A crew of 11 gets the backend rules of
    a large crew and the desktop layout of a small crew.
-9. **A game id with no hyphen.** The backend refuses a game id that does not
-   have the form `<prefix>-<rest>` (`BAD_REQUEST`). A catalogue id with no
-   hyphen fails. No test covers an ask with such an id.
-10. **Who to offer in a large crew.** The popover offers the recent picks, who
-    is on now and a search. It does not offer the members that a member plays
-    with most. The ledger has who played together.
-11. **Chinese.** No native reader reviewed the Simplified Chinese push texts of
+9. **Who to offer in a large crew.** The popover offers the recent picks, who
+   is on now and a search. It does not offer the members that a member plays
+   with most. The ledger has who played together.
+10. **Chinese.** No native reader reviewed the Simplified Chinese push texts of
     an ask. The new UI messages of the desktop have no Chinese text, except the
     label "Looking to play".

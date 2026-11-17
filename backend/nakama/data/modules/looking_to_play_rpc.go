@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/heroiclabs/nakama-common/runtime"
@@ -74,13 +75,28 @@ func ltpReply(v interface{}) (string, error) {
 	return string(data), nil
 }
 
-// validLtpGame checks the game of a request. The id has the form of the
-// library report ("steam-730").
+// validLtpGame checks the game of a request.
 func validLtpGame(g *ltpGame) bool {
 	if g == nil {
 		return true
 	}
-	return validLibraryGameID(g.GameID) && g.Name != "" && utf8.RuneCountInString(g.Name) <= maxLibraryNameRunes
+	return validLtpGameID(g.GameID) && g.Name != "" && utf8.RuneCountInString(g.Name) <= maxLibraryNameRunes
+}
+
+// validLtpGameID checks the game id of an ask. The id is a library id
+// ("steam-730") or an id of the game catalogue ("valorant"), so a hyphen is
+// not necessary. The id is not empty, has no whitespace or control
+// character, and has at most maxLibraryIDLen bytes.
+func validLtpGameID(id string) bool {
+	if id == "" || len(id) > maxLibraryIDLen {
+		return false
+	}
+	for _, r := range id {
+		if unicode.IsSpace(r) || unicode.IsControl(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // sendLtpMessage posts the chat message of an ask and returns its id. It is
