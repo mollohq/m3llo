@@ -21,7 +21,7 @@ no other layout rule.
 | Clips | Every clip of the free window, game and voice mixed, in one carousel | A clip exists |
 | People | The first five, the joins of the last 24 hours, voice | An open seat, a join, or voice to show |
 | Sessions | Live sessions, then every game, voice and stream session of the free window, in one carousel | A session exists |
-| Crew history | One row for each past week, newest first | Past weeks exist |
+| Crew history | One row for each past week, newest first: its clips, streams and game sessions | Past weeks exist |
 
 The feed has cards only. There are no headings or label lines outside a card.
 The You strip (`YOU-STRIP.md`) stays pinned above the zones. It shows once the
@@ -130,8 +130,16 @@ Everything older is Crew history, which is m3llo+.
 - A viewer without m3llo+ gets a locked week: the sealed recap field, the
   counts and up to six teasers (who, clip or stream, length). The server sends
   no media, poster or snapshot URL for a locked week.
-- A viewer with m3llo+ gets the week open: its numbers and its clips and
-  streams.
+- A viewer with m3llo+ gets the week open: its numbers and its clips, its
+  streams and its game sessions.
+- A week holds its game sessions. A week with game sessions and nothing else
+  is a week of Crew history. A voice session is not in Crew history.
+- An open week lists at most its newest 12 game sessions, after its clips
+  and streams. `session_count` holds the number of all of them.
+- A locked week holds `session_count` only. A game session has no teaser, and
+  the server sends no game name for a locked week. The client adds the
+  number to the "+N" tile. A locked week of game sessions only shows one tile
+  with the number.
 - The founding week of a crew is open for every member once its quest step 4
   is done: the weeks that overlap the first 7 days of the crew
   (`CREW-QUESTS.md` section 3.4). Such a week carries `founding: true`.
@@ -147,6 +155,20 @@ Everything older is Crew history, which is m3llo+.
   crew. The store has no cap.
 - For a locked week the server does not read the clips. It reads the clip
   count from the week rollup and the teaser clips.
+- The game sessions of Crew history come from the store only. Before the
+  cutover of phase 1b, and under `MELLO_LEDGER_READ=doc` or
+  `MELLO_LEDGER_HISTORY_READ=doc`, the ledger document is the truth. It holds
+  7 days, so a week then has a game session only when `free_days` is below 7.
+- The server reads the game sessions of an open week with its clips. For a
+  locked week it reads their number from the week rollup, and no row. For a
+  week with more than 48 game sessions it reads the number from the rollup
+  and the newest 12 rows.
+- The number of the rollup counts a game session of zero minutes. The feed
+  shows no card for such a session, so the number of a locked week, or of a
+  week with more than 48, can be higher than the cards of the week.
+- One `crew_feed` call reads the store 15 times for a viewer with m3llo+ and
+  at most 20 times for a viewer without it. Each week of the page with more
+  than 48 game sessions adds one read for a viewer with m3llo+.
 
 ## 8. Payload
 
@@ -167,6 +189,11 @@ other feed RPC.
 | `history` | One page of past weeks |
 | `history_next` | The `history_before` of the next page. Zero at the end |
 | `quests` | The quest card of a new crew (`CREW-QUESTS.md` section 4). Absent for a crew with no quest record and after its 14 days |
+
+A week of `history` is `{week_start, week_number, locked, founding,
+clip_count, stream_count, session_count, recap, items, teasers}`. `items` of
+an open week holds the clips, then the streams, then the game sessions (type
+`session`).
 
 An entry is `{id, type, ts, data}`. `type` is `clip`, `recap`, `daily-recap`,
 `session-preview` or `session`. The client skips a type it does not know. A
@@ -198,6 +225,7 @@ must update.
 - Server: `crew_feed_zones_test.go` (each zone, the gate, paging, the
   config). `ledger_history_zones_test.go`: the zones from the store equal
   the zones from the documents, and one page of a large crew reads a bounded
-  number of rows.
+  number of rows. `ledger_history_sessions_test.go`: the game sessions of a
+  week, the kill switches, the paging, and the read count with game sessions.
 - Client: `client/src/flow_tests/zones.rs`, `flow_tests/sealed.rs`.
 - Journeys: `qa/journeys/feed-*.ts` (FEED-03 to FEED-12 in `qa/flows.yaml`).
