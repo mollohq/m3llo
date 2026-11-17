@@ -1,6 +1,6 @@
 # Account delete in the clients
 
-> Status: built on the branch, 17 Nov 2026. Renders wait for approval from Bob. Not pushed.
+> Status: built on the branch. Bob approved the renders on 17 Nov 2026. Not pushed.
 > Branch: `feat/account-delete` (worktree `mello-wt-account-delete`). The iOS app gets a
 > branch of the same name in `mello-ios`.
 > Depends on `feat/delete-followups` (local only, not on origin). The copy below states its
