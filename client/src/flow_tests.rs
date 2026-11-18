@@ -10923,13 +10923,102 @@ fn pick_language(h: &mut Harness, name: &str) {
     h.pump();
 }
 
+/// The restart panel under the Language row is on screen.
 fn restart_hint_shown(h: &Harness) -> bool {
-    i_slint_backend_testing::ElementHandle::find_by_accessible_label(
-        h.app(),
-        "Takes effect after restart",
-    )
-    .next()
-    .is_some()
+    !h.controls_labelled("Restart now").is_empty()
+}
+
+/// A text on screen with this text.
+fn text_shown(h: &Harness, text: &str) -> bool {
+    i_slint_backend_testing::ElementHandle::find_by_accessible_label(h.app(), text)
+        .next()
+        .is_some()
+}
+
+/// Removes the settings directory of this test thread at the end of a test.
+struct ThreadConfigDir {
+    _dir: tempfile::TempDir,
+}
+
+impl ThreadConfigDir {
+    fn new() -> Self {
+        let dir = tempfile::tempdir().expect("a temp settings dir");
+        crate::settings::set_thread_config_dir(Some(dir.path().to_path_buf()));
+        Self { _dir: dir }
+    }
+}
+
+impl Drop for ThreadConfigDir {
+    fn drop(&mut self) {
+        crate::settings::set_thread_config_dir(None);
+    }
+}
+
+/// The language of the chosen row and the language of this run name the
+/// panel text and the "Keep" button. The tests run in English.
+#[test]
+fn another_language_shows_the_restart_panel() {
+    let mut h = general_settings();
+    let chinese = crate::locale::native_name("zh-CN");
+    assert!(!restart_hint_shown(&h), "no panel before a change");
+
+    pick_language(&mut h, &chinese);
+    assert_eq!(h.controls_labelled("Restart now").len(), 1);
+    assert_eq!(h.controls_labelled("Keep English").len(), 1);
+    assert!(
+        text_shown(&h, &format!("m3llo restarts to switch to {chinese}.")),
+        "the sentence names the chosen language"
+    );
+}
+
+/// "Keep" puts back the language of this run: the setting, the file, the
+/// dropdown and the account. The panel goes and nothing restarts.
+#[test]
+fn keep_restores_the_language_of_this_run() {
+    let _dir = ThreadConfigDir::new();
+    let mut h = general_settings();
+    let chinese = crate::locale::native_name("zh-CN");
+    pick_language(&mut h, &chinese);
+    assert_eq!(h.settings().borrow().language, "zh-CN");
+    assert_eq!(crate::Settings::load().language, "zh-CN");
+    h.commands();
+    let quits = crate::quit_voice::quit_requests();
+
+    h.click_label("Keep English");
+    assert_eq!(
+        h.settings().borrow().language,
+        "",
+        "the setting of this run"
+    );
+    assert_eq!(crate::Settings::load().language, "", "the file is saved");
+    assert_eq!(h.app().get_settings_language_name(), "System");
+    assert!(!restart_hint_shown(&h), "the panel goes");
+    assert_eq!(
+        account_languages(&h.commands()),
+        [crate::locale::language_for_setting("")],
+        "one account language, of this run"
+    );
+    assert_eq!(crate::quit_voice::quit_requests(), quits, "no quit");
+}
+
+/// "Restart now" asks for a restart one time and quits the same way as the
+/// tray "Quit".
+#[test]
+fn restart_now_asks_for_a_restart_and_quits() {
+    let mut h = general_settings();
+    let asked = std::rc::Rc::new(std::cell::Cell::new(0u32));
+    let seen = asked.clone();
+    *h.ctx().restart.borrow_mut() = Some(Box::new(move || seen.set(seen.get() + 1)));
+    pick_language(&mut h, &crate::locale::native_name("zh-CN"));
+    let quits = crate::quit_voice::quit_requests();
+
+    h.click_label("Restart now");
+    assert_eq!(asked.get(), 1, "one restart request");
+    assert_eq!(
+        crate::quit_voice::quit_requests(),
+        quits + 1,
+        "the quit of the tray runs"
+    );
 }
 
 #[test]

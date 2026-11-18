@@ -404,10 +404,7 @@ pub(crate) fn handle_menu_item(poll_ctx: &AppContext, id: &str) {
         "tray_leave" => {
             let _ = poll_ctx.cmd_tx.send(Command::LeaveVoice);
         }
-        "tray_quit" => {
-            log::info!("[quit] tray quit");
-            slint::quit_event_loop().ok();
-        }
+        "tray_quit" => crate::quit_voice::request_quit("tray quit"),
         _ => {
             #[cfg(target_os = "macos")]
             match id {

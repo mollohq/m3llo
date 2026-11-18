@@ -1930,6 +1930,20 @@ msgstr "开黑回放 · {}"
 msgid "default"
 msgstr "默认"
 
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "m3llo restarts to switch to {}."
+msgstr "切换到{}需要重启 m3llo。"
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "Keep {}"
+msgstr "保留{}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Restart now"
+msgstr "立即重启"
+
 #: client/ui/panels/settings_modal.slint
 msgid "Activation Sensitivity"
 msgstr "激活灵敏度"
@@ -2004,10 +2018,6 @@ msgstr "外观"
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
 msgstr "语言"
-
-#: client/ui/panels/settings_modal.slint
-msgid "Takes effect after restart"
-msgstr "重启后生效"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"

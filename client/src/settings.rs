@@ -206,6 +206,22 @@ impl Default for Settings {
 /// runner's) real config. Tests point this at a temp dir.
 pub const CONFIG_DIR_ENV: &str = "MELLO_CONFIG_DIR";
 
+#[cfg(test)]
+thread_local! {
+    /// The settings directory of this test thread. It comes before
+    /// `MELLO_CONFIG_DIR`, which all tests share, so a test can read back
+    /// the file that it saved.
+    static THREAD_CONFIG_DIR: std::cell::RefCell<Option<std::path::PathBuf>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Saves and loads the settings of this test thread in `dir` (`None`: the
+/// shared test directory again).
+#[cfg(test)]
+pub(crate) fn set_thread_config_dir(dir: Option<std::path::PathBuf>) {
+    THREAD_CONFIG_DIR.with(|d| *d.borrow_mut() = dir);
+}
+
 impl Settings {
     /// Settings file path for a given config-dir override value.
     ///
@@ -218,6 +234,10 @@ impl Settings {
 
     /// `None` means "use confy's platform default location".
     fn configured_path() -> Option<std::path::PathBuf> {
+        #[cfg(test)]
+        if let Some(dir) = THREAD_CONFIG_DIR.with(|d| d.borrow().clone()) {
+            return Self::override_path(Some(dir.to_string_lossy().into_owned()));
+        }
         Self::override_path(std::env::var(CONFIG_DIR_ENV).ok())
     }
 

@@ -61,6 +61,7 @@ mod poll_loop;
 mod quit_voice;
 mod recent_games;
 mod renderer_choice;
+mod restart;
 mod say_hi;
 mod sealed;
 mod settings;
@@ -245,6 +246,12 @@ pub fn run() {
     if let Err(e) = run_app() {
         log::error!("Fatal: {}", e);
         std::process::exit(1);
+    }
+
+    // After `run_app`: it dropped the single-instance lock, so the new
+    // process does not relay to this one and exit.
+    if restart::requested() {
+        restart::start_again();
     }
 }
 
@@ -696,6 +703,7 @@ fn run_app() -> Result<(), Box<dyn std::error::Error>> {
         tray_notice: Rc::new(RefCell::new(Some(Box::new(
             notifications::notify_closed_to_tray,
         )))),
+        restart: Rc::new(RefCell::new(Some(Box::new(restart::request)))),
         sounds: Rc::new(sounds::SoundCues::new(Some(sound_player))),
         stream_frame_timer: stream_frame_timer.clone(),
         #[cfg(target_os = "windows")]

@@ -15,6 +15,30 @@ use tokio::sync::mpsc::UnboundedSender;
 /// The longest a quit waits for the voice leave.
 pub const QUIT_VOICE_LEAVE_TIMEOUT: Duration = Duration::from_millis(1500);
 
+#[cfg(test)]
+thread_local! {
+    /// The quit requests of this test thread, for the tests.
+    static QUIT_REQUESTS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
+/// Quit the app: end the Slint event loop. The tray "Quit" and the restart
+/// for a language change call it. `run_app` then leaves voice
+/// ([`leave_voice_before_exit`]) and stops the HUD.
+pub(crate) fn request_quit(reason: &str) {
+    log::info!("[quit] {reason}");
+    #[cfg(test)]
+    QUIT_REQUESTS.with(|n| n.set(n.get() + 1));
+    if let Err(e) = slint::quit_event_loop() {
+        log::warn!("[quit] cannot end the event loop: {e}");
+    }
+}
+
+/// The count of [`request_quit`] calls on this thread.
+#[cfg(test)]
+pub(crate) fn quit_requests() -> u32 {
+    QUIT_REQUESTS.with(|n| n.get())
+}
+
 /// What the voice leave before exit did.
 #[derive(Debug, PartialEq, Eq)]
 pub enum QuitVoiceOutcome {

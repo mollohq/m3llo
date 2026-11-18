@@ -345,11 +345,13 @@ export component MainWindow inherits Window {
     in-out property <bool> settings-openh264-enabled: true;
     /// The UI language (specs/features/LOCALIZATION.md section 9): the
     /// choices, the saved tag ("" is System), the name that the dropdown
-    /// shows, and the hint that a restart applies the choice.
+    /// shows, and the panel that restarts the app or reverts the choice.
     in property <[AudioDeviceData]> settings-languages: [];
     in property <string> settings-language: "";
     in-out property <string> settings-language-name: "";
     in property <bool> settings-language-restart: false;
+    /// The name of the language of this run, for the "Keep" button.
+    in property <string> settings-language-keep-name: "";
     // Audio settings
     in-out property <float> settings-input-volume: 1.0;
     in-out property <float> settings-output-volume: 1.0;
@@ -814,6 +816,10 @@ export component MainWindow inherits Window {
     callback setting-changed-hw-acceleration(bool);
     callback setting-changed-openh264-enabled(bool);
     callback setting-changed-language(/* language tag, "" is System */ string);
+    // The restart panel of the Language row: keep the language of this run,
+    // or restart the app to show the chosen language.
+    callback language-keep-clicked();
+    callback language-restart-clicked();
     callback setting-changed-input-volume(float);
     callback setting-changed-output-volume(float);
     callback setting-changed-sounds(SoundSettings);
@@ -1944,6 +1950,7 @@ export component MainWindow inherits Window {
         language: root.settings-language;
         language-name <=> root.settings-language-name;
         language-restart: root.settings-language-restart;
+        language-keep-name: root.settings-language-keep-name;
         // Audio
         input-volume <=> root.settings-input-volume;
         output-volume <=> root.settings-output-volume;
@@ -2066,6 +2073,11 @@ export component MainWindow inherits Window {
             root.settings-show-saved = true;
             root.setting-changed-language(tag);
         }
+        language-keep-clicked => {
+            root.settings-show-saved = true;
+            root.language-keep-clicked();
+        }
+        language-restart-clicked => { root.language-restart-clicked(); }
         setting-changed-input-volume(v) => {
             root.settings-show-saved = true;
             root.setting-changed-input-volume(v);
