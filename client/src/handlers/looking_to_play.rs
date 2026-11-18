@@ -1,4 +1,4 @@
-//! Looking to play on desktop (plans/LOOKING-TO-PLAY.md 3.6): the events of
+//! Looking to play on desktop (specs/features/LOOKING-TO-PLAY.md 3.6): the events of
 //! an ask, the card in the chat feed, the composer pill and the ask popover.
 //!
 //! The rules are pure functions in `crate::looking_to_play`. This module

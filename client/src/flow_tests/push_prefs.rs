@@ -1,5 +1,5 @@
 //! The push switches of a crew (crew settings, NOTIFICATIONS tab;
-//! plans/LOOKING-TO-PLAY.md section 4): every way into crew settings loads
+//! specs/features/LOOKING-TO-PLAY.md section 4): every way into crew settings loads
 //! them, the server's answer sets and enables them, a press sends only the
 //! switch that changed, and a failure puts them back.
 

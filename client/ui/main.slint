@@ -564,7 +564,7 @@ export component MainWindow inherits Window {
     in-out property <bool> crew-settings-push-looking-to-play: false;
     in property <bool> crew-settings-push-ready: false;
     // Looking to play is built: its notification setting shows. False
-    // hides the row (plans/LOOKING-TO-PLAY.md, phase 1 shipped without it).
+    // hides the row (specs/features/LOOKING-TO-PLAY.md section 4).
     in property <bool> looking-to-play-available: true;
     callback crew-settings-opened();
     callback crew-settings-push-messages-toggled(/* on */ bool);
@@ -1490,7 +1490,7 @@ export component MainWindow inherits Window {
     }
 
     // ===================== LOOKING TO PLAY TOAST =====================
-    // A new ask of another member (plans/LOOKING-TO-PLAY.md 3.6). The top
+    // A new ask of another member (specs/features/LOOKING-TO-PLAY.md 3.6). The top
     // right corner, over the content, 16px in as in the mockup. No scrim
     // and no focus: input outside the card reaches the window. Rust decides
     // when it shows (`handlers/looking_to_play.rs`, `sync_toast`).

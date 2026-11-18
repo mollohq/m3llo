@@ -1,4 +1,4 @@
-//! The push switches of a member for one crew (plans/LOOKING-TO-PLAY.md
+//! The push switches of a member for one crew (specs/features/LOOKING-TO-PLAY.md
 //! section 4). The server holds them: a phone push must obey them when no
 //! client runs.
 

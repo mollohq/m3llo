@@ -544,7 +544,7 @@ pub enum Event {
         code: String,
     },
     /// The user's push switches for a crew, after a load or a set
-    /// (plans/LOOKING-TO-PLAY.md section 4).
+    /// (specs/features/LOOKING-TO-PLAY.md section 4).
     PushPrefsLoaded {
         prefs: crate::push_prefs::PushPrefs,
     },

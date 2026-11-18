@@ -1,6 +1,6 @@
 package main
 
-// Looking to play: the rules of an ask (plans/LOOKING-TO-PLAY.md section 3).
+// Looking to play: the rules of an ask (specs/features/LOOKING-TO-PLAY.md section 3).
 //
 // A member asks the crew, or picked members, if they are up for a game. One
 // such message is an ask, and the member who sends it is the asker. This file
@@ -55,7 +55,8 @@ var (
 )
 
 // ltpGame is the game of an ask. GameID is the stable id that the library
-// report and the presence use ("steam-730").
+// report and the presence use ("steam-730"), or an id of the game catalogue
+// ("valorant") when the client cannot map the game to a library id.
 type ltpGame struct {
 	GameID string `json:"game_id"`
 	Name   string `json:"name"`

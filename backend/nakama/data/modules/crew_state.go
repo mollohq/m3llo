@@ -675,7 +675,7 @@ func OnChatMessage(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	queueMentionPushes(logger, nk, userID, username, crewID, ack.GetMessageId(), content)
 
 	// Remote push of a plain message to the members with the Messages switch
-	// on (plans/LOOKING-TO-PLAY.md section 4). A mentioned member is left to
+	// on (specs/features/LOOKING-TO-PLAY.md section 4). A mentioned member is left to
 	// the mention push above.
 	queueMessagePushes(logger, nk, userID, username, crewID, content)
 

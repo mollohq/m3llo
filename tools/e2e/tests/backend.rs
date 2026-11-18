@@ -731,7 +731,7 @@ async fn joined_member(code: &str, token: &str) -> (NakamaClient, String) {
 ///
 /// 3. A plain message is posted to the Worker for an offline member, with one
 ///    collapse id for the crew. A member who turned Messages off for the crew
-///    gets none (plans/LOOKING-TO-PLAY.md section 4). The notification
+///    gets none (specs/features/LOOKING-TO-PLAY.md section 4). The notification
 ///    settings keep a choice across a second write.
 ///
 /// 4. Looking to play: an ask reaches an offline member with the answer
