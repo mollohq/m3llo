@@ -1,5 +1,5 @@
 //! Looking to play: a member asks the crew, or picked members, if they are
-//! up for a game (plans/LOOKING-TO-PLAY.md section 3). One such message is an
+//! up for a game (specs/features/LOOKING-TO-PLAY.md section 3). One such message is an
 //! ask, and the member who sends it is the asker.
 //!
 //! The server holds the state of an ask and sends the whole of it after each

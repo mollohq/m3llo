@@ -8,6 +8,11 @@ pub enum Error {
     #[error("Authentication failed: {0}")]
     AuthFailed(String),
 
+    /// The server refused the refresh token. Only this error clears the
+    /// saved session at restore.
+    #[error("Authentication failed: refresh rejected (HTTP {0})")]
+    RefreshRejected(u16),
+
     #[error("Already in a crew")]
     AlreadyInCrew,
 

@@ -485,7 +485,7 @@ The migration has two phases. Each phase has its own state document, marker and 
 
 | Reader | Read |
 |---|---|
-| `crew_feed` | The rows of the free window, the recap for the Board, and one page of Crew history by week. No whole-crew read |
+| `crew_feed` | The rows of the free window, the recap for the Board, and one page of Crew history by week: the clips, the stream sessions and the game sessions of its weeks. No whole-crew read |
 | Merged timeline | The clips of 7 days, the recap of the newest week |
 | `crew_catchup` | The newest 250 clips, then the ones after `last_seen` |
 | `post_clip`, `clip_upload_url`, `clip_upload_complete` | The clip by `clip_id`. The daily limit counts the clips of the day |
@@ -494,6 +494,7 @@ The migration has two phases. Each phase has its own state document, marker and 
 | Invite preview | The 7-day view only, as before |
 
 - The store has no cap. A crew with more than 250 clips or 150 stream sessions sees all of them in Crew history.
+- A game session older than the 7-day view is in its week of Crew history (features/CREW-FEED-ZONES.md section 7). Before the cutover no reader shows it.
 - A store read that fails falls back to the documents.
 
 **Kill switches.** Both are env variables of the Nakama process. A change needs a restart.

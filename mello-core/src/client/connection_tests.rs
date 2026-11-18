@@ -184,3 +184,114 @@ async fn a_stream_start_probes_the_regions_again_when_the_ranking_is_stale() {
     );
     drop(health_hits);
 }
+
+/// A Nakama stand-in that answers every request with `status` and an empty
+/// JSON body, then closes the connection.
+async fn nakama_answering(status: &'static str) -> Config {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+        .await
+        .expect("bind a local port");
+    let port = listener
+        .local_addr()
+        .expect("listener has an address")
+        .port();
+    tokio::spawn(async move {
+        loop {
+            let Ok((mut socket, _)) = listener.accept().await else {
+                return;
+            };
+            tokio::spawn(async move {
+                let mut chunk = [0u8; 4096];
+                let _ = socket.read(&mut chunk).await;
+                let response = format!(
+                    "HTTP/1.1 {status}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}"
+                );
+                let _ = socket.write_all(response.as_bytes()).await;
+            });
+        }
+    });
+    Config {
+        nakama_host: "127.0.0.1".into(),
+        nakama_port: port,
+        nakama_ssl: false,
+        ..Config::default()
+    }
+}
+
+/// A port with nothing on it: the connect is refused, as with no network.
+fn nakama_down() -> Config {
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .expect("bind a local port")
+        .local_addr()
+        .expect("listener has an address")
+        .port();
+    Config {
+        nakama_host: "127.0.0.1".into(),
+        nakama_port: port,
+        nakama_ssl: false,
+        ..Config::default()
+    }
+}
+
+fn restore_client(config: Config) -> (Client, std::sync::mpsc::Receiver<crate::events::Event>) {
+    let (event_tx, events) = std::sync::mpsc::channel();
+    let voice = VoiceManager::with_test_audio_backend(event_tx.clone());
+    let client = Client::with_voice(
+        config,
+        event_tx,
+        voice,
+        Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(None)),
+        Arc::new(AtomicBool::new(false)),
+        Arc::new(AtomicU8::new(0)),
+        false,
+        false,
+    );
+    (client, events)
+}
+
+fn assert_no_session_event(events: &std::sync::mpsc::Receiver<crate::events::Event>) {
+    use crate::events::{AuthFailure, Event};
+    let seen: Vec<Event> = events.try_iter().collect();
+    assert!(
+        seen.iter().any(|e| matches!(
+            e,
+            Event::LoginFailed {
+                reason: AuthFailure::NoSession
+            }
+        )),
+        "the restore still reports LoginFailed(NoSession): {seen:?}"
+    );
+}
+
+/// A lock-screen answer with no network must not sign the user out.
+#[tokio::test(flavor = "current_thread")]
+async fn a_restore_with_the_server_down_keeps_the_saved_session() {
+    let (mut client, events) = restore_client(nakama_down());
+
+    let saved = client.restore_session("rt-saved").await;
+
+    assert_eq!(saved, super::auth::SavedSession::Keep);
+    assert_no_session_event(&events);
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn a_restore_with_a_server_error_keeps_the_saved_session() {
+    let (mut client, events) = restore_client(nakama_answering("503 Service Unavailable").await);
+
+    let saved = client.restore_session("rt-saved").await;
+
+    assert_eq!(saved, super::auth::SavedSession::Keep);
+    assert_no_session_event(&events);
+}
+
+/// Nakama answers 401 for a bad or expired refresh token.
+#[tokio::test(flavor = "current_thread")]
+async fn a_restore_with_a_refused_token_clears_the_saved_session() {
+    let (mut client, events) = restore_client(nakama_answering("401 Unauthorized").await);
+
+    let saved = client.restore_session("rt-expired").await;
+
+    assert_eq!(saved, super::auth::SavedSession::Clear);
+    assert_no_session_event(&events);
+}

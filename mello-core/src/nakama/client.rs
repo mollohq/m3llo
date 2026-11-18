@@ -479,7 +479,7 @@ impl NakamaClient {
             let status = resp.status();
             let body = resp.text().await.unwrap_or_default();
             log::warn!("Refresh failed: {} -- {}", status, body);
-            return Err(Error::AuthFailed(format!("refresh failed ({})", status)));
+            return Err(refresh_failure(status));
         }
 
         let session: ApiSession = resp.json().await?;
@@ -1455,7 +1455,7 @@ impl NakamaClient {
     }
 
     /// Looking to play: makes an ask, or counts as In on the open ask to
-    /// everyone for the same game (plans/LOOKING-TO-PLAY.md section 3.3).
+    /// everyone for the same game (specs/features/LOOKING-TO-PLAY.md section 3.3).
     pub async fn looking_to_play_ask(
         &self,
         crew_id: &str,
@@ -1505,7 +1505,7 @@ impl NakamaClient {
     }
 
     /// The current user's push switches for one crew, defaults included
-    /// (plans/LOOKING-TO-PLAY.md section 4).
+    /// (specs/features/LOOKING-TO-PLAY.md section 4).
     pub async fn push_prefs_get(&self, crew_id: &str) -> Result<crate::push_prefs::PushPrefs> {
         let payload = serde_json::json!({ "crew_id": crew_id });
         let resp = self.rpc("push_prefs_get", &payload).await?;
@@ -2426,6 +2426,20 @@ impl NakamaClient {
     }
 }
 
+/// The error for a refresh answer that is not a success. A 4xx means the
+/// server refused the token, so the saved session is no good. A 5xx, a
+/// timeout (408) or a rate limit (429) can pass, so they keep it.
+fn refresh_failure(status: reqwest::StatusCode) -> Error {
+    let transient = status.is_server_error()
+        || status == reqwest::StatusCode::REQUEST_TIMEOUT
+        || status == reqwest::StatusCode::TOO_MANY_REQUESTS;
+    if status.is_client_error() && !transient {
+        Error::RefreshRejected(status.as_u16())
+    } else {
+        Error::AuthFailed(format!("refresh failed ({})", status))
+    }
+}
+
 // --- Message parsing (extracted for testability) ---
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -2919,6 +2933,25 @@ fn handle_notification(code: i32, content: &str, event_tx: &std::sync::mpsc::Sen
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_4xx_refresh_answer_is_a_rejected_token_and_the_rest_is_not() {
+        use reqwest::StatusCode;
+        for code in [400, 401, 403, 404] {
+            let status = StatusCode::from_u16(code).expect("valid status");
+            assert!(
+                matches!(refresh_failure(status), Error::RefreshRejected(c) if c == code),
+                "{code}"
+            );
+        }
+        for code in [408, 429, 500, 502, 503] {
+            let status = StatusCode::from_u16(code).expect("valid status");
+            assert!(
+                matches!(refresh_failure(status), Error::AuthFailed(_)),
+                "{code}"
+            );
+        }
+    }
 
     #[test]
     fn notification_116_is_a_feed_changed_event_for_the_crew() {

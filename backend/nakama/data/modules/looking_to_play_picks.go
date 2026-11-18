@@ -1,6 +1,6 @@
 package main
 
-// Looking to play: the recent picks of a member (plans/LOOKING-TO-PLAY.md
+// Looking to play: the recent picks of a member (specs/features/LOOKING-TO-PLAY.md
 // sections 3.3 and 3.6).
 //
 // A member who asks picked members often asks the same group again. The

@@ -1,5 +1,8 @@
 use keyring::Entry;
 
+#[cfg(target_os = "ios")]
+mod ios;
+
 const SERVICE: &str = "mello";
 const USER: &str = "session";
 
@@ -32,8 +35,17 @@ pub fn save(refresh_token: &str) -> Result<(), String> {
     if let Some(path) = e2e_file() {
         return std::fs::write(path, refresh_token).map_err(|e| e.to_string());
     }
-    let entry = Entry::new(SERVICE, &account()).map_err(|e| e.to_string())?;
-    entry.set_password(refresh_token).map_err(|e| e.to_string())
+    // iOS writes the item itself to set its Keychain class (see `ios`).
+    #[cfg(target_os = "ios")]
+    {
+        ios::write(SERVICE, &account(), refresh_token.as_bytes())
+            .map_err(|code| format!("Keychain write failed (OSStatus {code})"))
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let entry = Entry::new(SERVICE, &account()).map_err(|e| e.to_string())?;
+        entry.set_password(refresh_token).map_err(|e| e.to_string())
+    }
 }
 
 pub fn load() -> Option<String> {
@@ -41,8 +53,79 @@ pub fn load() -> Option<String> {
     if let Some(path) = e2e_file() {
         return std::fs::read_to_string(path).ok().filter(|t| !t.is_empty());
     }
-    let entry = Entry::new(SERVICE, &account()).ok()?;
-    entry.get_password().ok()
+    #[cfg(target_os = "ios")]
+    {
+        load_ios()
+    }
+    #[cfg(not(target_os = "ios"))]
+    {
+        let entry = Entry::new(SERVICE, &account()).ok()?;
+        entry.get_password().ok()
+    }
+}
+
+/// Reads the session and moves an item from an older build to the
+/// after-first-unlock class. The restore at a normal foreground start calls
+/// `load`, so an existing install moves on its first start after the update,
+/// with no new sign-in. An item that has the class already costs no write.
+#[cfg(target_os = "ios")]
+fn load_ios() -> Option<String> {
+    let account = account();
+    let item = match ios::read(SERVICE, &account) {
+        Ok(item) => item,
+        Err(code) => {
+            match read_failure(code) {
+                ReadFailure::Missing => {}
+                // The item is still there. Only a read before the first
+                // unlock after a reboot, or an item from an older build,
+                // gets this.
+                ReadFailure::Locked => log::warn!(
+                    "Keychain is locked, the saved session cannot be read now and stays stored"
+                ),
+                ReadFailure::Other(code) => {
+                    log::warn!(
+                        "Keychain read failed (OSStatus {code}), the saved session stays stored"
+                    )
+                }
+            }
+            return None;
+        }
+    };
+    if !item.after_first_unlock {
+        // A failure changes nothing: the item keeps its value and old class,
+        // and the next start tries again.
+        match ios::move_to_after_first_unlock(SERVICE, &account) {
+            Ok(()) => log::info!("Saved session moved to the after-first-unlock Keychain class"),
+            Err(code) => log::warn!(
+                "Saved session keeps its old Keychain class (OSStatus {code}), retry at next start"
+            ),
+        }
+    }
+    String::from_utf8(item.secret)
+        .ok()
+        .filter(|t| !t.is_empty())
+}
+
+/// Why a Keychain read returned no session.
+#[cfg(any(target_os = "ios", test))]
+#[derive(Debug, PartialEq, Eq)]
+enum ReadFailure {
+    /// No saved session.
+    Missing,
+    /// The item exists but the Keychain does not give it out now. The
+    /// session must stay stored.
+    Locked,
+    Other(i32),
+}
+
+#[cfg(any(target_os = "ios", test))]
+fn read_failure(code: i32) -> ReadFailure {
+    // errSecItemNotFound and errSecInteractionNotAllowed from SecBase.h.
+    match code {
+        -25300 => ReadFailure::Missing,
+        -25308 => ReadFailure::Locked,
+        other => ReadFailure::Other(other),
+    }
 }
 
 pub fn clear() {
@@ -63,6 +146,15 @@ mod tests {
     /// Serialises the env mutation below. Tests share one process, so an
     /// unguarded `set_var` leaks into whichever test runs concurrently.
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// The restore gets `None` for both cases. A locked Keychain must get its
+    /// own warning, so a log never shows it as a missing session.
+    #[test]
+    fn locked_keychain_is_not_a_missing_session() {
+        assert_eq!(read_failure(-25308), ReadFailure::Locked);
+        assert_eq!(read_failure(-25300), ReadFailure::Missing);
+        assert_eq!(read_failure(-25291), ReadFailure::Other(-25291));
+    }
 
     #[test]
     fn account_defaults_to_the_shared_entry() {

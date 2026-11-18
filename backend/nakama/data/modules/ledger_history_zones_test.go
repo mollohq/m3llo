@@ -209,7 +209,7 @@ func TestZonesReadOnePageOfALargeCrew(t *testing.T) {
 		}
 		queries, rows := counter.total()
 		t.Logf("page before %d: %d rows, %d queries: %s", before, rows, queries, counter)
-		if rows > 250 || queries > 11 {
+		if rows > 250 || queries > 12 {
 			t.Fatalf("page before %d read %d rows in %d queries: %s", before, rows, queries, counter)
 		}
 		return z
@@ -348,14 +348,18 @@ func seedLargeCrewRows(t *testing.T, store ledgerStore, crewID string, nowMs int
 //	timeline   3  the 7-day view, the clips of 7 days, the newest recap
 //	window     1  the clips and stream sessions of the free window
 //	board      1  the recaps of the newest weeks
-//	weeks      3  the clip weeks, the stream weeks, the recaps of the page
+//	weeks      4  the clip weeks, the stream weeks, the game session weeks,
+//	              the recaps of the page
 //	open week  1  its clips and stream sessions
 //	locked     2  its teaser clips, its stream sessions
 //	sessions   1  the rows of the session ids of the page
 //
-// A viewer with m3llo+ reads 3+1+1+3+W+1 = 14. A viewer without it reads at
-// most 3+1+1+3+2W+1 = 19, and 18 when the newest week of the page is the
+// A viewer with m3llo+ reads 3+1+1+4+W+1 = 15. A viewer without it reads at
+// most 3+1+1+4+2W+1 = 20, and 19 when the newest week of the page is the
 // one the free window starts in, which is read as an open week.
+//
+// The game sessions of a week come with the read of its clips. This crew has
+// none. TestCrewFeedLoadQueryCountWithGameSessions has the count with them.
 func TestCrewFeedLoadQueryCount(t *testing.T) {
 	store := useHistoryStoreReads(t)
 	nk := hCrew(t, "big")
@@ -389,8 +393,8 @@ func TestCrewFeedLoadQueryCount(t *testing.T) {
 	// u2 has m3llo+: every week of the page is read whole.
 	for _, before := range []int64{0, deep} {
 		z, queries, rows := load("u2", before)
-		if queries != 14 || rows > 260 {
-			t.Fatalf("m3llo+ page before %d: %d queries and %d rows, want 14 queries and at most 260 rows: %s", before, queries, rows, counter)
+		if queries != 15 || rows > 260 {
+			t.Fatalf("m3llo+ page before %d: %d queries and %d rows, want 15 queries and at most 260 rows: %s", before, queries, rows, counter)
 		}
 		// The first week of the first page can be a part of a week.
 		if w := z.History[1]; w.Locked || len(w.Items) < 15 {
@@ -400,8 +404,8 @@ func TestCrewFeedLoadQueryCount(t *testing.T) {
 	// u1 has not: a locked week costs two reads and at most 6 clip rows.
 	for _, before := range []int64{0, deep} {
 		z, queries, rows := load("u1", before)
-		if queries < 18 || queries > 19 || rows > 170 {
-			t.Fatalf("locked page before %d: %d queries and %d rows, want 18 or 19 queries and at most 170 rows: %s", before, queries, rows, counter)
+		if queries < 19 || queries > 20 || rows > 170 {
+			t.Fatalf("locked page before %d: %d queries and %d rows, want 19 or 20 queries and at most 170 rows: %s", before, queries, rows, counter)
 		}
 		last := z.History[len(z.History)-1]
 		if !last.Locked || last.ClipCount < 15 || len(last.Teasers) != zonesTeasersMax || len(last.Items) != 0 {
