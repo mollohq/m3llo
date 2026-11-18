@@ -8,12 +8,14 @@ This guide is for a volunteer translator. The design of the translations is in
 | Part | File | State |
 |---|---|---|
 | The client UI | `client/translations/mello-client.pot` (the template), one `.po` per language | About 1,060 messages |
-| Device push text | `backend/nakama/data/modules/push_text.go`, one table per language, keyed by name | The English and the `zh-CN` tables are complete. The other tables are empty. |
+| Device push text | `backend/nakama/data/modules/push_text.go`, one table per language, keyed by name | All eight tables are complete: English and the seven languages. Each translated table is a best-try draft. It waits for a native review of the "check" rows. |
 | The web site | Not in this repository | Later |
 
-Languages: `zh-CN` (Simplified Chinese, waits for a native review of the
-"check" rows). Planned: `es`, `pt-BR`,
-`de`, `ja`, `fr`, `sv`.
+Languages: `zh-CN` (Simplified Chinese), `es` (Spanish), `pt-BR`
+(Brazilian Portuguese), `de` (German), `ja` (Japanese), `fr` (French) and
+`sv` (Swedish). All seven catalogues and glossary tables are complete. Each
+is a best-try draft. It waits for a native review of the "check" rows
+(section 5).
 
 ## 2. Translate the client
 
@@ -68,6 +70,8 @@ does not fit in the app or in the layout render.
 
 One English word has one translation in the whole UI, also when the dictionary
 has a different word. "check": a native reviewer must look at the row first.
+
+### 5.1 zh-CN (Simplified Chinese)
 
 | English | Meaning | zh-CN | Note |
 |---|---|---|---|
@@ -141,6 +145,466 @@ has a different word. "check": a native reviewer must look at the row first.
 | update | A new version of the app | 更新 | |
 | device, microphone | An audio device, the input device | 设备, 麦克风 | Input: 输入. Output: 输出. 麦 in a tight label. |
 | image, tray, server | A picture, the OS system tray, the m3llo server | 图片, 系统托盘, 服务器 | |
+
+### 5.2 es (Spanish)
+
+Neutral Spanish for Spain and Latin America. Informal address: tú.
+
+| English | es | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
+| head2head | head2head | Never translated. |
+| crew | squad | check. Masculine: el squad, tu squad, los squads. The gamer word in Spanish voice chat. Rejected: clan (an esports or guild structure), equipo (a team in one match), grupo (flat, also a chat group), banda (regional). |
+| member | miembro | Crewmate, crew mate: compañero de squad; in a short label "tu squad". |
+| owner | líder | check. Rejected: propietario, dueño (legal words). |
+| admin | admin | Plural: admins. |
+| channel | canal | Voice channel: canal de voz. |
+| hangout | quedada | check. A board label and "hung out in" (estuvo de quedada en). Rejected: reunión (a work meeting), pasar el rato (too long for a label). |
+| voice | voz | |
+| call | llamada | "in the call": en la llamada. |
+| session / sesh | sesión | check. A play session: sesión de juego. Session card in the feed: resumen de la sesión. Session replay of a stream: repetición del directo. "Sign in" also uses "iniciar sesión"; the context keeps them apart. Rejected: partida (that is a match), rato (vague). |
+| match | partida | Count: partidas. |
+| win, loss, draw | victoria, derrota, empate | Short forms W, L, D: V, D, E ("4V–2D"). "took an L": se comió una derrota. |
+| record, win rate | balance, winrate | check. "4V–2D" is the balance. Rejected: récord (a best score), tasa de victorias (formal, long). |
+| stream (noun) | directo | check. El directo. Rejected: transmisión (TV word), stream (kept only in service names). |
+| stream (verb), go live, live | emitir, en directo | Live badge: EN DIRECTO; in a tight badge DIRECTO. The Twitch Spanish words. |
+| watch | ver | Viewer: espectador. Host of a stream: streamer. |
+| clip (noun) | clip | Voice clip: clip de voz. Game clip: clip de juego. "Highlight clip": clip destacado, only where the text says highlight. Rejected: fragmento (dry), corte (an edit). |
+| clip (verb) | clipear | check. "{} clipped that": {} clipeó eso. Gamer slang used on Twitch. Rejected: recortar (an edit), grabar (that is recording). |
+| moment | momento | check. The moment kind "Highlight" is jugadón. Rejected: destacado (flat), clip (that is a clip). |
+| recap | resumen | Weekly recap: resumen semanal. Rejected: recapitulación (formal). |
+| feed | actividad | Crew feed: actividad del squad. Rejected: feed (not clear to all players), muro (Facebook word). |
+| catch up | ponte al día | check. The title. The body can use "mientras no estabas". Rejected: resumen (that is the recap), novedades (shop word). |
+| crew history | historial del squad | |
+| belt, title | título | check. Rejected: cinturón (boxing). Belt and title are the same thing. Hold: tener. Take: quitar. |
+| The Carry | El Carry | check. "carrear" is the gamer verb in Spanish. Rejected: El Salvador (a country), El Que Lleva (unclear). |
+| Locked In | Viciado | check. The gamer word for a player who cannot stop. Rejected: Concentrado (too calm). |
+| Has a Life | Tiene Vida | |
+| Night Owl | Noctámbulo | check. Rejected: Búho Nocturno (long). |
+| The Collector | El Coleccionista | |
+| Sampler | El Catador | check. Tries a bit of every game. Rejected: Probador (a fitting room). |
+| One Trick | Monotemático | check. Rejected: One Trick (English), Mono (also "monkey" out of context). |
+| Mouth | Parlanchín | Rejected: Bocazas (rude in Spain). |
+| Marathon | Maratón | |
+| Last One Up | Último en Caer | check. Must differ from Night Owl. Rejected: Trasnochador (too close to Night Owl). |
+| Clipper | Clipero | check. From "clipear". Rejected: Editor (a job). |
+| Rage Quit | Rage Quit | check. Spanish players use the English words. Rejected: Abandono Furioso (sounds translated). |
+| Winner | Ganador | |
+| award | premio | |
+| grinder | grindeador | check. "Grinder of the week": grindeador de la semana. Rejected: farmeador (farming is a different activity). |
+| heater | en llamas | "Biggest heater": más en llamas. |
+| skid | mala racha | "Roughest patch": peor racha. "{n}-loss skid": {n} derrotas seguidas. |
+| streak | racha | "{n}-loss streak": racha de {n} derrotas. |
+| quest | misión | Founding week: semana de fundación. |
+| gift | recompensa | Sealed: sin abrir. Rejected: regalo (a present from a person). |
+| banner | banner | Rejected: pancarta (a protest sign). |
+| emoji | emoji | Crew emoji: emojis del squad. |
+| invite | invitar, invitación | Invite link: enlace de invitación. Invite code: código de invitación. |
+| join, leave | unirse, salir | |
+| friend, guest | amigo, invitado | |
+| mute | silenciar | Self and others; the Discord word. Unmute: activar micro. |
+| deafen | ensordecer | check. The Discord word. Undeafen: dejar de ensordecer. Rejected: silenciar audio (clashes with mute). |
+| push to talk | pulsar para hablar | Voice activity: actividad de voz. |
+| recording | grabación | macOS "Screen Recording": Grabación de pantalla. |
+| HUD, overlay | HUD, overlay | check. Rejected: superposición (long, technical). |
+| chat, message, reaction | chat, mensaje, reacción | React (verb): reaccionar. |
+| online, idle, invisible | en línea, ausente, invisible | Do Not Disturb: No molestar. |
+| settings | ajustes | Not "configuración", which is setup. |
+| setup | configuración | The first steps: configuración inicial. |
+| sign in, sign out | iniciar sesión, cerrar sesión | "Log Out" is the same as sign out. |
+| account | cuenta | |
+| display name, nickname, handle | nick | check. Rejected: apodo (a family nickname), nombre visible (long). |
+| avatar, profile | avatar, perfil | |
+| game | juego | |
+| key, keybind | tecla, atajo | |
+| stats, verified | stats, verificado | check. Verified stats: stats oficiales. Rejected: estadísticas (too long for the labels). |
+| quality | calidad | check. POTATO: PATATA. PRO-POTATO: PRO-PATATA. "calidad patata" is the meme in Spain; Latin America says "papa". |
+| update | actualización | Verb: actualizar. |
+| device, microphone | dispositivo, micrófono | Input: entrada. Output: salida. "micro" in a tight label. |
+| image, tray, server | imagen, bandeja del sistema, servidor | |
+
+### 5.3 pt-BR (Brazilian Portuguese)
+
+Register: informal "você". Casual lines use spoken forms ("tá", "pra").
+
+| English | pt-BR | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
+| head2head | head2head | Never translated. |
+| crew | squad | check. The gamer word in Brazil ("chama o squad"). Masculine: o squad. Rejected: time (an esports or football team), clã (a big guild), equipe (work word), galera (has no plural and no count). |
+| member | membro | Crewmate, crew mate: membro do squad, or "a galera do squad" in a casual line. |
+| owner | dono | check. Rejected: proprietário (legal word). |
+| admin | admin | Plural: admins. |
+| channel | canal | Voice channel: canal de voz. |
+| hangout | resenha | check. Brazilian slang for time together with friends. Board label RESENHA; "hung out in": ficou de resenha em. Rejected: encontro (a date), bate-papo (a chat room). |
+| voice | voz | The feature: chat de voz, clipe de voz, canal de voz. To be in voice, to join or leave voice: call (see the next row). |
+| call | call | check. "na call", "entrar na call", "Sair da call". The Brazilian gamer word. Rejected: chamada, ligação (a phone call). |
+| session / sesh | sessão | check. Game session: sessão de jogo. Session replay of a stream: replay da live. Rejected: jogatina for the UI word (play only, not voice; used only on the site as "your gaming sessions"), partida (that is a match). |
+| match | partida | Count: {n} partidas. |
+| win, loss, draw | vitória, derrota, empate | Short forms W, L, D: V, D, E. "took an L": perdeu uma. |
+| record, win rate | campanha, winrate | check. Campanha is the football word for a W-L record. Winrate is the word that Brazilian players use. Rejected: histórico (that is "crew history"), taxa de vitórias (long, formal). |
+| stream (noun) | live | Brazilian streamers and viewers say "live". Rejected: transmissão (formal, long). |
+| stream (verb), go live, live | transmitir, abrir live, ao vivo | "{0} streamed {1}": {0} transmitiu {1}. Badge LIVE: AO VIVO. |
+| watch | assistir | Viewer: espectador. Host of a stream: streamer. |
+| clip (noun) | clipe | Voice clip: clipe de voz. Game clip: clipe de jogo. Rejected: corte (an edited cut of a long video), trecho (dry). |
+| clip (verb) | clipar | check. "{} clipped that": {} clipou essa. "Clipa aí" is common gamer speech. |
+| moment | momento | check. The moment kind "Highlight": lance. Rejected: destaque (dry), clipe (a clip is a different thing). |
+| recap | resumo | Weekly recap: resumo da semana. Rejected: recapitulação (long, formal). |
+| feed | feed | Crew feed: feed do squad. |
+| catch up | o que rolou | check. The title. The body can use "enquanto você tava fora". Rejected: atualização (that is an app update), resumo (that is the recap). |
+| crew history | histórico do squad | |
+| belt, title | título | check. Belt and title are the same thing. Hold: segurar. Take: tomar. Rejected: cinturão (UFC sound, and the UI also says "title"). |
+| The Carry | O Carry | check. Brazilian LoL players say "carry" and "carregar o time". Rejected: O Carregador (sounds like a phone charger). |
+| Locked In | Viciado | check. "Tá viciado" is the gamer word for too many hours. Rejected: Concentrado, Focado (too calm). |
+| Has a Life | Tem Vida | check. Rejected: Tocou Grama (meme, not known by all), Tem Vida Social (long). |
+| Night Owl | Coruja | |
+| The Collector | O Colecionador | |
+| Sampler | Beija-Flor | check. The hummingbird tries every flower. Rejected: Experimentador (dry, long). |
+| One Trick | Mono | The LoL word ("mono Yasuo"). Rejected: Monotemático. |
+| Mouth | Tagarela | |
+| Marathon | Maratona | Rejected: Maratonista (long). |
+| Last One Up | Apaga a Luz | check. "The last one turns off the light". Must differ from Night Owl. Rejected: Último a Dormir (long). |
+| Clipper | Clipador | check. Rejected: Editor (a job). |
+| Rage Quit | Saiu Pistola | check. "Ficar pistola" is slang for "get angry". Rejected: Rage Quit (English), Saiu Bravo (no punch). |
+| Winner | Vencedor | |
+| award | prêmio | |
+| grinder | farmador | check. "Farmar" is the gamer word for to grind. "Grinder of the week": Farmador da semana. Rejected: Viciado (that is Locked In). |
+| heater | embalado | check. The football word for a team on a run. "Biggest heater": Mais embalado. Rejected: on fire (English). |
+| skid | zica | check. Slang for a bad-luck run. "Roughest patch": Maior zica. "{n}-loss skid": zica de {n} derrotas. |
+| streak | sequência | "{n}-win streak": {n} vitórias seguidas. "{n}-loss streak": {n} derrotas seguidas. |
+| quest | missão | Founding week: semana de fundação. |
+| gift | recompensa | Sealed: lacrado. Rejected: presente (a birthday present). |
+| banner | banner | |
+| emoji | emoji | Crew emoji: emoji do squad. |
+| invite | convite, convidar | Invite link: link de convite. Invite code: código de convite. |
+| join, leave | entrar, sair | Join a crew: entrar no squad. |
+| friend, guest | amigo, convidado | |
+| mute | mutar | The gamer verb. Muted: mutado. Unmute: desmutar. Also for another person or a stream. Rejected: silenciar (formal). |
+| deafen | ensurdecer | check. Deafened: ensurdecido. Undeafen: reativar áudio. Rejected: desativar som (that is mute). |
+| push to talk | aperte para falar | Key: tecla para falar. Voice activity: detecção de voz. |
+| recording | gravação | macOS "Screen Recording": Gravação de Tela. macOS "System Settings": Ajustes do Sistema. |
+| HUD, overlay | HUD, overlay | check. Both words are common in Brazilian gaming. |
+| chat, message, reaction | chat, mensagem, reação | React (verb): reagir. |
+| online, idle, invisible | online, ausente, invisível | Do Not Disturb: não perturbe. |
+| settings | configurações | The app settings window. Rejected: ajustes (only for the macOS "System Settings"). |
+| setup | configuração inicial | Not "configurações", which is "settings". |
+| sign in, sign out | fazer login, sair da conta | "Log Out" is the same as sign out. Rejected: entrar (that is join). |
+| account | conta | |
+| display name, nickname, handle | nick | check. The gamer word. Rejected: nome de exibição (long, formal), apelido (a family nickname). |
+| avatar, profile | avatar, perfil | |
+| game | jogo | |
+| key, keybind | tecla, atalho | Keybinds tab: ATALHOS. |
+| stats, verified | stats, verificado | check. Players say "stats"; "estatísticas" is twelve letters. Verified stats: stats oficiais. |
+| quality | qualidade | POTATO: BATATA. PRO-POTATO: PRO-BATATA. |
+| update | atualização, atualizar | |
+| device, microphone | dispositivo, microfone | Input: entrada. Output: saída. "mic" in a tight label. |
+| image, tray, server | imagem, bandeja do sistema, servidor | The site never uses a word for server. |
+
+### 5.4 de (German)
+
+Register: informal `du`, lower case. German players use some English gamer words in voice and chat (Crew, Voice, Call, Session, Match, Clip, Stream). These words stay as loan words.
+
+| English | de | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label (`DIE OG-CREW, DIE m3llo MITGEPRÄGT HAT`, `m3llo+ 30 T`). |
+| head2head | head2head | Never translated. The English upper-case label `HEAD2HEAD` stays as it is. |
+| crew | Crew | check. Feminine: die Crew. Compounds with a hyphen: Crew-Feed, Crew-Chat, Crew-Emoji. Rejected: Clan (an organized clan with ranks), Gruppe (dry), Squad (one game mode), Team (esports). |
+| member | Mitglied | Crewmate, crew mate: Crew-Mitglied; in a sentence "deine Crew" ("Schreib deiner Crew"). |
+| owner | Chef | check. Rejected: Eigentümer, Besitzer (legal words), Gründer (wrong when the crew changes hands, and the step name "Crew gegründet" already uses it). |
+| admin | Admin | |
+| channel | Channel | check. Voice channel: Voice-Channel. Rejected: Kanal (a TV word; players say "komm in den Channel"). |
+| hangout | Abhängen | check. Board label `ABHÄNGEN`; "hung out in": "abgehangen in". Rejected: Treffen (formal), Hangout (not clear in German). |
+| voice | Voice | check. "im Voice" is how players say it. Voice chat: Voice-Chat. Rejected: Sprachchat (dictionary word). |
+| call | Call | "in the call": im Call. Rejected: Anruf (a phone call). |
+| session / sesh | Session | check. One word for play, voice and the technical session. Session replay: Session-Replay. Rejected: Sitzung (an office meeting), Zocksession (too long for labels). |
+| match | Match | Plural: Matches. Rejected: Spiel (that is "game"), Partie (chess). |
+| win, loss, draw | Sieg, Niederlage, Unentschieden | check. Short forms W, L, D: S, N, U, as in a German football table ("4S–2N"). "took an L": "ein L kassiert" (players use the English L in this phrase). Rejected: W/L/D (D means nothing in German). |
+| record, win rate | Bilanz, Winrate | check. Rejected: Siegquote (dictionary word, players say Winrate). |
+| stream (noun) | Stream | |
+| stream (verb), go live, live | streamen, live gehen, live | "streaming now": streamt. |
+| watch | zuschauen | Viewer: Zuschauer. Host of a stream: Streamer. |
+| clip (noun) | Clip | Voice clip: Voice-Clip. Game clip: Spiel-Clip. Highlight clip: Highlight-Clip. Rejected: Ausschnitt (a video-editing word). |
+| clip (verb) | clippen | check. "{} clipped that": "{} hat das geclippt". Rejected: aufnehmen (that is "record"). |
+| moment | Moment | check. The moment kind "Highlight": Highlight. Rejected: Augenblick (literary). |
+| recap | Rückblick | Weekly recap: Wochenrückblick. Rejected: Zusammenfassung (long, formal), Recap (not common in German UI). |
+| feed | Feed | Crew feed: Crew-Feed. |
+| catch up | Verpasst | check. The title and the card: Verpasst, Verpasst-Karten. The body: "Während du weg warst". Rejected: Aufholen (sounds like homework), Nachholen. |
+| crew history | Crew-Chronik | Rejected: Crew-Verlauf (sounds like a browser history). |
+| belt, title | Titel | check. Rejected: Gürtel (boxing). Belt and title are the same thing. Hold: halten. Take: sich schnappen ("{0} schnappte sich {1} von {2}"). "Titel" has one form in the singular and the plural. |
+| The Carry | Der Carry | German players say "carry" and "gecarried". |
+| Locked In | Im Tunnel | check. "im Tunnel sein" is the gamer phrase for full focus. Rejected: Fokussiert (too calm), Locked In (not understood by all). |
+| Has a Life | Hat ein Leben | check. Rejected: Real Life (a noun, not a title). |
+| Night Owl | Nachteule | |
+| The Collector | Der Sammler | |
+| Sampler | Game-Hopper | check. Rejected: Probierer (flat), Schnupperer (not a gamer word). |
+| One Trick | One-Trick | check. The League of Legends word stays in English. Rejected: Spezialist (no meaning of one champion). |
+| Mouth | Labertasche | |
+| Marathon | Marathon | Same word in German. |
+| Last One Up | Letzter wach | check. Must differ from Night Owl. Rejected: Der Letzte (an insult in German). |
+| Clipper | Clipper | check. Rejected: Clip-König (gendered, long), Cutter (a job). |
+| Rage Quit | Ragequit | check. German players write it as one word. Rejected: Wutausstieg (nobody says it). |
+| Winner | Gewinner | |
+| award | Award | Rejected: Auszeichnung (formal), Preis (also "price"). |
+| grinder | Grinder | "Grinder of the week": Grinder der Woche. "grinden" is the gamer verb. |
+| heater | Lauf | check. "einen Lauf haben" means a run of success. "Biggest heater": Krassester Lauf. |
+| skid | Pechsträhne | "Roughest patch": Größte Pechsträhne. "{n}-loss skid": "{n} Niederlagen am Stück". |
+| streak | Serie | "{n}-win streak": "{n} Siege in Folge". "{n}-loss streak": "{n} Niederlagen in Folge". |
+| quest | Quest | Feminine: die Quest. Founding week: Gründungswoche. |
+| gift | Belohnung | Sealed: versiegelt. Rejected: Geschenk (a present from a person). |
+| banner | Banner | |
+| emoji | Emoji | Crew emoji: Crew-Emoji. |
+| invite | einladen, Einladung | Invite link: Einladungslink. Invite code: Einladungscode. |
+| join, leave | beitreten, verlassen | "joined": "ist beigetreten". |
+| friend, guest | Freund, Gast | |
+| mute | Stumm | check. Label: Stumm; verb: stummschalten; "Unmute": Stumm aus. Mute another person or a stream: stummschalten. |
+| deafen | Taub | check. Label: Taub; "Undeafen": Taub aus. Rejected: Ausgabe deaktivieren (long), Deafen (not understood by all). |
+| push to talk | Push-to-Talk | Voice activity: Sprachaktivierung. |
+| recording | Aufnahme | macOS "Screen Recording": Bildschirmaufnahme (the German macOS name). |
+| HUD, overlay | HUD, Overlay | check. Both stay as in German games. |
+| chat, message, reaction | Chat, Nachricht, Reaktion | React (verb): reagieren. |
+| online, idle, invisible | Online, Abwesend, Unsichtbar | Do Not Disturb: Nicht stören. |
+| settings | Einstellungen | macOS System Settings: Systemeinstellungen. |
+| setup | Einrichtung | Not Einstellungen, which is "settings". Casual text can use "Setup" ("kein Setup"). |
+| sign in, sign out | Anmelden, Abmelden | "Log Out" is the same as sign out. |
+| account | Account | check. Rejected: Konto (bank word). |
+| display name, nickname, handle | Anzeigename | Short form in a tight label: Name ("NAME IN DER CREW"). Rejected: Nickname (mixed with Anzeigename in other apps). |
+| avatar, profile | Avatar, Profil | |
+| game | Spiel | Plural: Spiele. "this week in games": "DIESE WOCHE GEZOCKT". Rejected: Game (fine in speech, odd in a UI label). |
+| key, keybind | Taste, Hotkey | Keybinds (settings page): Hotkeys. Rejected: Tastenbelegung (long). |
+| stats, verified | Stats, verifiziert | Verified stats: Offizielle Stats. Rejected: Statistiken (long, formal). |
+| quality | Qualität | POTATO: KARTOFFEL. PRO-POTATO: PRO-KARTOFFEL. "Kartoffel-PC" is the German gamer joke. |
+| update | Update | Verb: updaten / aktualisieren. |
+| device, microphone | Gerät, Mikrofon | Mikro in a tight label. Input: Eingang (level), Eingabe (device). Output: Ausgang, Ausgabe. |
+| image, tray, server | Bild, Infobereich, Server | check. Tray: Infobereich, the Windows name. Rejected: Tray (not in German Windows), Taskleiste (a different area). |
+
+### 5.5 ja (Japanese)
+
+Game titles: League of Legends is リーグ・オブ・レジェンド, TFT is チームファイト タクティクス (the official Japanese names). VALORANT, Counter-Strike 2 and The Finals keep the English title.
+
+| English | ja | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
+| head2head | head2head | Never translated. |
+| crew | クルー | check. Used by streamer and gamer groups. Rejected: チーム (a sports or esports team), クラン (a competitive FPS clan), ギルド (an MMO word), 仲間 (too general for a label). |
+| member | メンバー | Crewmate, crew mate: 仲間 (クルー仲間 where the word stands alone). |
+| owner | オーナー | check. The Discord JP word for the maker of a server. Rejected: 所有者 (legal word), リーダー (a role, not the maker). |
+| admin | 管理者 | |
+| channel | チャンネル | Voice channel: ボイスチャンネル. |
+| hangout | 集まり | check. Board label and "hung out in": {0}が{1}で{2}集まった. Rejected: ハングアウト (a product name), たむろ (loitering), 通話 (that is "call"). |
+| voice | ボイス | Voice chat: ボイスチャット. In a stat label "VC" is also known, but the UI uses ボイス. |
+| call | 通話 | "in the call": 通話中. In Japanese gamer talk 通話 is the casual word for a Discord voice call, not a phone word. |
+| session / sesh | セッション | check. Count: セッション数. Session replay: セッションリプレイ. Also the technical session ("The stream has no session to join"). Rejected: 一戦 (one match only), プレイ (too general, also "play"). |
+| match | 試合 | Count: {n}試合. The word of the Japanese LoL client. |
+| win, loss, draw | 勝ち, 負け, 引き分け | Short forms W, L, D: 勝, 敗, 分 ("4勝2敗1分"). "took an L": 負けた. |
+| record, win rate | 戦績, 勝率 | |
+| stream (noun) | 配信 | |
+| stream (verb), go live, live | 配信する, 配信開始, 配信中 | The LIVE badge is 配信中. |
+| watch | 視聴 | Viewer: 視聴者. Host of a stream: 配信者. |
+| clip (noun) | クリップ | check. The Twitch JP word. Counter 本: クリップ9本. Voice clip: ボイスクリップ. Game clip: ゲームクリップ. Rejected: 切り抜き (a fan edit of a long stream), 録画 (that is "recording"). |
+| clip (verb) | クリップする | check. "{} clipped that": {}がクリップした. |
+| moment | 名場面 | check. The moment kind "Highlight" is 神プレイ (gamer slang for a great play). Rejected: ハイライト (close to a clip), モーメント (not natural). |
+| recap | まとめ | Weekly recap: 週間まとめ. Rejected: レポート (business word), 振り返り (long, formal). |
+| feed | フィード | Crew feed: クルーのフィード. Rejected: タイムライン (long, the word of a social network). |
+| catch up | 見逃し | check. The title. The body uses いない間に. Rejected: 不在中 (flat, an office word), 追いつく (a verb). |
+| crew history | クルーの歴史 | |
+| belt, title | 称号 | check. Rejected: ベルト (boxing only). Hold: 保持. Take: 奪う. |
+| The Carry | キャリー | The Japanese gamer word for a carry. |
+| Locked In | ガチ勢 | check. A player who plays seriously and a lot. Rejected: 集中 (too calm). |
+| Has a Life | リア充 | |
+| Night Owl | 夜ふかし | |
+| The Collector | コレクター | check. |
+| Sampler | つまみ食い勢 | check. Rejected: サンプラー (music gear). |
+| One Trick | 一筋 | check. Gamers say "〇〇専"; that needs a name before it. Rejected: ワントリック (unknown word). |
+| Mouth | おしゃべり | |
+| Marathon | マラソン | |
+| Last One Up | 最後の一人 | check. Must differ from Night Owl. Rejected: 徹夜王 (too close to Night Owl). |
+| Clipper | クリップ職人 | check. 職人 is the gamer word for a skilled regular. Rejected: クリッパー (a nail clipper). |
+| Rage Quit | 萎え落ち | check. The Japanese gamer word for a rage quit. Rejected: 台パン (desk slam, no quit). |
+| Winner | 勝者 | |
+| award | 賞 | |
+| grinder | やり込み王 | check. "Grinder of the week": 今週のやり込み王. Rejected: 廃人 (insult). |
+| heater | 絶好調 | "Biggest heater": 一番の絶好調. |
+| skid | 連敗 | "Roughest patch": 今週一番の不調. "{n}-loss skid": {n}連敗. |
+| streak | 連勝 | "{n}-loss streak": {n}連敗. Short "W{}" / "L{}": {}連勝 / {}連敗. |
+| quest | クエスト | Founding week: 結成1週目. |
+| gift | 報酬 | Sealed: 未開封. Rejected: プレゼント (a present from a person), ごほうび (childish). |
+| banner | バナー | |
+| emoji | 絵文字 | Crew emoji: クルー絵文字. |
+| invite | 招待 | Invite link: 招待リンク. Invite code: 招待コード. |
+| join, leave | 参加, 退出 | Leave a crew: クルーを抜ける (casual). |
+| friend, guest | フレンド, ゲスト | |
+| mute | ミュート | The same word to mute another person or a stream. |
+| deafen | スピーカーミュート | check. The Discord JP word. It is long (3x the English). Rejected: 聴覚ミュート (not used). |
+| push to talk | プッシュトゥトーク | The Discord JP word. Voice activity: 音声検出. |
+| recording | 録画 | macOS "Screen Recording": 画面収録 (the macOS JP word). |
+| HUD, overlay | HUD, オーバーレイ | check. |
+| chat, message, reaction | チャット, メッセージ, リアクション | React (verb): リアクション(する). |
+| online, idle, invisible | オンライン, 退席中, オフライン表示 | Do Not Disturb: 取り込み中. Discord JP words. |
+| settings | 設定 | |
+| setup | セットアップ | Not 設定, which is "settings". |
+| sign in, sign out | ログイン, ログアウト | "Log Out" is the same as sign out. |
+| account | アカウント | |
+| display name, nickname, handle | 表示名 | |
+| avatar, profile | アバター, プロフィール | |
+| game | ゲーム | |
+| key, keybind | キー, キーバインド | |
+| stats, verified | スタッツ, 認証済み | check. スタッツ is the esports word. Verified stats: 公式スタッツ. Rejected: データ (too general). |
+| quality | 画質 | POTATO: ポテト. PRO-POTATO: プロポテト. |
+| update | アップデート | |
+| device, microphone | デバイス, マイク | Input: 入力. Output: 出力. |
+| image, tray, server | 画像, システムトレイ, サーバー | check. Many users say タスクトレイ; the UI keeps one word. Never サーバー on the web site. |
+
+### 5.6 fr (French)
+
+Register: "tu", the casual voice of French gamers on Discord and Twitch. Game titles: League of Legends, TFT, Counter-Strike 2, The Finals and Valorant have no official French name. They stay in English.
+
+| English | fr | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
+| head2head | head2head | Never translated. |
+| crew | crew (le crew) | check. Masculine: "ton crew", "le fil du crew". French players use "crew" for a group of friends. Rejected: équipe (a sports or work team, flat), team (an esports roster; the site sets crews against teams), escouade (military, a game-mode word), bande (old-fashioned, also "gang"). |
+| member | membre | Crewmate, crew mate: membre du crew; "Message crewmates": "Écris au crew". |
+| owner | chef | check. Label: CHEF. Rejected: propriétaire (legal word), créateur (says who made it, not who leads it). |
+| admin | admin | |
+| channel | salon | Voice channel: salon vocal. The word French Discord users know. Rejected: canal (a TV or tech word). |
+| hangout | vocal ensemble; verb: traîner en vocal | check. Board label HANGOUT: EN VOCAL. "{0} hung out in {1}": "{0} ont traîné dans {1}". Rejected: hangout (not French), soirée (one evening only). |
+| voice | vocal | "Start voice": Lancer le vocal. Voice clip: clip vocal. |
+| call | vocal | "in the call": en vocal. First call: Premier vocal. Rejected: appel (a phone call). |
+| session / sesh | session | check. "Sesh": session. Session replay: replay de session. Game session: session de jeu. A technical session ("no session to join") also uses session. |
+| match | partie | Count: partie(s). Rejected: match (sport), game (anglicism; fine in speech, unclear next to "jeu"). |
+| win, loss, draw | victoire, défaite, nul | check. Short forms W, L, D become V, D, N. D means a loss in French, so the reviewer must check each record ("4V–2D"). "took an L": "s'est pris une défaite". |
+| record, win rate | bilan, winrate | check. "winrate" is the word of French players. Rejected: taux de victoire (too long for the label). |
+| stream (noun) | stream (le stream) | Also "live" in a badge. |
+| stream (verb), go live, live | streamer, lancer un live, en live | Badge LIVE stays LIVE. "YOU ARE LIVE": T'ES EN LIVE. |
+| watch | regarder | Viewer: spectateur. Host of a stream: streamer. |
+| clip (noun) | clip (le clip) | check. Voice clip: clip vocal. Game clip: clip de jeu. Rejected: extrait (a press or video-editing word), séquence (dry). |
+| clip (verb) | clipper | check. "{} clipped that": "{} a clippé ça". The verb of French players. Rejected: enregistrer (that is "record"). |
+| moment | moment | check. The moment kind "Highlight": Grosse action. Rejected: moment fort (long), highlight (not French in a button). |
+| recap | récap | Weekly recap: récap de la semaine; label RÉCAP HEBDO. Rejected: résumé (formal), bilan (that is "record"). |
+| feed | fil | Crew feed: fil du crew. Rejected: flux (a tech word), feed (anglicism). |
+| catch up | ce que t'as raté | check. The title and the tag. The body can use "pendant ton absence". Rejected: rattrapage (a school resit), résumé (that is "recap"). |
+| crew history | historique du crew | |
+| belt, title | titre | check. Belt and title are the same thing. Hold: détenir ("Tu en détiens 3"). Take: piquer ("a piqué X à Y"). Rejected: ceinture (boxing), trophée (that is "award"). |
+| The Carry | Le Carry | French players say "carry" for the one who carries the team. |
+| Locked In | L'Accro | check. Rejected: Concentré (too calm), Tryhard (about effort, not hours). |
+| Has a Life | A une vie | check. A joke on "no-life". Rejected: Vie sociale (flat). |
+| Night Owl | Noctambule | Rejected: Oiseau de nuit (long). |
+| The Collector | Le Collectionneur | check. Long in a tight card. |
+| Sampler | Touche-à-tout | check. Rejected: Goûteur (food word). |
+| One Trick | One Trick | check. The League of Legends word in French ("OTP"). Kept in English as French players do. Rejected: Monomaniaque (clinical). |
+| Mouth | La Pipelette | check. A chatterbox. Rejected: La Grande Gueule (rude). |
+| Marathon | Marathon | Same word in French. Rejected: Endurant (flat). |
+| Last One Up | Dernier Debout | check. Must differ from Night Owl. Rejected: Couche-tard (same as Night Owl). |
+| Clipper | Le Clippeur | check. Rejected: Monteur (a video-editing job). |
+| Rage Quit | Rage Quit | check. French players say "rage quit". Rejected: Abandon rageur (stiff). |
+| Winner | Gagnant | Rejected: Vainqueur (formal). |
+| award | trophée | The weekly fun prize in the recap. |
+| grinder | grinder | check. "Grinder of the week": Grinder de la semaine. Rejected: no-life (clashes with "A une vie"), bosseur (work word). |
+| heater | en feu | "Biggest heater": Le plus en feu. |
+| skid | série noire | "{n}-loss skid": série noire de {n}. "Roughest patch": La pire passe. |
+| streak | série | "{n}-win streak": {n} victoires d'affilée. "{n}-loss streak": {n} défaites d'affilée. |
+| quest | quête | Founding week: semaine de fondation. |
+| gift | récompense | check. Sealed: scellée. Rejected: cadeau (a present from a person). |
+| banner | bannière | |
+| emoji | emoji | Crew emoji: emojis du crew. |
+| invite | inviter, invitation | Invite link: lien d'invitation. Invite code: code d'invitation. |
+| join, leave | rejoindre, quitter | |
+| friend, guest | ami, invité | |
+| mute | couper le micro | Label: Micro coupé. Mute another person or a stream: rendre muet, couper le son. |
+| deafen | mettre en sourdine | check. The Discord word in French. Button: Sourdine. State: En sourdine. Undeafen: Réactiver le son. Rejected: couper le son (that is "mute a stream"). |
+| push to talk | appuyer pour parler | Voice activity: activité vocale. |
+| recording | enregistrement | macOS "Screen Recording": Enregistrement de l'écran. |
+| HUD, overlay | HUD, overlay | check. French players say "overlay". Rejected: superposition (a long, literal word). |
+| chat, message, reaction | chat, message, réaction | React (verb): réagir. |
+| online, idle, invisible | en ligne, inactif, invisible | Do Not Disturb: Ne pas déranger. |
+| settings | paramètres | |
+| setup | configuration | Not "paramètres", which is "settings". |
+| sign in, sign out | se connecter, se déconnecter | "Log Out" is the same as sign out. Network "Connecting…" uses "Connexion…". |
+| account | compte | |
+| display name, nickname, handle | pseudo | |
+| avatar, profile | avatar, profil | |
+| game | jeu | |
+| key, keybind | touche, raccourci | |
+| stats, verified | stats, vérifié | Verified stats: stats officielles. |
+| quality | qualité | POTATO: PATATE. PRO-POTATO: PATATE PRO. |
+| update | mise à jour | Short form MAJ only where the space is tight. |
+| device, microphone | périphérique, micro | Input: entrée. Output: sortie. |
+| image, tray, server | image, zone de notification, serveur | The site never uses a word for "server". |
+
+### 5.7 sv (Swedish)
+
+| English | sv | Note |
+|---|---|---|
+| m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
+| head2head | head2head | Never translated. |
+| crew | gäng (gänget, gängen) | check. The word friends use for their group. Compounds: gängflöde, gänghistorik, gängemoji, gängbanner. Rejected: lag (a sports or esports team), klan (a guild word), crew (an English loan, not needed). |
+| member | medlem | Crewmate, crew mate: polare. "Message crewmates": Skriv till gänget. |
+| owner | ägare | check. The word in Swedish chat apps. Rejected: grundare (a founder, not a role), boss (too much slang for a role label). |
+| admin | admin | |
+| channel | kanal | Voice channel: röstkanal. |
+| hangout | häng | check. A board label (HÄNG) and "hung out in": hängde i. Rejected: umgänge (formal), träff (a planned meeting). |
+| voice | röst | Voice chat: röstchatt. "In voice": i röst. |
+| call | röst | "in the call": i röst. "First call": Första röstchatten. Rejected: samtal (a phone call). |
+| session / sesh | pass | check. A stretch of play: spelpass. Voice session: röstpass. A session card in the feed: passrepris. Session replay of a stream: streamrepris. Count: antal pass. Use "session" only for a technical session ("The stream has no session to join"). Rejected: session for play (a software word), omgång (one round). |
+| match | match | Plural: matcher. |
+| win, loss, draw | vinst, förlust, oavgjort | Short forms W, L, D: V, F, O (the letters of Swedish sports tables). "took an L": åkte på en förlust. |
+| record, win rate | facit, vinstprocent | "4W–2L": 4V–2F. |
+| stream (noun) | stream (en stream, streamen) | The loan word that Swedish gamers use. Rejected: livesändning (TV word). |
+| stream (verb), go live, live | streama, gå live, live | |
+| watch | kolla | "Watch {}": Kolla på {}. Viewer: tittare. Host of a stream: streamer. Rejected: titta (correct but flat; used only in "tittare"). |
+| clip (noun) | klipp (ett klipp, klippet, klipp, klippen) | Voice clip: röstklipp. Game clip: spelklipp. |
+| clip (verb) | klippa | "{} clipped that": {} klippte det. |
+| moment | ögonblick | check. The moment kind "Highlight": Höjdpunkt. |
+| recap | summering | Weekly recap: veckosummering, in a label VECKANS SUMMERING. Rejected: sammanfattning (long, school word). |
+| feed | flöde | Crew feed: gängflöde. |
+| catch up | ikapp | check. The title: Ikapp. The body: Medan du var borta. Rejected: återblick (formal). |
+| crew history | gänghistorik | |
+| belt, title | titel (titeln, titlar) | check. Belt and title are the same thing. Hold: hålla ("håller titeln", a sports phrase). Take: sno (casual "snatch"). Rejected: bälte (boxing only). |
+| The Carry | Bäraren | check. Swedish gamers say "carry" as a verb ("han carryade"); Bäraren keeps the meaning in Swedish. Rejected: Carryn (an English noun with a Swedish ending). |
+| Locked In | I zonen | check. Rejected: Fokuserad (too calm). |
+| Has a Life | Har ett liv | |
+| Night Owl | Nattuggla | |
+| The Collector | Samlaren | |
+| Sampler | Spelhoppare | check. A player who hops between many games. Rejected: Provare (flat). |
+| One Trick | Enkelspårig | check. A Swedish word for "one-track mind". Rejected: One-trick (English, only LoL players use it). |
+| Mouth | Pratkvarn | |
+| Marathon | Maraton | |
+| Last One Up | Sist uppe | check. Must differ from Night Owl. Rejected: Sömnlös (a health word). |
+| Clipper | Klippare | check. Rejected: Klipparen (with the article it is a hair clipper first). |
+| Rage Quit | Ragequit | check. The word Swedish gamers use ("ragequitta"). Rejected: Ilskeavhopp (nobody says it). |
+| Winner | Vinnare | |
+| award | pris (priset, priser) | |
+| grinder | slitvarg | check. "Grinder of the week": Veckans slitvarg. Rejected: grindare (an English loan with few users). |
+| heater | het svit | "Biggest heater": Hetaste sviten. |
+| skid | svacka | "Roughest patch": Tyngsta svackan. "{n}-loss skid": {n} förluster i rad. |
+| streak | svit | "{n}-win streak": {n} vinster i rad. "{n}-loss streak": {n} förluster i rad. |
+| quest | uppdrag | Founding week: grundarveckan. FIRST WEEK: FÖRSTA VECKAN. |
+| gift | belöning | Sealed: oöppnad. Rejected: present, gåva (a birthday gift). |
+| banner | banner | Crew banner: gängbanner. |
+| emoji | emoji | Crew emoji: gängemoji. |
+| invite | bjuda in (verb), inbjudan (noun) | Invite link: inbjudningslänk. Invite code: inbjudningskod. |
+| join, leave | gå med, lämna | Join voice: gå med i röst. |
+| friend, guest | kompis, gäst | Rejected: vän (formal in a game app). |
+| mute | muta | Mute your microphone: muta, Unmute: avmuta, Muted: mutad. Mute another person or a stream: tysta. |
+| deafen | stäng av ljud | check. Undeafen: slå på ljud. Deafened: ljud av. Rejected: döva (sounds like a medical word). |
+| push to talk | tryck för att prata | Voice activity: röstaktivering. |
+| recording | inspelning | macOS "Screen Recording": Skärminspelning (the macOS word). |
+| HUD, overlay | HUD, overlay | check. Rejected: överlägg (nobody says it). |
+| chat, message, reaction | chatt, meddelande, reaktion | React (verb): reagera. |
+| online, idle, invisible | online, inaktiv, osynlig | Do Not Disturb: Stör ej. |
+| settings | inställningar | |
+| setup | konfig | check. Casual. Not "inställningar", which is "settings". Rejected: konfiguration (long, IT word). |
+| sign in, sign out | logga in, logga ut | "Log Out" is the same as sign out. |
+| account | konto | |
+| display name, nickname, handle | visningsnamn | "namn" in a tight label. |
+| avatar, profile | avatar, profil | |
+| game | spel | |
+| key, keybind | tangent, kortkommando | |
+| stats, verified | statistik, verifierad | Verified stats: officiell statistik. |
+| quality | kvalitet | POTATO: POTATIS. PRO-POTATO: PROFFSPOTATIS. |
+| update | uppdatering (noun), uppdatera (verb) | |
+| device, microphone | enhet, mikrofon | Input: ingång. Output: utgång. "mick" in a tight label. |
+| image, tray, server | bild, systemfältet, server | "server" in the client only. The site never uses a word for "server". |
 
 ## 6. Style
 

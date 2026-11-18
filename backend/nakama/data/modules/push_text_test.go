@@ -108,6 +108,15 @@ func TestEachPushTranslationHasAllTheKeys(t *testing.T) {
 	}
 }
 
+// The client bundles these seven catalogues. Each has a full push table.
+func TestEachClientLanguageHasAPushTable(t *testing.T) {
+	for _, lang := range []string{"zh-CN", "es", "pt-BR", "de", "ja", "fr", "sv"} {
+		if len(pushTexts[lang]) == 0 {
+			t.Errorf("%s: the push table is empty", lang)
+		}
+	}
+}
+
 func TestEveryBeltLabelIsInThePushTable(t *testing.T) {
 	for id, label := range head2headTitleLabels {
 		if got := pushBeltLabel("", id); got != label {
@@ -134,9 +143,11 @@ func TestPushTextFallsBackToTheBaseLanguageThenEnglish(t *testing.T) {
 	if got := pushText("", "join_one", "Jo", "Owls"); got != "Jo joined Owls." {
 		t.Fatalf("the empty tag is English: %q", got)
 	}
+	withPushTable(t, "sv", map[string]string{})
 	if got := pushText("sv", "join_one", "Jo", "Owls"); got != "Jo joined Owls." {
 		t.Fatalf("an empty sv table gives English: %q", got)
 	}
+	withPushTable(t, "pt-BR", map[string]string{})
 	withPushTable(t, "pt", map[string]string{"join_one": "%s entrou em %s."})
 	if got := pushText("pt-BR", "join_one", "Jo", "Owls"); got != "Jo entrou em Owls." {
 		t.Fatalf("pt-BR with an empty table falls back to pt: %q", got)
@@ -215,6 +226,7 @@ func TestRecapPushBodyUsesTheLanguage(t *testing.T) {
 	if len(items) != 1 || items[0].Body != "Jonas tog Bäraren. Du har 4." {
 		t.Fatalf("items: %+v", items)
 	}
+	withPushTable(t, "fr", map[string]string{})
 	if got := recapPushBody("fr", pushRecap(), "bob"); got != "Jonas took The Carry. You hold 4." {
 		t.Fatalf("an empty fr table gives English: %q", got)
 	}
