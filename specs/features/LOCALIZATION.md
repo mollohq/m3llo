@@ -399,8 +399,18 @@ The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
 - A release build with no catalog shows "System" and "English". A debug
   build shows `qps` too.
 - A change saves `Settings.language` and applies at the next start. When the
-  choice differs from the setting of this run, the row shows "Takes effect
-  after restart".
+  choice differs from the setting of this run, a panel shows under the row:
+  "m3llo restarts to switch to {}." with two buttons.
+  - "Keep {}" (white) names the language of this run. It sets the setting
+    back to the value of this run, saves it and sends the account language
+    again. No restart.
+  - "Restart now" (red) asks for a restart (`restart::request`, through the
+    `AppContext::restart` seam) and quits the same way as the tray "Quit"
+    (`quit_voice::request_quit`). After `run_app` returns, `lib.rs::run`
+    starts `current_exe()` again with the arguments of this run, without a
+    `mello://` link and without `--reset`.
+- The window close does not apply a change: the app keeps running in the
+  tray.
 
 ### Tests run in English
 
@@ -492,6 +502,18 @@ translations of the messages that did not change.
 - The journey `the_feed_reads_in_chinese` (`client/src/flow_tests.rs`)
   selects `zh-CN` and checks the day of a feed card, the recap title and the
   catch-up line in Chinese.
+
+### The six other catalogues
+
+- `es`, `pt-BR`, `de`, `ja`, `fr` and `sv` are bundled the same way as
+  `zh-CN`. Each is a best-try draft. It waits for a native review of the
+  "check" rows of its glossary table in `TRANSLATING.md`.
+- `ja` has one plural form. The other five have two.
+- Each language has a push table in `push_text.go` with the same words.
+- Each language has a feed journey in `client/src/flow_tests.rs`:
+  `the_feed_reads_in_spanish`, `the_feed_reads_in_brazilian_portuguese`,
+  `the_feed_reads_in_german`, `the_feed_reads_in_japanese`,
+  `the_feed_reads_in_french` and `the_feed_reads_in_swedish`.
 
 ## 11. Tools
 

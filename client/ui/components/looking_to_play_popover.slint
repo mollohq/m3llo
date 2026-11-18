@@ -552,6 +552,7 @@ export component LookingToPlayPopover inherits Rectangle {
                     enabled: root.can-ask;
                     text: root.everyone-picked || root.picked-count == 0
                         ? @tr("ASK THE CREW")
+                        // The red button of the ask popover. {} is the count of picked members.
                         : @tr("ASK {}", root.picked-count);
                     a11y-label: root.everyone-picked || root.picked-count == 0
                         ? @tr("Ask the crew")

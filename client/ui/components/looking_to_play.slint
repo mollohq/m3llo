@@ -57,6 +57,7 @@ export struct LookingToPlayToastData {
 export global LookingToPlayCopy {
     in-out property <string> looking: @tr("LOOKING TO PLAY");
     in-out property <string> on-tag: @tr("ON");
+    /// The unit after the minutes until an ask closes, or until a member is due.
     in-out property <string> min: @tr("MIN");
     in-out property <string> state-voice: @tr("IN VOICE");
     in-out property <string> state-in: @tr("IN");
@@ -563,7 +564,9 @@ export component LookingToPlayCard inherits CutCard {
         Rectangle { height: 6px; }
 
         Text {
+            // The title of a closed ask. {} is the asker.
             text: root.closed ? @tr("{} was looking to play", root.data.asker-name)
+                // The title of an ask. {} is the asker.
                 : @tr("{} is looking to play", root.data.asker-name);
             font-family: Theme.font-display;
             font-weight: Theme.weight-display;
@@ -707,7 +710,10 @@ export component LookingToPlayCard inherits CutCard {
         }
 
         if root.nobody-line || root.cancelled-line: Text {
-            text: root.cancelled-line ? @tr("{} called it off", root.data.asker-name) : @tr("No one this time");
+            text: root.cancelled-line
+                // A closed ask that the asker cancelled. {} is the asker.
+                ? @tr("{} called it off", root.data.asker-name)
+                : @tr("No one this time");
             font-family: Theme.font-body;
             font-weight: Theme.weight-sentence;
             font-size: Theme.font-md;
@@ -795,9 +801,10 @@ export component LookingToPlayToast inherits CutCard {
 
         Rectangle { height: 8px; }
 
+        // The client knows no name for an asker of a crew it did not show
+        // this run.
         Text {
-            // The client knows no name for an asker of a crew it did not
-            // show this run.
+            // The client does not know the name of the asker.
             text: root.data.asker-name == "" ? @tr("Someone is looking to play")
                 : @tr("{} is looking to play", root.data.asker-name);
             font-family: Theme.font-display;

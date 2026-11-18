@@ -1,0 +1,4830 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mello-client VERSION\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: client/ui/components/avatar_card.slint
+msgid "Choose avatar"
+msgstr "Elegir avatar"
+
+#: client/ui/components/clip_wave.slint
+msgid "Pause"
+msgstr "Pausa"
+
+#: client/ui/components/clip_wave.slint
+msgid "Play"
+msgstr "Reproducir"
+
+#: client/ui/components/clip_wave.slint
+msgid "Clip position"
+msgstr "Posición del clip"
+
+#: client/ui/components/feed_board.slint
+msgid "Sealed recap, open it"
+msgstr "Resumen sin abrir, ábrelo"
+
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "TODAY"
+msgstr "HOY"
+
+#: client/ui/components/feed_board.slint
+msgid "WEEK"
+msgstr "SEMANA"
+
+#: client/ui/components/feed_board.slint
+msgid "TOP GAME"
+msgstr "JUEGO TOP"
+
+#: client/ui/components/feed_board.slint client/ui/panels/you_view.slint
+msgid "HEAD2HEAD"
+msgstr "HEAD2HEAD"
+
+#: client/ui/components/feed_board.slint
+msgid "Go head2head with your crew"
+msgstr "Ve head2head con tu squad"
+
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
+msgid "MOST ACTIVE"
+msgstr "MÁS ACTIVO"
+
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
+msgid "MOST CLIPPED"
+msgstr "MÁS CLIPEADO"
+
+#: client/ui/components/feed_board.slint
+msgid "clip"
+msgid_plural "clips"
+msgstr[0] "clip"
+msgstr[1] "clips"
+
+#: client/ui/components/feed_board.slint
+msgid "GAMES PLAYED"
+msgstr "JUEGOS JUGADOS"
+
+#: client/ui/components/feed_board.slint client/ui/panels/you_view.slint
+msgid "BELTS"
+msgstr "TÍTULOS"
+
+#. The badge of a live stream.
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "LIVE"
+msgstr "DIRECTO"
+
+#: client/ui/components/feed_board.slint
+msgctxt "noun"
+msgid "STREAM"
+msgstr "DIRECTO"
+
+#: client/ui/components/feed_board.slint
+msgid "MOST INSTALLED"
+msgstr "MÁS INSTALADOS"
+
+#: client/ui/components/feed_board.slint
+msgid "QUIET"
+msgstr "TRANQUILO"
+
+#: client/ui/components/feed_board.slint
+msgid "GAME SESSIONS"
+msgstr "SESIONES DE JUEGO"
+
+#: client/ui/components/feed_board.slint
+msgid "VOICE"
+msgstr "VOZ"
+
+#: client/ui/components/feed_board.slint
+msgid "Play the voice clip of {}"
+msgstr "Reproducir el clip de voz de {}"
+
+#: client/ui/components/feed_board.slint
+msgid "Show all clips"
+msgstr "Ver todos los clips"
+
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "CLIPS"
+msgstr "CLIPS"
+
+#: client/ui/components/feed_board.slint
+msgid "INVITE"
+msgstr "INVITAR"
+
+#. keeps the name unique.
+#: client/ui/components/feed_board.slint
+msgid "Invite your crew"
+msgstr "Invita a tu squad"
+
+#: client/ui/components/feed_board.slint
+msgid "SAY HI"
+msgstr "SALUDA"
+
+#: client/ui/components/feed_board.slint
+msgid "Say hi to {}"
+msgstr "Saluda a {}"
+
+#: client/ui/components/feed_board.slint
+msgid "START VOICE"
+msgstr "INICIAR VOZ"
+
+#: client/ui/components/feed_board.slint
+msgid "Start voice"
+msgstr "Iniciar voz"
+
+#: client/ui/components/feed_board.slint
+msgid "JOIN"
+msgstr "UNIRSE"
+
+#. which shows as it is.
+#: client/ui/components/feed_board.slint
+msgid "Locked clip, m3llo+"
+msgstr "Clip bloqueado, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "Locked stream, m3llo+"
+msgstr "Directo bloqueado, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "Locked {}, m3llo+"
+msgstr "{} bloqueado, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "CLIP"
+msgstr "CLIP"
+
+#: client/ui/components/feed_board.slint
+msgid "STREAM"
+msgstr "DIRECTO"
+
+#: client/ui/components/feed_board.slint
+msgid "Unlock your crew's full story"
+msgstr "Desbloquea toda la historia de tu squad"
+
+#: client/ui/components/feed_board.slint
+msgid "Keep every clip and recap forever with m3llo+. {n} week so far."
+msgid_plural "Keep every clip and recap forever with m3llo+. {n} weeks so far."
+msgstr[0] "Guarda cada clip y resumen para siempre con m3llo+. {n} semana hasta ahora."
+msgstr[1] "Guarda cada clip y resumen para siempre con m3llo+. {n} semanas hasta ahora."
+
+#: client/ui/components/feed_board.slint
+msgid "Coming soon"
+msgstr "Muy pronto"
+
+#: client/ui/components/feed_board.slint
+msgid "Every clip and recap of your crew, kept forever."
+msgstr "Cada clip y resumen de tu squad, para siempre."
+
+#: client/ui/components/feed_board.slint
+msgid "CLOSE"
+msgstr "CERRAR"
+
+#: client/ui/components/feed_quests.slint
+msgid "Sealed gift, open it"
+msgstr "Recompensa sin abrir, ábrela"
+
+#: client/ui/components/feed_quests.slint client/ui/panels/crew_panel.slint
+msgid "Invite"
+msgstr "Invitar"
+
+#: client/ui/components/feed_quests.slint
+msgid "SETTINGS"
+msgstr "AJUSTES"
+
+#: client/ui/components/feed_quests.slint
+msgid "Game activity settings"
+msgstr "Ajustes de actividad de juego"
+
+#: client/ui/components/feed_quests.slint
+msgid "QUESTS"
+msgstr "MISIONES"
+
+#: client/ui/components/head2head.slint client/ui/components/looking_to_play_popover.slint
+msgid "OPEN"
+msgstr "ABRIR"
+
+#. What the button says, in upper case.
+#: client/ui/components/head2head.slint
+msgid "INVITE YOUR CREW"
+msgstr "INVITA A TU SQUAD"
+
+#: client/ui/components/head2head.slint
+msgid "WAS HELD BY"
+msgstr "ERA DE"
+
+#: client/ui/components/head2head.slint
+msgid "NOW HELD BY"
+msgstr "AHORA DE"
+
+#: client/ui/components/quality_pills.slint
+msgid "QUALITY"
+msgstr "CALIDAD"
+
+#. them.
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "ULTRA"
+msgstr "ULTRA"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "HIGH"
+msgstr "ALTA"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "MEDIUM"
+msgstr "MEDIA"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "PRO-POTATO"
+msgstr "PRO-PATATA"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "POTATO"
+msgstr "PATATA"
+
+#: client/ui/components/quality_pills.slint
+msgid "~6 Mbit/s"
+msgstr "~6 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~4.5 Mbit/s"
+msgstr "~4,5 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~4 Mbit/s"
+msgstr "~4 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~2.5 Mbit/s  (martin mode)"
+msgstr "~2,5 Mbit/s  (modo martin)"
+
+#: client/ui/components/quality_pills.slint
+msgid "~1.5 Mbit/s"
+msgstr "~1,5 Mbit/s"
+
+#. A duration: the first value is the hours, the second is the minutes ("6 h 
+#. 40").
+#: client/ui/components/sealed.slint
+msgctxt "unit"
+msgid "{} h {}"
+msgstr "{} h {}"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{} min"
+msgstr "{} min"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h {}m"
+msgstr "{}h {}m"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{}m"
+msgstr "{}m"
+
+#: client/ui/components/sealed.slint
+msgid "Sealed belt, open it"
+msgstr "Título sin abrir, ábrelo"
+
+#. "Week 4", or "This week" before the server counts the weeks.
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "This week"
+msgstr "Esta semana"
+
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint
+msgid "WEEKLY RECAP"
+msgstr "RESUMEN SEMANAL"
+
+#. has no name.
+#: client/ui/components/stream_hero.slint client/ui/tr.slint
+msgid "STREAMING"
+msgstr "EMITIENDO"
+
+#: client/ui/components/stream_hero.slint
+msgid "Watch {}"
+msgstr "Ver a {}"
+
+#: client/ui/main.slint client/ui/panels/onboarding.slint
+msgid "System Default"
+msgstr "Predeterminado del sistema"
+
+#: client/ui/main.slint
+msgid "Audio device not found"
+msgstr "Dispositivo de audio no encontrado"
+
+#: client/ui/main.slint
+msgid "Go to Settings"
+msgstr "Ir a Ajustes"
+
+#: client/ui/main.slint
+msgid "Continue"
+msgstr "Continuar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "WATCHING"
+msgstr "VIENDO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} is getting the game ready"
+msgstr "{} está preparando el juego"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{}'s game isn't visible"
+msgstr "El juego de {} no se ve"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} paused the stream"
+msgstr "{} pausó el directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Video starts when the game draws its first frame"
+msgstr "El vídeo empieza cuando el juego dibuja su primer frame"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "The stream resumes when capture finds the game"
+msgstr "El directo vuelve cuando la captura encuentra el juego"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Video resumes when they're back in game"
+msgstr "El vídeo vuelve cuando vuelva al juego"
+
+#. your own stream). The count rides the tag of a live stream.
+#: client/ui/panels/active_streams_panel.slint
+msgid "RECONNECTING"
+msgstr "RECONECTANDO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "STARTING"
+msgstr "EMPEZANDO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "NOT LIVE"
+msgstr "SIN DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "ENDED"
+msgstr "TERMINADO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Connecting to {}'s stream"
+msgstr "Conectando al directo de {}"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "PLAYING IN A WINDOW"
+msgstr "EN UNA VENTANA"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{}'s stream is in its own window"
+msgstr "El directo de {} está en su propia ventana"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Show it here"
+msgstr "Mostrar aquí"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} IS LIVE"
+msgstr "{} ESTÁ EN DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "YOU ARE LIVE"
+msgstr "ESTÁS EN DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Connecting to the stream server"
+msgstr "Conectando al servidor de directos"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Viewers see your last frame"
+msgstr "Los espectadores ven tu último frame"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "END STREAM"
+msgstr "TERMINAR DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "DELAY"
+msgstr "RETARDO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "JITTER"
+msgstr "JITTER"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "DECODE"
+msgstr "DECOD."
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "LATE"
+msgstr "TARDE"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "AUDIO"
+msgstr "AUDIO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "A/V"
+msgstr "A/V"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{n} watching"
+msgid_plural "{n} watching"
+msgstr[0] "{n} viendo"
+msgstr[1] "{n} viendo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream volume"
+msgstr "Volumen del directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream settings"
+msgstr "Ajustes del directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Exit expanded view"
+msgstr "Salir de la vista ampliada"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Expand"
+msgstr "Ampliar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Close the stream window"
+msgstr "Cerrar la ventana del directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Pop out"
+msgstr "Desacoplar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Leave"
+msgstr "Salir"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Only you hear this change."
+msgstr "Solo tú oyes este cambio."
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "STREAM VOLUME"
+msgstr "VOLUMEN DEL DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "MUTED"
+msgstr "SILENCIADO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream volume for {}"
+msgstr "Volumen del directo de {}"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Above 100% loud game audio can distort."
+msgstr "Por encima del 100% el audio alto del juego puede distorsionar."
+
+#: client/ui/panels/active_streams_panel.slint client/ui/tr.slint
+msgid "Mute"
+msgstr "Silenciar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Mute the stream"
+msgstr "Silenciar el directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "RESET TO 100%"
+msgstr "VOLVER AL 100%"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Reset stream volume to 100%"
+msgstr "Volver el volumen del directo al 100%"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "YOUR STREAM"
+msgstr "TU DIRECTO"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stats"
+msgstr "Stats"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Delay, jitter and sync on the card"
+msgstr "Retardo, jitter y sincronía en la tarjeta"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Show stream stats"
+msgstr "Mostrar stats del directo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "SENDING"
+msgstr "ENVIANDO"
+
+#: client/ui/panels/chat_panel.slint
+msgid "More actions"
+msgstr "Más acciones"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Edit"
+msgstr "Editar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Delete"
+msgstr "Eliminar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Copy text"
+msgstr "Copiar texto"
+
+#: client/ui/panels/chat_panel.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "{} clipped that"
+msgstr "{} clipeó eso"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Voice · {} · Play"
+msgstr "Voz · {} · Reproducir"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Play clip"
+msgstr "Reproducir clip"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Search GIFs"
+msgstr "Buscar GIFs"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Try again"
+msgstr "Reintentar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "TRY AGAIN"
+msgstr "REINTENTAR"
+
+#. The quote above a reply to a GIF with no text.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "GIF"
+msgstr "GIF"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Powered by GIPHY"
+msgstr "Powered by GIPHY"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Crew chat"
+msgstr "Chat del squad"
+
+#: client/ui/panels/chat_panel.slint
+msgid "{n} message this week"
+msgid_plural "{n} messages this week"
+msgstr[0] "{n} mensaje esta semana"
+msgstr[1] "{n} mensajes esta semana"
+
+#: client/ui/panels/chat_panel.slint
+msgid "New messages"
+msgstr "Mensajes nuevos"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Replying to {}"
+msgstr "Respondiendo a {}"
+
+#: client/ui/panels/chat_panel.slint
+msgid "(edited)"
+msgstr "(editado)"
+
+#. The text of a deleted message, and its quote above a reply.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "[message deleted]"
+msgstr "[mensaje eliminado]"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message actions"
+msgstr "Acciones del mensaje"
+
+#: client/ui/panels/chat_panel.slint
+msgid "React"
+msgstr "Reaccionar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Reply"
+msgstr "Responder"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Image not available"
+msgstr "Imagen no disponible"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading image…"
+msgstr "Cargando imagen…"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Open image"
+msgstr "Abrir imagen"
+
+#: client/ui/panels/chat_panel.slint
+msgid "GIF not available"
+msgstr "GIF no disponible"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading GIF…"
+msgstr "Cargando GIF…"
+
+#: client/ui/panels/chat_panel.slint
+msgid "React {}"
+msgstr "Reaccionar {}"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Add reaction"
+msgstr "Añadir reacción"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading..."
+msgstr "Cargando..."
+
+#: client/ui/panels/chat_panel.slint
+msgid "No messages yet"
+msgstr "Aún no hay mensajes"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel reply"
+msgstr "Cancelar respuesta"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Editing message"
+msgstr "Editando mensaje"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel edit"
+msgstr "Cancelar edición"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Delete this message?"
+msgstr "¿Eliminar este mensaje?"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Search emoji"
+msgstr "Buscar emoji"
+
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "Add emoji"
+msgstr "Añadir emoji"
+
+#: client/ui/panels/chat_panel.slint
+msgid "RECENT"
+msgstr "RECIENTES"
+
+#: client/ui/panels/chat_panel.slint
+msgid "No emoji called that"
+msgstr "Ningún emoji se llama así"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Remove image"
+msgstr "Quitar imagen"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Attach"
+msgstr "Adjuntar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Emoji"
+msgstr "Emoji"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message crewmates"
+msgstr "Escribe a tu squad"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message crewmates..."
+msgstr "Escribe a tu squad..."
+
+#: client/ui/panels/chat_panel.slint
+msgid "Send"
+msgstr "Enviar"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "Close the clip"
+msgstr "Cerrar el clip"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "Play again"
+msgstr "Reproducir otra vez"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "BUFFERING"
+msgstr "CARGANDO"
+
+#: client/ui/panels/control_bar.slint
+msgid "Account menu"
+msgstr "Menú de la cuenta"
+
+#: client/ui/panels/control_bar.slint
+msgid "PRESENCE"
+msgstr "ESTADO"
+
+#: client/ui/panels/control_bar.slint
+msgid "Online"
+msgstr "En línea"
+
+#: client/ui/panels/control_bar.slint
+msgid "Idle"
+msgstr "Ausente"
+
+#: client/ui/panels/control_bar.slint
+msgid "Do Not Disturb"
+msgstr "No molestar"
+
+#: client/ui/panels/control_bar.slint
+msgid "Invisible"
+msgstr "Invisible"
+
+#: client/ui/panels/control_bar.slint
+msgid "Debug Audio"
+msgstr "Depurar audio"
+
+#: client/ui/panels/control_bar.slint
+msgid "Log Out"
+msgstr "Cerrar sesión"
+
+#: client/ui/panels/control_bar.slint
+msgid "Not connected"
+msgstr "Sin conexión"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Unmute"
+msgstr "Activar micro"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Undeafen"
+msgstr "Dejar de ensordecer"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Deafen"
+msgstr "Ensordecer"
+
+#: client/ui/panels/control_bar.slint
+msgid "Leave voice"
+msgstr "Salir de la voz"
+
+#: client/ui/panels/control_bar.slint client/ui/panels/crew_feed.slint
+msgid "NOW PLAYING"
+msgstr "JUGANDO AHORA"
+
+#: client/ui/panels/control_bar.slint
+msgctxt "verb"
+msgid "STREAM"
+msgstr "EMITIR"
+
+#: client/ui/panels/control_bar.slint
+msgid "Stream options"
+msgstr "Opciones del directo"
+
+#: client/ui/panels/control_bar.slint
+msgid "VIEWERS SEE PAUSED"
+msgstr "LOS ESPECTADORES VEN PAUSA"
+
+#: client/ui/panels/control_bar.slint
+msgid "Microphone access denied — enable it in System Settings"
+msgstr "Acceso al micrófono denegado — actívalo en Ajustes del Sistema"
+
+#: client/ui/panels/control_bar.slint
+msgid "Microphone access is needed for voice chat"
+msgstr "La voz necesita acceso al micrófono"
+
+#: client/ui/panels/control_bar.slint
+msgid "OPEN SETTINGS"
+msgstr "ABRIR AJUSTES"
+
+#: client/ui/panels/control_bar.slint
+msgid "ALLOW MICROPHONE"
+msgstr "PERMITIR MICRÓFONO"
+
+#: client/ui/panels/control_bar.slint
+msgid "How'd it go?"
+msgstr "¿Qué tal fue?"
+
+#: client/ui/panels/control_bar.slint
+msgid "Win"
+msgstr "Victoria"
+
+#: client/ui/panels/control_bar.slint
+msgid "Loss"
+msgstr "Derrota"
+
+#: client/ui/panels/control_bar.slint
+msgid "Highlight"
+msgstr "Jugadón"
+
+#: client/ui/panels/control_bar.slint
+msgid "GET VERIFIED STATS"
+msgstr "CONSIGUE STATS OFICIALES"
+
+#: client/ui/panels/control_bar.slint
+msgid "Dismiss verified stats"
+msgstr "Descartar stats oficiales"
+
+#: client/ui/panels/control_bar.slint
+msgid "Moment"
+msgstr "Momento"
+
+#: client/ui/panels/control_bar.slint
+msgid "Moment shared with crew"
+msgstr "Momento compartido con el squad"
+
+#: client/ui/panels/control_bar.slint
+msgid "CLIP 30S"
+msgstr "CLIP 30S"
+
+#: client/ui/panels/control_bar.slint
+msgid "Settings"
+msgstr "Ajustes"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "CREW BANNER"
+msgstr "BANNER DEL SQUAD"
+
+#. The buttons of a reveal in upper case, as the buttons show them.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
+msgid "GAME ART"
+msgstr "ARTE DEL JUEGO"
+
+#. The buttons of a reveal.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
+msgid "Game art"
+msgstr "Arte del juego"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "YOUR IMAGE"
+msgstr "TU IMAGEN"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Your image"
+msgstr "Tu imagen"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "No game by that name"
+msgstr "Ningún juego se llama así"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "No games yet"
+msgstr "Aún no hay juegos"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Search a game"
+msgstr "Busca un juego"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "JPEG OR PNG"
+msgstr "JPEG O PNG"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "REPLACE"
+msgstr "CAMBIAR"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "CHOOSE IMAGE"
+msgstr "ELEGIR IMAGEN"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Replace"
+msgstr "Cambiar"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Choose image"
+msgstr "Elegir imagen"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/crew_banner_modal.slint
+msgid "CANCEL"
+msgstr "CANCELAR"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Save"
+msgstr "Guardar"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "SAVING"
+msgstr "GUARDANDO"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "SAVE"
+msgstr "GUARDAR"
+
+#: client/ui/panels/crew_emoji_modal.slint client/ui/tr.slint
+msgid "CREW EMOJI"
+msgstr "EMOJIS DEL SQUAD"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "SQUARE"
+msgstr "CUADRADA"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Emoji name"
+msgstr "Nombre del emoji"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "All five slots are full."
+msgstr "Los cinco huecos están llenos."
+
+#. The name is upper case in the design: to-uppercase() is on the name only.
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "ADDED BY {}"
+msgstr "AÑADIDO POR {}"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "REMOVE"
+msgstr "QUITAR"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Remove :{}:"
+msgstr "Quitar :{}:"
+
+#: client/ui/panels/crew_feed.slint
+msgid "NEW"
+msgstr "NUEVO"
+
+#: client/ui/panels/crew_feed.slint
+msgid "VOICE CLIP"
+msgstr "CLIP DE VOZ"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PAUSED"
+msgstr "EN PAUSA"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PLAYING"
+msgstr "REPRODUCIENDO"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} participant"
+msgid_plural "{n} participants"
+msgstr[0] "{n} participante"
+msgstr[1] "{n} participantes"
+
+#. The labels of the numbers on the board, in upper case.
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "HANGOUT"
+msgstr "QUEDADA"
+
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "LONGEST"
+msgstr "MÁS LARGA"
+
+#: client/ui/panels/crew_feed.slint
+msgid "MVP"
+msgstr "MVP"
+
+#: client/ui/panels/crew_feed.slint
+msgid "BELTS MOVED"
+msgstr "TÍTULOS EN JUEGO"
+
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "+{} MORE"
+msgstr "+{} MÁS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "BELTS HELD"
+msgstr "TÍTULOS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "THIS WEEK IN GAMES"
+msgstr "ESTA SEMANA EN JUEGOS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "SESSION"
+msgstr "SESIÓN"
+
+#: client/ui/panels/crew_feed.slint
+msgid "by {} · {}"
+msgstr "de {} · {}"
+
+#: client/ui/panels/crew_feed.slint
+msgid "by {}"
+msgstr "de {}"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} watched at peak"
+msgid_plural "{n} watched at peak"
+msgstr[0] "{n} viendo en el pico"
+msgstr[1] "{n} viendo en el pico"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}W"
+msgstr "{}V"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}L"
+msgstr "{}D"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}D"
+msgstr "{}E"
+
+#: client/ui/panels/crew_feed.slint
+msgid "this session"
+msgstr "esta sesión"
+
+#: client/ui/panels/crew_feed.slint
+msgid "streak"
+msgstr "racha"
+
+#: client/ui/panels/crew_feed.slint
+msgid "win rate"
+msgstr "winrate"
+
+#: client/ui/panels/crew_feed.slint
+msgid "matches"
+msgstr "partidas"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PLAYED"
+msgstr "JUGADO"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Game session"
+msgstr "Sesión de juego"
+
+#: client/ui/panels/crew_feed.slint
+msgid "VERIFIED"
+msgstr "VERIFICADO"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}, solo"
+msgstr "{}, solo"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Newer clips"
+msgstr "Clips más nuevos"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Older clips"
+msgstr "Clips más antiguos"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Crew history"
+msgstr "Historial del squad"
+
+#: client/ui/panels/crew_feed.slint
+msgid "CREW HISTORY"
+msgstr "HISTORIAL DEL SQUAD"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} WEEK"
+msgid_plural "{n} WEEKS"
+msgstr[0] "{n} SEMANA"
+msgstr[1] "{n} SEMANAS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Crew feed"
+msgstr "Actividad del squad"
+
+#: client/ui/panels/crew_feed.slint
+msgid "YOU"
+msgstr "TÚ"
+
+#: client/ui/panels/crew_feed.slint
+msgid "YOUR GAMES"
+msgstr "TUS JUEGOS"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Reconnecting"
+msgstr "Reconectando"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Muted"
+msgstr "Silenciado"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Deafened"
+msgstr "Ensordecido"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Muted for you"
+msgstr "Silenciado para ti"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Volume for {}"
+msgstr "Volumen de {}"
+
+#: client/ui/panels/crew_panel.slint
+msgid "While away ({}): activity picked up."
+msgstr "Mientras no estabas ({}): hubo movimiento."
+
+#: client/ui/panels/crew_panel.slint
+msgid "While away ({}): {}"
+msgstr "Mientras no estabas ({}): {}"
+
+#: client/ui/panels/crew_panel.slint
+msgid "All quiet lately."
+msgstr "Todo tranquilo últimamente."
+
+#: client/ui/panels/crew_panel.slint
+msgid "Loading recent story..."
+msgstr "Cargando la historia reciente..."
+
+#: client/ui/panels/crew_panel.slint
+msgid "IN GAME NOW"
+msgstr "EN PARTIDA AHORA"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Crew menu"
+msgstr "Menú del squad"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Crew settings"
+msgstr "Ajustes del squad"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Add channel"
+msgstr "Añadir canal"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Notifications"
+msgstr "Notificaciones"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Leave crew"
+msgstr "Salir del squad"
+
+#: client/ui/panels/crew_panel.slint
+msgid "New crew"
+msgstr "Nuevo squad"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Discover"
+msgstr "Descubrir"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW IDENTITY"
+msgstr "IDENTIDAD DEL SQUAD"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Change"
+msgstr "Cambiar"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW NAME"
+msgstr "NOMBRE DEL SQUAD"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "DESCRIPTION"
+msgstr "DESCRIPCIÓN"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "PRIVACY"
+msgstr "PRIVACIDAD"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Open crew"
+msgstr "Squad abierto"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Anyone can find and join this crew without an invite"
+msgstr "Cualquiera puede encontrar este squad y unirse sin invitación"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "INVITES"
+msgstr "INVITACIONES"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Who can create invite links"
+msgstr "Quién puede crear enlaces de invitación"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Only admins can generate invite codes"
+msgstr "Solo los admins pueden generar códigos de invitación"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "All members can generate invite codes"
+msgstr "Todos los miembros pueden generar códigos de invitación"
+
+#: client/ui/components/looking_to_play_popover.slint client/ui/panels/crew_settings_modal.slint
+msgid "Everyone"
+msgstr "Todos"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Admins"
+msgstr "Admins"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "VOICE CHANNELS"
+msgstr "CANALES DE VOZ"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Delete {}"
+msgstr "Eliminar {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADD CHANNEL"
+msgstr "AÑADIR CANAL"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "New channel"
+msgstr "Nuevo canal"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Owner"
+msgstr "Líder"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Admin"
+msgstr "Admin"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Member"
+msgstr "Miembro"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "OWNER"
+msgstr "LÍDER"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADMIN"
+msgstr "ADMIN"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "MEMBER"
+msgstr "MIEMBRO"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Promote {}"
+msgstr "Ascender a {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Demote {}"
+msgstr "Degradar a {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Kick {}"
+msgstr "Expulsar a {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADMINS"
+msgstr "ADMINS"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "MEMBERS"
+msgstr "MIEMBROS"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "NOTIFICATIONS"
+msgstr "NOTIFICACIONES"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Messages"
+msgstr "Mensajes"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A phone push for each new message in this crew"
+msgstr "Un push al móvil por cada mensaje nuevo en este squad"
+
+#: client/ui/panels/chat_panel.slint client/ui/panels/crew_settings_modal.slint
+msgid "Looking to play"
+msgstr "Buscando partida"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A push, a toast and a sound when a crew member asks"
+msgstr "Un push, un aviso y un sonido cuando alguien del squad pregunta"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW SETTINGS"
+msgstr "AJUSTES DEL SQUAD"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/crew_settings_modal.slint
+msgid "Close"
+msgstr "Cerrar"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "OVERVIEW"
+msgstr "GENERAL"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CHANNELS"
+msgstr "CANALES"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "DELETE CREW"
+msgstr "ELIMINAR SQUAD"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Saved"
+msgstr "Guardado"
+
+#: client/ui/panels/discover_panel.slint
+msgid "0{n} Member"
+msgid_plural "0{n} Members"
+msgstr[0] "0{n} Miembro"
+msgstr[1] "0{n} Miembros"
+
+#: client/ui/panels/discover_panel.slint
+msgid "{n} Member"
+msgid_plural "{n} Members"
+msgstr[0] "{n} Miembro"
+msgstr[1] "{n} Miembros"
+
+#: client/ui/panels/discover_panel.slint
+msgid "+{n} active"
+msgid_plural "+{n} active"
+msgstr[0] "+{n} activo"
+msgstr[1] "+{n} activos"
+
+#: client/ui/panels/discover_panel.slint
+msgid "No one online"
+msgstr "Nadie en línea"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join Crew"
+msgstr "Unirse al squad"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join"
+msgstr "Unirse"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join {}"
+msgstr "Unirse a {}"
+
+#: client/ui/panels/discover_panel.slint
+msgid "BACK TO {}"
+msgstr "VOLVER A {}"
+
+#: client/ui/panels/discover_panel.slint
+msgid "PRIVATE ENTRY"
+msgstr "ENTRADA PRIVADA"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join a Private Crew"
+msgstr "Únete a un squad privado"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Enter an invite code to join a crew directly."
+msgstr "Escribe un código de invitación para unirte directamente."
+
+#: client/ui/panels/discover_panel.slint
+msgid "Invite code"
+msgstr "Código de invitación"
+
+#: client/ui/panels/discover_panel.slint
+msgid "e.g. ALPHA-992-K"
+msgstr "p. ej. ALPHA-992-K"
+
+#: client/ui/panels/discover_panel.slint
+msgid "FEATURED CREWS"
+msgstr "SQUADS DESTACADOS"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Updating m3llo"
+msgstr "Actualizando m3llo"
+
+#. The update is downloading.
+#: client/ui/panels/force_update_dialog.slint client/ui/tr.slint
+msgid "Downloading"
+msgstr "Descargando"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Your version can no longer connect to m3llo. Updating is required to "
+"continue."
+msgstr "Tu versión ya no puede conectarse a m3llo. Tienes que actualizar para seguir."
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Couldn't download the update. You can keep using your current version for "
+"now."
+msgstr "No se pudo descargar la actualización. Por ahora puedes seguir con tu versión actual."
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Quit"
+msgstr "Salir"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Start m3llo {}"
+msgstr "Iniciar m3llo {}"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Update failed"
+msgstr "Error al actualizar"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Required update"
+msgstr "Actualización obligatoria"
+
+#: client/ui/panels/game_clip_card.slint
+msgid "UPLOADING"
+msgstr "SUBIENDO"
+
+#: client/ui/panels/game_clip_card.slint
+msgid "Play the game clip of {}"
+msgstr "Reproducir el clip de juego de {}"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Previous image"
+msgstr "Imagen anterior"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Next image"
+msgstr "Imagen siguiente"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Image {}"
+msgstr "Imagen {}"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Save image"
+msgstr "Guardar imagen"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Copy image"
+msgstr "Copiar imagen"
+
+#: client/ui/panels/image_viewer.slint
+msgid "COPY"
+msgstr "COPIAR"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Close image"
+msgstr "Cerrar imagen"
+
+#: client/ui/panels/invite_name_modal.slint client/ui/tr.slint
+msgid "INVITE LINK"
+msgstr "ENLACE DE INVITACIÓN"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Invite name"
+msgstr "Nombre de la invitación"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Free"
+msgstr "Libre"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Taken"
+msgstr "Ocupado"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "3 to 24 letters, digits or dashes. Not in the shape of a code."
+msgstr "De 3 a 24 letras, números o guiones. Que no parezca un código."
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Checking"
+msgstr "Comprobando"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Invite people"
+msgstr "Invitar gente"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Share this link to invite anyone to your crew:"
+msgstr "Comparte este enlace para invitar a quien quieras a tu squad:"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Invite link"
+msgstr "Enlace de invitación"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Copied"
+msgstr "Copiado"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Copy link"
+msgstr "Copiar enlace"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "YOU'RE INVITED"
+msgstr "TE HAN INVITADO"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "{} invited you to join"
+msgstr "{} te invitó a unirte"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "You're invited to join"
+msgstr "Te han invitado a unirte"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "{n} member"
+msgid_plural "{n} members"
+msgstr[0] "{n} miembro"
+msgstr[1] "{n} miembros"
+
+#: client/ui/panels/invite_welcome.slint
+msgid ""
+"Pick a name and an avatar, check your mic, and you're in.\nIt takes about a "
+"minute."
+msgstr "Elige un nick y un avatar, prueba tu micro y listo.\nTarda más o menos un minuto."
+
+#: client/ui/panels/invite_welcome.slint
+msgid "Not now — show me other crews"
+msgstr "Ahora no — enséñame otros squads"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Dismiss"
+msgstr "Descartar"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "{} invited you"
+msgstr "{} te invitó"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Joining…"
+msgstr "Uniéndote…"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Join crew"
+msgstr "Unirse al squad"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/join_crew_modal.slint
+msgid "Not now"
+msgstr "Ahora no"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "USER VOLUME"
+msgstr "VOLUMEN DEL USUARIO"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Above 100% a loud voice can distort."
+msgstr "Por encima del 100% una voz alta puede distorsionar."
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Mute {} for you"
+msgstr "Silenciar a {} para ti"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Reset volume to 100%"
+msgstr "Volver el volumen al 100%"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "CREW ESTABLISHED"
+msgstr "SQUAD CREADO"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "INITIALIZE NEW CREW"
+msgstr "CREAR NUEVO SQUAD"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Your crew is ready. Share this link to invite others:"
+msgstr "Tu squad está listo. Comparte este enlace para invitar a más gente:"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Done"
+msgstr "Hecho"
+
+#: client/ui/panels/new_crew_modal.slint client/ui/tr.slint
+msgid "UPLOAD"
+msgstr "SUBIR"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Upload crew avatar"
+msgstr "Subir avatar del squad"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "CREW IDENTIFIER"
+msgstr "NOMBRE DEL SQUAD"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "JPG, PNG or GIF. Max 20MB."
+msgstr "JPG, PNG o GIF. Máx. 20MB."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "e.g. Shadow Syndicate"
+msgstr "p. ej. Shadow Syndicate"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Define your crew's primary objective..."
+msgstr "Define el objetivo principal de tu squad..."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "INVITE MEMBERS"
+msgstr "INVITAR MIEMBROS"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Available after setup"
+msgstr "Disponible tras la configuración"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Remove {}"
+msgstr "Quitar a {}"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Search by display name..."
+msgstr "Buscar por nick..."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "FRIEND"
+msgstr "AMIGO"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "VISIBILITY"
+msgstr "VISIBILIDAD"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Private"
+msgstr "Privado"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Public"
+msgstr "Público"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Your crew will be created after account setup."
+msgstr "Tu squad se creará después de configurar la cuenta."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Save & Continue"
+msgstr "Guardar y continuar"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Establish Crew"
+msgstr "Crear squad"
+
+#: client/ui/panels/onboarding.slint
+msgid "{} MEMBERS"
+msgstr "{} MIEMBROS"
+
+#: client/ui/panels/onboarding.slint
+msgid "FULL"
+msgstr "LLENO"
+
+#: client/ui/panels/onboarding.slint
+msgid "CONNECT"
+msgstr "CONECTAR"
+
+#: client/ui/panels/onboarding.slint
+msgid "Create your own crew"
+msgstr "Crea tu propio squad"
+
+#: client/ui/panels/onboarding.slint
+msgid "CREATE YOUR\nOWN CREW"
+msgstr "CREA TU\nPROPIO SQUAD"
+
+#: client/ui/panels/onboarding.slint
+msgid "GOT AN INVITE?"
+msgstr "¿TIENES UNA INVITACIÓN?"
+
+#: client/ui/panels/onboarding.slint
+msgid "Paste the link or the code your friend sent you."
+msgstr "Pega el enlace o el código que te pasó tu amigo."
+
+#: client/ui/panels/onboarding.slint
+msgid "Invite link or code"
+msgstr "Enlace o código de invitación"
+
+#: client/ui/panels/onboarding.slint
+msgid "Checking…"
+msgstr "Comprobando…"
+
+#: client/ui/panels/onboarding.slint
+msgid "Open invite"
+msgstr "Abrir invitación"
+
+#: client/ui/panels/onboarding.slint
+msgid "ON THIS DEVICE"
+msgstr "EN ESTE DISPOSITIVO"
+
+#: client/ui/panels/onboarding.slint
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+#: client/ui/panels/onboarding.slint
+msgid "STEP 0{} / 0{}"
+msgstr "PASO 0{} / 0{}"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 1"
+msgstr "Ir al paso 1"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 2"
+msgstr "Ir al paso 2"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 3"
+msgstr "Ir al paso 3"
+
+#: client/ui/panels/onboarding.slint
+msgid "Discover Your Crew"
+msgstr "Encuentra tu squad"
+
+#: client/ui/panels/onboarding.slint
+msgid ""
+"Pick a crew to hang out with, start your own, or open an invite from a "
+"friend."
+msgstr "Elige un squad con el que quedar, crea el tuyo o abre una invitación de un amigo."
+
+#: client/ui/panels/onboarding.slint
+msgid "Use another account"
+msgstr "Usar otra cuenta"
+
+#: client/ui/panels/onboarding.slint
+msgid "I already have an account"
+msgstr "Ya tengo una cuenta"
+
+#: client/ui/panels/onboarding.slint
+msgid "Couldn't load crews"
+msgstr "No se pudieron cargar los squads"
+
+#: client/ui/panels/onboarding.slint
+msgid "Check your connection, or create your own crew below."
+msgstr "Revisa tu conexión o crea tu propio squad abajo."
+
+#: client/ui/panels/onboarding.slint
+msgid "Retry"
+msgstr "Reintentar"
+
+#: client/ui/panels/onboarding.slint
+msgid "Pick a crew below, or create your own."
+msgstr "Elige un squad abajo o crea el tuyo."
+
+#: client/ui/panels/onboarding.slint
+msgid "Profile & Device Setup"
+msgstr "Perfil y dispositivo"
+
+#: client/ui/panels/onboarding.slint
+msgid "JOINING CREW"
+msgstr "UNIÉNDOTE AL SQUAD"
+
+#: client/ui/panels/onboarding.slint
+msgid "CHOOSE IDENTITY"
+msgstr "ELIGE IDENTIDAD"
+
+#: client/ui/panels/onboarding.slint
+msgid "Upload avatar"
+msgstr "Subir avatar"
+
+#: client/ui/panels/onboarding.slint
+msgid "Reroll all"
+msgstr "Aleatorio todo"
+
+#: client/ui/panels/onboarding.slint
+msgid "REROLL ALL"
+msgstr "ALEATORIO TODO"
+
+#: client/ui/panels/onboarding.slint
+msgid "CREW NICKNAME"
+msgstr "NICK EN EL SQUAD"
+
+#: client/ui/panels/onboarding.slint
+msgid "Enter handle..."
+msgstr "Escribe tu nick..."
+
+#: client/ui/panels/onboarding.slint
+msgid "Show crew what I play"
+msgstr "Enseñar al squad a qué juego"
+
+#: client/ui/panels/onboarding.slint
+msgid "Your installed games, play sessions and what you're in right now."
+msgstr "Tus juegos instalados, tus sesiones de juego y a qué juegas ahora mismo."
+
+#: client/ui/panels/onboarding.slint
+msgid "m3llo starts with your PC and keeps track of your sessions."
+msgstr "m3llo arranca con tu PC y lleva la cuenta de tus sesiones."
+
+#: client/ui/panels/onboarding.slint
+msgid "MICROPHONE INPUT"
+msgstr "ENTRADA DEL MICRÓFONO"
+
+#: client/ui/panels/onboarding.slint
+msgid "SPEAKER OUTPUT"
+msgstr "SALIDA DE ALTAVOCES"
+
+#: client/ui/panels/onboarding.slint
+msgid "Setting up…"
+msgstr "Configurando…"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Back"
+msgstr "Atrás"
+
+#: client/ui/panels/onboarding.slint
+msgid "Lock in your identity."
+msgstr "Asegura tu identidad."
+
+#: client/ui/panels/onboarding.slint
+msgid "Save your setup so you can jump back in anytime."
+msgstr "Guarda tu configuración para volver cuando quieras."
+
+#: client/ui/panels/onboarding.slint
+msgid "Anonymous"
+msgstr "Anónimo"
+
+#: client/ui/panels/onboarding.slint
+msgid "ONLINE"
+msgstr "EN LÍNEA"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Email + password"
+msgstr "Email + contraseña"
+
+#: client/ui/panels/onboarding.slint
+msgid "Link email & password"
+msgstr "Vincular email y contraseña"
+
+#: client/ui/panels/onboarding.slint
+msgid "Your account will be tied to this email."
+msgstr "Tu cuenta quedará vinculada a este email."
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Email"
+msgstr "Email"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Password"
+msgstr "Contraseña"
+
+#: client/ui/panels/onboarding.slint
+msgid "Link account"
+msgstr "Vincular cuenta"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "americas"
+msgstr "américa"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "europe"
+msgstr "europa"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "asia"
+msgstr "asia"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "sea"
+msgstr "sudeste asiático"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connect your Riot account"
+msgstr "Conecta tu cuenta de Riot"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid ""
+"Get server-verified results for League of Legends and TFT. m3llo only reads "
+"your recent match history from Riot's official API — it never touches your "
+"account. You can disconnect anytime in Settings, under Games."
+msgstr "Consigue resultados verificados por el servidor en League of Legends y TFT. m3llo solo lee tu historial reciente de partidas de la API oficial de Riot — nunca toca tu cuenta. Puedes desconectarla cuando quieras en Ajustes, en Juegos."
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "RIOT ID"
+msgstr "RIOT ID"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "GameName#TAG"
+msgstr "GameName#TAG"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "REGION"
+msgstr "REGIÓN"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connecting…"
+msgstr "Conectando…"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connect"
+msgstr "Conectar"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "HEAD2HEAD  ·  YOUR TITLE"
+msgstr "HEAD2HEAD  ·  TU TÍTULO"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "HEAD2HEAD  ·  BELT MOVED"
+msgstr "HEAD2HEAD  ·  TÍTULO EN JUEGO"
+
+#. The viewer, in the place of a name ("Added by You").
+#: client/ui/panels/sealed_stage.slint client/ui/panels/you_strip.slint client/ui/tr.slint
+msgid "You"
+msgstr "Tú"
+
+#. i18n: one sentence in parts: [holder name] took it from [avatar] [name]
+#: client/ui/panels/sealed_stage.slint
+msgid "took it from"
+msgstr "se lo quitó a"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "UNLOCKED"
+msgstr "DESBLOQUEADO"
+
+#. The names of the open gifts, in upper case.
+#: client/ui/panels/sealed_stage.slint client/ui/tr.slint
+msgid "BANNER"
+msgstr "BANNER"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "CLICK ANYWHERE TO CLOSE"
+msgstr "HAZ CLIC EN CUALQUIER SITIO PARA CERRAR"
+
+#: client/ui/panels/session_preview_card.slint
+msgctxt "unit"
+msgid "{} h {} min"
+msgstr "{} h {} min"
+
+#: client/ui/panels/session_preview_card.slint client/ui/tr.slint
+msgid "{n} clip"
+msgid_plural "{n} clips"
+msgstr[0] "{n} clip"
+msgstr[1] "{n} clips"
+
+#: client/ui/panels/session_preview_card.slint
+msgid "{n} watched"
+msgid_plural "{n} watched"
+msgstr[0] "{n} lo vio"
+msgstr[1] "{n} lo vieron"
+
+#: client/ui/panels/session_preview_card.slint
+msgid "SESSION · {}"
+msgstr "SESIÓN · {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "default"
+msgstr "predeterminado"
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "m3llo restarts to switch to {}."
+msgstr "m3llo se reinicia para cambiar a {}."
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "Keep {}"
+msgstr "Mantener {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Restart now"
+msgstr "Reiniciar ahora"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Activation Sensitivity"
+msgstr "Sensibilidad de activación"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Automatically determine input sensitivity"
+msgstr "Ajustar la sensibilidad de entrada automáticamente"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{}dB"
+msgstr "{}dB"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sensitivity"
+msgstr "Sensibilidad"
+
+#: client/ui/panels/settings_modal.slint
+msgid "STARTUP & WINDOW"
+msgstr "INICIO Y VENTANA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Launch on system startup"
+msgstr "Abrir al iniciar el sistema"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Automatically start the application when you log in to your computer."
+msgstr "Abre la app automáticamente cuando inicias sesión en tu ordenador."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start minimized"
+msgstr "Iniciar minimizado"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Launch directly into the system tray without opening the main window."
+msgstr "Abre directamente en la bandeja del sistema sin abrir la ventana principal."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Quit to system tray"
+msgstr "Salir a la bandeja del sistema"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Keep the application running in the background when closing the window."
+msgstr "Sigue en segundo plano cuando cierras la ventana."
+
+#: client/ui/panels/settings_modal.slint
+msgid "CONNECTION & PRESENCE"
+msgstr "CONEXIÓN Y ESTADO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Auto-connect to last session"
+msgstr "Conectar a la última sesión"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Skip the discovery screen and immediately join your previous active session."
+msgstr "Sáltate la pantalla de descubrir y entra directo en tu última sesión activa."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Minimize on session join"
+msgstr "Minimizar al unirse a una sesión"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Automatically hide the main interface once a secure connection is "
+"established."
+msgstr "Oculta la ventana principal en cuanto hay una conexión segura."
+
+#: client/ui/panels/settings_modal.slint
+msgid "APPEARANCE"
+msgstr "APARIENCIA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Language"
+msgstr "Idioma"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hardware Acceleration"
+msgstr "Aceleración por hardware"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Use GPU for rendering UI elements. Disabling this may resolve visual "
+"glitches."
+msgstr "Usa la GPU para dibujar la interfaz. Desactivarla puede arreglar fallos visuales."
+
+#: client/ui/panels/settings_modal.slint
+msgid "HUD"
+msgstr "HUD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Enable HUD"
+msgstr "Activar HUD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Show the overlay when the main window is not focused."
+msgstr "Muestra el overlay cuando la ventana principal no está activa."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip toast notifications"
+msgstr "Avisos de clips"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Show a brief notification in the overlay when someone clips a moment."
+msgstr "Muestra un aviso breve en el overlay cuando alguien clipea un momento."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Overlay Opacity"
+msgstr "Opacidad del overlay"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HARDWARE INTERFACES"
+msgstr "INTERFACES DE HARDWARE"
+
+#: client/ui/panels/settings_modal.slint
+msgid "INPUT DEVICE"
+msgstr "DISPOSITIVO DE ENTRADA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "OUTPUT DEVICE"
+msgstr "DISPOSITIVO DE SALIDA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "AUDIO LEVELS"
+msgstr "NIVELES DE AUDIO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Input Volume"
+msgstr "Volumen de entrada"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Output Volume"
+msgstr "Volumen de salida"
+
+#: client/ui/panels/settings_modal.slint
+msgid "NOTIFICATION SOUNDS"
+msgstr "SONIDOS DE NOTIFICACIÓN"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sound Volume"
+msgstr "Volumen de sonidos"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Voice"
+msgstr "Voz"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Joins and leaves, mute, deafen, and a lost connection."
+msgstr "Entradas y salidas, silenciar, ensordecer y conexión perdida."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Streams"
+msgstr "Directos"
+
+#: client/ui/panels/settings_modal.slint
+msgid "A crew member goes live, you go live, a stream you watch ends."
+msgstr "Alguien del squad emite, tú emites, un directo que ves termina."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Chat"
+msgstr "Chat"
+
+#: client/ui/panels/settings_modal.slint
+msgid "New messages and mentions while m3llo is in the background."
+msgstr "Mensajes nuevos y menciones mientras m3llo está en segundo plano."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clips"
+msgstr "Clips"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Your clip is saved, someone in the crew clips."
+msgstr "Se guarda tu clip, alguien del squad clipea."
+
+#. The title of a notification about a member of the crew.
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "Crew"
+msgstr "Squad"
+
+#: client/ui/panels/settings_modal.slint
+msgid "A new member joins the crew."
+msgstr "Alguien nuevo se une al squad."
+
+#: client/ui/panels/settings_modal.slint
+msgid "SIGNAL PROCESSING"
+msgstr "PROCESADO DE SEÑAL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Noise Suppression"
+msgstr "Supresión de ruido"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Filter out background hum and typing."
+msgstr "Filtra el zumbido de fondo y el tecleo."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Echo Cancellation"
+msgstr "Cancelación de eco"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Prevent audio feedback loop from speakers."
+msgstr "Evita el bucle de acople de los altavoces."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Auto Gain"
+msgstr "Ganancia automática"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Even out microphone volume. Off if voices clip."
+msgstr "Iguala el volumen del micro. Desactívala si las voces saturan."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Echo Suppression"
+msgstr "Supresión de eco"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Extra cleanup for leftover echo. Experimental."
+msgstr "Limpieza extra del eco que queda. Experimental."
+
+#: client/ui/panels/settings_modal.slint
+msgid "VOICE ACTIVITY"
+msgstr "ACTIVIDAD DE VOZ"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Input Mode"
+msgstr "Modo de entrada"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Voice Activity"
+msgstr "Actividad de voz"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Push to Talk"
+msgstr "Pulsar para hablar"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Push-to-talk Key"
+msgstr "Tecla de pulsar para hablar"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Press any key…"
+msgstr "Pulsa cualquier tecla…"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Click to bind..."
+msgstr "Clic para asignar..."
+
+#: client/ui/panels/settings_modal.slint
+msgid "MIC TEST"
+msgstr "PRUEBA DE MICRO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Stop Testing"
+msgstr "Parar prueba"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start Test"
+msgstr "Empezar prueba"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Playing back your beautiful voice"
+msgstr "Reproduciendo tu preciosa voz"
+
+#: client/ui/panels/settings_modal.slint
+msgid "VIDEO"
+msgstr "VÍDEO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Software Video Decoder"
+msgstr "Decodificador de vídeo por software"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Plays streams when the GPU cannot decode them. Applies at the next start. "
+"OpenH264 Video Codec provided by Cisco Systems, Inc."
+msgstr "Reproduce directos cuando la GPU no puede decodificarlos. Se aplica al próximo inicio. OpenH264 Video Codec provided by Cisco Systems, Inc."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Use"
+msgstr "Usar"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hide"
+msgstr "Ocultar"
+
+#: client/ui/panels/settings_modal.slint
+msgid "DISPLAY NAME"
+msgstr "NICK"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Press Enter to save"
+msgstr "Pulsa Enter para guardar"
+
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "Upload"
+msgstr "Subir"
+
+#: client/ui/panels/settings_modal.slint
+msgid "FOUND"
+msgstr "ENCONTRADO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "NOT FOUND"
+msgstr "NO ENCONTRADO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HIDDEN IN STEAM"
+msgstr "OCULTO EN STEAM"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HIDDEN FROM CREW"
+msgstr "OCULTO AL SQUAD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hidden from crew: {}"
+msgstr "Oculto al squad: {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "ACTIVITY SHARING"
+msgstr "COMPARTIR ACTIVIDAD"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Let crewmates see your installed games, what game you're in, and your play "
+"sessions in the crew feed."
+msgstr "Deja que tu squad vea tus juegos instalados, a qué juegas y tus sesiones de juego en la actividad del squad."
+
+#: client/ui/panels/settings_modal.slint
+msgid "GAME CLIPS"
+msgstr "CLIPS DE JUEGO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Game clips"
+msgstr "Clips de juego"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"While you are in voice, m3llo keeps the last 30 seconds of the game you "
+"play. Press {} to save them as a clip."
+msgstr "Mientras estás en voz, m3llo guarda los últimos 30 segundos del juego. Pulsa {} para guardarlos como clip."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"While you are in voice, m3llo keeps the last 30 seconds of the game you "
+"play. Set a key in Keybinds to save them as a clip."
+msgstr "Mientras estás en voz, m3llo guarda los últimos 30 segundos del juego. Asigna una tecla en Atajos para guardarlos como clip."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Screen Recording"
+msgstr "Grabación de pantalla"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"macOS lets m3llo keep your game only with Screen Recording on. Turn on m3llo "
+"in System Settings, Privacy and Security, Screen and System Audio Recording."
+msgstr "macOS solo deja a m3llo guardar tu juego con Grabación de pantalla activada. Activa m3llo en Ajustes del Sistema, Privacidad y seguridad, Grabación de pantalla y audio del sistema."
+
+#: client/ui/panels/settings_modal.slint
+msgid "ALLOW"
+msgstr "PERMITIR"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip quality"
+msgstr "Calidad del clip"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"A higher quality makes a bigger clip. At 720p, 60 fps a clip is about 20 MB."
+msgstr "Más calidad hace un clip más grande. A 720p y 60 fps un clip ocupa unos 20 MB."
+
+#: client/ui/panels/settings_modal.slint
+msgid "GAME INTEGRATIONS"
+msgstr "INTEGRACIONES DE JUEGOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"m3llo captures match results for these games while you play. Some games need "
+"a small config file in their game folder. Turning a game off skips any setup "
+"and stops capture for it."
+msgstr "m3llo guarda los resultados de las partidas de estos juegos mientras juegas. Algunos juegos necesitan un pequeño archivo de config en su carpeta. Desactivar un juego se salta su configuración y deja de capturarlo."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Games you hide stay off the crew feed. A game hidden in Steam stays hidden "
+"here."
+msgstr "Los juegos que ocultas no salen en la actividad del squad. Un juego oculto en Steam también se oculta aquí."
+
+#: client/ui/panels/settings_modal.slint
+msgid "CONNECTED ACCOUNTS"
+msgstr "CUENTAS CONECTADAS"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Linked as {}. Match results for League of Legends and TFT are verified "
+"against Riot's official data."
+msgstr "Vinculada como {}. Los resultados de League of Legends y TFT se verifican con los datos oficiales de Riot."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Link your Riot ID to get server-verified match results for League of Legends "
+"and TFT. We only read your match history. Nothing is posted to your account."
+msgstr "Vincula tu Riot ID para tener resultados verificados por el servidor en League of Legends y TFT. Solo leemos tu historial de partidas. No publicamos nada en tu cuenta."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Temporarily unavailable."
+msgstr "No disponible por ahora."
+
+#: client/ui/panels/settings_modal.slint
+msgid "DISCONNECT"
+msgstr "DESCONECTAR"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BACK"
+msgstr "ATRÁS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Back to About"
+msgstr "Volver a Acerca de"
+
+#: client/ui/panels/settings_modal.slint
+msgid "THIRD-PARTY NOTICES"
+msgstr "AVISOS DE TERCEROS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{} website"
+msgstr "Web de {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{} on Steam"
+msgstr "{} en Steam"
+
+#: client/ui/panels/settings_modal.slint
+msgid "VERSION"
+msgstr "VERSIÓN"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILD"
+msgstr "BUILD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILT"
+msgstr "COMPILADO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "COPYRIGHT"
+msgstr "COPYRIGHT"
+
+#: client/ui/panels/settings_modal.slint
+msgid "© 2026 Mollo Tech AB, Göteborg, Sweden"
+msgstr "© 2026 Mollo Tech AB, Göteborg, Suecia"
+
+#: client/ui/panels/settings_modal.slint
+msgid "CREATED BY"
+msgstr "CREADO POR"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Email {}"
+msgstr "Email a {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"m3llo runs on the work of many people and services.\nWe couldn't have done "
+"this without them."
+msgstr "m3llo funciona gracias al trabajo de mucha gente y servicios.\nNo lo habríamos logrado sin ellos."
+
+#: client/ui/panels/settings_modal.slint
+msgid "THE OG CREW THAT HELPED SHAPE M3LLO"
+msgstr "EL SQUAD OG QUE AYUDÓ A DAR FORMA A m3llo"
+
+#: client/ui/panels/settings_modal.slint
+msgid "SERVICES WE USE"
+msgstr "SERVICIOS QUE USAMOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "OPEN SOURCE WE SHIP"
+msgstr "CÓDIGO ABIERTO QUE INCLUIMOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "And the Rust crates listed in the third-party notices."
+msgstr "Y los crates de Rust de los avisos de terceros."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Third-party notices"
+msgstr "Avisos de terceros"
+
+#: client/ui/panels/settings_modal.slint
+msgid "CREDITS"
+msgstr "CRÉDITOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Game data and artwork by"
+msgstr "Datos y arte de juegos de"
+
+#. i18n: one sentence in parts: Made with [link: Slint]
+#: client/ui/panels/settings_modal.slint
+msgid "Made with"
+msgstr "Hecho con"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Emoji by"
+msgstr "Emojis de"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sounds by"
+msgstr "Sonidos de"
+
+#. sets its own.
+#: client/ui/panels/settings_modal.slint
+msgid "{} key"
+msgstr "Tecla {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip"
+msgstr "Clip"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip key"
+msgstr "Tecla de clip"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Saves the last 30 seconds: your game while it runs, otherwise the crew voice."
+msgstr "Guarda los últimos 30 segundos: tu juego mientras está abierto, si no la voz del squad."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start / end stream"
+msgstr "Empezar / terminar directo"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Stream key"
+msgstr "Tecla de directo"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Starts a stream of the game you play, or ends your stream. Some games use F9 "
+"to load a save."
+msgstr "Empieza un directo del juego al que juegas o termina tu directo. Algunos juegos usan F9 para cargar partida."
+
+#: client/ui/panels/settings_modal.slint
+msgid "SYSTEM PARAMETERS"
+msgstr "PARÁMETROS DEL SISTEMA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "PROFILE"
+msgstr "PERFIL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "GENERAL"
+msgstr "GENERAL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "AUDIO & VIDEO"
+msgstr "AUDIO Y VÍDEO"
+
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "GAMES"
+msgstr "JUEGOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "ABOUT"
+msgstr "ACERCA DE"
+
+#: client/ui/panels/settings_modal.slint
+msgid "KEYBINDS"
+msgstr "ATAJOS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "SECURITY"
+msgstr "SEGURIDAD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILD VERSION"
+msgstr "VERSIÓN DE BUILD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "RESET TO DEFAULTS"
+msgstr "RESTABLECER"
+
+#: client/ui/panels/sign_in.slint
+msgid "Sign In"
+msgstr "Iniciar sesión"
+
+#: client/ui/panels/sign_in.slint
+msgid "Sign in with an existing account."
+msgstr "Inicia sesión con una cuenta que ya tienes."
+
+#: client/ui/panels/sign_in.slint
+msgid "or"
+msgstr "o"
+
+#: client/ui/panels/sign_in.slint
+msgid "SIGNING IN…"
+msgstr "INICIANDO SESIÓN…"
+
+#: client/ui/panels/sign_in.slint
+msgid "SIGN IN"
+msgstr "INICIAR SESIÓN"
+
+#: client/ui/panels/sign_in.slint
+msgid "Start as a new player to make one."
+msgstr "Empieza como jugador nuevo para crear una."
+
+#: client/ui/panels/sign_in.slint
+msgid "Start as a new player"
+msgstr "Empezar como jugador nuevo"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "STREAM SOMETHING ELSE"
+msgstr "EMITIR OTRA COSA"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Detected by game sensor"
+msgstr "Detectado por el sensor de juegos"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Pick a window"
+msgstr "Elige una ventana"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Any app — browser, editor, emulator"
+msgstr "Cualquier app — navegador, editor, emulador"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Whole screen"
+msgstr "Pantalla completa"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Your main display"
+msgstr "Tu pantalla principal"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Camera only"
+msgstr "Solo cámara"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Not available yet"
+msgstr "Aún no disponible"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "FS"
+msgstr "FS"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "PICK A WINDOW"
+msgstr "ELIGE UNA VENTANA"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "CAP.01 // INPUT"
+msgstr "CAP.01 // ENTRADA"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "No open windows to stream. Open an app and try again."
+msgstr "No hay ventanas abiertas para emitir. Abre una app y vuelve a intentarlo."
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "OPEN WINDOWS"
+msgstr "VENTANAS ABIERTAS"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "START STREAMING"
+msgstr "EMPEZAR DIRECTO"
+
+#: client/ui/panels/update_banner.slint
+msgid "Updating…"
+msgstr "Actualizando…"
+
+#: client/ui/panels/update_banner.slint
+msgid "New version available"
+msgstr "Nueva versión disponible"
+
+#: client/ui/panels/update_banner.slint
+msgid "Downloading v{}"
+msgstr "Descargando v{}"
+
+#: client/ui/panels/update_banner.slint
+msgid "v{}"
+msgstr "v{}"
+
+#: client/ui/panels/update_banner.slint
+msgid "UPDATE"
+msgstr "ACTUALIZAR"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "0 Members"
+msgstr "0 Miembros"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "Active Session"
+msgstr "Sesión activa"
+
+#. The voice channel has nobody in it.
+#: client/ui/panels/voice_channel_view.slint client/ui/tr.slint
+msgid "Empty"
+msgstr "Vacío"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "ACTIVE SESSION"
+msgstr "SESIÓN ACTIVA"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "No one here yet"
+msgstr "Aún no hay nadie"
+
+#: client/ui/panels/voice_channel_view.slint hud/ui/mini_player.slint
+msgid "Connected"
+msgstr "Conectado"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "{n} Active"
+msgid_plural "{n} Active"
+msgstr[0] "{n} activo"
+msgstr[1] "{n} activos"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "TAKE"
+msgstr "QUITAR"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "HOLD"
+msgstr "TENER"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "{n} BELT"
+msgid_plural "{n} BELTS"
+msgstr[0] "{n} TÍTULO"
+msgstr[1] "{n} TÍTULOS"
+
+#. The unit of a number of hours next to the number.
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgctxt "unit"
+msgid "h"
+msgstr "h"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "THIS WEEK"
+msgstr "ESTA SEMANA"
+
+#: client/ui/panels/you_view.slint
+msgid "vs"
+msgstr "vs"
+
+#: client/ui/panels/you_view.slint
+msgid "STREAK"
+msgstr "RACHA"
+
+#: client/ui/panels/you_view.slint
+msgid "WIN RATE"
+msgstr "WINRATE"
+
+#: client/ui/panels/you_view.slint
+msgid "RECORD"
+msgstr "BALANCE"
+
+#: client/ui/panels/you_view.slint
+msgid "{n} BELT · {}"
+msgid_plural "{n} BELTS · {}"
+msgstr[0] "{n} TÍTULO · {}"
+msgstr[1] "{n} TÍTULOS · {}"
+
+#: client/ui/panels/you_view.slint
+msgid "Head2head"
+msgstr "Head2head"
+
+#: client/ui/panels/you_view.slint
+msgid "Belts"
+msgstr "Títulos"
+
+#: client/ui/panels/you_view.slint
+msgid "Games"
+msgstr "Juegos"
+
+#: client/ui/panels/you_view.slint
+msgid "No games tracked yet"
+msgstr "Aún no hay juegos registrados"
+
+#. The download is complete and the update is checked.
+#: client/ui/tr.slint
+msgid "Verifying"
+msgstr "Verificando"
+
+#. The update is applied and the app restarts.
+#: client/ui/tr.slint
+msgid "Restarting"
+msgstr "Reiniciando"
+
+#. The updater could not start.
+#: client/ui/tr.slint
+msgid "Updater unavailable"
+msgstr "Actualizador no disponible"
+
+#: client/ui/tr.slint
+msgid "{}%"
+msgstr "{}%"
+
+#: client/ui/tr.slint
+msgid "{} / {} MB"
+msgstr "{} / {} MB"
+
+#: client/ui/tr.slint
+msgid "Reconnecting…"
+msgstr "Reconectando…"
+
+#: client/ui/tr.slint
+msgid "Connection lost"
+msgstr "Conexión perdida"
+
+#. The chosen file is not an image that the app can read.
+#: client/ui/tr.slint
+msgid "That file is not an image we can use."
+msgstr "Ese archivo no es una imagen que podamos usar."
+
+#. The emoji name does not obey the rule of the server.
+#: client/ui/tr.slint
+msgid "A name is 2 to 24 letters, digits or underscores."
+msgstr "Un nombre tiene de 2 a 24 letras, números o guiones bajos."
+
+#. A day of the week, in a date ("Sunday 1 Nov").
+#: client/ui/tr.slint
+msgid "Sunday"
+msgstr "domingo"
+
+#: client/ui/tr.slint
+msgid "Monday"
+msgstr "lunes"
+
+#: client/ui/tr.slint
+msgid "Tuesday"
+msgstr "martes"
+
+#: client/ui/tr.slint
+msgid "Wednesday"
+msgstr "miércoles"
+
+#: client/ui/tr.slint
+msgid "Thursday"
+msgstr "jueves"
+
+#: client/ui/tr.slint
+msgid "Friday"
+msgstr "viernes"
+
+#: client/ui/tr.slint
+msgid "Saturday"
+msgstr "sábado"
+
+#. The full name of a month, in a date ("2 October").
+#: client/ui/tr.slint
+msgid "January"
+msgstr "enero"
+
+#: client/ui/tr.slint
+msgid "February"
+msgstr "febrero"
+
+#: client/ui/tr.slint
+msgid "March"
+msgstr "marzo"
+
+#: client/ui/tr.slint
+msgid "April"
+msgstr "abril"
+
+#: client/ui/tr.slint
+msgid "May"
+msgstr "mayo"
+
+#: client/ui/tr.slint
+msgid "June"
+msgstr "junio"
+
+#: client/ui/tr.slint
+msgid "July"
+msgstr "julio"
+
+#: client/ui/tr.slint
+msgid "August"
+msgstr "agosto"
+
+#: client/ui/tr.slint
+msgid "September"
+msgstr "septiembre"
+
+#: client/ui/tr.slint
+msgid "October"
+msgstr "octubre"
+
+#: client/ui/tr.slint
+msgid "November"
+msgstr "noviembre"
+
+#: client/ui/tr.slint
+msgid "December"
+msgstr "diciembre"
+
+#. The short name of a month, in a short date ("6 Oct").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jan"
+msgstr "ene"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Feb"
+msgstr "feb"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Mar"
+msgstr "mar"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Apr"
+msgstr "abr"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "May"
+msgstr "may"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jun"
+msgstr "jun"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jul"
+msgstr "jul"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Aug"
+msgstr "ago"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Sep"
+msgstr "sept"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Oct"
+msgstr "oct"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Nov"
+msgstr "nov"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Dec"
+msgstr "dic"
+
+#. {0} is the day of the month, {1} is the name of the month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1}"
+msgstr "{0} de {1}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1} {2}"
+msgstr "{0} {1} {2}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the weekday.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{2} {0} {1}"
+msgstr "{2} {0} {1}"
+
+#. {0} is the day of the month, {1} is the short month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}"
+msgstr "{0} {1}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}, {2}"
+msgstr "{0} {1} {2}"
+
+#. {0} is the first day, {1} is the last day, {2} is the month.
+#: client/ui/tr.slint
+msgid "{0} to {1} {2}"
+msgstr "del {0} al {1} de {2}"
+
+#. {0} {1} is the first day and month, {2} {3} is the last day and month.
+#: client/ui/tr.slint
+msgid "{0} {1} to {2} {3}"
+msgstr "del {0} {1} al {2} {3}"
+
+#. The value is a short date ("6 Oct").
+#: client/ui/tr.slint
+msgid "Week of {}"
+msgstr "Semana del {}"
+
+#. The short name of a month in upper case, in an upper-case date ("6 OCT").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JAN"
+msgstr "ENE"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "FEB"
+msgstr "FEB"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAR"
+msgstr "MAR"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "APR"
+msgstr "ABR"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAY"
+msgstr "MAY"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUN"
+msgstr "JUN"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUL"
+msgstr "JUL"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "AUG"
+msgstr "AGO"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "SEP"
+msgstr "SEPT"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "OCT"
+msgstr "OCT"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "NOV"
+msgstr "NOV"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "DEC"
+msgstr "DIC"
+
+#. The value is a short date in upper case ("6 OCT").
+#: client/ui/tr.slint
+msgid "WEEK OF {}"
+msgstr "SEMANA DEL {}"
+
+#: client/ui/tr.slint
+msgid "WEEK {}"
+msgstr "SEMANA {}"
+
+#: client/ui/tr.slint
+msgid "Week {}"
+msgstr "Semana {}"
+
+#: client/ui/tr.slint
+msgid "W{}"
+msgstr "S{}"
+
+#. A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1}"
+msgstr "{0}:{1}"
+
+#. A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
+#. or PM.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1} {2}"
+msgstr "{0}:{1} {2}"
+
+#. The marker of a time before noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "AM"
+msgstr "a. m."
+
+#. The marker of a time after noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "PM"
+msgstr "p. m."
+
+#. A day, relative to today.
+#: client/ui/tr.slint
+msgid "Today"
+msgstr "Hoy"
+
+#: client/ui/tr.slint
+msgid "Yesterday"
+msgstr "Ayer"
+
+#. The same words in lower case, as the feed card writes its age.
+#: client/ui/tr.slint
+msgid "today"
+msgstr "hoy"
+
+#: client/ui/tr.slint
+msgid "yesterday"
+msgstr "ayer"
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Today {}"
+msgstr "Hoy {}"
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Yesterday {}"
+msgstr "Ayer {}"
+
+#: client/ui/tr.slint
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] "hace {n} día"
+msgstr[1] "hace {n} días"
+
+#: client/ui/tr.slint
+msgid "Last week"
+msgstr "La semana pasada"
+
+#: client/ui/tr.slint
+msgid "{n} week ago"
+msgid_plural "{n} weeks ago"
+msgstr[0] "hace {n} semana"
+msgstr[1] "hace {n} semanas"
+
+#. A short age, under a minute.
+#: client/ui/tr.slint
+msgid "just now"
+msgstr "ahora mismo"
+
+#. The relative times of the session preview card, in upper case.
+#: client/ui/tr.slint
+msgid "JUST NOW"
+msgstr "AHORA MISMO"
+
+#: client/ui/tr.slint
+msgid "YESTERDAY"
+msgstr "AYER"
+
+#: client/ui/tr.slint
+msgid "{n} DAY AGO"
+msgid_plural "{n} DAYS AGO"
+msgstr[0] "HACE {n} DÍA"
+msgstr[1] "HACE {n} DÍAS"
+
+#: client/ui/tr.slint
+msgid "{}M AGO"
+msgstr "HACE {}M"
+
+#: client/ui/tr.slint
+msgid "{}H AGO"
+msgstr "HACE {}H"
+
+#: client/ui/tr.slint
+msgid "{}D AGO"
+msgstr "HACE {}D"
+
+#. A day of the week in upper case.
+#: client/ui/tr.slint
+msgid "SUNDAY"
+msgstr "DOMINGO"
+
+#: client/ui/tr.slint
+msgid "MONDAY"
+msgstr "LUNES"
+
+#: client/ui/tr.slint
+msgid "TUESDAY"
+msgstr "MARTES"
+
+#: client/ui/tr.slint
+msgid "WEDNESDAY"
+msgstr "MIÉRCOLES"
+
+#: client/ui/tr.slint
+msgid "THURSDAY"
+msgstr "JUEVES"
+
+#: client/ui/tr.slint
+msgid "FRIDAY"
+msgstr "VIERNES"
+
+#: client/ui/tr.slint
+msgid "SATURDAY"
+msgstr "SÁBADO"
+
+#: client/ui/tr.slint
+msgid "{}m ago"
+msgstr "hace {}m"
+
+#: client/ui/tr.slint
+msgid "{}h ago"
+msgstr "hace {}h"
+
+#: client/ui/tr.slint
+msgid "{}d ago"
+msgstr "hace {}d"
+
+#: client/ui/tr.slint
+msgid "{}w ago"
+msgstr "hace {}sem"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h"
+msgstr "{}h"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} H"
+msgstr "{} H"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} h"
+msgstr "{} h"
+
+#. The length of a clip: {0} is the minutes, {1} is the seconds.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0}:{1}"
+msgstr "{0}:{1}"
+
+#. The unit of a number of minutes next to the number.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "min"
+msgstr "min"
+
+#. The unit letter of a number of minutes next to the number ("2 m").
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "m"
+msgstr "m"
+
+#: client/ui/tr.slint
+msgid "since {} min"
+msgstr "desde hace {} min"
+
+#: client/ui/tr.slint
+msgid "since {} h"
+msgstr "desde hace {} h"
+
+#: client/ui/tr.slint
+msgid "since {0} h {1} min"
+msgstr "desde hace {0} h {1} min"
+
+#. The value is a duration ("4h 12m").
+#: client/ui/tr.slint
+msgid "{} this week"
+msgstr "{} esta semana"
+
+#. {0} is when the game was last played, {1} is the hours of play.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}, {1}"
+msgstr "{0}, {1}"
+
+#. The mark between the groups of digits of a large number ("4,201").
+#: client/ui/tr.slint
+msgctxt "format"
+msgid ","
+msgstr "."
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} ms"
+msgstr "{} ms"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} kbps"
+msgstr "{} kbps"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} Mbps"
+msgstr "{} Mbps"
+
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "~{}"
+msgstr "~{}"
+
+#. {0} is the list so far, {1} is the next item.
+#: client/ui/tr.slint
+msgctxt "list"
+msgid "{0}, {1}"
+msgstr "{0}, {1}"
+
+#. {0} is the list before the last item, {1} is the last item.
+#: client/ui/tr.slint
+msgid "{0} and {1}"
+msgstr "{0} y {1}"
+
+#. {0} is the first items, {1} and {2} are the last two items.
+#: client/ui/tr.slint
+msgid "{0}, {1}, and {2}"
+msgstr "{0}, {1} y {2}"
+
+#. {0} is the list, {1} is the count of the other names.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} +{1}"
+msgstr "{0} +{1}"
+
+#. {0} is the list, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} more"
+msgid_plural "{0} and {n} more"
+msgstr[0] "{0} y {n} más"
+msgstr[1] "{0} y {n} más"
+
+#. {0} is the first part, {1} is the second part.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} · {1}"
+msgstr "{0} · {1}"
+
+#: client/ui/tr.slint
+msgid "{} KB"
+msgstr "{} KB"
+
+#: client/ui/tr.slint
+msgid "{} MB"
+msgstr "{} MB"
+
+#. The sign-in failed because no account has this email or identity.
+#: client/ui/tr.slint
+msgid "No account found."
+msgstr "No hay ninguna cuenta."
+
+#. The sign-in failed because the email or the password is wrong.
+#: client/ui/tr.slint
+msgid "Wrong email or password."
+msgstr "Email o contraseña incorrectos."
+
+#. The sign-in failed for a different reason.
+#: client/ui/tr.slint
+msgid "Sign-in failed. Try again."
+msgstr "No se pudo iniciar sesión. Inténtalo otra vez."
+
+#. The GIF search is off: the build has no key for the GIF service.
+#: client/ui/tr.slint
+msgid "GIFs are off in this build."
+msgstr "Los GIFs están desactivados en esta build."
+
+#. The GIF service did not accept the key of this build.
+#: client/ui/tr.slint
+msgid "The GIF service refused this build's key."
+msgstr "El servicio de GIFs rechazó la clave de esta build."
+
+#. The GIF service got too many searches.
+#: client/ui/tr.slint
+msgid "Too many GIF searches right now. Try again in a minute."
+msgstr "Demasiadas búsquedas de GIFs ahora mismo. Inténtalo en un minuto."
+
+#. The GIF service did not answer. The chat still works.
+#: client/ui/tr.slint
+msgid "The GIF service did not answer. Your messages still send."
+msgstr "El servicio de GIFs no respondió. Tus mensajes se siguen enviando."
+
+#. The chip state while the app resizes the image.
+#: client/ui/tr.slint
+msgid "preparing"
+msgstr "preparando"
+
+#. The chip state while the image uploads.
+#: client/ui/tr.slint
+msgid "uploading"
+msgstr "subiendo"
+
+#: client/ui/tr.slint
+msgid "That file is over 64 MB."
+msgstr "Ese archivo pesa más de 64 MB."
+
+#: client/ui/tr.slint
+msgid "That file is not an image."
+msgstr "Ese archivo no es una imagen."
+
+#: client/ui/tr.slint
+msgid "That GIF is over 8 MB."
+msgstr "Ese GIF pesa más de 8 MB."
+
+#: client/ui/tr.slint
+msgid "That GIF cannot be read."
+msgstr "No se puede leer ese GIF."
+
+#: client/ui/tr.slint
+msgid "That image cannot be read."
+msgstr "No se puede leer esa imagen."
+
+#: client/ui/tr.slint
+msgid "That image cannot be encoded."
+msgstr "No se puede codificar esa imagen."
+
+#: client/ui/tr.slint
+msgid "That image is over 8 MB after resize."
+msgstr "Esa imagen pesa más de 8 MB tras reducirla."
+
+#. The upload failed because no crew is open.
+#: client/ui/tr.slint
+msgid "No crew is open."
+msgstr "No hay ningún squad abierto."
+
+#. The server did not give a place to upload the image.
+#: client/ui/tr.slint
+msgid "The server did not give an upload slot."
+msgstr "El servidor no dio un hueco para la subida."
+
+#. The server does not accept images.
+#: client/ui/tr.slint
+msgid "Image upload is off on this server."
+msgstr "La subida de imágenes está desactivada en este servidor."
+
+#: client/ui/tr.slint
+msgid "The upload was refused."
+msgstr "Se rechazó la subida."
+
+#: client/ui/tr.slint
+msgid "The upload did not complete."
+msgstr "La subida no terminó."
+
+#. A person with no name in the feed, in the place of a name.
+#: client/ui/tr.slint
+msgid "someone"
+msgstr "alguien"
+
+#. The first letter of "You", in the octagon of the viewer.
+#: client/ui/tr.slint
+msgid "Y"
+msgstr "T"
+
+#. The title of a clip card when the member has no name.
+#: client/ui/tr.slint
+msgid "someone clipped that"
+msgstr "alguien clipeó eso"
+
+#. The name of a voice channel when the feed does not give it.
+#: client/ui/tr.slint
+msgid "voice"
+msgstr "voz"
+
+#: client/ui/tr.slint
+msgid "Voice session in {}"
+msgstr "Sesión de voz en {}"
+
+#: client/ui/tr.slint
+msgid "{0} in {1}"
+msgstr "{0} en {1}"
+
+#: client/ui/tr.slint
+msgid "{0} streamed {1}"
+msgstr "{0} emitió {1}"
+
+#: client/ui/tr.slint
+msgid "{} streamed a stream"
+msgstr "{} hizo un directo"
+
+#: client/ui/tr.slint
+msgid "Played {}"
+msgstr "Jugó a {}"
+
+#. The title of a game session with no game name.
+#: client/ui/tr.slint
+msgid "Played a game"
+msgstr "Jugó a un juego"
+
+#: client/ui/tr.slint
+msgid "{0} played {1}"
+msgstr "{0} jugó a {1}"
+
+#: client/ui/tr.slint
+msgid "{} played a game"
+msgstr "{} jugó a un juego"
+
+#: client/ui/tr.slint
+msgid "{n}-win streak"
+msgid_plural "{n}-win streak"
+msgstr[0] "racha de {n} victoria"
+msgstr[1] "racha de {n} victorias"
+
+#: client/ui/tr.slint
+msgid "{n}-loss skid"
+msgid_plural "{n}-loss skid"
+msgstr[0] "{n} derrota seguida"
+msgstr[1] "{n} derrotas seguidas"
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L"
+msgstr "{0}V {1}D"
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L"
+msgstr "{0}V–{1}D"
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L–{2}D"
+msgstr "{0}V–{1}D–{2}E"
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "W{}"
+msgstr "V{}"
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "L{}"
+msgstr "D{}"
+
+#: client/ui/tr.slint
+msgid "{n} match"
+msgid_plural "{n} matches"
+msgstr[0] "{n} partida"
+msgstr[1] "{n} partidas"
+
+#: client/ui/tr.slint
+msgid "{n} match · {0}"
+msgid_plural "{n} matches · {0}"
+msgstr[0] "{n} partida · {0}"
+msgstr[1] "{n} partidas · {0}"
+
+#. The kind of a clip: voice.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "voice"
+msgstr "voz"
+
+#. The kind of a clip: game.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "game"
+msgstr "juego"
+
+#. The award of the member with the most matches of the week.
+#: client/ui/tr.slint
+msgid "Grinder of the week"
+msgstr "Grindeador de la semana"
+
+#. The award of the member with the longest run of wins of the week.
+#: client/ui/tr.slint
+msgid "Biggest heater"
+msgstr "Más en llamas"
+
+#. The award of the member with the longest run of losses of the week.
+#: client/ui/tr.slint
+msgid "Roughest patch"
+msgstr "Peor racha"
+
+#: client/ui/tr.slint
+msgid "{} joined"
+msgstr "{} se unió"
+
+#: client/ui/tr.slint
+msgid "{0} joined, invited by {1}"
+msgstr "{0} se unió, invitado por {1}"
+
+#: client/ui/tr.slint
+msgid "invited by {}"
+msgstr "invitado por {}"
+
+#. The name of a member who joined with no name.
+#: client/ui/tr.slint
+msgid "A new member"
+msgstr "Un miembro nuevo"
+
+#: client/ui/tr.slint
+msgid "Add {0} to {1}'s Steam launch options to track wins"
+msgstr "Añade {0} a las opciones de lanzamiento de {1} en Steam para contar victorias"
+
+#: client/ui/tr.slint
+msgid "{n} draw"
+msgid_plural "{n} draws"
+msgstr[0] "{n} empate"
+msgstr[1] "{n} empates"
+
+#: client/ui/tr.slint
+msgid "{n}-loss streak"
+msgid_plural "{n}-loss streak"
+msgstr[0] "racha de {n} derrota"
+msgstr[1] "racha de {n} derrotas"
+
+#. The Riot ID is wrong. "GameName#TAG" shows the form of an ID.
+#: client/ui/tr.slint
+msgid "Riot ID not found. Check the spelling — it looks like GameName#TAG."
+msgstr "Riot ID no encontrado. Revisa cómo se escribe — tiene la forma GameName#TAG."
+
+#. The server needs the region of the Riot account.
+#: client/ui/tr.slint
+msgid "Pick the region your account plays in."
+msgstr "Elige la región donde juega tu cuenta."
+
+#. The invite link that opened the app does not work any more.
+#: client/ui/tr.slint
+msgid "This invite link is no longer valid."
+msgstr "Este enlace de invitación ya no es válido."
+
+#. The invite code that the user typed does not work.
+#: client/ui/tr.slint
+msgid "This invite code is not valid."
+msgstr "Este código de invitación no es válido."
+
+#: client/ui/tr.slint
+msgid "This crew is full."
+msgstr "Este squad está lleno."
+
+#: client/ui/tr.slint
+msgid "You cannot join this crew."
+msgstr "No puedes unirte a este squad."
+
+#. The join failed for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not join the crew. Try again."
+msgstr "No se pudo unir al squad. Inténtalo otra vez."
+
+#. The invite did not load for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not load this invite. Try again."
+msgstr "No se pudo cargar esta invitación. Inténtalo otra vez."
+
+#: client/ui/tr.slint
+msgid "{0} streaming {1}"
+msgstr "{0} emitiendo {1}"
+
+#: client/ui/tr.slint
+msgid "{} streaming"
+msgstr "{} emitiendo"
+
+#: client/ui/tr.slint
+msgid "streaming {}"
+msgstr "emitiendo {}"
+
+#. A stream with no streamer name and no title.
+#: client/ui/tr.slint
+msgid "streaming"
+msgstr "emitiendo"
+
+#. Nothing happened while the user was away.
+#: client/ui/tr.slint
+msgid "All quiet, crew's been chilling. Nothing new since you left."
+msgstr "Todo tranquilo, el squad ha estado de chill. Nada nuevo desde que te fuiste."
+
+#. {0} is the member, {1} is the text that the member wrote.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}: {1}"
+msgstr "{0}: {1}"
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a win in {1}"
+msgstr "{0} ganó una en {1}"
+
+#. {0} is the member, {1} is the game. "An L" is a loss.
+#: client/ui/tr.slint
+msgid "{0} took an L in {1}"
+msgstr "{0} se comió una derrota en {1}"
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a moment in {1}"
+msgstr "{0} tuvo un momento en {1}"
+
+#. {0} is the names, {1} is the channel, {2} is a duration ("45m").
+#: client/ui/tr.slint
+msgid "{0} hung out in {1} for {2}"
+msgstr "{0} estuvo de quedada en {1} durante {2}"
+
+#. {0} is the streamer, {1} is the stream title, {2} is a duration ("90m").
+#: client/ui/tr.slint
+msgid "{0} streamed {1} for {2}"
+msgstr "{0} emitió {1} durante {2}"
+
+#. {0} is the names, {1} is the record ("4W–2L"), {2} is the game.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}"
+msgstr "{0}: {1} en {2}"
+
+#. {0} names, {1} record, {2} game, {n} wins in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, riding a {n}-win streak"
+msgid_plural "{0} went {1} in {2}, riding a {n}-win streak"
+msgstr[0] "{0}: {1} en {2}, con una racha de {n} victoria"
+msgstr[1] "{0}: {1} en {2}, con una racha de {n} victorias"
+
+#. {0} names, {1} record, {2} game, {n} losses in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, on a {n}-loss skid"
+msgid_plural "{0} went {1} in {2}, on a {n}-loss skid"
+msgstr[0] "{0}: {1} en {2}, con {n} derrota seguida"
+msgstr[1] "{0}: {1} en {2}, con {n} derrotas seguidas"
+
+#: client/ui/tr.slint
+msgid "{} joined the crew"
+msgstr "{} se unió al squad"
+
+#: client/ui/tr.slint
+msgid "{} left the crew"
+msgstr "{} salió del squad"
+
+#. {n} is the messages, {0} is the members who wrote.
+#: client/ui/tr.slint
+msgid "{n} messages from {0} people in chat"
+msgid_plural "{n} messages from {0} people in chat"
+msgstr[0] "{n} mensaje de {0} personas en el chat"
+msgstr[1] "{n} mensajes de {0} personas en el chat"
+
+#. {0} is the member, {1} is the seconds, {2} is the clip kind.
+#: client/ui/tr.slint
+msgid "{0} clipped that ({1}s {2})"
+msgstr "{0} clipeó eso ({1}s de {2})"
+
+#. The weekly recap of the crew is ready to open.
+#: client/ui/tr.slint
+msgid "weekly recap is ready"
+msgstr "el resumen semanal está listo"
+
+#. {0} is the names, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} others"
+msgid_plural "{0} and {n} others"
+msgstr[0] "{0} y {n} más"
+msgstr[1] "{0} y {n} más"
+
+#. {0} is the steps done, {1} is all the steps.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} / {1}"
+msgstr "{0} / {1}"
+
+#: client/ui/tr.slint
+msgid "DROP {}"
+msgstr "RECOMPENSA {}"
+
+#: client/ui/tr.slint
+msgid "QUEST  ·  {}"
+msgstr "MISIÓN  ·  {}"
+
+#: client/ui/tr.slint
+msgid "FIRST WEEK"
+msgstr "PRIMERA SEMANA"
+
+#. 30 days of m3llo+. "D" is the short form of "days".
+#: client/ui/tr.slint
+msgid "M3LLO+ 30 D"
+msgstr "m3llo+ 30 D"
+
+#. The gift of the last step: 30 days of m3llo+.
+#: client/ui/tr.slint
+msgid "30 DAYS"
+msgstr "30 DÍAS"
+
+#. The names of the steps.
+#: client/ui/tr.slint
+msgid "Crew made"
+msgstr "Squad creado"
+
+#: client/ui/tr.slint
+msgid "A friend joins"
+msgstr "Se une un amigo"
+
+#: client/ui/tr.slint
+msgid "First call"
+msgstr "Primera llamada"
+
+#: client/ui/tr.slint
+msgid "First clip"
+msgstr "Primer clip"
+
+#: client/ui/tr.slint
+msgid "First session"
+msgstr "Primera sesión"
+
+#. The names of the steps in upper case, in the label of a gift.
+#: client/ui/tr.slint
+msgid "CREW MADE"
+msgstr "SQUAD CREADO"
+
+#: client/ui/tr.slint
+msgid "A FRIEND JOINS"
+msgstr "SE UNE UN AMIGO"
+
+#: client/ui/tr.slint
+msgid "FIRST CALL"
+msgstr "PRIMERA LLAMADA"
+
+#: client/ui/tr.slint
+msgid "FIRST CLIP"
+msgstr "PRIMER CLIP"
+
+#: client/ui/tr.slint
+msgid "FIRST SESSION"
+msgstr "PRIMERA SESIÓN"
+
+#. The value is a date ("2 October").
+#: client/ui/tr.slint
+msgid "Made {}"
+msgstr "Creado el {}"
+
+#. The names of the gifts in a reveal.
+#: client/ui/tr.slint
+msgid "Crew banner"
+msgstr "Banner del squad"
+
+#: client/ui/tr.slint
+msgid "Your invite link"
+msgstr "Tu enlace de invitación"
+
+#: client/ui/tr.slint
+msgid "Crew emoji"
+msgstr "Emojis del squad"
+
+#: client/ui/tr.slint
+msgid "Founding week"
+msgstr "Semana de fundación"
+
+#: client/ui/tr.slint
+msgid "For the crew"
+msgstr "Para el squad"
+
+#: client/ui/tr.slint
+msgid "Set the link"
+msgstr "Elige el enlace"
+
+#: client/ui/tr.slint
+msgid "SET THE LINK"
+msgstr "ELIGE EL ENLACE"
+
+#: client/ui/tr.slint
+msgid "ADD EMOJI"
+msgstr "AÑADIR EMOJI"
+
+#. The viewer joined the crew.
+#: client/ui/tr.slint
+msgid "You joined"
+msgstr "Te uniste"
+
+#. The viewer made the first clip.
+#: client/ui/tr.slint
+msgid "You clipped"
+msgstr "Clipeaste"
+
+#: client/ui/tr.slint
+msgid "{} clipped"
+msgstr "{} clipeó"
+
+#. The viewer invited the member who joined.
+#: client/ui/tr.slint
+msgid "Invited by you"
+msgstr "Invitado por ti"
+
+#: client/ui/tr.slint
+msgid "Invited by {}"
+msgstr "Invitado por {}"
+
+#: client/ui/tr.slint
+msgid "{n} slot"
+msgid_plural "{n} slots"
+msgstr[0] "{n} hueco"
+msgstr[1] "{n} huecos"
+
+#. Where the founding week opens.
+#: client/ui/tr.slint
+msgid "Open in Crew history for every member"
+msgstr "Ábrela en Historial del squad, para cada miembro"
+
+#. The gift of the last step, on two lines.
+#: client/ui/tr.slint
+msgid "30 days of m3llo+\nfor every member in the crew"
+msgstr "30 días de m3llo+\npara cada miembro del squad"
+
+#. {0} is the names, {n} is the count of guests.
+#: client/ui/tr.slint
+msgid "{0}, +{n} guest"
+msgid_plural "{0}, +{n} guests"
+msgstr[0] "{0}, +{n} invitado"
+msgstr[1] "{0}, +{n} invitados"
+
+#. The hints of the steps that are not done.
+#: client/ui/tr.slint
+msgid "Works in the browser"
+msgstr "Funciona en el navegador"
+
+#: client/ui/tr.slint
+msgid "Join voice to clip"
+msgstr "Únete a la voz para clipear"
+
+#: client/ui/tr.slint
+msgid "Play with m3llo open"
+msgstr "Juega con m3llo abierto"
+
+#: client/ui/tr.slint
+msgid "Game activity is off"
+msgstr "La actividad de juego está desactivada"
+
+#. an award.
+#: client/ui/tr.slint
+msgid "The Carry"
+msgstr "El Carry"
+
+#: client/ui/tr.slint
+msgid "Night Owl"
+msgstr "Noctámbulo"
+
+#: client/ui/tr.slint
+msgid "The Collector"
+msgstr "El Coleccionista"
+
+#: client/ui/tr.slint
+msgid "Locked In"
+msgstr "Viciado"
+
+#: client/ui/tr.slint
+msgid "Has a Life"
+msgstr "Tiene Vida"
+
+#: client/ui/tr.slint
+msgid "Sampler"
+msgstr "El Catador"
+
+#: client/ui/tr.slint
+msgid "One Trick"
+msgstr "Monotemático"
+
+#. The names of the card titles in upper case, on the board.
+#: client/ui/tr.slint
+msgid "THE CARRY"
+msgstr "EL CARRY"
+
+#: client/ui/tr.slint
+msgid "NIGHT OWL"
+msgstr "NOCTÁMBULO"
+
+#: client/ui/tr.slint
+msgid "THE COLLECTOR"
+msgstr "EL COLECCIONISTA"
+
+#: client/ui/tr.slint
+msgid "LOCKED IN"
+msgstr "VICIADO"
+
+#: client/ui/tr.slint
+msgid "HAS A LIFE"
+msgstr "TIENE VIDA"
+
+#: client/ui/tr.slint
+msgid "SAMPLER"
+msgstr "EL CATADOR"
+
+#: client/ui/tr.slint
+msgid "ONE TRICK"
+msgstr "MONOTEMÁTICO"
+
+#: client/ui/tr.slint
+msgid "MOUTH"
+msgstr "PARLANCHÍN"
+
+#: client/ui/tr.slint
+msgid "MARATHON"
+msgstr "MARATÓN"
+
+#: client/ui/tr.slint
+msgid "LAST ONE UP"
+msgstr "ÚLTIMO EN CAER"
+
+#: client/ui/tr.slint
+msgid "CLIPPER"
+msgstr "CLIPERO"
+
+#: client/ui/tr.slint
+msgid "RAGE QUIT"
+msgstr "RAGE QUIT"
+
+#: client/ui/tr.slint
+msgid "WINNER"
+msgstr "GANADOR"
+
+#: client/ui/tr.slint
+msgid "Mouth"
+msgstr "Parlanchín"
+
+#: client/ui/tr.slint
+msgid "Marathon"
+msgstr "Maratón"
+
+#: client/ui/tr.slint
+msgid "Last One Up"
+msgstr "Último en Caer"
+
+#: client/ui/tr.slint
+msgid "Clipper"
+msgstr "Clipero"
+
+#: client/ui/tr.slint
+msgid "Rage Quit"
+msgstr "Rage Quit"
+
+#: client/ui/tr.slint
+msgid "Winner"
+msgstr "Ganador"
+
+#. What each title counts, under its value.
+#: client/ui/tr.slint
+msgid "Most hours in the top shared game."
+msgstr "Más horas en el juego compartido top."
+
+#: client/ui/tr.slint
+msgid "Most game hours in the last 7 days."
+msgstr "Más horas de juego en los últimos 7 días."
+
+#: client/ui/tr.slint
+msgid "Fewest game hours in the last 7 days."
+msgstr "Menos horas de juego en los últimos 7 días."
+
+#: client/ui/tr.slint
+msgid "Latest local time of a last session."
+msgstr "La hora local más tardía de una última sesión."
+
+#: client/ui/tr.slint
+msgid "Most installed games."
+msgstr "Más juegos instalados."
+
+#: client/ui/tr.slint
+msgid "Most different games in the last 14 days."
+msgstr "Más juegos distintos en los últimos 14 días."
+
+#: client/ui/tr.slint
+msgid "Highest share of play time in one game."
+msgstr "Mayor parte del tiempo de juego en un solo juego."
+
+#: client/ui/tr.slint
+msgid "Most voice minutes in the last 14 days."
+msgstr "Más minutos de voz en los últimos 14 días."
+
+#: client/ui/tr.slint
+msgid "Longest single game session."
+msgstr "La sesión de juego más larga."
+
+#: client/ui/tr.slint
+msgid "Latest session end in the last 14 days."
+msgstr "El final de sesión más tardío en los últimos 14 días."
+
+#: client/ui/tr.slint
+msgid "Most clips posted."
+msgstr "Más clips publicados."
+
+#: client/ui/tr.slint
+msgid "Most sessions of 2 to 10 minutes in 14 days."
+msgstr "Más sesiones de 2 a 10 minutos en 14 días."
+
+#: client/ui/tr.slint
+msgid "Most win moments in the last 14 days."
+msgstr "Más momentos de victoria en los últimos 14 días."
+
+#. A member the app does not know, for example one who left the crew.
+#: client/ui/tr.slint
+msgid "Crew mate"
+msgstr "Compañero de squad"
+
+#. The unit of the Locked In title: hours in this week.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "h this week"
+msgstr "h esta semana"
+
+#: client/ui/tr.slint
+msgid "held {n} day"
+msgid_plural "held {n} days"
+msgstr[0] "lo tiene {n} día"
+msgstr[1] "lo tiene {n} días"
+
+#: client/ui/tr.slint
+msgid "{0} took {1} from {2}"
+msgstr "{0} le quitó {1} a {2}"
+
+#: client/ui/tr.slint
+msgid "{0} beats {1}."
+msgstr "{0} supera a {1}."
+
+#. {0} is the number, {1} is the unit.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. A live stream with no title.
+#: client/ui/tr.slint
+msgid "Live now"
+msgstr "En directo"
+
+#. The titles of the card that says why a stream stopped.
+#: client/ui/tr.slint
+msgid "STREAM ENDED"
+msgstr "DIRECTO TERMINADO"
+
+#: client/ui/tr.slint
+msgid "STREAM DID NOT START"
+msgstr "EL DIRECTO NO EMPEZÓ"
+
+#: client/ui/tr.slint
+msgid "COULD NOT WATCH"
+msgstr "NO SE PUDO VER"
+
+#. Why a stream ended.
+#: client/ui/tr.slint
+msgid "The connection to the stream was lost for 30 seconds."
+msgstr "Se perdió la conexión con el directo durante 30 segundos."
+
+#: client/ui/tr.slint
+msgid "The server lost the stream during a reconnect."
+msgstr "El servidor perdió el directo al reconectar."
+
+#: client/ui/tr.slint
+msgid "The host ended the stream."
+msgstr "El streamer terminó el directo."
+
+#: client/ui/tr.slint
+msgid "The stream ended."
+msgstr "El directo terminó."
+
+#: client/ui/tr.slint
+msgid "SESSIONS"
+msgstr "SESIONES"
+
+#. The members who were on today.
+#: client/ui/components/looking_to_play.slint client/ui/tr.slint
+msgid "ON"
+msgstr "CONECTADOS"
+
+#: client/ui/tr.slint
+msgid "CLIPS AND STREAMS"
+msgstr "CLIPS Y DIRECTOS"
+
+#. The board of a week with no crew time.
+#: client/ui/tr.slint
+msgid "No crew time last week."
+msgstr "Sin tiempo de squad la semana pasada."
+
+#: client/ui/tr.slint
+msgid "{} still played."
+msgstr "{} siguió jugando."
+
+#: client/ui/tr.slint
+msgid "Nothing new since {}."
+msgstr "Nada nuevo desde {}."
+
+#: client/ui/tr.slint
+msgid "Nothing new since {0}. {1} holds {2}."
+msgstr "Nada nuevo desde {0}. {1} tiene {2}."
+
+#: client/ui/tr.slint
+msgid "{n} in the call"
+msgid_plural "{n} in the call"
+msgstr[0] "{n} en la llamada"
+msgstr[1] "{n} en la llamada"
+
+#: client/ui/tr.slint
+msgid "Empty. Last call {}"
+msgstr "Vacío. Última llamada {}"
+
+#. default.
+#: client/ui/tr.slint
+msgid ""
+"Your saved audio device was not found. Switched to system default — you can "
+"change it in Settings."
+msgstr "No se encontró tu dispositivo de audio guardado. Cambiado al predeterminado del sistema — puedes cambiarlo en Ajustes."
+
+#: client/ui/tr.slint
+msgid "{} made it. Welcome to the crew."
+msgstr "{} lo logró. Bienvenido al squad."
+
+#: client/ui/tr.slint
+msgid "{} is in. Grab a seat."
+msgstr "{} está dentro. Pilla sitio."
+
+#: client/ui/tr.slint
+msgid "Look who showed up. Hey {}."
+msgstr "Mira quién ha llegado. Hola, {}."
+
+#: client/ui/tr.slint
+msgid "{}, you found us. Good."
+msgstr "{}, nos encontraste. Bien."
+
+#: client/ui/tr.slint
+msgid "New blood. Welcome {}."
+msgstr "Sangre nueva. Bienvenido, {}."
+
+#: client/ui/tr.slint
+msgid "{} is here. Mic on, let's go."
+msgstr "{} está aquí. Micro encendido, vamos."
+
+#: client/ui/tr.slint
+msgid "Game clip saved"
+msgstr "Clip de juego guardado"
+
+#. The clip key made no game clip.
+#: client/ui/tr.slint
+msgid "No game clip"
+msgstr "Sin clip de juego"
+
+#. Why the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Game clips are off: the disk is almost full"
+msgstr "Los clips de juego están desactivados: el disco está casi lleno"
+
+#: client/ui/tr.slint
+msgid "Clips are not available for this game"
+msgstr "Los clips no están disponibles para este juego"
+
+#. macOS: the app needs the Screen Recording permission.
+#: client/ui/tr.slint
+msgid "Allow Screen Recording in Settings to clip your game"
+msgstr "Permite Grabación de pantalla en Ajustes para clipear tu juego"
+
+#. The clip key saved the voice only, and the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Voice clip saved. Game clips are off: the disk is almost full"
+msgstr "Clip de voz guardado. Los clips de juego están desactivados: el disco está casi lleno"
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Clips are not available for this game"
+msgstr "Clip de voz guardado. Los clips no están disponibles para este juego"
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Allow Screen Recording in Settings to clip your game"
+msgstr "Clip de voz guardado. Permite Grabación de pantalla en Ajustes para clipear tu juego"
+
+#. The clip player cannot play while the user watches a stream.
+#: client/ui/tr.slint
+msgid "Stop watching the stream to play a clip"
+msgstr "Deja de ver el directo para reproducir un clip"
+
+#. A game that the app cannot name.
+#: client/ui/tr.slint
+msgid "Unknown game"
+msgstr "Juego desconocido"
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L {2}D"
+msgstr "{0}V {1}D {2}E"
+
+#: client/ui/tr.slint
+msgid "W{} best"
+msgstr "V{} mejor"
+
+#: client/ui/tr.slint
+msgid "L{} worst"
+msgstr "D{} peor"
+
+#: client/ui/tr.slint
+msgid "Push-to-talk uses {}. Pick another key."
+msgstr "Pulsar para hablar usa {}. Elige otra tecla."
+
+#: client/ui/tr.slint
+msgid "Clip uses {}. Pick another key."
+msgstr "Clip usa {}. Elige otra tecla."
+
+#: client/ui/tr.slint
+msgid "Stream key uses {}. Pick another key."
+msgstr "La tecla de directo usa {}. Elige otra tecla."
+
+#: client/ui/tr.slint
+msgid "{0}p, {1} fps"
+msgstr "{0}p, {1} fps"
+
+#. own script, which are not translated.
+#: client/ui/tr.slint
+msgid "System"
+msgstr "Sistema"
+
+#. The name of the file type filter in a dialog that picks an image.
+#: client/ui/tr.slint
+msgid "Images"
+msgstr "Imágenes"
+
+#. {0} is the width, {1} is the height.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}×{1}"
+msgstr "{0}×{1}"
+
+#: client/ui/tr.slint
+msgid "You cancelled the {} sign-in."
+msgstr "Cancelaste el inicio de sesión con {}."
+
+#: client/ui/tr.slint
+msgid "{0} sign-in failed: {1}"
+msgstr "Error al iniciar sesión con {0}: {1}"
+
+#: client/ui/tr.slint
+msgid "{} sign-in failed unexpectedly"
+msgstr "El inicio de sesión con {} falló de forma inesperada"
+
+#: client/ui/tr.slint
+msgid "{} login not configured"
+msgstr "El inicio de sesión con {} no está configurado"
+
+#: client/ui/tr.slint
+msgid "{} sign-in isn't available here"
+msgstr "El inicio de sesión con {} no está disponible aquí"
+
+#: client/ui/tr.slint
+msgid "{} sign-in returned no token"
+msgstr "El inicio de sesión con {} no devolvió ningún token"
+
+#: client/ui/tr.slint
+msgid "WebSocket failed: {}"
+msgstr "Error de WebSocket: {}"
+
+#. Onboarding: the account was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create your account. Check your connection and try again."
+msgstr "No se pudo crear tu cuenta. Revisa tu conexión y vuelve a intentarlo."
+
+#. Onboarding: the app did not connect.
+#: client/ui/tr.slint
+msgid "Couldn't connect. Check your connection and try again."
+msgstr "No se pudo conectar. Revisa tu conexión y vuelve a intentarlo."
+
+#. Onboarding: the new crew was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create the crew. Try again."
+msgstr "No se pudo crear el squad. Inténtalo otra vez."
+
+#. Onboarding: the chosen crew was not joined, and why.
+#: client/ui/tr.slint
+msgid "That crew is full. Pick another one."
+msgstr "Ese squad está lleno. Elige otro."
+
+#: client/ui/tr.slint
+msgid "That crew no longer exists. Pick another one."
+msgstr "Ese squad ya no existe. Elige otro."
+
+#: client/ui/tr.slint
+msgid "You can't join that crew. Pick another one."
+msgstr "No puedes unirte a ese squad. Elige otro."
+
+#: client/ui/tr.slint
+msgid "Couldn't join the crew. Check your connection and try again."
+msgstr "No se pudo unir al squad. Revisa tu conexión y vuelve a intentarlo."
+
+#: client/ui/tr.slint
+msgid "Server requires protocol {0} but client speaks {1}. Please update m3llo."
+msgstr "El servidor necesita el protocolo {0} pero el cliente usa el {1}. Actualiza m3llo."
+
+#: client/ui/tr.slint
+msgid ""
+"Client requires server protocol {0} but server speaks {1}. Server needs "
+"updating."
+msgstr "El cliente necesita el protocolo de servidor {0} pero el servidor usa el {1}. Hay que actualizar el servidor."
+
+#: client/ui/tr.slint
+msgid "You are not signed in."
+msgstr "No has iniciado sesión."
+
+#: client/ui/tr.slint
+msgid "Streaming is not available on the server right now."
+msgstr "Los directos no están disponibles en el servidor ahora mismo."
+
+#: client/ui/tr.slint
+msgid "The server did not answer the stream start."
+msgstr "El servidor no respondió al inicio del directo."
+
+#: client/ui/tr.slint
+msgid "The server did not accept the stream."
+msgstr "El servidor no aceptó el directo."
+
+#: client/ui/tr.slint
+msgid "Could not reach the stream server."
+msgstr "No se pudo conectar con el servidor de directos."
+
+#: client/ui/tr.slint
+msgid ""
+"Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was "
+"found on this machine."
+msgstr "Para emitir hace falta un codificador por hardware (NVIDIA, AMD o Intel). No se encontró ninguno en este equipo."
+
+#: client/ui/tr.slint
+msgid "The media engine is not running."
+msgstr "El motor multimedia no está funcionando."
+
+#: client/ui/tr.slint
+msgid "The stream has no session to join."
+msgstr "El directo no tiene ninguna sesión a la que unirse."
+
+#: client/ui/tr.slint
+msgid "The video decoder did not start."
+msgstr "El decodificador de vídeo no arrancó."
+
+#: client/ui/tr.slint
+msgid "The stream is not available."
+msgstr "El directo no está disponible."
+
+#: client/ui/tr.slint
+msgid "Display {}"
+msgstr "Pantalla {}"
+
+#: client/ui/tr.slint
+msgid "Display {} (Primary)"
+msgstr "Pantalla {} (principal)"
+
+#. The server did not answer a gift change.
+#: client/ui/tr.slint
+msgid "The server did not answer."
+msgstr "El servidor no respondió."
+
+#. old server that sends no code.
+#: client/ui/tr.slint
+msgid "Something went wrong. Try again."
+msgstr "Algo salió mal. Inténtalo otra vez."
+
+#. A crew banner upload is not a JPEG image.
+#: client/ui/tr.slint
+msgid "A banner is a JPEG."
+msgstr "Un banner tiene que ser JPEG."
+
+#. A crew banner image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Banner too large."
+msgstr "Banner demasiado grande."
+
+#. Only the crew owner can change the crew banner.
+#: client/ui/tr.slint
+msgid "Only the owner sets the banner."
+msgstr "Solo el líder pone el banner."
+
+#. Only the crew owner can change the custom invite link.
+#: client/ui/tr.slint
+msgid "Only the owner sets the invite link."
+msgstr "Solo el líder pone el enlace de invitación."
+
+#. The crew has not unlocked this gift with its quests yet.
+#: client/ui/tr.slint
+msgid "Gift not unlocked."
+msgstr "Recompensa no desbloqueada."
+
+#. The invite link name is reserved or has a wrong form.
+#: client/ui/tr.slint
+msgid "Name not allowed."
+msgstr "Nombre no permitido."
+
+#. with the name.
+#: client/ui/tr.slint
+msgid "Name taken."
+msgstr "Nombre ocupado."
+
+#. A crew emoji image is not a JPEG, PNG or GIF.
+#: client/ui/tr.slint
+msgid "Unsupported image type."
+msgstr "Tipo de imagen no compatible."
+
+#. A crew emoji image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Emoji too large."
+msgstr "Emoji demasiado grande."
+
+#. The user is not a member of the crew any more.
+#: client/ui/tr.slint
+msgid "Not a crew member."
+msgstr "No eres miembro del squad."
+
+#. The crew has used all of its emoji slots.
+#: client/ui/tr.slint
+msgid "No free emoji slot."
+msgstr "No queda ningún hueco de emoji."
+
+#. The rule for a crew emoji name. Keep the numbers 2 and 24.
+#: client/ui/tr.slint
+msgid "Name is 2 to 24 letters, digits or underscores."
+msgstr "El nombre tiene de 2 a 24 letras, números o guiones bajos."
+
+#. Only the member who added an emoji, or the crew owner, can remove it.
+#: client/ui/tr.slint
+msgid "Only the adder or the owner removes an emoji."
+msgstr "Solo quien lo añadió o el líder puede quitar un emoji."
+
+#. The crew has no emoji with this name.
+#: client/ui/tr.slint
+msgid "No such emoji."
+msgstr "Ese emoji no existe."
+
+#. The server has no Riot API key, so a Riot account cannot be linked.
+#: client/ui/tr.slint
+msgid "Riot linking is not available right now."
+msgstr "Vincular Riot no está disponible ahora mismo."
+
+#. The server could not reach the Riot API.
+#: client/ui/tr.slint
+msgid "Could not reach Riot. Try again."
+msgstr "No se pudo conectar con Riot. Inténtalo otra vez."
+
+#. The Riot API refused too many requests.
+#: client/ui/tr.slint
+msgid "Riot is busy. Try again in a minute."
+msgstr "Riot está saturado. Inténtalo en un minuto."
+
+#. The Riot API sent an error.
+#: client/ui/tr.slint
+msgid "Riot sent an error. Try again."
+msgstr "Riot devolvió un error. Inténtalo otra vez."
+
+#: client/ui/tr.slint
+msgid "The media engine is not running"
+msgstr "El motor multimedia no está funcionando"
+
+#: client/ui/tr.slint
+msgid "The clip does not load"
+msgstr "El clip no carga"
+
+#: client/ui/tr.slint
+msgid "The clip does not play"
+msgstr "El clip no se reproduce"
+
+#: client/ui/tr.slint
+msgid "Open {}"
+msgstr "Abrir {}"
+
+#: client/ui/tr.slint
+msgid "Leave Voice"
+msgstr "Salir de la voz"
+
+#: client/ui/tr.slint
+msgid "Quit {}"
+msgstr "Salir de {}"
+
+#: client/ui/tr.slint
+msgid "About {}"
+msgstr "Acerca de {}"
+
+#: client/ui/tr.slint
+msgid "Check for Updates…"
+msgstr "Buscar actualizaciones…"
+
+#: client/ui/tr.slint
+msgid "Preferences…"
+msgstr "Preferencias…"
+
+#: client/ui/tr.slint
+msgid "Hide {}"
+msgstr "Ocultar {}"
+
+#. The names of the menus.
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Edit"
+msgstr "Editar"
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "View"
+msgstr "Ver"
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Help"
+msgstr "Ayuda"
+
+#. The items of the Edit menu.
+#: client/ui/tr.slint
+msgid "Undo"
+msgstr "Deshacer"
+
+#: client/ui/tr.slint
+msgid "Redo"
+msgstr "Rehacer"
+
+#: client/ui/tr.slint
+msgid "Cut"
+msgstr "Cortar"
+
+#: client/ui/tr.slint
+msgid "Copy"
+msgstr "Copiar"
+
+#: client/ui/tr.slint
+msgid "Paste"
+msgstr "Pegar"
+
+#: client/ui/tr.slint
+msgid "Select All"
+msgstr "Seleccionar todo"
+
+#: client/ui/tr.slint
+msgid "Find…"
+msgstr "Buscar…"
+
+#. The items of the View menu.
+#: client/ui/tr.slint
+msgid "Toggle Mute"
+msgstr "Alternar silencio"
+
+#: client/ui/tr.slint
+msgid "Toggle Deafen"
+msgstr "Alternar ensordecer"
+
+#: client/ui/tr.slint
+msgid "{} on GitHub"
+msgstr "{} en GitHub"
+
+#: client/ui/tr.slint
+msgid "{} is still running"
+msgstr "{} sigue abierto"
+
+#. Windows and Linux: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the tray to keep collecting your gaming stats. Right-click the "
+"tray icon to quit."
+msgstr "Se queda en la bandeja para seguir recogiendo tus stats de juego. Haz clic derecho en el icono de la bandeja para salir."
+
+#. macOS: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the menu bar to keep collecting your gaming stats. Quit it from "
+"the menu bar icon."
+msgstr "Se queda en la barra de menús para seguir recogiendo tus stats de juego. Sal desde el icono de la barra de menús."
+
+#. The title of a notification about the stream key.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "Stream"
+msgstr "Directo"
+
+#. The stream key started a stream, and the stream is live.
+#: client/ui/tr.slint
+msgid "You are live"
+msgstr "Estás en directo"
+
+#. The stream key ended the stream.
+#: client/ui/tr.slint
+msgid "Stream ended"
+msgstr "Directo terminado"
+
+#. The stream that the stream key started did not start.
+#: client/ui/tr.slint
+msgid "Stream failed"
+msgstr "El directo falló"
+
+#. The stream key found no active crew.
+#: client/ui/tr.slint
+msgid "Pick a crew to stream to"
+msgstr "Elige un squad para emitir"
+
+#. The stream key found no detected game.
+#: client/ui/tr.slint
+msgid "No game to stream"
+msgstr "No hay juego para emitir"
+
+#: client/ui/tr.slint
+msgid "{} jumped in"
+msgstr "{} se ha unido"
+
+#: client/ui/tr.slint
+msgid "{} invite"
+msgstr "Invitación de {}"
+
+#: client/ui/tr.slint
+msgid "{0} invited you to {1}"
+msgstr "{0} te invitó a {1}"
+
+#: client/ui/tr.slint
+msgid "Push to talk"
+msgstr "Pulsar para hablar"
+
+#: client/ui/tr.slint
+msgid "Clip the last moments of voice"
+msgstr "Clipea los últimos momentos de voz"
+
+#: hud/ui/mini_player.slint
+msgid "{n} online"
+msgid_plural "{n} online"
+msgstr[0] "{n} en línea"
+msgstr[1] "{n} en línea"
+
+#: hud/ui/mini_player.slint
+msgid "{} is streaming"
+msgstr "{} está emitiendo"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK"
+msgstr "PREGUNTAR"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK THE CREW"
+msgstr "PREGUNTA AL SQUAD"
+
+#. The red button of the ask popover. {} is the count of picked members.
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK {}"
+msgstr "PREGUNTAR A {}"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Any game"
+msgstr "Cualquier juego"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask the crew"
+msgstr "Pregunta al squad"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask {n} member"
+msgid_plural "Ask {n} members"
+msgstr[0] "Preguntar a {n} miembro"
+msgstr[1] "Preguntar a {n} miembros"
+
+#: client/ui/components/looking_to_play.slint
+msgid "CHANGE"
+msgstr "CAMBIAR"
+
+#: client/ui/components/looking_to_play.slint
+msgid "Cancel the ask"
+msgstr "Cancelar la pregunta"
+
+#: client/ui/components/looking_to_play.slint
+msgid "Change answer"
+msgstr "Cambiar respuesta"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Find a member"
+msgstr "Buscar un miembro"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "GAME"
+msgstr "JUEGO"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN"
+msgstr "VOY"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 15"
+msgstr "EN 15"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 30"
+msgstr "EN 30"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN VOICE"
+msgstr "EN VOZ"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In"
+msgstr "Voy"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 15"
+msgstr "En 15"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 30"
+msgstr "En 30"
+
+#: client/ui/tr.slint
+msgid "In voice"
+msgstr "En voz"
+
+#: client/ui/components/looking_to_play.slint
+msgid "LOOKING TO PLAY"
+msgstr "BUSCANDO PARTIDA"
+
+#: client/ui/tr.slint
+msgid "Last time"
+msgstr "La última vez"
+
+#. The unit after the minutes until an ask closes, or until a member is due.
+#: client/ui/components/looking_to_play.slint
+msgid "MIN"
+msgstr "MIN"
+
+#: client/ui/components/looking_to_play.slint
+msgid "NO ANSWER"
+msgstr "SIN RESPUESTA"
+
+#: client/ui/components/looking_to_play.slint
+msgid "NOT NOW"
+msgstr "AHORA NO"
+
+#: client/ui/components/looking_to_play.slint
+msgid "No one this time"
+msgstr "Nadie esta vez"
+
+#: client/ui/tr.slint
+msgid "No one was in on your last ask. Try again later."
+msgstr "Nadie se apuntó la última vez. Inténtalo más tarde."
+
+#: client/ui/tr.slint
+msgid "The ask did not go out. Try again."
+msgstr "La pregunta no se envió. Inténtalo otra vez."
+
+#. The client does not know the name of the asker.
+#: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
+msgid "Someone is looking to play"
+msgstr "Alguien busca partida"
+
+#. The client does not know the name of the asker. {} is the game.
+#: client/ui/tr.slint
+msgid "Someone is looking to play {}"
+msgstr "Alguien busca partida de {}"
+
+#. {0} is the asker, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} is looking to play {1}"
+msgstr "{0} busca partida de {1}"
+
+#: client/ui/tr.slint
+msgid "You asked a short time ago. Try again in a few minutes."
+msgstr "Preguntaste hace poco. Inténtalo en unos minutos."
+
+#: client/ui/tr.slint
+msgid "You have an open ask in this crew."
+msgstr "Ya tienes una pregunta abierta en este squad."
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} MORE IN"
+msgid_plural "{n} MORE IN"
+msgstr[0] "{n} MÁS VA"
+msgstr[1] "{n} MÁS VAN"
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} NOT NOW"
+msgid_plural "{n} NOT NOW"
+msgstr[0] "{n} AHORA NO"
+msgstr[1] "{n} AHORA NO"
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} more in"
+msgid_plural "{n} more in"
+msgstr[0] "{n} más va"
+msgstr[1] "{n} más van"
+
+#. A closed ask that the asker cancelled. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} called it off"
+msgstr "{} lo canceló"
+
+#. The title of an ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
+msgid "{} is looking to play"
+msgstr "{} busca partida"
+
+#. The title of a closed ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} was looking to play"
+msgstr "{} buscaba partida"
+
+#: client/ui/components/looking_to_play.slint
+msgctxt "count of members in"
+msgid "IN"
+msgstr "VAN"

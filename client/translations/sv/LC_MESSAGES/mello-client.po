@@ -1,0 +1,4830 @@
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: mello-client VERSION\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Swedish\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: client/ui/components/avatar_card.slint
+msgid "Choose avatar"
+msgstr "Välj avatar"
+
+#: client/ui/components/clip_wave.slint
+msgid "Pause"
+msgstr "Pausa"
+
+#: client/ui/components/clip_wave.slint
+msgid "Play"
+msgstr "Spela"
+
+#: client/ui/components/clip_wave.slint
+msgid "Clip position"
+msgstr "Position i klippet"
+
+#: client/ui/components/feed_board.slint
+msgid "Sealed recap, open it"
+msgstr "Oöppnad summering, öppna den"
+
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "TODAY"
+msgstr "IDAG"
+
+#: client/ui/components/feed_board.slint
+msgid "WEEK"
+msgstr "VECKA"
+
+#: client/ui/components/feed_board.slint
+msgid "TOP GAME"
+msgstr "TOPPSPEL"
+
+#: client/ui/components/feed_board.slint client/ui/panels/you_view.slint
+msgid "HEAD2HEAD"
+msgstr "head2head"
+
+#: client/ui/components/feed_board.slint
+msgid "Go head2head with your crew"
+msgstr "Kör head2head med gänget"
+
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
+msgid "MOST ACTIVE"
+msgstr "MEST AKTIV"
+
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
+msgid "MOST CLIPPED"
+msgstr "MEST KLIPPT"
+
+#: client/ui/components/feed_board.slint
+msgid "clip"
+msgid_plural "clips"
+msgstr[0] "klipp"
+msgstr[1] "klipp"
+
+#: client/ui/components/feed_board.slint
+msgid "GAMES PLAYED"
+msgstr "SPELADE SPEL"
+
+#: client/ui/components/feed_board.slint client/ui/panels/you_view.slint
+msgid "BELTS"
+msgstr "TITLAR"
+
+#. The badge of a live stream.
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "LIVE"
+msgstr "LIVE"
+
+#: client/ui/components/feed_board.slint
+msgctxt "noun"
+msgid "STREAM"
+msgstr "STREAM"
+
+#: client/ui/components/feed_board.slint
+msgid "MOST INSTALLED"
+msgstr "FLEST INSTALLERADE"
+
+#: client/ui/components/feed_board.slint
+msgid "QUIET"
+msgstr "LUGNT"
+
+#: client/ui/components/feed_board.slint
+msgid "GAME SESSIONS"
+msgstr "SPELPASS"
+
+#: client/ui/components/feed_board.slint
+msgid "VOICE"
+msgstr "RÖST"
+
+#: client/ui/components/feed_board.slint
+msgid "Play the voice clip of {}"
+msgstr "Spela upp röstklippet från {}"
+
+#: client/ui/components/feed_board.slint
+msgid "Show all clips"
+msgstr "Visa alla klipp"
+
+#: client/ui/components/feed_board.slint client/ui/tr.slint
+msgid "CLIPS"
+msgstr "KLIPP"
+
+#: client/ui/components/feed_board.slint
+msgid "INVITE"
+msgstr "BJUD IN"
+
+#. keeps the name unique.
+#: client/ui/components/feed_board.slint
+msgid "Invite your crew"
+msgstr "Bjud in gänget"
+
+#: client/ui/components/feed_board.slint
+msgid "SAY HI"
+msgstr "SÄG HEJ"
+
+#: client/ui/components/feed_board.slint
+msgid "Say hi to {}"
+msgstr "Säg hej till {}"
+
+#: client/ui/components/feed_board.slint
+msgid "START VOICE"
+msgstr "STARTA RÖST"
+
+#: client/ui/components/feed_board.slint
+msgid "Start voice"
+msgstr "Starta röst"
+
+#: client/ui/components/feed_board.slint
+msgid "JOIN"
+msgstr "GÅ MED"
+
+#. which shows as it is.
+#: client/ui/components/feed_board.slint
+msgid "Locked clip, m3llo+"
+msgstr "Låst klipp, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "Locked stream, m3llo+"
+msgstr "Låst stream, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "Locked {}, m3llo+"
+msgstr "Låst {}, m3llo+"
+
+#: client/ui/components/feed_board.slint
+msgid "CLIP"
+msgstr "KLIPP"
+
+#: client/ui/components/feed_board.slint
+msgid "STREAM"
+msgstr "STREAM"
+
+#: client/ui/components/feed_board.slint
+msgid "Unlock your crew's full story"
+msgstr "Lås upp gängets hela historia"
+
+#: client/ui/components/feed_board.slint
+msgid "Keep every clip and recap forever with m3llo+. {n} week so far."
+msgid_plural "Keep every clip and recap forever with m3llo+. {n} weeks so far."
+msgstr[0] "Spara alla klipp och summeringar för alltid med m3llo+. {n} vecka hittills."
+msgstr[1] "Spara alla klipp och summeringar för alltid med m3llo+. {n} veckor hittills."
+
+#: client/ui/components/feed_board.slint
+msgid "Coming soon"
+msgstr "Kommer snart"
+
+#: client/ui/components/feed_board.slint
+msgid "Every clip and recap of your crew, kept forever."
+msgstr "Alla gängets klipp och summeringar, sparade för alltid."
+
+#: client/ui/components/feed_board.slint
+msgid "CLOSE"
+msgstr "STÄNG"
+
+#: client/ui/components/feed_quests.slint
+msgid "Sealed gift, open it"
+msgstr "Oöppnad belöning, öppna den"
+
+#: client/ui/components/feed_quests.slint client/ui/panels/crew_panel.slint
+msgid "Invite"
+msgstr "Bjud in"
+
+#: client/ui/components/feed_quests.slint
+msgid "SETTINGS"
+msgstr "INSTÄLLNINGAR"
+
+#: client/ui/components/feed_quests.slint
+msgid "Game activity settings"
+msgstr "Inställningar för spelaktivitet"
+
+#: client/ui/components/feed_quests.slint
+msgid "QUESTS"
+msgstr "UPPDRAG"
+
+#: client/ui/components/head2head.slint client/ui/components/looking_to_play_popover.slint
+msgid "OPEN"
+msgstr "ÖPPNA"
+
+#. What the button says, in upper case.
+#: client/ui/components/head2head.slint
+msgid "INVITE YOUR CREW"
+msgstr "BJUD IN GÄNGET"
+
+#: client/ui/components/head2head.slint
+msgid "WAS HELD BY"
+msgstr "HÖLLS AV"
+
+#: client/ui/components/head2head.slint
+msgid "NOW HELD BY"
+msgstr "HÅLLS NU AV"
+
+#: client/ui/components/quality_pills.slint
+msgid "QUALITY"
+msgstr "KVALITET"
+
+#. them.
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "ULTRA"
+msgstr "ULTRA"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "HIGH"
+msgstr "HÖG"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "MEDIUM"
+msgstr "MEDEL"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "PRO-POTATO"
+msgstr "PROFFSPOTATIS"
+
+#: client/ui/components/quality_pills.slint client/ui/tr.slint
+msgid "POTATO"
+msgstr "POTATIS"
+
+#: client/ui/components/quality_pills.slint
+msgid "~6 Mbit/s"
+msgstr "~6 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~4.5 Mbit/s"
+msgstr "~4,5 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~4 Mbit/s"
+msgstr "~4 Mbit/s"
+
+#: client/ui/components/quality_pills.slint
+msgid "~2.5 Mbit/s  (martin mode)"
+msgstr "~2,5 Mbit/s  (martinläge)"
+
+#: client/ui/components/quality_pills.slint
+msgid "~1.5 Mbit/s"
+msgstr "~1,5 Mbit/s"
+
+#. A duration: the first value is the hours, the second is the minutes ("6 h 
+#. 40").
+#: client/ui/components/sealed.slint
+msgctxt "unit"
+msgid "{} h {}"
+msgstr "{} h {}"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{} min"
+msgstr "{} min"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h {}m"
+msgstr "{}h {}m"
+
+#: client/ui/components/sealed.slint client/ui/tr.slint
+msgctxt "unit"
+msgid "{}m"
+msgstr "{}m"
+
+#: client/ui/components/sealed.slint
+msgid "Sealed belt, open it"
+msgstr "Oöppnad titel, öppna den"
+
+#. "Week 4", or "This week" before the server counts the weeks.
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "This week"
+msgstr "Denna vecka"
+
+#: client/ui/components/sealed.slint client/ui/panels/crew_feed.slint
+msgid "WEEKLY RECAP"
+msgstr "VECKANS SUMMERING"
+
+#. has no name.
+#: client/ui/components/stream_hero.slint client/ui/tr.slint
+msgid "STREAMING"
+msgstr "STREAMAR"
+
+#: client/ui/components/stream_hero.slint
+msgid "Watch {}"
+msgstr "Kolla på {}"
+
+#: client/ui/main.slint client/ui/panels/onboarding.slint
+msgid "System Default"
+msgstr "Systemstandard"
+
+#: client/ui/main.slint
+msgid "Audio device not found"
+msgstr "Ljudenheten hittades inte"
+
+#: client/ui/main.slint
+msgid "Go to Settings"
+msgstr "Gå till inställningar"
+
+#: client/ui/main.slint
+msgid "Continue"
+msgstr "Fortsätt"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "WATCHING"
+msgstr "KOLLAR"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} is getting the game ready"
+msgstr "{} gör spelet redo"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{}'s game isn't visible"
+msgstr "Spelet hos {} syns inte"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} paused the stream"
+msgstr "{} pausade streamen"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Video starts when the game draws its first frame"
+msgstr "Videon startar när spelet ritar sin första bildruta"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "The stream resumes when capture finds the game"
+msgstr "Streamen fortsätter när inspelningen hittar spelet"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Video resumes when they're back in game"
+msgstr "Videon fortsätter när de är tillbaka i spelet"
+
+#. your own stream). The count rides the tag of a live stream.
+#: client/ui/panels/active_streams_panel.slint
+msgid "RECONNECTING"
+msgstr "ÅTERANSLUTER"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "STARTING"
+msgstr "STARTAR"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "NOT LIVE"
+msgstr "INTE LIVE"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "ENDED"
+msgstr "AVSLUTAD"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Connecting to {}'s stream"
+msgstr "Ansluter till streamen från {}"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "PLAYING IN A WINDOW"
+msgstr "SPELAS I ETT FÖNSTER"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{}'s stream is in its own window"
+msgstr "Streamen från {} är i ett eget fönster"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Show it here"
+msgstr "Visa den här"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{} IS LIVE"
+msgstr "{} ÄR LIVE"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "YOU ARE LIVE"
+msgstr "DU ÄR LIVE"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Connecting to the stream server"
+msgstr "Ansluter till streamservern"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Viewers see your last frame"
+msgstr "Tittarna ser din sista bildruta"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "END STREAM"
+msgstr "AVSLUTA STREAM"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "DELAY"
+msgstr "FÖRDRÖJNING"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "JITTER"
+msgstr "JITTER"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "DECODE"
+msgstr "AVKODNING"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "LATE"
+msgstr "SENA"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "AUDIO"
+msgstr "LJUD"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "A/V"
+msgstr "A/V"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "{n} watching"
+msgid_plural "{n} watching"
+msgstr[0] "{n} kollar"
+msgstr[1] "{n} kollar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream volume"
+msgstr "Streamvolym"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream settings"
+msgstr "Streaminställningar"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Exit expanded view"
+msgstr "Lämna förstorad vy"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Expand"
+msgstr "Förstora"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Close the stream window"
+msgstr "Stäng streamfönstret"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Pop out"
+msgstr "Eget fönster"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Leave"
+msgstr "Lämna"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Only you hear this change."
+msgstr "Bara du hör den här ändringen."
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "STREAM VOLUME"
+msgstr "STREAMVOLYM"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "MUTED"
+msgstr "TYSTAD"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stream volume for {}"
+msgstr "Streamvolym för {}"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Above 100% loud game audio can distort."
+msgstr "Över 100 % kan högt spelljud förvrängas."
+
+#: client/ui/panels/active_streams_panel.slint client/ui/tr.slint
+msgid "Mute"
+msgstr "Tysta"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Mute the stream"
+msgstr "Tysta streamen"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "RESET TO 100%"
+msgstr "ÅTERSTÄLL TILL 100 %"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Reset stream volume to 100%"
+msgstr "Återställ streamvolymen till 100 %"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "YOUR STREAM"
+msgstr "DIN STREAM"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Stats"
+msgstr "Statistik"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Delay, jitter and sync on the card"
+msgstr "Fördröjning, jitter och synk på kortet"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "Show stream stats"
+msgstr "Visa streamstatistik"
+
+#: client/ui/panels/active_streams_panel.slint
+msgid "SENDING"
+msgstr "SKICKAR"
+
+#: client/ui/panels/chat_panel.slint
+msgid "More actions"
+msgstr "Fler åtgärder"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Edit"
+msgstr "Redigera"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Delete"
+msgstr "Radera"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Copy text"
+msgstr "Kopiera text"
+
+#: client/ui/panels/chat_panel.slint client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "{} clipped that"
+msgstr "{} klippte det"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Voice · {} · Play"
+msgstr "Röst · {} · Spela upp"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Play clip"
+msgstr "Spela upp klipp"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Search GIFs"
+msgstr "Sök GIF:ar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Try again"
+msgstr "Försök igen"
+
+#: client/ui/panels/chat_panel.slint
+msgid "TRY AGAIN"
+msgstr "FÖRSÖK IGEN"
+
+#. The quote above a reply to a GIF with no text.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "GIF"
+msgstr "GIF"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Powered by GIPHY"
+msgstr "Drivs av GIPHY"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Crew chat"
+msgstr "Gängchatt"
+
+#: client/ui/panels/chat_panel.slint
+msgid "{n} message this week"
+msgid_plural "{n} messages this week"
+msgstr[0] "{n} meddelande den här veckan"
+msgstr[1] "{n} meddelanden den här veckan"
+
+#: client/ui/panels/chat_panel.slint
+msgid "New messages"
+msgstr "Nya meddelanden"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Replying to {}"
+msgstr "Svarar {}"
+
+#: client/ui/panels/chat_panel.slint
+msgid "(edited)"
+msgstr "(redigerat)"
+
+#. The text of a deleted message, and its quote above a reply.
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "[message deleted]"
+msgstr "[meddelandet raderat]"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message actions"
+msgstr "Meddelandeåtgärder"
+
+#: client/ui/panels/chat_panel.slint
+msgid "React"
+msgstr "Reagera"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Reply"
+msgstr "Svara"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Image not available"
+msgstr "Bilden är inte tillgänglig"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading image…"
+msgstr "Laddar bild…"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Open image"
+msgstr "Öppna bild"
+
+#: client/ui/panels/chat_panel.slint
+msgid "GIF not available"
+msgstr "GIF:en är inte tillgänglig"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading GIF…"
+msgstr "Laddar GIF…"
+
+#: client/ui/panels/chat_panel.slint
+msgid "React {}"
+msgstr "Reagera med {}"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Add reaction"
+msgstr "Lägg till reaktion"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Loading..."
+msgstr "Laddar..."
+
+#: client/ui/panels/chat_panel.slint
+msgid "No messages yet"
+msgstr "Inga meddelanden än"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel reply"
+msgstr "Avbryt svar"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Editing message"
+msgstr "Redigerar meddelande"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel edit"
+msgstr "Avbryt redigering"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Delete this message?"
+msgstr "Radera meddelandet?"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Cancel"
+msgstr "Avbryt"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Search emoji"
+msgstr "Sök emoji"
+
+#: client/ui/panels/chat_panel.slint client/ui/tr.slint
+msgid "Add emoji"
+msgstr "Lägg till emoji"
+
+#: client/ui/panels/chat_panel.slint
+msgid "RECENT"
+msgstr "SENASTE"
+
+#: client/ui/panels/chat_panel.slint
+msgid "No emoji called that"
+msgstr "Ingen emoji heter så"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Remove image"
+msgstr "Ta bort bild"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Attach"
+msgstr "Bifoga"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Emoji"
+msgstr "Emoji"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message crewmates"
+msgstr "Skriv till gänget"
+
+#: client/ui/panels/chat_panel.slint
+msgid "Message crewmates..."
+msgstr "Skriv till gänget..."
+
+#: client/ui/panels/chat_panel.slint
+msgid "Send"
+msgstr "Skicka"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "Close the clip"
+msgstr "Stäng klippet"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "Play again"
+msgstr "Spela igen"
+
+#: client/ui/panels/clip_player_view.slint
+msgid "BUFFERING"
+msgstr "BUFFRAR"
+
+#: client/ui/panels/control_bar.slint
+msgid "Account menu"
+msgstr "Kontomeny"
+
+#: client/ui/panels/control_bar.slint
+msgid "PRESENCE"
+msgstr "STATUS"
+
+#: client/ui/panels/control_bar.slint
+msgid "Online"
+msgstr "Online"
+
+#: client/ui/panels/control_bar.slint
+msgid "Idle"
+msgstr "Inaktiv"
+
+#: client/ui/panels/control_bar.slint
+msgid "Do Not Disturb"
+msgstr "Stör ej"
+
+#: client/ui/panels/control_bar.slint
+msgid "Invisible"
+msgstr "Osynlig"
+
+#: client/ui/panels/control_bar.slint
+msgid "Debug Audio"
+msgstr "Felsök ljud"
+
+#: client/ui/panels/control_bar.slint
+msgid "Log Out"
+msgstr "Logga ut"
+
+#: client/ui/panels/control_bar.slint
+msgid "Not connected"
+msgstr "Inte ansluten"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Unmute"
+msgstr "Avmuta"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Undeafen"
+msgstr "Slå på ljud"
+
+#: client/ui/panels/control_bar.slint client/ui/tr.slint
+msgid "Deafen"
+msgstr "Stäng av ljud"
+
+#: client/ui/panels/control_bar.slint
+msgid "Leave voice"
+msgstr "Lämna röst"
+
+#: client/ui/panels/control_bar.slint client/ui/panels/crew_feed.slint
+msgid "NOW PLAYING"
+msgstr "SPELAR NU"
+
+#: client/ui/panels/control_bar.slint
+msgctxt "verb"
+msgid "STREAM"
+msgstr "STREAMA"
+
+#: client/ui/panels/control_bar.slint
+msgid "Stream options"
+msgstr "Streamalternativ"
+
+#: client/ui/panels/control_bar.slint
+msgid "VIEWERS SEE PAUSED"
+msgstr "TITTARNA SER PAUSAT"
+
+#: client/ui/panels/control_bar.slint
+msgid "Microphone access denied — enable it in System Settings"
+msgstr "Mikrofonåtkomst nekad – slå på den i Systeminställningar"
+
+#: client/ui/panels/control_bar.slint
+msgid "Microphone access is needed for voice chat"
+msgstr "Mikrofonåtkomst behövs för röstchatt"
+
+#: client/ui/panels/control_bar.slint
+msgid "OPEN SETTINGS"
+msgstr "ÖPPNA INSTÄLLNINGAR"
+
+#: client/ui/panels/control_bar.slint
+msgid "ALLOW MICROPHONE"
+msgstr "TILLÅT MIKROFON"
+
+#: client/ui/panels/control_bar.slint
+msgid "How'd it go?"
+msgstr "Hur gick det?"
+
+#: client/ui/panels/control_bar.slint
+msgid "Win"
+msgstr "Vinst"
+
+#: client/ui/panels/control_bar.slint
+msgid "Loss"
+msgstr "Förlust"
+
+#: client/ui/panels/control_bar.slint
+msgid "Highlight"
+msgstr "Höjdpunkt"
+
+#: client/ui/panels/control_bar.slint
+msgid "GET VERIFIED STATS"
+msgstr "FÅ OFFICIELL STATISTIK"
+
+#: client/ui/panels/control_bar.slint
+msgid "Dismiss verified stats"
+msgstr "Stäng officiell statistik"
+
+#: client/ui/panels/control_bar.slint
+msgid "Moment"
+msgstr "Ögonblick"
+
+#: client/ui/panels/control_bar.slint
+msgid "Moment shared with crew"
+msgstr "Ögonblicket delat med gänget"
+
+#: client/ui/panels/control_bar.slint
+msgid "CLIP 30S"
+msgstr "KLIPP 30 S"
+
+#: client/ui/panels/control_bar.slint
+msgid "Settings"
+msgstr "Inställningar"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "CREW BANNER"
+msgstr "GÄNGBANNER"
+
+#. The buttons of a reveal in upper case, as the buttons show them.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
+msgid "GAME ART"
+msgstr "SPELBILD"
+
+#. The buttons of a reveal.
+#: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
+msgid "Game art"
+msgstr "Spelbild"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "YOUR IMAGE"
+msgstr "DIN BILD"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Your image"
+msgstr "Din bild"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "No game by that name"
+msgstr "Inget spel heter så"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "No games yet"
+msgstr "Inga spel än"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Search a game"
+msgstr "Sök ett spel"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "JPEG OR PNG"
+msgstr "JPEG ELLER PNG"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "REPLACE"
+msgstr "BYT"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "CHOOSE IMAGE"
+msgstr "VÄLJ BILD"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Replace"
+msgstr "Byt"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Choose image"
+msgstr "Välj bild"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/crew_banner_modal.slint
+msgid "CANCEL"
+msgstr "AVBRYT"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "Save"
+msgstr "Spara"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "SAVING"
+msgstr "SPARAR"
+
+#: client/ui/panels/crew_banner_modal.slint
+msgid "SAVE"
+msgstr "SPARA"
+
+#: client/ui/panels/crew_emoji_modal.slint client/ui/tr.slint
+msgid "CREW EMOJI"
+msgstr "GÄNGEMOJI"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "SQUARE"
+msgstr "KVADRATISK"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Emoji name"
+msgstr "Emojinamn"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "All five slots are full."
+msgstr "Alla fem platser är fulla."
+
+#. The name is upper case in the design: to-uppercase() is on the name only.
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "ADDED BY {}"
+msgstr "TILLAGD AV {}"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "REMOVE"
+msgstr "TA BORT"
+
+#: client/ui/panels/crew_emoji_modal.slint
+msgid "Remove :{}:"
+msgstr "Ta bort :{}:"
+
+#: client/ui/panels/crew_feed.slint
+msgid "NEW"
+msgstr "NY"
+
+#: client/ui/panels/crew_feed.slint
+msgid "VOICE CLIP"
+msgstr "RÖSTKLIPP"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PAUSED"
+msgstr "PAUSAD"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PLAYING"
+msgstr "SPELAS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} participant"
+msgid_plural "{n} participants"
+msgstr[0] "{n} deltagare"
+msgstr[1] "{n} deltagare"
+
+#. The labels of the numbers on the board, in upper case.
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "HANGOUT"
+msgstr "HÄNG"
+
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "LONGEST"
+msgstr "LÄNGST"
+
+#: client/ui/panels/crew_feed.slint
+msgid "MVP"
+msgstr "MVP"
+
+#: client/ui/panels/crew_feed.slint
+msgid "BELTS MOVED"
+msgstr "SNODDA TITLAR"
+
+#: client/ui/panels/crew_feed.slint client/ui/tr.slint
+msgid "+{} MORE"
+msgstr "+{} TILL"
+
+#: client/ui/panels/crew_feed.slint
+msgid "BELTS HELD"
+msgstr "HÅLLNA TITLAR"
+
+#: client/ui/panels/crew_feed.slint
+msgid "THIS WEEK IN GAMES"
+msgstr "VECKAN I SPEL"
+
+#: client/ui/panels/crew_feed.slint
+msgid "SESSION"
+msgstr "PASS"
+
+#: client/ui/panels/crew_feed.slint
+msgid "by {} · {}"
+msgstr "av {} · {}"
+
+#: client/ui/panels/crew_feed.slint
+msgid "by {}"
+msgstr "av {}"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} watched at peak"
+msgid_plural "{n} watched at peak"
+msgstr[0] "{n} kollade som mest"
+msgstr[1] "{n} kollade som mest"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}W"
+msgstr "{}V"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}L"
+msgstr "{}F"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}D"
+msgstr "{}O"
+
+#: client/ui/panels/crew_feed.slint
+msgid "this session"
+msgstr "det här passet"
+
+#: client/ui/panels/crew_feed.slint
+msgid "streak"
+msgstr "svit"
+
+#: client/ui/panels/crew_feed.slint
+msgid "win rate"
+msgstr "vinstprocent"
+
+#: client/ui/panels/crew_feed.slint
+msgid "matches"
+msgstr "matcher"
+
+#: client/ui/panels/crew_feed.slint
+msgid "PLAYED"
+msgstr "SPELADE"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Game session"
+msgstr "Spelpass"
+
+#: client/ui/panels/crew_feed.slint
+msgid "VERIFIED"
+msgstr "VERIFIERAD"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{}, solo"
+msgstr "{}, solo"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Newer clips"
+msgstr "Nyare klipp"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Older clips"
+msgstr "Äldre klipp"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Crew history"
+msgstr "Gänghistorik"
+
+#: client/ui/panels/crew_feed.slint
+msgid "CREW HISTORY"
+msgstr "GÄNGHISTORIK"
+
+#: client/ui/panels/crew_feed.slint
+msgid "{n} WEEK"
+msgid_plural "{n} WEEKS"
+msgstr[0] "{n} VECKA"
+msgstr[1] "{n} VECKOR"
+
+#: client/ui/panels/crew_feed.slint
+msgid "Crew feed"
+msgstr "Gängflöde"
+
+#: client/ui/panels/crew_feed.slint
+msgid "YOU"
+msgstr "DU"
+
+#: client/ui/panels/crew_feed.slint
+msgid "YOUR GAMES"
+msgstr "DINA SPEL"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Reconnecting"
+msgstr "Återansluter"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Muted"
+msgstr "Mutad"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Deafened"
+msgstr "Ljud av"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Muted for you"
+msgstr "Tystad för dig"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Volume for {}"
+msgstr "Volym för {}"
+
+#: client/ui/panels/crew_panel.slint
+msgid "While away ({}): activity picked up."
+msgstr "Medan du var borta ({}): det hände grejer."
+
+#: client/ui/panels/crew_panel.slint
+msgid "While away ({}): {}"
+msgstr "Medan du var borta ({}): {}"
+
+#: client/ui/panels/crew_panel.slint
+msgid "All quiet lately."
+msgstr "Lugnt på sistone."
+
+#: client/ui/panels/crew_panel.slint
+msgid "Loading recent story..."
+msgstr "Laddar det senaste..."
+
+#: client/ui/panels/crew_panel.slint
+msgid "IN GAME NOW"
+msgstr "I SPEL NU"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Crew menu"
+msgstr "Gängmeny"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Crew settings"
+msgstr "Gänginställningar"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Add channel"
+msgstr "Lägg till kanal"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Notifications"
+msgstr "Aviseringar"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Leave crew"
+msgstr "Lämna gänget"
+
+#: client/ui/panels/crew_panel.slint
+msgid "New crew"
+msgstr "Nytt gäng"
+
+#: client/ui/panels/crew_panel.slint
+msgid "Discover"
+msgstr "Upptäck"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW IDENTITY"
+msgstr "GÄNGETS IDENTITET"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Change"
+msgstr "Ändra"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW NAME"
+msgstr "GÄNGNAMN"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "DESCRIPTION"
+msgstr "BESKRIVNING"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "PRIVACY"
+msgstr "INTEGRITET"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Open crew"
+msgstr "Öppet gäng"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Anyone can find and join this crew without an invite"
+msgstr "Vem som helst kan hitta och gå med i gänget utan inbjudan"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "INVITES"
+msgstr "INBJUDNINGAR"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Who can create invite links"
+msgstr "Vem kan skapa inbjudningslänkar"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Only admins can generate invite codes"
+msgstr "Bara admins kan skapa inbjudningskoder"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "All members can generate invite codes"
+msgstr "Alla medlemmar kan skapa inbjudningskoder"
+
+#: client/ui/components/looking_to_play_popover.slint client/ui/panels/crew_settings_modal.slint
+msgid "Everyone"
+msgstr "Alla"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Admins"
+msgstr "Admins"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "VOICE CHANNELS"
+msgstr "RÖSTKANALER"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Delete {}"
+msgstr "Radera {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADD CHANNEL"
+msgstr "LÄGG TILL KANAL"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "New channel"
+msgstr "Ny kanal"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Owner"
+msgstr "Ägare"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Admin"
+msgstr "Admin"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Member"
+msgstr "Medlem"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "OWNER"
+msgstr "ÄGARE"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADMIN"
+msgstr "ADMIN"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "MEMBER"
+msgstr "MEDLEM"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Promote {}"
+msgstr "Gör {} till admin"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Demote {}"
+msgstr "Degradera {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Kick {}"
+msgstr "Sparka {}"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "ADMINS"
+msgstr "ADMINS"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "MEMBERS"
+msgstr "MEDLEMMAR"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "NOTIFICATIONS"
+msgstr "AVISERINGAR"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Messages"
+msgstr "Meddelanden"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A phone push for each new message in this crew"
+msgstr "En push till mobilen för varje nytt meddelande i gänget"
+
+#: client/ui/panels/chat_panel.slint client/ui/panels/crew_settings_modal.slint
+msgid "Looking to play"
+msgstr "Vill lira"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "A push, a toast and a sound when a crew member asks"
+msgstr "En push, en toast och ett ljud när någon i gänget frågar"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CREW SETTINGS"
+msgstr "GÄNGINSTÄLLNINGAR"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/crew_settings_modal.slint
+msgid "Close"
+msgstr "Stäng"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "OVERVIEW"
+msgstr "ÖVERSIKT"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "CHANNELS"
+msgstr "KANALER"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "DELETE CREW"
+msgstr "RADERA GÄNG"
+
+#: client/ui/panels/crew_settings_modal.slint
+msgid "Saved"
+msgstr "Sparat"
+
+#: client/ui/panels/discover_panel.slint
+msgid "0{n} Member"
+msgid_plural "0{n} Members"
+msgstr[0] "0{n} medlem"
+msgstr[1] "0{n} medlemmar"
+
+#: client/ui/panels/discover_panel.slint
+msgid "{n} Member"
+msgid_plural "{n} Members"
+msgstr[0] "{n} medlem"
+msgstr[1] "{n} medlemmar"
+
+#: client/ui/panels/discover_panel.slint
+msgid "+{n} active"
+msgid_plural "+{n} active"
+msgstr[0] "+{n} aktiv"
+msgstr[1] "+{n} aktiva"
+
+#: client/ui/panels/discover_panel.slint
+msgid "No one online"
+msgstr "Ingen online"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join Crew"
+msgstr "Gå med i gäng"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join"
+msgstr "Gå med"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join {}"
+msgstr "Gå med i {}"
+
+#: client/ui/panels/discover_panel.slint
+msgid "BACK TO {}"
+msgstr "TILLBAKA TILL {}"
+
+#: client/ui/panels/discover_panel.slint
+msgid "PRIVATE ENTRY"
+msgstr "PRIVAT INGÅNG"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Join a Private Crew"
+msgstr "Gå med i ett privat gäng"
+
+#: client/ui/panels/discover_panel.slint
+msgid "Enter an invite code to join a crew directly."
+msgstr "Ange en inbjudningskod för att gå med direkt."
+
+#: client/ui/panels/discover_panel.slint
+msgid "Invite code"
+msgstr "Inbjudningskod"
+
+#: client/ui/panels/discover_panel.slint
+msgid "e.g. ALPHA-992-K"
+msgstr "t.ex. ALPHA-992-K"
+
+#: client/ui/panels/discover_panel.slint
+msgid "FEATURED CREWS"
+msgstr "UTVALDA GÄNG"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Updating m3llo"
+msgstr "Uppdaterar m3llo"
+
+#. The update is downloading.
+#: client/ui/panels/force_update_dialog.slint client/ui/tr.slint
+msgid "Downloading"
+msgstr "Laddar ner"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Your version can no longer connect to m3llo. Updating is required to "
+"continue."
+msgstr "Din version kan inte längre ansluta till m3llo. Du måste uppdatera för att fortsätta."
+
+#: client/ui/panels/force_update_dialog.slint
+msgid ""
+"Couldn't download the update. You can keep using your current version for "
+"now."
+msgstr "Kunde inte ladda ner uppdateringen. Du kan fortsätta med din nuvarande version så länge."
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Quit"
+msgstr "Avsluta"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Start m3llo {}"
+msgstr "Starta m3llo {}"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Update failed"
+msgstr "Uppdateringen misslyckades"
+
+#: client/ui/panels/force_update_dialog.slint
+msgid "Required update"
+msgstr "Uppdatering krävs"
+
+#: client/ui/panels/game_clip_card.slint
+msgid "UPLOADING"
+msgstr "LADDAR UPP"
+
+#: client/ui/panels/game_clip_card.slint
+msgid "Play the game clip of {}"
+msgstr "Spela upp spelklippet från {}"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Previous image"
+msgstr "Föregående bild"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Next image"
+msgstr "Nästa bild"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Image {}"
+msgstr "Bild {}"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Save image"
+msgstr "Spara bild"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Copy image"
+msgstr "Kopiera bild"
+
+#: client/ui/panels/image_viewer.slint
+msgid "COPY"
+msgstr "KOPIERA"
+
+#: client/ui/panels/image_viewer.slint
+msgid "Close image"
+msgstr "Stäng bild"
+
+#: client/ui/panels/invite_name_modal.slint client/ui/tr.slint
+msgid "INVITE LINK"
+msgstr "INBJUDNINGSLÄNK"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Invite name"
+msgstr "Namn på inbjudan"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Free"
+msgstr "Ledigt"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Taken"
+msgstr "Upptaget"
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "3 to 24 letters, digits or dashes. Not in the shape of a code."
+msgstr "3 till 24 bokstäver, siffror eller bindestreck. Får inte se ut som en kod."
+
+#: client/ui/panels/invite_name_modal.slint
+msgid "Checking"
+msgstr "Kollar"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Invite people"
+msgstr "Bjud in folk"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Share this link to invite anyone to your crew:"
+msgstr "Dela länken för att bjuda in vem som helst till gänget:"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Invite link"
+msgstr "Inbjudningslänk"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Copied"
+msgstr "Kopierat"
+
+#: client/ui/panels/invite_share_modal.slint
+msgid "Copy link"
+msgstr "Kopiera länk"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "YOU'RE INVITED"
+msgstr "DU ÄR INBJUDEN"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "{} invited you to join"
+msgstr "{} bjöd in dig att gå med"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "You're invited to join"
+msgstr "Du är inbjuden att gå med"
+
+#: client/ui/panels/invite_welcome.slint
+msgid "{n} member"
+msgid_plural "{n} members"
+msgstr[0] "{n} medlem"
+msgstr[1] "{n} medlemmar"
+
+#: client/ui/panels/invite_welcome.slint
+msgid ""
+"Pick a name and an avatar, check your mic, and you're in.\nIt takes about a "
+"minute."
+msgstr "Välj ett namn och en avatar, testa micken, så är du inne.\nDet tar ungefär en minut."
+
+#: client/ui/panels/invite_welcome.slint
+msgid "Not now — show me other crews"
+msgstr "Inte nu – visa andra gäng"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Dismiss"
+msgstr "Stäng"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "{} invited you"
+msgstr "{} bjöd in dig"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Joining…"
+msgstr "Går med…"
+
+#: client/ui/panels/join_crew_modal.slint
+msgid "Join crew"
+msgstr "Gå med i gänget"
+
+#: client/ui/components/looking_to_play.slint client/ui/panels/join_crew_modal.slint
+msgid "Not now"
+msgstr "Inte nu"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "USER VOLUME"
+msgstr "ANVÄNDARVOLYM"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Above 100% a loud voice can distort."
+msgstr "Över 100 % kan en hög röst förvrängas."
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Mute {} for you"
+msgstr "Tysta {} för dig"
+
+#: client/ui/panels/member_volume_popover.slint
+msgid "Reset volume to 100%"
+msgstr "Återställ volymen till 100 %"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "CREW ESTABLISHED"
+msgstr "GÄNGET ÄR SKAPAT"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "INITIALIZE NEW CREW"
+msgstr "SKAPA NYTT GÄNG"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Your crew is ready. Share this link to invite others:"
+msgstr "Gänget är redo. Dela länken för att bjuda in andra:"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Done"
+msgstr "Klar"
+
+#: client/ui/panels/new_crew_modal.slint client/ui/tr.slint
+msgid "UPLOAD"
+msgstr "LADDA UPP"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Upload crew avatar"
+msgstr "Ladda upp gängavatar"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "CREW IDENTIFIER"
+msgstr "GÄNGNAMN"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "JPG, PNG or GIF. Max 20MB."
+msgstr "JPG, PNG eller GIF. Max 20 MB."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "e.g. Shadow Syndicate"
+msgstr "t.ex. Shadow Syndicate"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Define your crew's primary objective..."
+msgstr "Vad går gänget ut på..."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "INVITE MEMBERS"
+msgstr "BJUD IN MEDLEMMAR"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Available after setup"
+msgstr "Finns när konfigen är klar"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Remove {}"
+msgstr "Ta bort {}"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Search by display name..."
+msgstr "Sök på visningsnamn..."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "FRIEND"
+msgstr "KOMPIS"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "VISIBILITY"
+msgstr "SYNLIGHET"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Private"
+msgstr "Privat"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Public"
+msgstr "Offentligt"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Your crew will be created after account setup."
+msgstr "Gänget skapas när kontot är klart."
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Save & Continue"
+msgstr "Spara och fortsätt"
+
+#: client/ui/panels/new_crew_modal.slint
+msgid "Establish Crew"
+msgstr "Skapa gäng"
+
+#: client/ui/panels/onboarding.slint
+msgid "{} MEMBERS"
+msgstr "{} MEDLEMMAR"
+
+#: client/ui/panels/onboarding.slint
+msgid "FULL"
+msgstr "FULLT"
+
+#: client/ui/panels/onboarding.slint
+msgid "CONNECT"
+msgstr "ANSLUT"
+
+#: client/ui/panels/onboarding.slint
+msgid "Create your own crew"
+msgstr "Skapa ett eget gäng"
+
+#: client/ui/panels/onboarding.slint
+msgid "CREATE YOUR\nOWN CREW"
+msgstr "SKAPA ETT\nEGET GÄNG"
+
+#: client/ui/panels/onboarding.slint
+msgid "GOT AN INVITE?"
+msgstr "FÅTT EN INBJUDAN?"
+
+#: client/ui/panels/onboarding.slint
+msgid "Paste the link or the code your friend sent you."
+msgstr "Klistra in länken eller koden som din kompis skickade."
+
+#: client/ui/panels/onboarding.slint
+msgid "Invite link or code"
+msgstr "Inbjudningslänk eller kod"
+
+#: client/ui/panels/onboarding.slint
+msgid "Checking…"
+msgstr "Kollar…"
+
+#: client/ui/panels/onboarding.slint
+msgid "Open invite"
+msgstr "Öppna inbjudan"
+
+#: client/ui/panels/onboarding.slint
+msgid "ON THIS DEVICE"
+msgstr "PÅ DEN HÄR ENHETEN"
+
+#: client/ui/panels/onboarding.slint
+msgid "Sign in"
+msgstr "Logga in"
+
+#: client/ui/panels/onboarding.slint
+msgid "STEP 0{} / 0{}"
+msgstr "STEG 0{} / 0{}"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 1"
+msgstr "Gå till steg 1"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 2"
+msgstr "Gå till steg 2"
+
+#: client/ui/panels/onboarding.slint
+msgid "Go to step 3"
+msgstr "Gå till steg 3"
+
+#: client/ui/panels/onboarding.slint
+msgid "Discover Your Crew"
+msgstr "Hitta ditt gäng"
+
+#: client/ui/panels/onboarding.slint
+msgid ""
+"Pick a crew to hang out with, start your own, or open an invite from a "
+"friend."
+msgstr "Välj ett gäng att hänga med, starta ett eget eller öppna en inbjudan från en kompis."
+
+#: client/ui/panels/onboarding.slint
+msgid "Use another account"
+msgstr "Använd ett annat konto"
+
+#: client/ui/panels/onboarding.slint
+msgid "I already have an account"
+msgstr "Jag har redan ett konto"
+
+#: client/ui/panels/onboarding.slint
+msgid "Couldn't load crews"
+msgstr "Kunde inte ladda gäng"
+
+#: client/ui/panels/onboarding.slint
+msgid "Check your connection, or create your own crew below."
+msgstr "Kolla din anslutning eller skapa ett eget gäng nedan."
+
+#: client/ui/panels/onboarding.slint
+msgid "Retry"
+msgstr "Försök igen"
+
+#: client/ui/panels/onboarding.slint
+msgid "Pick a crew below, or create your own."
+msgstr "Välj ett gäng nedan eller skapa ett eget."
+
+#: client/ui/panels/onboarding.slint
+msgid "Profile & Device Setup"
+msgstr "Profil och enhet"
+
+#: client/ui/panels/onboarding.slint
+msgid "JOINING CREW"
+msgstr "GÅR MED I GÄNG"
+
+#: client/ui/panels/onboarding.slint
+msgid "CHOOSE IDENTITY"
+msgstr "VÄLJ IDENTITET"
+
+#: client/ui/panels/onboarding.slint
+msgid "Upload avatar"
+msgstr "Ladda upp avatar"
+
+#: client/ui/panels/onboarding.slint
+msgid "Reroll all"
+msgstr "Slumpa allt"
+
+#: client/ui/panels/onboarding.slint
+msgid "REROLL ALL"
+msgstr "SLUMPA ALLT"
+
+#: client/ui/panels/onboarding.slint
+msgid "CREW NICKNAME"
+msgstr "VISNINGSNAMN I GÄNGET"
+
+#: client/ui/panels/onboarding.slint
+msgid "Enter handle..."
+msgstr "Skriv ett namn..."
+
+#: client/ui/panels/onboarding.slint
+msgid "Show crew what I play"
+msgstr "Visa gänget vad jag spelar"
+
+#: client/ui/panels/onboarding.slint
+msgid "Your installed games, play sessions and what you're in right now."
+msgstr "Dina installerade spel, dina spelpass och vad du spelar just nu."
+
+#: client/ui/panels/onboarding.slint
+msgid "m3llo starts with your PC and keeps track of your sessions."
+msgstr "m3llo startar med datorn och håller koll på dina pass."
+
+#: client/ui/panels/onboarding.slint
+msgid "MICROPHONE INPUT"
+msgstr "MIKROFON (INGÅNG)"
+
+#: client/ui/panels/onboarding.slint
+msgid "SPEAKER OUTPUT"
+msgstr "HÖGTALARE (UTGÅNG)"
+
+#: client/ui/panels/onboarding.slint
+msgid "Setting up…"
+msgstr "Fixar konfigen…"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Back"
+msgstr "Tillbaka"
+
+#: client/ui/panels/onboarding.slint
+msgid "Lock in your identity."
+msgstr "Lås din identitet."
+
+#: client/ui/panels/onboarding.slint
+msgid "Save your setup so you can jump back in anytime."
+msgstr "Spara din konfig så kan du hoppa in igen när du vill."
+
+#: client/ui/panels/onboarding.slint
+msgid "Anonymous"
+msgstr "Anonym"
+
+#: client/ui/panels/onboarding.slint
+msgid "ONLINE"
+msgstr "ONLINE"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Email + password"
+msgstr "E-post + lösenord"
+
+#: client/ui/panels/onboarding.slint
+msgid "Link email & password"
+msgstr "Koppla e-post och lösenord"
+
+#: client/ui/panels/onboarding.slint
+msgid "Your account will be tied to this email."
+msgstr "Ditt konto kopplas till den här e-postadressen."
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Email"
+msgstr "E-post"
+
+#: client/ui/panels/onboarding.slint client/ui/panels/sign_in.slint
+msgid "Password"
+msgstr "Lösenord"
+
+#: client/ui/panels/onboarding.slint
+msgid "Link account"
+msgstr "Koppla konto"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "americas"
+msgstr "Amerika"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "europe"
+msgstr "Europa"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "asia"
+msgstr "Asien"
+
+#: client/ui/panels/riot_link_modal.slint
+msgctxt "Riot region"
+msgid "sea"
+msgstr "Sydostasien"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connect your Riot account"
+msgstr "Koppla ditt Riot-konto"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid ""
+"Get server-verified results for League of Legends and TFT. m3llo only reads "
+"your recent match history from Riot's official API — it never touches your "
+"account. You can disconnect anytime in Settings, under Games."
+msgstr "Få serververifierade resultat för League of Legends och TFT. m3llo läser bara din senaste matchhistorik från Riots officiella API – ditt konto rörs aldrig. Du kan koppla från när du vill i Inställningar, under Spel."
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "RIOT ID"
+msgstr "RIOT ID"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "GameName#TAG"
+msgstr "GameName#TAG"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "REGION"
+msgstr "REGION"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connecting…"
+msgstr "Ansluter…"
+
+#: client/ui/panels/riot_link_modal.slint
+msgid "Connect"
+msgstr "Anslut"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "HEAD2HEAD  ·  YOUR TITLE"
+msgstr "head2head  ·  DIN TITEL"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "HEAD2HEAD  ·  BELT MOVED"
+msgstr "head2head  ·  TITEL SNODD"
+
+#. The viewer, in the place of a name ("Added by You").
+#: client/ui/panels/sealed_stage.slint client/ui/panels/you_strip.slint client/ui/tr.slint
+msgid "You"
+msgstr "Du"
+
+#. i18n: one sentence in parts: [holder name] took it from [avatar] [name]
+#: client/ui/panels/sealed_stage.slint
+msgid "took it from"
+msgstr "snodde den från"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "UNLOCKED"
+msgstr "UPPLÅST"
+
+#. The names of the open gifts, in upper case.
+#: client/ui/panels/sealed_stage.slint client/ui/tr.slint
+msgid "BANNER"
+msgstr "BANNER"
+
+#: client/ui/panels/sealed_stage.slint
+msgid "CLICK ANYWHERE TO CLOSE"
+msgstr "KLICKA VAR SOM HELST FÖR ATT STÄNGA"
+
+#: client/ui/panels/session_preview_card.slint
+msgctxt "unit"
+msgid "{} h {} min"
+msgstr "{} h {} min"
+
+#: client/ui/panels/session_preview_card.slint client/ui/tr.slint
+msgid "{n} clip"
+msgid_plural "{n} clips"
+msgstr[0] "{n} klipp"
+msgstr[1] "{n} klipp"
+
+#: client/ui/panels/session_preview_card.slint
+msgid "{n} watched"
+msgid_plural "{n} watched"
+msgstr[0] "{n} kollade"
+msgstr[1] "{n} kollade"
+
+#: client/ui/panels/session_preview_card.slint
+msgid "SESSION · {}"
+msgstr "PASS · {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "default"
+msgstr "standard"
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "m3llo restarts to switch to {}."
+msgstr "m3llo startar om för att byta till {}."
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "Keep {}"
+msgstr "Behåll {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Restart now"
+msgstr "Starta om nu"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Activation Sensitivity"
+msgstr "Aktiveringskänslighet"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Automatically determine input sensitivity"
+msgstr "Bestäm ingångskänsligheten automatiskt"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{}dB"
+msgstr "{} dB"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sensitivity"
+msgstr "Känslighet"
+
+#: client/ui/panels/settings_modal.slint
+msgid "STARTUP & WINDOW"
+msgstr "START OCH FÖNSTER"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Launch on system startup"
+msgstr "Starta när datorn startar"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Automatically start the application when you log in to your computer."
+msgstr "Starta appen automatiskt när du loggar in på datorn."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start minimized"
+msgstr "Starta minimerad"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Launch directly into the system tray without opening the main window."
+msgstr "Starta direkt i systemfältet utan att öppna huvudfönstret."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Quit to system tray"
+msgstr "Stäng till systemfältet"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Keep the application running in the background when closing the window."
+msgstr "Låt appen köra i bakgrunden när du stänger fönstret."
+
+#: client/ui/panels/settings_modal.slint
+msgid "CONNECTION & PRESENCE"
+msgstr "ANSLUTNING OCH STATUS"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Auto-connect to last session"
+msgstr "Anslut automatiskt till senaste session"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Skip the discovery screen and immediately join your previous active session."
+msgstr "Hoppa över upptäck-vyn och gå direkt till din förra aktiva session."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Minimize on session join"
+msgstr "Minimera när du går med"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Automatically hide the main interface once a secure connection is "
+"established."
+msgstr "Dölj huvudfönstret automatiskt när en säker anslutning är klar."
+
+#: client/ui/panels/settings_modal.slint
+msgid "APPEARANCE"
+msgstr "UTSEENDE"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Language"
+msgstr "Språk"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hardware Acceleration"
+msgstr "Hårdvaruacceleration"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Use GPU for rendering UI elements. Disabling this may resolve visual "
+"glitches."
+msgstr "Använd GPU:n för att rita gränssnittet. Stäng av om du ser grafikfel."
+
+#: client/ui/panels/settings_modal.slint
+msgid "HUD"
+msgstr "HUD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Enable HUD"
+msgstr "Slå på HUD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Show the overlay when the main window is not focused."
+msgstr "Visa overlayen när huvudfönstret inte är i fokus."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip toast notifications"
+msgstr "Klippnotiser"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Show a brief notification in the overlay when someone clips a moment."
+msgstr "Visa en kort notis i overlayen när någon klipper ett ögonblick."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Overlay Opacity"
+msgstr "Overlayens opacitet"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HARDWARE INTERFACES"
+msgstr "HÅRDVARA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "INPUT DEVICE"
+msgstr "INGÅNGSENHET"
+
+#: client/ui/panels/settings_modal.slint
+msgid "OUTPUT DEVICE"
+msgstr "UTGÅNGSENHET"
+
+#: client/ui/panels/settings_modal.slint
+msgid "AUDIO LEVELS"
+msgstr "LJUDNIVÅER"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Input Volume"
+msgstr "Ingångsvolym"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Output Volume"
+msgstr "Utgångsvolym"
+
+#: client/ui/panels/settings_modal.slint
+msgid "NOTIFICATION SOUNDS"
+msgstr "NOTISLJUD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sound Volume"
+msgstr "Ljudvolym"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Voice"
+msgstr "Röst"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Joins and leaves, mute, deafen, and a lost connection."
+msgstr "Någon går med eller lämnar, mutning, ljud av och tappad anslutning."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Streams"
+msgstr "Streams"
+
+#: client/ui/panels/settings_modal.slint
+msgid "A crew member goes live, you go live, a stream you watch ends."
+msgstr "Någon i gänget går live, du går live, en stream du kollar på slutar."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Chat"
+msgstr "Chatt"
+
+#: client/ui/panels/settings_modal.slint
+msgid "New messages and mentions while m3llo is in the background."
+msgstr "Nya meddelanden och omnämnanden när m3llo är i bakgrunden."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clips"
+msgstr "Klipp"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Your clip is saved, someone in the crew clips."
+msgstr "Ditt klipp sparas, någon i gänget klipper."
+
+#. The title of a notification about a member of the crew.
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "Crew"
+msgstr "Gäng"
+
+#: client/ui/panels/settings_modal.slint
+msgid "A new member joins the crew."
+msgstr "En ny medlem går med i gänget."
+
+#: client/ui/panels/settings_modal.slint
+msgid "SIGNAL PROCESSING"
+msgstr "SIGNALBEHANDLING"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Noise Suppression"
+msgstr "Brusreducering"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Filter out background hum and typing."
+msgstr "Filtrera bort bakgrundsbrus och tangentknatter."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Echo Cancellation"
+msgstr "Ekoreducering"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Prevent audio feedback loop from speakers."
+msgstr "Stoppar rundgång från högtalarna."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Auto Gain"
+msgstr "Autoförstärkning"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Even out microphone volume. Off if voices clip."
+msgstr "Jämnar ut mikrofonvolymen. Stäng av om rösterna klipps."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Echo Suppression"
+msgstr "Ekodämpning"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Extra cleanup for leftover echo. Experimental."
+msgstr "Extra städning av kvarvarande eko. Experimentell."
+
+#: client/ui/panels/settings_modal.slint
+msgid "VOICE ACTIVITY"
+msgstr "RÖSTAKTIVITET"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Input Mode"
+msgstr "Ingångsläge"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Voice Activity"
+msgstr "Röstaktivering"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Push to Talk"
+msgstr "Tryck för att prata"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Push-to-talk Key"
+msgstr "Tangent för tryck för att prata"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Press any key…"
+msgstr "Tryck på valfri tangent…"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Click to bind..."
+msgstr "Klicka för att välja..."
+
+#: client/ui/panels/settings_modal.slint
+msgid "MIC TEST"
+msgstr "MIKTEST"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Stop Testing"
+msgstr "Sluta testa"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start Test"
+msgstr "Starta test"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Playing back your beautiful voice"
+msgstr "Spelar upp din vackra röst"
+
+#: client/ui/panels/settings_modal.slint
+msgid "VIDEO"
+msgstr "VIDEO"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Software Video Decoder"
+msgstr "Mjukvaruavkodare för video"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Plays streams when the GPU cannot decode them. Applies at the next start. "
+"OpenH264 Video Codec provided by Cisco Systems, Inc."
+msgstr "Spelar streams när GPU:n inte kan avkoda dem. Gäller från nästa start. OpenH264 Video Codec provided by Cisco Systems, Inc."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Use"
+msgstr "Använd"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hide"
+msgstr "Dölj"
+
+#: client/ui/panels/settings_modal.slint
+msgid "DISPLAY NAME"
+msgstr "VISNINGSNAMN"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Press Enter to save"
+msgstr "Tryck Enter för att spara"
+
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "Upload"
+msgstr "Ladda upp"
+
+#: client/ui/panels/settings_modal.slint
+msgid "FOUND"
+msgstr "HITTAD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "NOT FOUND"
+msgstr "HITTADES INTE"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HIDDEN IN STEAM"
+msgstr "DOLD I STEAM"
+
+#: client/ui/panels/settings_modal.slint
+msgid "HIDDEN FROM CREW"
+msgstr "DOLD FÖR GÄNGET"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Hidden from crew: {}"
+msgstr "Dold för gänget: {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "ACTIVITY SHARING"
+msgstr "AKTIVITETSDELNING"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Let crewmates see your installed games, what game you're in, and your play "
+"sessions in the crew feed."
+msgstr "Låt polarna se dina installerade spel, vilket spel du är i och dina spelpass i gängflödet."
+
+#: client/ui/panels/settings_modal.slint
+msgid "GAME CLIPS"
+msgstr "SPELKLIPP"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Game clips"
+msgstr "Spelklipp"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"While you are in voice, m3llo keeps the last 30 seconds of the game you "
+"play. Press {} to save them as a clip."
+msgstr "När du är i röst sparar m3llo de senaste 30 sekunderna av spelet du spelar. Tryck {} för att spara dem som ett klipp."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"While you are in voice, m3llo keeps the last 30 seconds of the game you "
+"play. Set a key in Keybinds to save them as a clip."
+msgstr "När du är i röst sparar m3llo de senaste 30 sekunderna av spelet du spelar. Välj en tangent under Kortkommandon för att spara dem som ett klipp."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Screen Recording"
+msgstr "Skärminspelning"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"macOS lets m3llo keep your game only with Screen Recording on. Turn on m3llo "
+"in System Settings, Privacy and Security, Screen and System Audio Recording."
+msgstr "macOS låter m3llo spara ditt spel bara med Skärminspelning på. Slå på m3llo i Systeminställningar, Integritet och säkerhet, Skärm- och systemljudsinspelning."
+
+#: client/ui/panels/settings_modal.slint
+msgid "ALLOW"
+msgstr "TILLÅT"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip quality"
+msgstr "Klippkvalitet"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"A higher quality makes a bigger clip. At 720p, 60 fps a clip is about 20 MB."
+msgstr "Högre kvalitet ger större klipp. Med 720p, 60 fps är ett klipp ungefär 20 MB."
+
+#: client/ui/panels/settings_modal.slint
+msgid "GAME INTEGRATIONS"
+msgstr "SPELINTEGRATIONER"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"m3llo captures match results for these games while you play. Some games need "
+"a small config file in their game folder. Turning a game off skips any setup "
+"and stops capture for it."
+msgstr "m3llo sparar matchresultat för de här spelen medan du spelar. Vissa spel behöver en liten konfigfil i spelmappen. Stänger du av ett spel hoppar m3llo över konfigen och slutar spara för det."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Games you hide stay off the crew feed. A game hidden in Steam stays hidden "
+"here."
+msgstr "Spel du döljer syns inte i gängflödet. Ett spel som är dolt i Steam är dolt här också."
+
+#: client/ui/panels/settings_modal.slint
+msgid "CONNECTED ACCOUNTS"
+msgstr "KOPPLADE KONTON"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Linked as {}. Match results for League of Legends and TFT are verified "
+"against Riot's official data."
+msgstr "Kopplat som {}. Matchresultat för League of Legends och TFT verifieras mot Riots officiella data."
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Link your Riot ID to get server-verified match results for League of Legends "
+"and TFT. We only read your match history. Nothing is posted to your account."
+msgstr "Koppla ditt Riot ID för serververifierade matchresultat i League of Legends och TFT. Vi läser bara din matchhistorik. Inget postas på ditt konto."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Temporarily unavailable."
+msgstr "Tillfälligt otillgängligt."
+
+#: client/ui/panels/settings_modal.slint
+msgid "DISCONNECT"
+msgstr "KOPPLA FRÅN"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BACK"
+msgstr "TILLBAKA"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Back to About"
+msgstr "Tillbaka till Om"
+
+#: client/ui/panels/settings_modal.slint
+msgid "THIRD-PARTY NOTICES"
+msgstr "TREDJEPARTSLICENSER"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{} website"
+msgstr "Webbplats för {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid "{} on Steam"
+msgstr "{} på Steam"
+
+#: client/ui/panels/settings_modal.slint
+msgid "VERSION"
+msgstr "VERSION"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILD"
+msgstr "BYGGE"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILT"
+msgstr "BYGGD"
+
+#: client/ui/panels/settings_modal.slint
+msgid "COPYRIGHT"
+msgstr "UPPHOVSRÄTT"
+
+#: client/ui/panels/settings_modal.slint
+msgid "© 2026 Mollo Tech AB, Göteborg, Sweden"
+msgstr "© 2026 Mollo Tech AB, Göteborg, Sverige"
+
+#: client/ui/panels/settings_modal.slint
+msgid "CREATED BY"
+msgstr "SKAPAD AV"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Email {}"
+msgstr "Mejla {}"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"m3llo runs on the work of many people and services.\nWe couldn't have done "
+"this without them."
+msgstr "m3llo bygger på arbete från många människor och tjänster.\nVi hade inte klarat det här utan dem."
+
+#: client/ui/panels/settings_modal.slint
+msgid "THE OG CREW THAT HELPED SHAPE M3LLO"
+msgstr "OG-GÄNGET SOM HJÄLPTE TILL ATT FORMA m3llo"
+
+#: client/ui/panels/settings_modal.slint
+msgid "SERVICES WE USE"
+msgstr "TJÄNSTER VI ANVÄNDER"
+
+#: client/ui/panels/settings_modal.slint
+msgid "OPEN SOURCE WE SHIP"
+msgstr "ÖPPEN KÄLLKOD I APPEN"
+
+#: client/ui/panels/settings_modal.slint
+msgid "And the Rust crates listed in the third-party notices."
+msgstr "Plus Rust-paketen i tredjepartslicenserna."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Third-party notices"
+msgstr "Tredjepartslicenser"
+
+#: client/ui/panels/settings_modal.slint
+msgid "CREDITS"
+msgstr "TACK TILL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Game data and artwork by"
+msgstr "Speldata och bilder från"
+
+#. i18n: one sentence in parts: Made with [link: Slint]
+#: client/ui/panels/settings_modal.slint
+msgid "Made with"
+msgstr "Gjord med"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Emoji by"
+msgstr "Emoji från"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Sounds by"
+msgstr "Ljud från"
+
+#. sets its own.
+#: client/ui/panels/settings_modal.slint
+msgid "{} key"
+msgstr "{}-tangent"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip"
+msgstr "Klipp"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Clip key"
+msgstr "Klipptangent"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Saves the last 30 seconds: your game while it runs, otherwise the crew voice."
+msgstr "Sparar de senaste 30 sekunderna: ditt spel medan det körs, annars gängets röst."
+
+#: client/ui/panels/settings_modal.slint
+msgid "Start / end stream"
+msgstr "Starta / avsluta stream"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Stream key"
+msgstr "Streamtangent"
+
+#: client/ui/panels/settings_modal.slint
+msgid ""
+"Starts a stream of the game you play, or ends your stream. Some games use F9 "
+"to load a save."
+msgstr "Startar en stream av spelet du spelar, eller avslutar din stream. Vissa spel använder F9 för att ladda en sparning."
+
+#: client/ui/panels/settings_modal.slint
+msgid "SYSTEM PARAMETERS"
+msgstr "SYSTEMPARAMETRAR"
+
+#: client/ui/panels/settings_modal.slint
+msgid "PROFILE"
+msgstr "PROFIL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "GENERAL"
+msgstr "ALLMÄNT"
+
+#: client/ui/panels/settings_modal.slint
+msgid "AUDIO & VIDEO"
+msgstr "LJUD OCH VIDEO"
+
+#: client/ui/panels/settings_modal.slint client/ui/tr.slint
+msgid "GAMES"
+msgstr "SPEL"
+
+#: client/ui/panels/settings_modal.slint
+msgid "ABOUT"
+msgstr "OM"
+
+#: client/ui/panels/settings_modal.slint
+msgid "KEYBINDS"
+msgstr "KORTKOMMANDON"
+
+#: client/ui/panels/settings_modal.slint
+msgid "SECURITY"
+msgstr "SÄKERHET"
+
+#: client/ui/panels/settings_modal.slint
+msgid "BUILD VERSION"
+msgstr "BYGGVERSION"
+
+#: client/ui/panels/settings_modal.slint
+msgid "RESET TO DEFAULTS"
+msgstr "ÅTERSTÄLL STANDARD"
+
+#: client/ui/panels/sign_in.slint
+msgid "Sign In"
+msgstr "Logga in"
+
+#: client/ui/panels/sign_in.slint
+msgid "Sign in with an existing account."
+msgstr "Logga in med ett befintligt konto."
+
+#: client/ui/panels/sign_in.slint
+msgid "or"
+msgstr "eller"
+
+#: client/ui/panels/sign_in.slint
+msgid "SIGNING IN…"
+msgstr "LOGGAR IN…"
+
+#: client/ui/panels/sign_in.slint
+msgid "SIGN IN"
+msgstr "LOGGA IN"
+
+#: client/ui/panels/sign_in.slint
+msgid "Start as a new player to make one."
+msgstr "Börja som ny spelare för att skapa ett."
+
+#: client/ui/panels/sign_in.slint
+msgid "Start as a new player"
+msgstr "Börja som ny spelare"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "STREAM SOMETHING ELSE"
+msgstr "STREAMA NÅGOT ANNAT"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Detected by game sensor"
+msgstr "Hittat av spelsensorn"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Pick a window"
+msgstr "Välj ett fönster"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Any app — browser, editor, emulator"
+msgstr "Vilken app som helst – webbläsare, editor, emulator"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Whole screen"
+msgstr "Hela skärmen"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Your main display"
+msgstr "Din huvudskärm"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Camera only"
+msgstr "Bara kamera"
+
+#: client/ui/panels/stream_source_menu.slint
+msgid "Not available yet"
+msgstr "Inte tillgängligt än"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "FS"
+msgstr "FS"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "PICK A WINDOW"
+msgstr "VÄLJ ETT FÖNSTER"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "CAP.01 // INPUT"
+msgstr "CAP.01 // INGÅNG"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "No open windows to stream. Open an app and try again."
+msgstr "Inga öppna fönster att streama. Öppna en app och försök igen."
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "OPEN WINDOWS"
+msgstr "ÖPPNA FÖNSTER"
+
+#: client/ui/panels/stream_source_picker.slint
+msgid "START STREAMING"
+msgstr "BÖRJA STREAMA"
+
+#: client/ui/panels/update_banner.slint
+msgid "Updating…"
+msgstr "Uppdaterar…"
+
+#: client/ui/panels/update_banner.slint
+msgid "New version available"
+msgstr "Ny version finns"
+
+#: client/ui/panels/update_banner.slint
+msgid "Downloading v{}"
+msgstr "Laddar ner v{}"
+
+#: client/ui/panels/update_banner.slint
+msgid "v{}"
+msgstr "v{}"
+
+#: client/ui/panels/update_banner.slint
+msgid "UPDATE"
+msgstr "UPPDATERA"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "0 Members"
+msgstr "0 medlemmar"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "Active Session"
+msgstr "Aktivt pass"
+
+#. The voice channel has nobody in it.
+#: client/ui/panels/voice_channel_view.slint client/ui/tr.slint
+msgid "Empty"
+msgstr "Tom"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "ACTIVE SESSION"
+msgstr "AKTIVT PASS"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "No one here yet"
+msgstr "Ingen här än"
+
+#: client/ui/panels/voice_channel_view.slint hud/ui/mini_player.slint
+msgid "Connected"
+msgstr "Ansluten"
+
+#: client/ui/panels/voice_channel_view.slint
+msgid "{n} Active"
+msgid_plural "{n} Active"
+msgstr[0] "{n} aktiv"
+msgstr[1] "{n} aktiva"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "TAKE"
+msgstr "SNO"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "HOLD"
+msgstr "HÅLL"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "{n} BELT"
+msgid_plural "{n} BELTS"
+msgstr[0] "{n} TITEL"
+msgstr[1] "{n} TITLAR"
+
+#. The unit of a number of hours next to the number.
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgctxt "unit"
+msgid "h"
+msgstr "h"
+
+#: client/ui/panels/you_strip.slint client/ui/panels/you_view.slint
+msgid "THIS WEEK"
+msgstr "DENNA VECKA"
+
+#: client/ui/panels/you_view.slint
+msgid "vs"
+msgstr "vs"
+
+#: client/ui/panels/you_view.slint
+msgid "STREAK"
+msgstr "SVIT"
+
+#: client/ui/panels/you_view.slint
+msgid "WIN RATE"
+msgstr "VINSTPROCENT"
+
+#: client/ui/panels/you_view.slint
+msgid "RECORD"
+msgstr "FACIT"
+
+#: client/ui/panels/you_view.slint
+msgid "{n} BELT · {}"
+msgid_plural "{n} BELTS · {}"
+msgstr[0] "{n} TITEL · {}"
+msgstr[1] "{n} TITLAR · {}"
+
+#: client/ui/panels/you_view.slint
+msgid "Head2head"
+msgstr "head2head"
+
+#: client/ui/panels/you_view.slint
+msgid "Belts"
+msgstr "Titlar"
+
+#: client/ui/panels/you_view.slint
+msgid "Games"
+msgstr "Spel"
+
+#: client/ui/panels/you_view.slint
+msgid "No games tracked yet"
+msgstr "Inga spel spårade än"
+
+#. The download is complete and the update is checked.
+#: client/ui/tr.slint
+msgid "Verifying"
+msgstr "Verifierar"
+
+#. The update is applied and the app restarts.
+#: client/ui/tr.slint
+msgid "Restarting"
+msgstr "Startar om"
+
+#. The updater could not start.
+#: client/ui/tr.slint
+msgid "Updater unavailable"
+msgstr "Uppdateraren är inte tillgänglig"
+
+#: client/ui/tr.slint
+msgid "{}%"
+msgstr "{} %"
+
+#: client/ui/tr.slint
+msgid "{} / {} MB"
+msgstr "{} / {} MB"
+
+#: client/ui/tr.slint
+msgid "Reconnecting…"
+msgstr "Återansluter…"
+
+#: client/ui/tr.slint
+msgid "Connection lost"
+msgstr "Anslutningen bröts"
+
+#. The chosen file is not an image that the app can read.
+#: client/ui/tr.slint
+msgid "That file is not an image we can use."
+msgstr "Den filen är inte en bild vi kan använda."
+
+#. The emoji name does not obey the rule of the server.
+#: client/ui/tr.slint
+msgid "A name is 2 to 24 letters, digits or underscores."
+msgstr "Ett namn är 2 till 24 bokstäver, siffror eller understreck."
+
+#. A day of the week, in a date ("Sunday 1 Nov").
+#: client/ui/tr.slint
+msgid "Sunday"
+msgstr "Söndag"
+
+#: client/ui/tr.slint
+msgid "Monday"
+msgstr "Måndag"
+
+#: client/ui/tr.slint
+msgid "Tuesday"
+msgstr "Tisdag"
+
+#: client/ui/tr.slint
+msgid "Wednesday"
+msgstr "Onsdag"
+
+#: client/ui/tr.slint
+msgid "Thursday"
+msgstr "Torsdag"
+
+#: client/ui/tr.slint
+msgid "Friday"
+msgstr "Fredag"
+
+#: client/ui/tr.slint
+msgid "Saturday"
+msgstr "Lördag"
+
+#. The full name of a month, in a date ("2 October").
+#: client/ui/tr.slint
+msgid "January"
+msgstr "januari"
+
+#: client/ui/tr.slint
+msgid "February"
+msgstr "februari"
+
+#: client/ui/tr.slint
+msgid "March"
+msgstr "mars"
+
+#: client/ui/tr.slint
+msgid "April"
+msgstr "april"
+
+#: client/ui/tr.slint
+msgid "May"
+msgstr "maj"
+
+#: client/ui/tr.slint
+msgid "June"
+msgstr "juni"
+
+#: client/ui/tr.slint
+msgid "July"
+msgstr "juli"
+
+#: client/ui/tr.slint
+msgid "August"
+msgstr "augusti"
+
+#: client/ui/tr.slint
+msgid "September"
+msgstr "september"
+
+#: client/ui/tr.slint
+msgid "October"
+msgstr "oktober"
+
+#: client/ui/tr.slint
+msgid "November"
+msgstr "november"
+
+#: client/ui/tr.slint
+msgid "December"
+msgstr "december"
+
+#. The short name of a month, in a short date ("6 Oct").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jan"
+msgstr "jan"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Feb"
+msgstr "feb"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Mar"
+msgstr "mar"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Apr"
+msgstr "apr"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "May"
+msgstr "maj"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jun"
+msgstr "jun"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Jul"
+msgstr "jul"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Aug"
+msgstr "aug"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Sep"
+msgstr "sep"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Oct"
+msgstr "okt"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Nov"
+msgstr "nov"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "Dec"
+msgstr "dec"
+
+#. {0} is the day of the month, {1} is the name of the month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} {1} {2}"
+msgstr "{0} {1} {2}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the weekday.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{2} {0} {1}"
+msgstr "{2} {0} {1}"
+
+#. {0} is the day of the month, {1} is the short month.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}"
+msgstr "{0} {1}"
+
+#. {0} is the day of the month, {1} is the short month, {2} is the year.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{1} {0}, {2}"
+msgstr "{0} {1} {2}"
+
+#. {0} is the first day, {1} is the last day, {2} is the month.
+#: client/ui/tr.slint
+msgid "{0} to {1} {2}"
+msgstr "{0}–{1} {2}"
+
+#. {0} {1} is the first day and month, {2} {3} is the last day and month.
+#: client/ui/tr.slint
+msgid "{0} {1} to {2} {3}"
+msgstr "{0} {1}–{2} {3}"
+
+#. The value is a short date ("6 Oct").
+#: client/ui/tr.slint
+msgid "Week of {}"
+msgstr "Veckan från {}"
+
+#. The short name of a month in upper case, in an upper-case date ("6 OCT").
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JAN"
+msgstr "JAN"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "FEB"
+msgstr "FEB"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAR"
+msgstr "MAR"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "APR"
+msgstr "APR"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "MAY"
+msgstr "MAJ"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUN"
+msgstr "JUN"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "JUL"
+msgstr "JUL"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "AUG"
+msgstr "AUG"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "SEP"
+msgstr "SEP"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "OCT"
+msgstr "OKT"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "NOV"
+msgstr "NOV"
+
+#: client/ui/tr.slint
+msgctxt "short month"
+msgid "DEC"
+msgstr "DEC"
+
+#. The value is a short date in upper case ("6 OCT").
+#: client/ui/tr.slint
+msgid "WEEK OF {}"
+msgstr "VECKAN FRÅN {}"
+
+#: client/ui/tr.slint
+msgid "WEEK {}"
+msgstr "VECKA {}"
+
+#: client/ui/tr.slint
+msgid "Week {}"
+msgstr "Vecka {}"
+
+#: client/ui/tr.slint
+msgid "W{}"
+msgstr "v{}"
+
+#. A time on a 24-hour clock: {0} is the hour, {1} is the minute.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1}"
+msgstr "{0}:{1}"
+
+#. A time on a 12-hour clock: {0} is the hour, {1} is the minute, {2} is AM 
+#. or PM.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}:{1} {2}"
+msgstr "{0}:{1} {2}"
+
+#. The marker of a time before noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "AM"
+msgstr "fm"
+
+#. The marker of a time after noon on a 12-hour clock.
+#: client/ui/tr.slint
+msgid "PM"
+msgstr "em"
+
+#. A day, relative to today.
+#: client/ui/tr.slint
+msgid "Today"
+msgstr "Idag"
+
+#: client/ui/tr.slint
+msgid "Yesterday"
+msgstr "Igår"
+
+#. The same words in lower case, as the feed card writes its age.
+#: client/ui/tr.slint
+msgid "today"
+msgstr "idag"
+
+#: client/ui/tr.slint
+msgid "yesterday"
+msgstr "igår"
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Today {}"
+msgstr "Idag {}"
+
+#. The value is a time of day.
+#: client/ui/tr.slint
+msgid "Yesterday {}"
+msgstr "Igår {}"
+
+#: client/ui/tr.slint
+msgid "{n} day ago"
+msgid_plural "{n} days ago"
+msgstr[0] "för {n} dag sedan"
+msgstr[1] "för {n} dagar sedan"
+
+#: client/ui/tr.slint
+msgid "Last week"
+msgstr "Förra veckan"
+
+#: client/ui/tr.slint
+msgid "{n} week ago"
+msgid_plural "{n} weeks ago"
+msgstr[0] "för {n} vecka sedan"
+msgstr[1] "för {n} veckor sedan"
+
+#. A short age, under a minute.
+#: client/ui/tr.slint
+msgid "just now"
+msgstr "nyss"
+
+#. The relative times of the session preview card, in upper case.
+#: client/ui/tr.slint
+msgid "JUST NOW"
+msgstr "NYSS"
+
+#: client/ui/tr.slint
+msgid "YESTERDAY"
+msgstr "IGÅR"
+
+#: client/ui/tr.slint
+msgid "{n} DAY AGO"
+msgid_plural "{n} DAYS AGO"
+msgstr[0] "FÖR {n} DAG SEDAN"
+msgstr[1] "FÖR {n} DAGAR SEDAN"
+
+#: client/ui/tr.slint
+msgid "{}M AGO"
+msgstr "{} MIN SEDAN"
+
+#: client/ui/tr.slint
+msgid "{}H AGO"
+msgstr "{} H SEDAN"
+
+#: client/ui/tr.slint
+msgid "{}D AGO"
+msgstr "{} D SEDAN"
+
+#. A day of the week in upper case.
+#: client/ui/tr.slint
+msgid "SUNDAY"
+msgstr "SÖNDAG"
+
+#: client/ui/tr.slint
+msgid "MONDAY"
+msgstr "MÅNDAG"
+
+#: client/ui/tr.slint
+msgid "TUESDAY"
+msgstr "TISDAG"
+
+#: client/ui/tr.slint
+msgid "WEDNESDAY"
+msgstr "ONSDAG"
+
+#: client/ui/tr.slint
+msgid "THURSDAY"
+msgstr "TORSDAG"
+
+#: client/ui/tr.slint
+msgid "FRIDAY"
+msgstr "FREDAG"
+
+#: client/ui/tr.slint
+msgid "SATURDAY"
+msgstr "LÖRDAG"
+
+#: client/ui/tr.slint
+msgid "{}m ago"
+msgstr "{} min sedan"
+
+#: client/ui/tr.slint
+msgid "{}h ago"
+msgstr "{} h sedan"
+
+#: client/ui/tr.slint
+msgid "{}d ago"
+msgstr "{} d sedan"
+
+#: client/ui/tr.slint
+msgid "{}w ago"
+msgstr "{} v sedan"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{}h"
+msgstr "{}h"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} H"
+msgstr "{} H"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} h"
+msgstr "{} h"
+
+#. The length of a clip: {0} is the minutes, {1} is the seconds.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0}:{1}"
+msgstr "{0}:{1}"
+
+#. The unit of a number of minutes next to the number.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "min"
+msgstr "min"
+
+#. The unit letter of a number of minutes next to the number ("2 m").
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "m"
+msgstr "m"
+
+#: client/ui/tr.slint
+msgid "since {} min"
+msgstr "i {} min"
+
+#: client/ui/tr.slint
+msgid "since {} h"
+msgstr "i {} h"
+
+#: client/ui/tr.slint
+msgid "since {0} h {1} min"
+msgstr "i {0} h {1} min"
+
+#. The value is a duration ("4h 12m").
+#: client/ui/tr.slint
+msgid "{} this week"
+msgstr "{} denna vecka"
+
+#. {0} is when the game was last played, {1} is the hours of play.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}, {1}"
+msgstr "{0}, {1}"
+
+#. The mark between the groups of digits of a large number ("4,201").
+#: client/ui/tr.slint
+msgctxt "format"
+msgid ","
+msgstr " "
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} ms"
+msgstr "{} ms"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} kbps"
+msgstr "{} kbps"
+
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{} Mbps"
+msgstr "{} Mbps"
+
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "~{}"
+msgstr "~{}"
+
+#. {0} is the list so far, {1} is the next item.
+#: client/ui/tr.slint
+msgctxt "list"
+msgid "{0}, {1}"
+msgstr "{0}, {1}"
+
+#. {0} is the list before the last item, {1} is the last item.
+#: client/ui/tr.slint
+msgid "{0} and {1}"
+msgstr "{0} och {1}"
+
+#. {0} is the first items, {1} and {2} are the last two items.
+#: client/ui/tr.slint
+msgid "{0}, {1}, and {2}"
+msgstr "{0}, {1} och {2}"
+
+#. {0} is the list, {1} is the count of the other names.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} +{1}"
+msgstr "{0} +{1}"
+
+#. {0} is the list, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} more"
+msgid_plural "{0} and {n} more"
+msgstr[0] "{0} och {n} till"
+msgstr[1] "{0} och {n} till"
+
+#. {0} is the first part, {1} is the second part.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} · {1}"
+msgstr "{0} · {1}"
+
+#: client/ui/tr.slint
+msgid "{} KB"
+msgstr "{} KB"
+
+#: client/ui/tr.slint
+msgid "{} MB"
+msgstr "{} MB"
+
+#. The sign-in failed because no account has this email or identity.
+#: client/ui/tr.slint
+msgid "No account found."
+msgstr "Inget konto hittades."
+
+#. The sign-in failed because the email or the password is wrong.
+#: client/ui/tr.slint
+msgid "Wrong email or password."
+msgstr "Fel e-post eller lösenord."
+
+#. The sign-in failed for a different reason.
+#: client/ui/tr.slint
+msgid "Sign-in failed. Try again."
+msgstr "Inloggningen misslyckades. Försök igen."
+
+#. The GIF search is off: the build has no key for the GIF service.
+#: client/ui/tr.slint
+msgid "GIFs are off in this build."
+msgstr "GIF:ar är avstängda i den här versionen."
+
+#. The GIF service did not accept the key of this build.
+#: client/ui/tr.slint
+msgid "The GIF service refused this build's key."
+msgstr "GIF-tjänsten nekade versionens nyckel."
+
+#. The GIF service got too many searches.
+#: client/ui/tr.slint
+msgid "Too many GIF searches right now. Try again in a minute."
+msgstr "För många GIF-sökningar just nu. Försök igen om en minut."
+
+#. The GIF service did not answer. The chat still works.
+#: client/ui/tr.slint
+msgid "The GIF service did not answer. Your messages still send."
+msgstr "GIF-tjänsten svarade inte. Dina meddelanden skickas ändå."
+
+#. The chip state while the app resizes the image.
+#: client/ui/tr.slint
+msgid "preparing"
+msgstr "förbereder"
+
+#. The chip state while the image uploads.
+#: client/ui/tr.slint
+msgid "uploading"
+msgstr "laddar upp"
+
+#: client/ui/tr.slint
+msgid "That file is over 64 MB."
+msgstr "Filen är större än 64 MB."
+
+#: client/ui/tr.slint
+msgid "That file is not an image."
+msgstr "Filen är inte en bild."
+
+#: client/ui/tr.slint
+msgid "That GIF is over 8 MB."
+msgstr "GIF:en är större än 8 MB."
+
+#: client/ui/tr.slint
+msgid "That GIF cannot be read."
+msgstr "GIF:en går inte att läsa."
+
+#: client/ui/tr.slint
+msgid "That image cannot be read."
+msgstr "Bilden går inte att läsa."
+
+#: client/ui/tr.slint
+msgid "That image cannot be encoded."
+msgstr "Bilden går inte att koda."
+
+#: client/ui/tr.slint
+msgid "That image is over 8 MB after resize."
+msgstr "Bilden är större än 8 MB efter skalning."
+
+#. The upload failed because no crew is open.
+#: client/ui/tr.slint
+msgid "No crew is open."
+msgstr "Inget gäng är öppet."
+
+#. The server did not give a place to upload the image.
+#: client/ui/tr.slint
+msgid "The server did not give an upload slot."
+msgstr "Servern gav ingen plats för uppladdningen."
+
+#. The server does not accept images.
+#: client/ui/tr.slint
+msgid "Image upload is off on this server."
+msgstr "Bilduppladdning är avstängd på den här servern."
+
+#: client/ui/tr.slint
+msgid "The upload was refused."
+msgstr "Uppladdningen nekades."
+
+#: client/ui/tr.slint
+msgid "The upload did not complete."
+msgstr "Uppladdningen blev inte klar."
+
+#. A person with no name in the feed, in the place of a name.
+#: client/ui/tr.slint
+msgid "someone"
+msgstr "någon"
+
+#. The first letter of "You", in the octagon of the viewer.
+#: client/ui/tr.slint
+msgid "Y"
+msgstr "D"
+
+#. The title of a clip card when the member has no name.
+#: client/ui/tr.slint
+msgid "someone clipped that"
+msgstr "någon klippte det"
+
+#. The name of a voice channel when the feed does not give it.
+#: client/ui/tr.slint
+msgid "voice"
+msgstr "röst"
+
+#: client/ui/tr.slint
+msgid "Voice session in {}"
+msgstr "Röstpass i {}"
+
+#: client/ui/tr.slint
+msgid "{0} in {1}"
+msgstr "{0} i {1}"
+
+#: client/ui/tr.slint
+msgid "{0} streamed {1}"
+msgstr "{0} streamade {1}"
+
+#: client/ui/tr.slint
+msgid "{} streamed a stream"
+msgstr "{} streamade"
+
+#: client/ui/tr.slint
+msgid "Played {}"
+msgstr "Spelade {}"
+
+#. The title of a game session with no game name.
+#: client/ui/tr.slint
+msgid "Played a game"
+msgstr "Spelade ett spel"
+
+#: client/ui/tr.slint
+msgid "{0} played {1}"
+msgstr "{0} spelade {1}"
+
+#: client/ui/tr.slint
+msgid "{} played a game"
+msgstr "{} spelade ett spel"
+
+#: client/ui/tr.slint
+msgid "{n}-win streak"
+msgid_plural "{n}-win streak"
+msgstr[0] "{n} vinst i rad"
+msgstr[1] "{n} vinster i rad"
+
+#: client/ui/tr.slint
+msgid "{n}-loss skid"
+msgid_plural "{n}-loss skid"
+msgstr[0] "{n} förlust i rad"
+msgstr[1] "{n} förluster i rad"
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L"
+msgstr "{0}V {1}F"
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L"
+msgstr "{0}V–{1}F"
+
+#: client/ui/tr.slint
+msgid "{0}W–{1}L–{2}D"
+msgstr "{0}V–{1}F–{2}O"
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "W{}"
+msgstr "V{}"
+
+#: client/ui/tr.slint
+msgctxt "streak"
+msgid "L{}"
+msgstr "F{}"
+
+#: client/ui/tr.slint
+msgid "{n} match"
+msgid_plural "{n} matches"
+msgstr[0] "{n} match"
+msgstr[1] "{n} matcher"
+
+#: client/ui/tr.slint
+msgid "{n} match · {0}"
+msgid_plural "{n} matches · {0}"
+msgstr[0] "{n} match · {0}"
+msgstr[1] "{n} matcher · {0}"
+
+#. The kind of a clip: voice.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "voice"
+msgstr "röst"
+
+#. The kind of a clip: game.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "game"
+msgstr "spel"
+
+#. The award of the member with the most matches of the week.
+#: client/ui/tr.slint
+msgid "Grinder of the week"
+msgstr "Veckans slitvarg"
+
+#. The award of the member with the longest run of wins of the week.
+#: client/ui/tr.slint
+msgid "Biggest heater"
+msgstr "Hetaste sviten"
+
+#. The award of the member with the longest run of losses of the week.
+#: client/ui/tr.slint
+msgid "Roughest patch"
+msgstr "Tyngsta svackan"
+
+#: client/ui/tr.slint
+msgid "{} joined"
+msgstr "{} gick med"
+
+#: client/ui/tr.slint
+msgid "{0} joined, invited by {1}"
+msgstr "{0} gick med, inbjuden av {1}"
+
+#: client/ui/tr.slint
+msgid "invited by {}"
+msgstr "inbjuden av {}"
+
+#. The name of a member who joined with no name.
+#: client/ui/tr.slint
+msgid "A new member"
+msgstr "En ny medlem"
+
+#: client/ui/tr.slint
+msgid "Add {0} to {1}'s Steam launch options to track wins"
+msgstr "Lägg till {0} i startalternativen för {1} i Steam för att spara vinster"
+
+#: client/ui/tr.slint
+msgid "{n} draw"
+msgid_plural "{n} draws"
+msgstr[0] "{n} oavgjord"
+msgstr[1] "{n} oavgjorda"
+
+#: client/ui/tr.slint
+msgid "{n}-loss streak"
+msgid_plural "{n}-loss streak"
+msgstr[0] "{n} förlust i rad"
+msgstr[1] "{n} förluster i rad"
+
+#. The Riot ID is wrong. "GameName#TAG" shows the form of an ID.
+#: client/ui/tr.slint
+msgid "Riot ID not found. Check the spelling — it looks like GameName#TAG."
+msgstr "Riot ID:t hittades inte. Kolla stavningen – det ser ut som GameName#TAG."
+
+#. The server needs the region of the Riot account.
+#: client/ui/tr.slint
+msgid "Pick the region your account plays in."
+msgstr "Välj regionen som ditt konto spelar i."
+
+#. The invite link that opened the app does not work any more.
+#: client/ui/tr.slint
+msgid "This invite link is no longer valid."
+msgstr "Den här inbjudningslänken gäller inte längre."
+
+#. The invite code that the user typed does not work.
+#: client/ui/tr.slint
+msgid "This invite code is not valid."
+msgstr "Den här inbjudningskoden är inte giltig."
+
+#: client/ui/tr.slint
+msgid "This crew is full."
+msgstr "Gänget är fullt."
+
+#: client/ui/tr.slint
+msgid "You cannot join this crew."
+msgstr "Du kan inte gå med i det här gänget."
+
+#. The join failed for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not join the crew. Try again."
+msgstr "Kunde inte gå med i gänget. Försök igen."
+
+#. The invite did not load for a reason that a retry can fix.
+#: client/ui/tr.slint
+msgid "Could not load this invite. Try again."
+msgstr "Kunde inte ladda inbjudan. Försök igen."
+
+#: client/ui/tr.slint
+msgid "{0} streaming {1}"
+msgstr "{0} streamar {1}"
+
+#: client/ui/tr.slint
+msgid "{} streaming"
+msgstr "{} streamar"
+
+#: client/ui/tr.slint
+msgid "streaming {}"
+msgstr "streamar {}"
+
+#. A stream with no streamer name and no title.
+#: client/ui/tr.slint
+msgid "streaming"
+msgstr "streamar"
+
+#. Nothing happened while the user was away.
+#: client/ui/tr.slint
+msgid "All quiet, crew's been chilling. Nothing new since you left."
+msgstr "Lugnt här, gänget har bara chillat. Inget nytt sedan du gick."
+
+#. {0} is the member, {1} is the text that the member wrote.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}: {1}"
+msgstr "{0}: {1}"
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a win in {1}"
+msgstr "{0} tog en vinst i {1}"
+
+#. {0} is the member, {1} is the game. "An L" is a loss.
+#: client/ui/tr.slint
+msgid "{0} took an L in {1}"
+msgstr "{0} åkte på en förlust i {1}"
+
+#. {0} is the member, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} had a moment in {1}"
+msgstr "{0} hade ett ögonblick i {1}"
+
+#. {0} is the names, {1} is the channel, {2} is a duration ("45m").
+#: client/ui/tr.slint
+msgid "{0} hung out in {1} for {2}"
+msgstr "{0} hängde i {1} i {2}"
+
+#. {0} is the streamer, {1} is the stream title, {2} is a duration ("90m").
+#: client/ui/tr.slint
+msgid "{0} streamed {1} for {2}"
+msgstr "{0} streamade {1} i {2}"
+
+#. {0} is the names, {1} is the record ("4W–2L"), {2} is the game.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}"
+msgstr "{0} gick {1} i {2}"
+
+#. {0} names, {1} record, {2} game, {n} wins in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, riding a {n}-win streak"
+msgid_plural "{0} went {1} in {2}, riding a {n}-win streak"
+msgstr[0] "{0} gick {1} i {2}, med {n} vinst i rad"
+msgstr[1] "{0} gick {1} i {2}, med {n} vinster i rad"
+
+#. {0} names, {1} record, {2} game, {n} losses in a row.
+#: client/ui/tr.slint
+msgid "{0} went {1} in {2}, on a {n}-loss skid"
+msgid_plural "{0} went {1} in {2}, on a {n}-loss skid"
+msgstr[0] "{0} gick {1} i {2}, med {n} förlust i rad"
+msgstr[1] "{0} gick {1} i {2}, med {n} förluster i rad"
+
+#: client/ui/tr.slint
+msgid "{} joined the crew"
+msgstr "{} gick med i gänget"
+
+#: client/ui/tr.slint
+msgid "{} left the crew"
+msgstr "{} lämnade gänget"
+
+#. {n} is the messages, {0} is the members who wrote.
+#: client/ui/tr.slint
+msgid "{n} messages from {0} people in chat"
+msgid_plural "{n} messages from {0} people in chat"
+msgstr[0] "{n} meddelande från {0} personer i chatten"
+msgstr[1] "{n} meddelanden från {0} personer i chatten"
+
+#. {0} is the member, {1} is the seconds, {2} is the clip kind.
+#: client/ui/tr.slint
+msgid "{0} clipped that ({1}s {2})"
+msgstr "{0} klippte det ({1} s {2})"
+
+#. The weekly recap of the crew is ready to open.
+#: client/ui/tr.slint
+msgid "weekly recap is ready"
+msgstr "veckosummeringen är klar"
+
+#. {0} is the names, {n} is the count of the other names.
+#: client/ui/tr.slint
+msgid "{0} and {n} others"
+msgid_plural "{0} and {n} others"
+msgstr[0] "{0} och {n} annan"
+msgstr[1] "{0} och {n} andra"
+
+#. {0} is the steps done, {1} is all the steps.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0} / {1}"
+msgstr "{0} / {1}"
+
+#: client/ui/tr.slint
+msgid "DROP {}"
+msgstr "DROPP {}"
+
+#: client/ui/tr.slint
+msgid "QUEST  ·  {}"
+msgstr "UPPDRAG  ·  {}"
+
+#: client/ui/tr.slint
+msgid "FIRST WEEK"
+msgstr "FÖRSTA VECKAN"
+
+#. 30 days of m3llo+. "D" is the short form of "days".
+#: client/ui/tr.slint
+msgid "M3LLO+ 30 D"
+msgstr "m3llo+ 30 D"
+
+#. The gift of the last step: 30 days of m3llo+.
+#: client/ui/tr.slint
+msgid "30 DAYS"
+msgstr "30 DAGAR"
+
+#. The names of the steps.
+#: client/ui/tr.slint
+msgid "Crew made"
+msgstr "Gänget skapat"
+
+#: client/ui/tr.slint
+msgid "A friend joins"
+msgstr "En kompis går med"
+
+#: client/ui/tr.slint
+msgid "First call"
+msgstr "Första röstchatten"
+
+#: client/ui/tr.slint
+msgid "First clip"
+msgstr "Första klippet"
+
+#: client/ui/tr.slint
+msgid "First session"
+msgstr "Första passet"
+
+#. The names of the steps in upper case, in the label of a gift.
+#: client/ui/tr.slint
+msgid "CREW MADE"
+msgstr "GÄNGET SKAPAT"
+
+#: client/ui/tr.slint
+msgid "A FRIEND JOINS"
+msgstr "EN KOMPIS GÅR MED"
+
+#: client/ui/tr.slint
+msgid "FIRST CALL"
+msgstr "FÖRSTA RÖSTCHATTEN"
+
+#: client/ui/tr.slint
+msgid "FIRST CLIP"
+msgstr "FÖRSTA KLIPPET"
+
+#: client/ui/tr.slint
+msgid "FIRST SESSION"
+msgstr "FÖRSTA PASSET"
+
+#. The value is a date ("2 October").
+#: client/ui/tr.slint
+msgid "Made {}"
+msgstr "Skapat {}"
+
+#. The names of the gifts in a reveal.
+#: client/ui/tr.slint
+msgid "Crew banner"
+msgstr "Gängbanner"
+
+#: client/ui/tr.slint
+msgid "Your invite link"
+msgstr "Din inbjudningslänk"
+
+#: client/ui/tr.slint
+msgid "Crew emoji"
+msgstr "Gängemoji"
+
+#: client/ui/tr.slint
+msgid "Founding week"
+msgstr "Grundarveckan"
+
+#: client/ui/tr.slint
+msgid "For the crew"
+msgstr "För gänget"
+
+#: client/ui/tr.slint
+msgid "Set the link"
+msgstr "Välj länken"
+
+#: client/ui/tr.slint
+msgid "SET THE LINK"
+msgstr "VÄLJ LÄNKEN"
+
+#: client/ui/tr.slint
+msgid "ADD EMOJI"
+msgstr "LÄGG TILL EMOJI"
+
+#. The viewer joined the crew.
+#: client/ui/tr.slint
+msgid "You joined"
+msgstr "Du gick med"
+
+#. The viewer made the first clip.
+#: client/ui/tr.slint
+msgid "You clipped"
+msgstr "Du klippte"
+
+#: client/ui/tr.slint
+msgid "{} clipped"
+msgstr "{} klippte"
+
+#. The viewer invited the member who joined.
+#: client/ui/tr.slint
+msgid "Invited by you"
+msgstr "Inbjuden av dig"
+
+#: client/ui/tr.slint
+msgid "Invited by {}"
+msgstr "Inbjuden av {}"
+
+#: client/ui/tr.slint
+msgid "{n} slot"
+msgid_plural "{n} slots"
+msgstr[0] "{n} plats"
+msgstr[1] "{n} platser"
+
+#. Where the founding week opens.
+#: client/ui/tr.slint
+msgid "Open in Crew history for every member"
+msgstr "Öppna i gänghistoriken för alla medlemmar"
+
+#. The gift of the last step, on two lines.
+#: client/ui/tr.slint
+msgid "30 days of m3llo+\nfor every member in the crew"
+msgstr "30 dagar m3llo+\nför alla i gänget"
+
+#. {0} is the names, {n} is the count of guests.
+#: client/ui/tr.slint
+msgid "{0}, +{n} guest"
+msgid_plural "{0}, +{n} guests"
+msgstr[0] "{0}, +{n} gäst"
+msgstr[1] "{0}, +{n} gäster"
+
+#. The hints of the steps that are not done.
+#: client/ui/tr.slint
+msgid "Works in the browser"
+msgstr "Funkar i webbläsaren"
+
+#: client/ui/tr.slint
+msgid "Join voice to clip"
+msgstr "Gå med i röst för att klippa"
+
+#: client/ui/tr.slint
+msgid "Play with m3llo open"
+msgstr "Spela med m3llo igång"
+
+#: client/ui/tr.slint
+msgid "Game activity is off"
+msgstr "Spelaktivitet är av"
+
+#. an award.
+#: client/ui/tr.slint
+msgid "The Carry"
+msgstr "Bäraren"
+
+#: client/ui/tr.slint
+msgid "Night Owl"
+msgstr "Nattuggla"
+
+#: client/ui/tr.slint
+msgid "The Collector"
+msgstr "Samlaren"
+
+#: client/ui/tr.slint
+msgid "Locked In"
+msgstr "I zonen"
+
+#: client/ui/tr.slint
+msgid "Has a Life"
+msgstr "Har ett liv"
+
+#: client/ui/tr.slint
+msgid "Sampler"
+msgstr "Spelhoppare"
+
+#: client/ui/tr.slint
+msgid "One Trick"
+msgstr "Enkelspårig"
+
+#. The names of the card titles in upper case, on the board.
+#: client/ui/tr.slint
+msgid "THE CARRY"
+msgstr "BÄRAREN"
+
+#: client/ui/tr.slint
+msgid "NIGHT OWL"
+msgstr "NATTUGGLA"
+
+#: client/ui/tr.slint
+msgid "THE COLLECTOR"
+msgstr "SAMLAREN"
+
+#: client/ui/tr.slint
+msgid "LOCKED IN"
+msgstr "I ZONEN"
+
+#: client/ui/tr.slint
+msgid "HAS A LIFE"
+msgstr "HAR ETT LIV"
+
+#: client/ui/tr.slint
+msgid "SAMPLER"
+msgstr "SPELHOPPARE"
+
+#: client/ui/tr.slint
+msgid "ONE TRICK"
+msgstr "ENKELSPÅRIG"
+
+#: client/ui/tr.slint
+msgid "MOUTH"
+msgstr "PRATKVARN"
+
+#: client/ui/tr.slint
+msgid "MARATHON"
+msgstr "MARATON"
+
+#: client/ui/tr.slint
+msgid "LAST ONE UP"
+msgstr "SIST UPPE"
+
+#: client/ui/tr.slint
+msgid "CLIPPER"
+msgstr "KLIPPARE"
+
+#: client/ui/tr.slint
+msgid "RAGE QUIT"
+msgstr "RAGEQUIT"
+
+#: client/ui/tr.slint
+msgid "WINNER"
+msgstr "VINNARE"
+
+#: client/ui/tr.slint
+msgid "Mouth"
+msgstr "Pratkvarn"
+
+#: client/ui/tr.slint
+msgid "Marathon"
+msgstr "Maraton"
+
+#: client/ui/tr.slint
+msgid "Last One Up"
+msgstr "Sist uppe"
+
+#: client/ui/tr.slint
+msgid "Clipper"
+msgstr "Klippare"
+
+#: client/ui/tr.slint
+msgid "Rage Quit"
+msgstr "Ragequit"
+
+#: client/ui/tr.slint
+msgid "Winner"
+msgstr "Vinnare"
+
+#. What each title counts, under its value.
+#: client/ui/tr.slint
+msgid "Most hours in the top shared game."
+msgstr "Flest timmar i det största gemensamma spelet."
+
+#: client/ui/tr.slint
+msgid "Most game hours in the last 7 days."
+msgstr "Flest speltimmar de senaste 7 dagarna."
+
+#: client/ui/tr.slint
+msgid "Fewest game hours in the last 7 days."
+msgstr "Minst speltimmar de senaste 7 dagarna."
+
+#: client/ui/tr.slint
+msgid "Latest local time of a last session."
+msgstr "Senaste lokala tid för ett sista pass."
+
+#: client/ui/tr.slint
+msgid "Most installed games."
+msgstr "Flest installerade spel."
+
+#: client/ui/tr.slint
+msgid "Most different games in the last 14 days."
+msgstr "Flest olika spel de senaste 14 dagarna."
+
+#: client/ui/tr.slint
+msgid "Highest share of play time in one game."
+msgstr "Störst andel speltid i ett enda spel."
+
+#: client/ui/tr.slint
+msgid "Most voice minutes in the last 14 days."
+msgstr "Flest röstminuter de senaste 14 dagarna."
+
+#: client/ui/tr.slint
+msgid "Longest single game session."
+msgstr "Längsta spelpasset."
+
+#: client/ui/tr.slint
+msgid "Latest session end in the last 14 days."
+msgstr "Senast avslutade pass de senaste 14 dagarna."
+
+#: client/ui/tr.slint
+msgid "Most clips posted."
+msgstr "Flest postade klipp."
+
+#: client/ui/tr.slint
+msgid "Most sessions of 2 to 10 minutes in 14 days."
+msgstr "Flest pass på 2 till 10 minuter på 14 dagar."
+
+#: client/ui/tr.slint
+msgid "Most win moments in the last 14 days."
+msgstr "Flest vinstögonblick de senaste 14 dagarna."
+
+#. A member the app does not know, for example one who left the crew.
+#: client/ui/tr.slint
+msgid "Crew mate"
+msgstr "Polare"
+
+#. The unit of the Locked In title: hours in this week.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "h this week"
+msgstr "h denna vecka"
+
+#: client/ui/tr.slint
+msgid "held {n} day"
+msgid_plural "held {n} days"
+msgstr[0] "hållen i {n} dag"
+msgstr[1] "hållen i {n} dagar"
+
+#: client/ui/tr.slint
+msgid "{0} took {1} from {2}"
+msgstr "{0} snodde {1} från {2}"
+
+#: client/ui/tr.slint
+msgid "{0} beats {1}."
+msgstr "{0} slår {1}."
+
+#. {0} is the number, {1} is the unit.
+#: client/ui/tr.slint
+msgctxt "unit"
+msgid "{0} {1}"
+msgstr "{0} {1}"
+
+#. A live stream with no title.
+#: client/ui/tr.slint
+msgid "Live now"
+msgstr "Live nu"
+
+#. The titles of the card that says why a stream stopped.
+#: client/ui/tr.slint
+msgid "STREAM ENDED"
+msgstr "STREAMEN TOG SLUT"
+
+#: client/ui/tr.slint
+msgid "STREAM DID NOT START"
+msgstr "STREAMEN STARTADE INTE"
+
+#: client/ui/tr.slint
+msgid "COULD NOT WATCH"
+msgstr "KUNDE INTE KOLLA"
+
+#. Why a stream ended.
+#: client/ui/tr.slint
+msgid "The connection to the stream was lost for 30 seconds."
+msgstr "Anslutningen till streamen var borta i 30 sekunder."
+
+#: client/ui/tr.slint
+msgid "The server lost the stream during a reconnect."
+msgstr "Servern tappade streamen under en återanslutning."
+
+#: client/ui/tr.slint
+msgid "The host ended the stream."
+msgstr "Streamern avslutade streamen."
+
+#: client/ui/tr.slint
+msgid "The stream ended."
+msgstr "Streamen tog slut."
+
+#: client/ui/tr.slint
+msgid "SESSIONS"
+msgstr "PASS"
+
+#. The members who were on today.
+#: client/ui/components/looking_to_play.slint client/ui/tr.slint
+msgid "ON"
+msgstr "INNE"
+
+#: client/ui/tr.slint
+msgid "CLIPS AND STREAMS"
+msgstr "KLIPP OCH STREAMS"
+
+#. The board of a week with no crew time.
+#: client/ui/tr.slint
+msgid "No crew time last week."
+msgstr "Ingen gängtid förra veckan."
+
+#: client/ui/tr.slint
+msgid "{} still played."
+msgstr "{} spelade ändå."
+
+#: client/ui/tr.slint
+msgid "Nothing new since {}."
+msgstr "Inget nytt sedan {}."
+
+#: client/ui/tr.slint
+msgid "Nothing new since {0}. {1} holds {2}."
+msgstr "Inget nytt sedan {0}. {1} håller {2}."
+
+#: client/ui/tr.slint
+msgid "{n} in the call"
+msgid_plural "{n} in the call"
+msgstr[0] "{n} i röst"
+msgstr[1] "{n} i röst"
+
+#: client/ui/tr.slint
+msgid "Empty. Last call {}"
+msgstr "Tom. Senast i röst {}"
+
+#. default.
+#: client/ui/tr.slint
+msgid ""
+"Your saved audio device was not found. Switched to system default — you can "
+"change it in Settings."
+msgstr "Din sparade ljudenhet hittades inte. Bytte till systemstandard – du kan ändra det i Inställningar."
+
+#: client/ui/tr.slint
+msgid "{} made it. Welcome to the crew."
+msgstr "{} tog sig hit. Välkommen till gänget."
+
+#: client/ui/tr.slint
+msgid "{} is in. Grab a seat."
+msgstr "{} är inne. Ta en plats."
+
+#: client/ui/tr.slint
+msgid "Look who showed up. Hey {}."
+msgstr "Kolla vem som dök upp. Tjena {}."
+
+#: client/ui/tr.slint
+msgid "{}, you found us. Good."
+msgstr "{}, du hittade oss. Nice."
+
+#: client/ui/tr.slint
+msgid "New blood. Welcome {}."
+msgstr "Nytt blod. Välkommen {}."
+
+#: client/ui/tr.slint
+msgid "{} is here. Mic on, let's go."
+msgstr "{} är här. Micken på, kör."
+
+#: client/ui/tr.slint
+msgid "Game clip saved"
+msgstr "Spelklipp sparat"
+
+#. The clip key made no game clip.
+#: client/ui/tr.slint
+msgid "No game clip"
+msgstr "Inget spelklipp"
+
+#. Why the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Game clips are off: the disk is almost full"
+msgstr "Spelklipp är av: disken är nästan full"
+
+#: client/ui/tr.slint
+msgid "Clips are not available for this game"
+msgstr "Klipp finns inte för det här spelet"
+
+#. macOS: the app needs the Screen Recording permission.
+#: client/ui/tr.slint
+msgid "Allow Screen Recording in Settings to clip your game"
+msgstr "Tillåt Skärminspelning i Inställningar för att klippa ditt spel"
+
+#. The clip key saved the voice only, and the replay cannot clip.
+#: client/ui/tr.slint
+msgid "Voice clip saved. Game clips are off: the disk is almost full"
+msgstr "Röstklipp sparat. Spelklipp är av: disken är nästan full"
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Clips are not available for this game"
+msgstr "Röstklipp sparat. Klipp finns inte för det här spelet"
+
+#: client/ui/tr.slint
+msgid "Voice clip saved. Allow Screen Recording in Settings to clip your game"
+msgstr "Röstklipp sparat. Tillåt Skärminspelning i Inställningar för att klippa ditt spel"
+
+#. The clip player cannot play while the user watches a stream.
+#: client/ui/tr.slint
+msgid "Stop watching the stream to play a clip"
+msgstr "Sluta kolla på streamen för att spela upp ett klipp"
+
+#. A game that the app cannot name.
+#: client/ui/tr.slint
+msgid "Unknown game"
+msgstr "Okänt spel"
+
+#: client/ui/tr.slint
+msgid "{0}W {1}L {2}D"
+msgstr "{0}V {1}F {2}O"
+
+#: client/ui/tr.slint
+msgid "W{} best"
+msgstr "V{} bäst"
+
+#: client/ui/tr.slint
+msgid "L{} worst"
+msgstr "F{} sämst"
+
+#: client/ui/tr.slint
+msgid "Push-to-talk uses {}. Pick another key."
+msgstr "Tryck för att prata använder {}. Välj en annan tangent."
+
+#: client/ui/tr.slint
+msgid "Clip uses {}. Pick another key."
+msgstr "Klipp använder {}. Välj en annan tangent."
+
+#: client/ui/tr.slint
+msgid "Stream key uses {}. Pick another key."
+msgstr "Streamtangenten använder {}. Välj en annan tangent."
+
+#: client/ui/tr.slint
+msgid "{0}p, {1} fps"
+msgstr "{0}p, {1} fps"
+
+#. own script, which are not translated.
+#: client/ui/tr.slint
+msgid "System"
+msgstr "Systemet"
+
+#. The name of the file type filter in a dialog that picks an image.
+#: client/ui/tr.slint
+msgid "Images"
+msgstr "Bilder"
+
+#. {0} is the width, {1} is the height.
+#: client/ui/tr.slint
+msgctxt "format"
+msgid "{0}×{1}"
+msgstr "{0}×{1}"
+
+#: client/ui/tr.slint
+msgid "You cancelled the {} sign-in."
+msgstr "Du avbröt inloggningen med {}."
+
+#: client/ui/tr.slint
+msgid "{0} sign-in failed: {1}"
+msgstr "Inloggningen med {0} misslyckades: {1}"
+
+#: client/ui/tr.slint
+msgid "{} sign-in failed unexpectedly"
+msgstr "Inloggningen med {} misslyckades oväntat"
+
+#: client/ui/tr.slint
+msgid "{} login not configured"
+msgstr "Inloggning med {} är inte konfigurerad"
+
+#: client/ui/tr.slint
+msgid "{} sign-in isn't available here"
+msgstr "Inloggning med {} finns inte här"
+
+#: client/ui/tr.slint
+msgid "{} sign-in returned no token"
+msgstr "Inloggningen med {} gav ingen token"
+
+#: client/ui/tr.slint
+msgid "WebSocket failed: {}"
+msgstr "WebSocket misslyckades: {}"
+
+#. Onboarding: the account was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create your account. Check your connection and try again."
+msgstr "Kunde inte skapa ditt konto. Kolla din anslutning och försök igen."
+
+#. Onboarding: the app did not connect.
+#: client/ui/tr.slint
+msgid "Couldn't connect. Check your connection and try again."
+msgstr "Kunde inte ansluta. Kolla din anslutning och försök igen."
+
+#. Onboarding: the new crew was not made.
+#: client/ui/tr.slint
+msgid "Couldn't create the crew. Try again."
+msgstr "Kunde inte skapa gänget. Försök igen."
+
+#. Onboarding: the chosen crew was not joined, and why.
+#: client/ui/tr.slint
+msgid "That crew is full. Pick another one."
+msgstr "Gänget är fullt. Välj ett annat."
+
+#: client/ui/tr.slint
+msgid "That crew no longer exists. Pick another one."
+msgstr "Gänget finns inte längre. Välj ett annat."
+
+#: client/ui/tr.slint
+msgid "You can't join that crew. Pick another one."
+msgstr "Du kan inte gå med i det gänget. Välj ett annat."
+
+#: client/ui/tr.slint
+msgid "Couldn't join the crew. Check your connection and try again."
+msgstr "Kunde inte gå med i gänget. Kolla din anslutning och försök igen."
+
+#: client/ui/tr.slint
+msgid "Server requires protocol {0} but client speaks {1}. Please update m3llo."
+msgstr "Servern kräver protokoll {0} men klienten använder {1}. Uppdatera m3llo."
+
+#: client/ui/tr.slint
+msgid ""
+"Client requires server protocol {0} but server speaks {1}. Server needs "
+"updating."
+msgstr "Klienten kräver serverprotokoll {0} men servern använder {1}. Servern behöver uppdateras."
+
+#: client/ui/tr.slint
+msgid "You are not signed in."
+msgstr "Du är inte inloggad."
+
+#: client/ui/tr.slint
+msgid "Streaming is not available on the server right now."
+msgstr "Det går inte att streama på servern just nu."
+
+#: client/ui/tr.slint
+msgid "The server did not answer the stream start."
+msgstr "Servern svarade inte på streamstarten."
+
+#: client/ui/tr.slint
+msgid "The server did not accept the stream."
+msgstr "Servern godtog inte streamen."
+
+#: client/ui/tr.slint
+msgid "Could not reach the stream server."
+msgstr "Kunde inte nå streamservern."
+
+#: client/ui/tr.slint
+msgid ""
+"Streaming requires a hardware encoder (NVIDIA, AMD, or Intel). None was "
+"found on this machine."
+msgstr "För att streama krävs en hårdvaruencoder (NVIDIA, AMD eller Intel). Ingen hittades på den här datorn."
+
+#: client/ui/tr.slint
+msgid "The media engine is not running."
+msgstr "Mediemotorn körs inte."
+
+#: client/ui/tr.slint
+msgid "The stream has no session to join."
+msgstr "Streamen har ingen session att gå med i."
+
+#: client/ui/tr.slint
+msgid "The video decoder did not start."
+msgstr "Videoavkodaren startade inte."
+
+#: client/ui/tr.slint
+msgid "The stream is not available."
+msgstr "Streamen är inte tillgänglig."
+
+#: client/ui/tr.slint
+msgid "Display {}"
+msgstr "Skärm {}"
+
+#: client/ui/tr.slint
+msgid "Display {} (Primary)"
+msgstr "Skärm {} (primär)"
+
+#. The server did not answer a gift change.
+#: client/ui/tr.slint
+msgid "The server did not answer."
+msgstr "Servern svarade inte."
+
+#. old server that sends no code.
+#: client/ui/tr.slint
+msgid "Something went wrong. Try again."
+msgstr "Något gick fel. Försök igen."
+
+#. A crew banner upload is not a JPEG image.
+#: client/ui/tr.slint
+msgid "A banner is a JPEG."
+msgstr "En banner ska vara en JPEG."
+
+#. A crew banner image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Banner too large."
+msgstr "Bannern är för stor."
+
+#. Only the crew owner can change the crew banner.
+#: client/ui/tr.slint
+msgid "Only the owner sets the banner."
+msgstr "Bara ägaren kan ändra bannern."
+
+#. Only the crew owner can change the custom invite link.
+#: client/ui/tr.slint
+msgid "Only the owner sets the invite link."
+msgstr "Bara ägaren kan ändra inbjudningslänken."
+
+#. The crew has not unlocked this gift with its quests yet.
+#: client/ui/tr.slint
+msgid "Gift not unlocked."
+msgstr "Belöningen är inte upplåst."
+
+#. The invite link name is reserved or has a wrong form.
+#: client/ui/tr.slint
+msgid "Name not allowed."
+msgstr "Namnet är inte tillåtet."
+
+#. with the name.
+#: client/ui/tr.slint
+msgid "Name taken."
+msgstr "Namnet är upptaget."
+
+#. A crew emoji image is not a JPEG, PNG or GIF.
+#: client/ui/tr.slint
+msgid "Unsupported image type."
+msgstr "Bildformatet stöds inte."
+
+#. A crew emoji image is larger than the server takes.
+#: client/ui/tr.slint
+msgid "Emoji too large."
+msgstr "Emojin är för stor."
+
+#. The user is not a member of the crew any more.
+#: client/ui/tr.slint
+msgid "Not a crew member."
+msgstr "Inte medlem i gänget."
+
+#. The crew has used all of its emoji slots.
+#: client/ui/tr.slint
+msgid "No free emoji slot."
+msgstr "Ingen ledig emojiplats."
+
+#. The rule for a crew emoji name. Keep the numbers 2 and 24.
+#: client/ui/tr.slint
+msgid "Name is 2 to 24 letters, digits or underscores."
+msgstr "Namnet är 2 till 24 bokstäver, siffror eller understreck."
+
+#. Only the member who added an emoji, or the crew owner, can remove it.
+#: client/ui/tr.slint
+msgid "Only the adder or the owner removes an emoji."
+msgstr "Bara den som lade till en emoji eller ägaren kan ta bort den."
+
+#. The crew has no emoji with this name.
+#: client/ui/tr.slint
+msgid "No such emoji."
+msgstr "Ingen sådan emoji."
+
+#. The server has no Riot API key, so a Riot account cannot be linked.
+#: client/ui/tr.slint
+msgid "Riot linking is not available right now."
+msgstr "Riot-koppling är inte tillgänglig just nu."
+
+#. The server could not reach the Riot API.
+#: client/ui/tr.slint
+msgid "Could not reach Riot. Try again."
+msgstr "Kunde inte nå Riot. Försök igen."
+
+#. The Riot API refused too many requests.
+#: client/ui/tr.slint
+msgid "Riot is busy. Try again in a minute."
+msgstr "Riot är upptaget. Försök igen om en minut."
+
+#. The Riot API sent an error.
+#: client/ui/tr.slint
+msgid "Riot sent an error. Try again."
+msgstr "Riot skickade ett fel. Försök igen."
+
+#: client/ui/tr.slint
+msgid "The media engine is not running"
+msgstr "Mediemotorn körs inte"
+
+#: client/ui/tr.slint
+msgid "The clip does not load"
+msgstr "Klippet laddas inte"
+
+#: client/ui/tr.slint
+msgid "The clip does not play"
+msgstr "Klippet spelas inte"
+
+#: client/ui/tr.slint
+msgid "Open {}"
+msgstr "Öppna {}"
+
+#: client/ui/tr.slint
+msgid "Leave Voice"
+msgstr "Lämna röst"
+
+#: client/ui/tr.slint
+msgid "Quit {}"
+msgstr "Avsluta {}"
+
+#: client/ui/tr.slint
+msgid "About {}"
+msgstr "Om {}"
+
+#: client/ui/tr.slint
+msgid "Check for Updates…"
+msgstr "Sök efter uppdateringar…"
+
+#: client/ui/tr.slint
+msgid "Preferences…"
+msgstr "Inställningar…"
+
+#: client/ui/tr.slint
+msgid "Hide {}"
+msgstr "Göm {}"
+
+#. The names of the menus.
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Edit"
+msgstr "Redigera"
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "View"
+msgstr "Visa"
+
+#: client/ui/tr.slint
+msgctxt "menu"
+msgid "Help"
+msgstr "Hjälp"
+
+#. The items of the Edit menu.
+#: client/ui/tr.slint
+msgid "Undo"
+msgstr "Ångra"
+
+#: client/ui/tr.slint
+msgid "Redo"
+msgstr "Gör om"
+
+#: client/ui/tr.slint
+msgid "Cut"
+msgstr "Klipp ut"
+
+#: client/ui/tr.slint
+msgid "Copy"
+msgstr "Kopiera"
+
+#: client/ui/tr.slint
+msgid "Paste"
+msgstr "Klistra in"
+
+#: client/ui/tr.slint
+msgid "Select All"
+msgstr "Markera alla"
+
+#: client/ui/tr.slint
+msgid "Find…"
+msgstr "Sök…"
+
+#. The items of the View menu.
+#: client/ui/tr.slint
+msgid "Toggle Mute"
+msgstr "Muta / avmuta"
+
+#: client/ui/tr.slint
+msgid "Toggle Deafen"
+msgstr "Ljud av / på"
+
+#: client/ui/tr.slint
+msgid "{} on GitHub"
+msgstr "{} på GitHub"
+
+#: client/ui/tr.slint
+msgid "{} is still running"
+msgstr "{} körs fortfarande"
+
+#. Windows and Linux: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the tray to keep collecting your gaming stats. Right-click the "
+"tray icon to quit."
+msgstr "Den ligger kvar i systemfältet för att fortsätta samla din spelstatistik. Högerklicka på ikonen i systemfältet för att avsluta."
+
+#. macOS: where the app is now.
+#: client/ui/tr.slint
+msgid ""
+"It stays in the menu bar to keep collecting your gaming stats. Quit it from "
+"the menu bar icon."
+msgstr "Den ligger kvar i menyraden för att fortsätta samla din spelstatistik. Avsluta den från symbolen i menyraden."
+
+#. The title of a notification about the stream key.
+#: client/ui/tr.slint
+msgctxt "noun"
+msgid "Stream"
+msgstr "Stream"
+
+#. The stream key started a stream, and the stream is live.
+#: client/ui/tr.slint
+msgid "You are live"
+msgstr "Du är live"
+
+#. The stream key ended the stream.
+#: client/ui/tr.slint
+msgid "Stream ended"
+msgstr "Streamen avslutad"
+
+#. The stream that the stream key started did not start.
+#: client/ui/tr.slint
+msgid "Stream failed"
+msgstr "Streamen misslyckades"
+
+#. The stream key found no active crew.
+#: client/ui/tr.slint
+msgid "Pick a crew to stream to"
+msgstr "Välj ett gäng att streama till"
+
+#. The stream key found no detected game.
+#: client/ui/tr.slint
+msgid "No game to stream"
+msgstr "Inget spel att streama"
+
+#: client/ui/tr.slint
+msgid "{} jumped in"
+msgstr "{} hoppade in"
+
+#: client/ui/tr.slint
+msgid "{} invite"
+msgstr "Inbjudan till {}"
+
+#: client/ui/tr.slint
+msgid "{0} invited you to {1}"
+msgstr "{0} bjöd in dig till {1}"
+
+#: client/ui/tr.slint
+msgid "Push to talk"
+msgstr "Tryck för att prata"
+
+#: client/ui/tr.slint
+msgid "Clip the last moments of voice"
+msgstr "Klipp de senaste ögonblicken i röst"
+
+#: hud/ui/mini_player.slint
+msgid "{n} online"
+msgid_plural "{n} online"
+msgstr[0] "{n} online"
+msgstr[1] "{n} online"
+
+#: hud/ui/mini_player.slint
+msgid "{} is streaming"
+msgstr "{} streamar"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK"
+msgstr "FRÅGA"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK THE CREW"
+msgstr "FRÅGA GÄNGET"
+
+#. The red button of the ask popover. {} is the count of picked members.
+#: client/ui/components/looking_to_play_popover.slint
+msgid "ASK {}"
+msgstr "FRÅGA {}"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Any game"
+msgstr "Valfritt spel"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask the crew"
+msgstr "Fråga gänget"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Ask {n} member"
+msgid_plural "Ask {n} members"
+msgstr[0] "Fråga {n} medlem"
+msgstr[1] "Fråga {n} medlemmar"
+
+#: client/ui/components/looking_to_play.slint
+msgid "CHANGE"
+msgstr "ÄNDRA"
+
+#: client/ui/components/looking_to_play.slint
+msgid "Cancel the ask"
+msgstr "Avbryt frågan"
+
+#: client/ui/components/looking_to_play.slint
+msgid "Change answer"
+msgstr "Ändra svar"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "Find a member"
+msgstr "Hitta en medlem"
+
+#: client/ui/components/looking_to_play_popover.slint
+msgid "GAME"
+msgstr "SPEL"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN"
+msgstr "MED"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 15"
+msgstr "MED OM 15"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN 30"
+msgstr "MED OM 30"
+
+#: client/ui/components/looking_to_play.slint
+msgid "IN VOICE"
+msgstr "I RÖST"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In"
+msgstr "Med"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 15"
+msgstr "Med om 15"
+
+#: client/ui/components/looking_to_play.slint
+msgid "In 30"
+msgstr "Med om 30"
+
+#: client/ui/tr.slint
+msgid "In voice"
+msgstr "I röst"
+
+#: client/ui/components/looking_to_play.slint
+msgid "LOOKING TO PLAY"
+msgstr "VILL LIRA"
+
+#: client/ui/tr.slint
+msgid "Last time"
+msgstr "Förra gången"
+
+#. The unit after the minutes until an ask closes, or until a member is due.
+#: client/ui/components/looking_to_play.slint
+msgid "MIN"
+msgstr "MIN"
+
+#: client/ui/components/looking_to_play.slint
+msgid "NO ANSWER"
+msgstr "INGET SVAR"
+
+#: client/ui/components/looking_to_play.slint
+msgid "NOT NOW"
+msgstr "INTE NU"
+
+#: client/ui/components/looking_to_play.slint
+msgid "No one this time"
+msgstr "Ingen den här gången"
+
+#: client/ui/tr.slint
+msgid "No one was in on your last ask. Try again later."
+msgstr "Ingen var med på din senaste fråga. Försök igen senare."
+
+#: client/ui/tr.slint
+msgid "The ask did not go out. Try again."
+msgstr "Frågan gick inte ut. Försök igen."
+
+#. The client does not know the name of the asker.
+#: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
+msgid "Someone is looking to play"
+msgstr "Någon vill lira"
+
+#. The client does not know the name of the asker. {} is the game.
+#: client/ui/tr.slint
+msgid "Someone is looking to play {}"
+msgstr "Någon vill lira {}"
+
+#. {0} is the asker, {1} is the game.
+#: client/ui/tr.slint
+msgid "{0} is looking to play {1}"
+msgstr "{0} vill lira {1}"
+
+#: client/ui/tr.slint
+msgid "You asked a short time ago. Try again in a few minutes."
+msgstr "Du frågade nyss. Försök igen om några minuter."
+
+#: client/ui/tr.slint
+msgid "You have an open ask in this crew."
+msgstr "Du har redan en öppen fråga i gänget."
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} MORE IN"
+msgid_plural "{n} MORE IN"
+msgstr[0] "{n} TILL MED"
+msgstr[1] "{n} TILL MED"
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} NOT NOW"
+msgid_plural "{n} NOT NOW"
+msgstr[0] "{n} INTE NU"
+msgstr[1] "{n} INTE NU"
+
+#: client/ui/components/looking_to_play.slint
+msgid "{n} more in"
+msgid_plural "{n} more in"
+msgstr[0] "{n} till med"
+msgstr[1] "{n} till med"
+
+#. A closed ask that the asker cancelled. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} called it off"
+msgstr "{} blåste av det"
+
+#. The title of an ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+#: client/ui/tr.slint
+msgid "{} is looking to play"
+msgstr "{} vill lira"
+
+#. The title of a closed ask. {} is the asker.
+#: client/ui/components/looking_to_play.slint
+msgid "{} was looking to play"
+msgstr "{} ville lira"
+
+#: client/ui/components/looking_to_play.slint
+msgctxt "count of members in"
+msgid "IN"
+msgstr "MED"

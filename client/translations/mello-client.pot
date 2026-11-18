@@ -229,6 +229,7 @@ msgstr ""
 msgid "ON"
 msgstr ""
 
+#. The unit after the minutes until an ask closes, or until a member is due.
 #: client/ui/components/looking_to_play.slint
 msgid "MIN"
 msgstr ""
@@ -286,10 +287,12 @@ msgstr ""
 msgid "Not now"
 msgstr ""
 
+#. The title of a closed ask. {} is the asker.
 #: client/ui/components/looking_to_play.slint
 msgid "{} was looking to play"
 msgstr ""
 
+#. The title of an ask. {} is the asker.
 #: client/ui/components/looking_to_play.slint client/ui/tr.slint
 msgid "{} is looking to play"
 msgstr ""
@@ -320,6 +323,7 @@ msgstr ""
 msgid "Cancel the ask"
 msgstr ""
 
+#. A closed ask that the asker cancelled. {} is the asker.
 #: client/ui/components/looking_to_play.slint
 msgid "{} called it off"
 msgstr ""
@@ -332,7 +336,7 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#. show this run.
+#. The client does not know the name of the asker.
 #: client/ui/components/looking_to_play.slint client/ui/tr.slint
 msgid "Someone is looking to play"
 msgstr ""
@@ -361,6 +365,7 @@ msgstr ""
 msgid "ASK THE CREW"
 msgstr ""
 
+#. The red button of the ask popover. {} is the count of picked members.
 #: client/ui/components/looking_to_play_popover.slint
 msgid "ASK {}"
 msgstr ""
@@ -2154,6 +2159,20 @@ msgstr ""
 msgid "default"
 msgstr ""
 
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "m3llo restarts to switch to {}."
+msgstr ""
+
+#. The name of a language, in its own script.
+#: client/ui/panels/settings_modal.slint
+msgid "Keep {}"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "Restart now"
+msgstr ""
+
 #: client/ui/panels/settings_modal.slint
 msgid "Activation Sensitivity"
 msgstr ""
@@ -2227,10 +2246,6 @@ msgstr ""
 
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
-msgstr ""
-
-#: client/ui/panels/settings_modal.slint
-msgid "Takes effect after restart"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint
@@ -4884,10 +4899,12 @@ msgstr ""
 msgid "The ask did not go out. Try again."
 msgstr ""
 
+#. {0} is the asker, {1} is the game.
 #: client/ui/tr.slint
 msgid "{0} is looking to play {1}"
 msgstr ""
 
+#. The client does not know the name of the asker. {} is the game.
 #: client/ui/tr.slint
 msgid "Someone is looking to play {}"
 msgstr ""
