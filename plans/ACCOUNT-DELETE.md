@@ -1,6 +1,6 @@
 # Account delete in the clients
 
-> Status: built on the branch. Bob approved the renders on 17 Nov 2026. Not pushed.
+> Status: built. Bob approved the renders on 17 Nov 2026. In review.
 > Branch: `feat/account-delete` (worktree `mello-wt-account-delete`). The iOS app gets a
 > branch of the same name in `mello-ios`.
 > The backend rules it states merged in mollohq/m3llo#264 (`feat/delete-followups`).
@@ -17,7 +17,7 @@ No client shows it.
 
 | Part | State |
 |---|---|
-| Backend | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub (#262). Handover and refusal on `feat/delete-followups` |
+| Backend | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub (#262). Handover and refusal (#264) |
 | mello-core | `Command::DeleteAccount`, `handle_delete_account` (`client/auth.rs`). On success it runs the logout teardown and sends `AccountDeleted`. On failure it keeps the session and sends `AccountDeleteFailed { reason }`, where `reason` is the raw HTTP body |
 | Desktop client | `handlers/auth.rs` logs the two events. No UI |
 | iOS | Nothing. The FFI is a JSON bridge (`mello_core_send_command`), so no FFI change is needed |
