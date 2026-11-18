@@ -1455,7 +1455,7 @@ impl NakamaClient {
     }
 
     /// Looking to play: makes an ask, or counts as In on the open ask to
-    /// everyone for the same game (plans/LOOKING-TO-PLAY.md section 3.3).
+    /// everyone for the same game (specs/features/LOOKING-TO-PLAY.md section 3.3).
     pub async fn looking_to_play_ask(
         &self,
         crew_id: &str,
@@ -1505,7 +1505,7 @@ impl NakamaClient {
     }
 
     /// The current user's push switches for one crew, defaults included
-    /// (plans/LOOKING-TO-PLAY.md section 4).
+    /// (specs/features/LOOKING-TO-PLAY.md section 4).
     pub async fn push_prefs_get(&self, crew_id: &str) -> Result<crate::push_prefs::PushPrefs> {
         let payload = serde_json::json!({ "crew_id": crew_id });
         let resp = self.rpc("push_prefs_get", &payload).await?;

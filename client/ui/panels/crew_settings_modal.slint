@@ -823,8 +823,8 @@ component NotificationsTab inherits VerticalLayout {
     in-out property <bool> messages: false;
     in-out property <bool> looking-to-play: false;
     in property <bool> ready: false;
-    // The Looking to play row shows once the feature is built. Until then
-    // the setting has no effect, so the row is not there.
+    // False hides the Looking to play row. The window sets it to true
+    // (`looking-to-play-available` in main.slint).
     in property <bool> looking-to-play-available: false;
 
     callback messages-toggled(bool);

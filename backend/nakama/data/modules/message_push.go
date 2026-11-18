@@ -1,6 +1,6 @@
 package main
 
-// Plain message push (plans/LOOKING-TO-PLAY.md section 4).
+// Plain message push (specs/features/LOOKING-TO-PLAY.md section 4).
 //
 // A crew chat message sends a phone push to the members who cannot see it:
 // every member but the sender, with the Messages switch of the crew on

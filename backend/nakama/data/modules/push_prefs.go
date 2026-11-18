@@ -1,6 +1,6 @@
 package main
 
-// Push switches for each crew (plans/LOOKING-TO-PLAY.md sections 3.8 and 4).
+// Push switches for each crew (specs/features/LOOKING-TO-PLAY.md sections 3.8 and 4).
 //
 // A member has two switches for each crew: Messages and Looking to play. Only
 // a choice that the member made is stored. A switch with no stored choice uses

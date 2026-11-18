@@ -31,7 +31,7 @@ pub enum Sound {
     ClipSaved,
     CrewClip,
     NewMember,
-    /// A crew member asks who is in for a game (plans/LOOKING-TO-PLAY.md 3.6).
+    /// A crew member asks who is in for a game (specs/features/LOOKING-TO-PLAY.md 3.6).
     LookingToPlay,
 }
 
@@ -116,7 +116,7 @@ impl Sound {
             Sound::CrewClip => opus!("crew_clip"),
             Sound::NewMember => opus!("new_member"),
             // No sound of its own yet: the mention sound until the new file
-            // is here (plans/LOOKING-TO-PLAY.md 7.4).
+            // is here (specs/features/LOOKING-TO-PLAY.md 7.4).
             Sound::LookingToPlay => opus!("mention"),
         }
     }

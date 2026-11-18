@@ -1,7 +1,7 @@
 package main
 
 // Looking to play: storage, the notification to clients and the loop that
-// closes asks on time (plans/LOOKING-TO-PLAY.md section 3.3).
+// closes asks on time (specs/features/LOOKING-TO-PLAY.md section 3.3).
 //
 // An ask follows the reactions pattern (chat_reactions.go): one stored state
 // for each ask, changed with a version check, and the whole new state sent to

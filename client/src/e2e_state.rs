@@ -193,7 +193,7 @@ struct Snapshot {
     /// Sealed belts and recap in the feed, and the card in the centre.
     sealed: SealedSnap,
     /// Looking to play: the asks of the crew on screen, the pill, the
-    /// popover and the toast (plans/LOOKING-TO-PLAY.md 3.6).
+    /// popover and the toast (specs/features/LOOKING-TO-PLAY.md 3.6).
     looking_to_play: LookingToPlaySnap,
     /// The chat input has the cursor.
     chat_input_focused: bool,
