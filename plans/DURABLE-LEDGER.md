@@ -1,7 +1,7 @@
 # Durable crew ledger
 
-Status: phase 1 is built on `feat/durable-ledger`. This document holds only
-what is still a plan.
+Status: phase 1 is merged. Phase 2 is built on `feat/history-sessions`. This
+document holds only what is still a plan.
 
 ## 1. What is built
 
@@ -17,6 +17,7 @@ Phase 1 is in the specs. The code is in `backend/nakama/data/modules/`.
 | Modules, collections, hooks, admin RPCs | `specs/04-BACKEND.md` sections 3, 4, 4.5, 4.6, 6 |
 | Clips with no cap | `specs/features/CLIPS.md` section 6.2 |
 | Crew history from the store | `specs/features/CREW-FEED-ZONES.md` section 7 |
+| Game sessions in Crew history (phase 2) | CREW-FEED-ZONES.md sections 7 and 8, spec 16 section 3.8 |
 | Conformance run, `dev_ledger_selftest` | `TESTING.md`, "Crew ledger store" |
 
 ## 2. Decisions that hold for the next phases
@@ -33,19 +34,30 @@ Phase 1 is in the specs. The code is in `backend/nakama/data/modules/`.
 |---|---|---|---|
 | 1a | Ledger events in the durable store, dual write, reconcile, readers moved, deletion rules | None | Built |
 | 1b | Clips, stream sessions and recaps in the same store, caps removed | A crew over an old cap sees all its clips and streams | Built |
-| 2 | Game and voice sessions in Crew history | Yes | Plan |
+| 2 | Game sessions in Crew history | Yes | Built, iOS open |
 | 3 | The free rule, as an admin setting | Yes | Plan |
 | 4 | m3llo+ made real: admin grant, then purchase | Yes | Plan |
 
-### Phase 2: sessions in Crew history
+### Phase 2: game sessions in Crew history
 
-- Crew history (`zoneHistory`) holds clips, stream sessions and recaps. Game
-  sessions and voice sessions are in the store, and no reader shows them
-  after they leave the 7-day view.
-- Add `game_session` and `voice_session` to the weeks of Crew history.
-- The page read uses the week rollup (`WeeksBefore`) and `Between`, as for
-  clips. The read cost of one `crew_feed` call must stay bounded
-  (`TestCrewFeedLoadQueryCount`).
+Built: the server and the desktop client. The rules are in
+CREW-FEED-ZONES.md section 7.
+
+- A voice session is not in Crew history. It is not a counted event
+  (section 2). The first plan of this phase had it.
+- One `crew_feed` call reads the store 15 times with m3llo+ and at most 20
+  times without it. Before phase 2 it was 14 and 19.
+- A locked week shows nothing of a game session but the number in "+N". A
+  locked week of game sessions only, with no recap, is not sent.
+
+Still a plan:
+
+- iOS (`mello-ios`). It shows the game sessions of an open week now: they are
+  entries of `items`. It does not read `session_count`, so the "+N" of
+  a locked week does not count the game sessions.
+- The Sessions zone reads the 7-day view. With `free_days` above 7 a game
+  session between 7 days and the free window is in no zone. Phase 3 changes
+  the free window, so it must read the sessions of the window from the store.
 
 ### Phase 3: the free rule
 

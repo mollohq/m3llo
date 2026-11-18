@@ -20,7 +20,7 @@ use mello_core::chat::UnreadTracker;
 pub type InvitedUserList = Vec<(String, String, bool)>;
 
 /// The push switches of the crew whose settings are open (crew settings,
-/// NOTIFICATIONS tab; plans/LOOKING-TO-PLAY.md section 4).
+/// NOTIFICATIONS tab; specs/features/LOOKING-TO-PLAY.md section 4).
 #[derive(Default)]
 pub struct CrewSettingsPush {
     /// The crew whose settings were opened last. Empty before the first open.
@@ -178,7 +178,7 @@ pub struct AppContext {
     /// nothing.
     pub stream_key_notice: Rc<RefCell<Option<crate::notifications::ShowText>>>,
     /// Looking to play: the asks, the recent picks and the flags of the
-    /// cards and the ask popover (plans/LOOKING-TO-PLAY.md 3.6).
+    /// cards and the ask popover (specs/features/LOOKING-TO-PLAY.md 3.6).
     pub looking_to_play: Rc<RefCell<crate::looking_to_play::LtpState>>,
     /// Posts the OS notification of a new ask while the window is hidden:
     /// the title and the body. `None` posts nothing.

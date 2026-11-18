@@ -1,5 +1,5 @@
 //! Looking to play: the commands of an ask and the load of the asks that the
-//! chat history shows (plans/LOOKING-TO-PLAY.md section 3.5).
+//! chat history shows (specs/features/LOOKING-TO-PLAY.md section 3.5).
 
 use crate::events::{ChatMessage, Event};
 use crate::looking_to_play::{self, Answer, AskGame};

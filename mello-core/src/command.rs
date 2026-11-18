@@ -180,7 +180,7 @@ pub enum Command {
         environment: Option<String>,
     },
     /// Looking to play: ask the crew, or the picked members, if they are up
-    /// for a game (plans/LOOKING-TO-PLAY.md section 3). No `member_ids` asks
+    /// for a game (specs/features/LOOKING-TO-PLAY.md section 3). No `member_ids` asks
     /// everyone. The answer is `Event::LookingToPlayUpdated`, or
     /// `Event::LookingToPlayFailed`.
     LookingToPlayAsk {
@@ -199,7 +199,7 @@ pub enum Command {
     LookingToPlayCancel {
         ask_id: String,
     },
-    /// Load the user's push switches for a crew (plans/LOOKING-TO-PLAY.md
+    /// Load the user's push switches for a crew (specs/features/LOOKING-TO-PLAY.md
     /// section 4). The answer is `Event::PushPrefsLoaded`.
     LoadPushPrefs {
         crew_id: String,

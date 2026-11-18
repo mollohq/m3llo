@@ -34,6 +34,7 @@ The sounds are by Petter B. (https://www.instagram.com/petterb).
 | Your clip is saved | `clip_saved.opus` | Clips |
 | Someone in the crew clipped | `crew_clip.opus` | Clips |
 | A new member joins the crew | `new_member.opus` | Crew |
+| A crew member asks if you are up for a game (Looking to play) | `mention.opus` | Crew |
 
 - The files are in `mello-core/assets/sounds/`: Ogg Opus, 48 kHz stereo, 96 kbps, 20 ms frames,
   no tags. mello-core embeds them with `include_bytes!`. About 197 KB in all.
@@ -42,6 +43,8 @@ The sounds are by Petter B. (https://www.instagram.com/petterb).
   at commit `96e8e438`, and the script reads them from there.
 - Each master peaks at -26 LUFS momentary loudness, so no sound is louder than the others.
 - The member join and leave sounds are the you-join and you-leave sounds without their first part.
+- `Sound::LookingToPlay` has no file of its own yet. It plays `mention.opus` from its own slot
+  (`LOOKING-TO-PLAY.md` section 7, point 4).
 - Licence: all rights reserved by Petter B., used with permission. The sounds are not under the
   repository's Apache 2.0 licence. See `mello-core/assets/sounds/LICENSE`.
 
@@ -115,6 +118,7 @@ Two crew events (code 111, `PushCrewEvent`, priority events). The payloads carry
 | Clip saved | `ClipCaptured`, `GameClipCaptured` | |
 | Crew clip | 111 `clip_posted` | Active crew only. Not your own clip. The event does not reload the crew state: `feed_changed` reloads the feed |
 | New member | 111 `member_joined` | Active crew only. Not you |
+| Looking to play | `LookingToPlayUpdated { notify: true }` (118) of a new ask: the toast shows, a waiting toast shows, the card is on screen, or the OS notification shows while the window is hidden | Any crew of the user, not only the active crew. Not your own ask. Not an ask you answered or that is closed. Once for an ask. One sound per 60 s at most. The asker hears no sound when a member is in |
 
 Tests: `SoundCues` keeps the last 64 cues. The flow tests in `client/src/flow_tests.rs` assert on them.
 
@@ -132,5 +136,5 @@ The credits read "Sounds by Petter B.", with a link to https://www.instagram.com
 ## 9. Not in Scope
 
 - iOS.
-- A sound for a crew that is not active.
+- A sound for a crew that is not active. Looking to play is the one exception.
 - On macOS a desktop stream carries m3llo's own output (CLIPS.md §15.12a), so the sounds are in it too.
