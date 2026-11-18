@@ -86,8 +86,9 @@ jobs:
     name: Test (Linux)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    # libmello/CMakeLists.txt keeps the rnnoise model tarball here. The cache
-    # step below keeps it between runs, so a build needs no download.
+    # libmello/CMakeLists.txt keeps its downloads here: the ONNX Runtime
+    # archive and the rnnoise model tarball. The cache step below keeps them
+    # between runs, so a build needs no download.
     env:
       MELLO_DEPS_DIR: ${{ github.workspace }}/.mello-deps
 

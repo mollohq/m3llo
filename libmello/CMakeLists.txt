@@ -15,6 +15,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # mello_fetch_verified(): a SHA512-pinned download with fallback URLs.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/mello-fetch-verified.cmake)
 
+# MELLO_DEPS_DIR (environment) is the folder for the files that
+# mello_fetch_verified() downloads (the ONNX Runtime archive, the rnnoise
+# model tarball), so that a CI cache or a developer can keep them between
+# builds. Without it, the files go into the build folder.
+if(NOT "$ENV{MELLO_DEPS_DIR}" STREQUAL "")
+    file(TO_CMAKE_PATH "$ENV{MELLO_DEPS_DIR}" MELLO_DEPS_DIR)
+    get_filename_component(MELLO_DEPS_DIR "${MELLO_DEPS_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+else()
+    set(MELLO_DEPS_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+endif()
+
 if(APPLE AND NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version")
 endif()
@@ -81,34 +92,33 @@ if(IOS)
     )
     message(STATUS "[mello] ONNX Runtime iOS v${ORT_IOS_VERSION} (static) at ${ORT_DIR}")
 else()
+# Desktop: the archive of the upstream release, pinned by SHA512. The files in
+# the mirror are copies of the upstream files. The sources, in order:
+# 1. The deps-mirror pre-release of mollohq/m3llo.
+# 2. The release of microsoft/onnxruntime, the upstream source.
+# An extracted folder that exists stays: no download and no extract.
 set(ORT_VERSION "1.23.2")
 set(ORT_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/onnxruntime)
 
 if(WIN32)
     set(ORT_ARCHIVE "onnxruntime-win-x64-${ORT_VERSION}.zip")
-    set(ORT_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}")
+    set(ORT_SHA512 "3f3aecea57a38fca987401306e72cde4058828a41ee57e16cc9ff3363eaaba16c43ae65545a280f0fd485da535d6e18541838cf5ccd12c13374f8f0a66704d0d")
     set(ORT_DIR "${ORT_BASE_DIR}/onnxruntime-win-x64-${ORT_VERSION}")
 elseif(APPLE)
     set(ORT_ARCHIVE "onnxruntime-osx-arm64-${ORT_VERSION}.tgz")
-    set(ORT_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}")
+    set(ORT_SHA512 "1857377ec646de358241f293f3215dfb60e4ad82638d378b3fd704ac9d84ddd70783c944fec39b7517fb8b8d9627c230e8a7a16caa3a4ee20638876d7514359f")
     set(ORT_DIR "${ORT_BASE_DIR}/onnxruntime-osx-arm64-${ORT_VERSION}")
 else()
     set(ORT_ARCHIVE "onnxruntime-linux-x64-${ORT_VERSION}.tgz")
-    set(ORT_URL "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}")
+    set(ORT_SHA512 "ac836c937ec30aecad03360ebc338338641a3421143d51c8eb45c71b346fd6e3ab3f680ce52ee99582cee27c051418789064543ec3361d574b1940c9c49a8a7c")
     set(ORT_DIR "${ORT_BASE_DIR}/onnxruntime-linux-x64-${ORT_VERSION}")
 endif()
 
 if(NOT EXISTS "${ORT_DIR}/include")
-    set(ORT_DL_PATH "${CMAKE_CURRENT_BINARY_DIR}/${ORT_ARCHIVE}")
-    if(NOT EXISTS "${ORT_DL_PATH}")
-        message(STATUS "[mello] Downloading ONNX Runtime v${ORT_VERSION}...")
-        file(DOWNLOAD "${ORT_URL}" "${ORT_DL_PATH}" SHOW_PROGRESS STATUS ORT_DL_STATUS)
-        list(GET ORT_DL_STATUS 0 ORT_DL_CODE)
-        if(NOT ORT_DL_CODE EQUAL 0)
-            list(GET ORT_DL_STATUS 1 ORT_DL_MSG)
-            message(FATAL_ERROR "[mello] ONNX Runtime download failed: ${ORT_DL_MSG}")
-        endif()
-    endif()
+    set(ORT_DL_PATH "${MELLO_DEPS_DIR}/${ORT_ARCHIVE}")
+    mello_fetch_verified("${ORT_DL_PATH}" "${ORT_SHA512}"
+        "https://github.com/mollohq/m3llo/releases/download/deps-mirror/${ORT_ARCHIVE}"
+        "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}")
     file(ARCHIVE_EXTRACT INPUT "${ORT_DL_PATH}" DESTINATION "${ORT_BASE_DIR}")
     message(STATUS "[mello] ONNX Runtime v${ORT_VERSION} extracted to ${ORT_DIR}")
 endif()
@@ -145,18 +155,10 @@ set(RNNOISE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/rnnoise)
 # of the vcpkg portfile, pinned by SHA512. The sources, in order:
 # 1. The deps-mirror pre-release of mollohq/m3llo (a copy of the same file).
 # 2. media.xiph.org, the upstream source.
-# MELLO_DEPS_DIR (environment) is the folder for the tarball, so that a CI
-# cache or a developer can keep it between builds. Without it, the tarball
-# goes into the build folder.
+# The tarball goes into MELLO_DEPS_DIR (see the top of this file).
 set(RNNOISE_MODEL_TAR "rnnoise_data-0a8755f8e2d834eff6a54714ecc7d75f9932e845df35f8b59bc52a7cfe6e8b37.tar.gz")
 set(RNNOISE_MODEL_SHA512 "b327d2fc5095be9ed66c5246a86b1a1ce180e9de875c4e5e8778f975560d1f035da40a8686dc1c3fd91c8e709be65d2638eccaa9f866b6f3d85f8d0d16bd2184")
 if(NOT EXISTS "${RNNOISE_DIR}/src/rnnoise_data.h")
-    if(NOT "$ENV{MELLO_DEPS_DIR}" STREQUAL "")
-        file(TO_CMAKE_PATH "$ENV{MELLO_DEPS_DIR}" MELLO_DEPS_DIR)
-        get_filename_component(MELLO_DEPS_DIR "${MELLO_DEPS_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    else()
-        set(MELLO_DEPS_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-    endif()
     set(RNNOISE_MODEL_DL "${MELLO_DEPS_DIR}/${RNNOISE_MODEL_TAR}")
     mello_fetch_verified("${RNNOISE_MODEL_DL}" "${RNNOISE_MODEL_SHA512}"
         "https://github.com/mollohq/m3llo/releases/download/deps-mirror/${RNNOISE_MODEL_TAR}"
