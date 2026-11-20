@@ -1459,6 +1459,78 @@ msgstr ""
 msgid "Saved"
 msgstr ""
 
+#: client/ui/panels/delete_account_modal.slint
+msgid "ACCOUNT"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete your account"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETED"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your account, your name and your sign-in."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips, streams and events you started."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your chat messages and the images you posted."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "REMOVED"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your name, from the events, clips and weekly recaps of other members."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "STAYS"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips and events of other members, without you."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The totals of weekly recaps."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "YOUR CREWS"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew you own goes to an admin, or to the member who joined first."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew where you are the only member is deleted."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "This cannot be undone."
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete my account"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETING"
+msgstr ""
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETE MY ACCOUNT"
+msgstr ""
+
 #: client/ui/panels/discover_panel.slint
 msgid "0{n} Member"
 msgid_plural "0{n} Members"
@@ -2395,6 +2467,14 @@ msgstr ""
 
 #: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Upload"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "Delete account"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "DELETE ACCOUNT"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint
@@ -4427,6 +4507,12 @@ msgstr ""
 #. Onboarding: the account was not made.
 #: client/ui/tr.slint
 msgid "Couldn't create your account. Check your connection and try again."
+msgstr ""
+
+#. Settings, account delete: the delete failed and the server gave no text to 
+#. show.
+#: client/ui/tr.slint
+msgid "Your account was not deleted. Check the connection and try again."
 msgstr ""
 
 #. Onboarding: the app did not connect.

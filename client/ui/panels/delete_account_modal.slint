@@ -1,0 +1,206 @@
+import { Theme } from "../theme.slint";
+import { CutShape, CutButton } from "../components/cut.slint";
+import { ZoneButton, Kicker } from "../components/feed_board.slint";
+
+// ============================================================
+//  Delete account (plans/ACCOUNT-DELETE.md section 4).
+//  Opened from Settings, PROFILE, ACCOUNT. It says what is deleted and
+//  what stays (spec 16 section 10.2). The red button commits the delete.
+// ============================================================
+
+/// The state of the dialog, driven from Rust (callbacks/account_delete.rs).
+export global DeleteAccountUi {
+    in-out property <bool> open: false;
+    /// The delete is sent and has no answer yet.
+    in-out property <bool> busy: false;
+    /// The text of the last failure. Empty: no failure.
+    in-out property <string> error;
+    /// The user pressed the red button.
+    callback confirm();
+}
+
+/// One part of the list: a label and its sentences.
+component Part inherits VerticalLayout {
+    in property <string> label;
+    in property <[string]> lines;
+    spacing: 4px;
+
+    Kicker { text: root.label; }
+    for line in root.lines: Text {
+        text: line;
+        font-family: Theme.font-body;
+        font-weight: Theme.weight-sentence;
+        font-size: 13px;
+        color: Theme.text-body;
+        wrap: word-wrap;
+    }
+}
+
+export component DeleteAccountModal inherits Rectangle {
+    in property <bool> busy;
+    in property <string> error;
+    callback confirm();
+    callback close-requested();
+
+    width: 100%;
+    height: 100%;
+    background: Theme.scrim;
+
+    init => { key-scope.focus(); }
+
+    key-scope := FocusScope {
+        width: 100%;
+        height: 100%;
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.close-requested();
+                accept
+            } else {
+                reject
+            }
+        }
+
+        TouchArea {
+            // a11y: none (backdrop: a click outside the dialog closes it)
+            clicked => { root.close-requested(); }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 480px;
+            height: inner.preferred-height;
+            background: transparent;
+
+            CutShape { width: parent.width; height: parent.height; n: Theme.notch; fill: Theme.graphic-light; }
+            CutShape { width: parent.width; height: parent.height; n: Theme.notch; inset: Theme.keyline; fill: Theme.surface; }
+            TouchArea {
+                // a11y: none (input blocker: stops clicks reaching the backdrop)
+            }
+
+            inner := VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                VerticalLayout {
+                    spacing: 6px;
+                    Kicker { text: @tr("ACCOUNT"); }
+                    Text {
+                        text: @tr("Delete your account");
+                        font-family: Theme.font-display;
+                        font-weight: Theme.weight-display;
+                        font-size: 20px;
+                        color: Theme.text-primary;
+                    }
+                }
+
+                Part {
+                    label: @tr("DELETED");
+                    lines: [
+                        @tr("Your account, your name and your sign-in."),
+                        @tr("The clips, streams and events you started."),
+                        @tr("Your chat messages and the images you posted."),
+                    ];
+                }
+                Part {
+                    label: @tr("REMOVED");
+                    lines: [
+                        @tr("Your name, from the events, clips and weekly recaps of other members."),
+                    ];
+                }
+                Part {
+                    label: @tr("STAYS");
+                    lines: [
+                        @tr("The clips and events of other members, without you."),
+                        @tr("The totals of weekly recaps."),
+                    ];
+                }
+                Part {
+                    label: @tr("YOUR CREWS");
+                    lines: [
+                        @tr("A crew you own goes to an admin, or to the member who joined first."),
+                        @tr("A crew where you are the only member is deleted."),
+                    ];
+                }
+
+                Text {
+                    text: @tr("This cannot be undone.");
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 13px;
+                    color: Theme.text-primary;
+                    wrap: word-wrap;
+                }
+
+                if root.error != "": Text {
+                    text: root.error;
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 13px;
+                    color: Theme.live;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    padding-top: 4px;
+                    spacing: 10px;
+                    alignment: end;
+
+                    ZoneButton {
+                        label: @tr("CANCEL");
+                        a11y-label: @tr("Cancel");
+                        tone: "line";
+                        opacity: root.busy ? 0.4 : 1;
+                        accessible-enabled: !root.busy;
+                        clicked => { root.close-requested(); }
+                    }
+                    Rectangle {
+                        width: delete-text.preferred-width + 56px;
+                        height: 36px;
+                        opacity: root.busy ? 0.4 : 1;
+                        accessible-role: button;
+                        accessible-label: @tr("Delete my account");
+                        accessible-enabled: !root.busy;
+                        CutButton { width: parent.width; height: parent.height; fill-color: Theme.confirm; }
+                        delete-text := Text {
+                            text: root.busy ? @tr("DELETING") : @tr("DELETE MY ACCOUNT");
+                            font-family: Theme.font-label;
+                            font-weight: Theme.weight-label;
+                            font-size: 10px;
+                            letter-spacing: Theme.track-kicker;
+                            color: Theme.on-confirm;
+                        }
+                        TouchArea {
+                            enabled: !root.busy;
+                            mouse-cursor: root.busy ? default : pointer;
+                            clicked => { root.confirm(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component PreviewFrame inherits Rectangle {
+    width: 1000px;
+    height: 780px;
+    background: Theme.bg-app;
+}
+
+/// The confirm, before a press.
+export component Preview inherits PreviewFrame {
+    DeleteAccountModal { }
+}
+
+/// The delete is sent.
+export component PreviewBusy inherits PreviewFrame {
+    DeleteAccountModal { busy: true; }
+}
+
+/// The server refused: a crew could not be handed over.
+export component PreviewRefused inherits PreviewFrame {
+    DeleteAccountModal {
+        error: "Your account was not deleted. A crew you own could not be handed to another member. Try again in a moment.";
+    }
+}

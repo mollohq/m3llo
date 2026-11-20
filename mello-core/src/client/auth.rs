@@ -230,9 +230,7 @@ impl super::Client {
     pub(super) async fn handle_delete_account(&mut self) {
         if let Err(e) = self.nakama.delete_account().await {
             log::error!("[auth] failed to delete account: {}", e);
-            let _ = self.event_tx.send(Event::AccountDeleteFailed {
-                reason: e.to_string(),
-            });
+            let _ = self.event_tx.send(account_delete_failed(&e));
             return;
         }
 
@@ -818,9 +816,83 @@ impl super::Client {
     }
 }
 
+/// The gRPC code of UNAVAILABLE. The account delete answers it when a crew
+/// of the user cannot be handed over (spec 16 section 10.2).
+const CODE_UNAVAILABLE: i64 = 14;
+
+/// The event of a failed account delete. Only a refusal (code 14) carries the
+/// server text to the UI: other server texts are not written for a user.
+fn account_delete_failed(error: &crate::Error) -> Event {
+    let message = (error.server_code() == Some(CODE_UNAVAILABLE))
+        .then(|| error.server_message())
+        .flatten()
+        .filter(|m| !m.trim().is_empty());
+    Event::AccountDeleteFailed {
+        reason: error.to_string(),
+        message,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const REFUSED: &str = "Your account was not deleted. A crew you own could not be handed to another member. Try again in a moment.";
+
+    fn message_of(event: Event) -> Option<String> {
+        match event {
+            Event::AccountDeleteFailed { message, .. } => message,
+            other => panic!("expected AccountDeleteFailed, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_refused_delete_carries_the_server_text() {
+        let body = format!(r#"{{"code":14,"message":"{REFUSED}"}}"#);
+        let event = account_delete_failed(&crate::Error::Server(body));
+        assert_eq!(message_of(event).as_deref(), Some(REFUSED));
+    }
+
+    #[test]
+    fn another_server_error_carries_no_text() {
+        let body = r#"{"code":13,"message":"error deleting account"}"#.to_string();
+        assert_eq!(
+            message_of(account_delete_failed(&crate::Error::Server(body))),
+            None
+        );
+        let html = crate::Error::Server("<html>502</html>".into());
+        assert_eq!(message_of(account_delete_failed(&html)), None);
+        let empty = crate::Error::Server(r#"{"code":14,"message":" "}"#.into());
+        assert_eq!(message_of(account_delete_failed(&empty)), None);
+    }
+
+    #[test]
+    fn a_failure_with_no_server_answer_carries_no_text() {
+        let event = account_delete_failed(&crate::Error::NotConnected);
+        match event {
+            Event::AccountDeleteFailed { reason, message } => {
+                assert_eq!(reason, "Not connected");
+                assert_eq!(message, None);
+            }
+            other => panic!("expected AccountDeleteFailed, got {other:?}"),
+        }
+    }
+
+    /// iOS decodes the event from JSON, and an old payload has no message.
+    #[test]
+    fn the_failed_event_round_trips_and_an_old_payload_decodes() {
+        let event = Event::AccountDeleteFailed {
+            reason: "Server error".into(),
+            message: Some(REFUSED.into()),
+        };
+        let json = serde_json::to_string(&event).expect("serialize");
+        let back: Event = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(message_of(back).as_deref(), Some(REFUSED));
+
+        let old = serde_json::json!({"type": "AccountDeleteFailed", "data": {"reason": "x"}});
+        let old: Event = serde_json::from_value(old).expect("an old payload decodes");
+        assert_eq!(message_of(old), None);
+    }
 
     #[test]
     fn only_a_refused_refresh_token_clears_the_saved_session() {

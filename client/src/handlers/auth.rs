@@ -5,6 +5,8 @@ use crate::app_context::AppContext;
 use crate::converters::make_initials;
 use crate::deep_link::DeepLink;
 use crate::onboarding::OnboardingState;
+use crate::DeleteAccountUi;
+use slint::ComponentHandle as _;
 
 pub fn handle(ctx: &AppContext, event: Event) {
     match event {
@@ -104,15 +106,22 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_logged_in(true);
             crate::onboarding::advance(ctx, crate::onboarding::Input::IdentitySettled);
         }
-        // No UI affordance deletes an account yet — `Command::DeleteAccount`
-        // exists for the release smoke test, which drives it from a scenario
-        // and asserts on the event rather than on the window. Log only; give
-        // these arms real UI behaviour when a delete-account setting lands.
-        Event::AccountDeleted => {
-            log::info!("[auth] account deleted — session cleared");
-        }
-        Event::AccountDeleteFailed { reason } => {
-            log::warn!("[auth] account-delete-failed  reason={}", reason);
+        Event::AccountDeleted => account_deleted(ctx),
+        Event::AccountDeleteFailed { reason, message } => {
+            log::warn!(
+                "[auth] account-delete-failed  reason={} refused={}",
+                reason,
+                message.is_some()
+            );
+            let ui = ctx.app.global::<DeleteAccountUi>();
+            ui.set_busy(false);
+            let text = message.unwrap_or_else(|| {
+                ctx.app
+                    .global::<crate::Tr>()
+                    .get_account_delete_failed()
+                    .into()
+            });
+            ui.set_error(text.into());
         }
         Event::SocialLinkFailed { reason } => {
             log::warn!("[auth] social-link-failed  reason={:?}", reason);
@@ -323,6 +332,33 @@ fn dispatch_pending_deep_link(ctx: &AppContext) {
             }
         }
     }
+}
+
+/// The account is gone and core cleared the session (it ran its logout).
+///
+/// The window goes to onboarding step 1 as after a logout, with two
+/// differences. No `Command::Logout`: core already ran it. No device auth:
+/// the device id is forgotten, because device auth creates an account, and
+/// the old id would make a new account at once. Finalize makes a new id, as
+/// on a fresh install.
+fn account_deleted(ctx: &AppContext) {
+    log::info!("[auth] account deleted, session cleared, back to step 1");
+    let ui = ctx.app.global::<DeleteAccountUi>();
+    ui.set_busy(false);
+    ui.set_error("".into());
+    ui.set_open(false);
+    ctx.app.invoke_close_settings();
+    ctx.avatar_cache.borrow_mut().clear();
+    {
+        let mut s = ctx.settings.borrow_mut();
+        s.device_id = None;
+        s.save();
+    }
+    crate::callbacks::auth::show_signed_out(
+        &ctx.app,
+        &ctx.settings,
+        &crate::onboarding::EffectCtx::from_ctx(ctx),
+    );
 }
 
 #[cfg(test)]

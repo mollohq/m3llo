@@ -1140,7 +1140,7 @@ A crew with other members must not go with the account of its owner. So the hook
 - The account, the session and the crew stay as they were. The user tries again. A crew that was handed over before the failure keeps its new owner beside the user.
 - No scrub record is written for a refused delete.
 - Nothing else in the hook fails the delete: not the account read, not the write of the scrub record, not a crew of an only member.
-- The clients have no account delete in the UI today. The desktop core keeps the session on a failed delete and sends `AccountDeleteFailed` with the answer of the server. The desktop client logs it. iOS has no delete command.
+- The clients delete the account from Settings (spec 01, PROFILE tab). Core keeps the session on a failed delete and sends `AccountDeleteFailed`. Its `message` is this text for code 14, and empty for any other failure. The client shows the text and allows a retry.
 
 **A crew with no owner.** Two owners who delete their accounts at the same time each see the other in the before hook. Nakama counts the membership rows it keeps of the first (see the table below) as a superadmin when the second goes, so the group stays with no owner. `repairOwnerlessCrew` gives a crew with members and no superadmin an owner, by the rule of the handover. The scrub calls it for each crew after it removed the membership rows of the account. The sweep of section 10.4 calls it too. A crew with no member at all is logged (`crew_owner_repair`) and stays.
 
