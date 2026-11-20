@@ -17,6 +17,8 @@ mod chat_ui;
 mod cjk_fonts;
 mod clip_key;
 mod converters;
+#[cfg(test)]
+mod cut_shape_tests;
 #[cfg(target_os = "windows")]
 pub mod dcomp_presenter;
 mod deep_link;
@@ -55,6 +57,8 @@ mod notifications;
 mod onboarding;
 mod onboarding_invite;
 mod open_url;
+#[cfg(test)]
+mod path_lint;
 mod perf_mode;
 mod platform;
 mod poll_loop;

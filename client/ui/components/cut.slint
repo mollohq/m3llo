@@ -19,6 +19,19 @@ import { Theme } from "../theme.slint";
 //  `corner`: "tr" (default) | "tl" | "br" | "bl"
 // ============================================================
 
+/// A number for the `commands` of a `Path`.
+///
+/// `"\{x}"` writes a number with the decimal separator of the selected
+/// language: `80,5` under Swedish or German. In SVG path data a comma
+/// separates two numbers, so the path does not parse and Slint draws
+/// nothing. Every number that goes into a `commands` string goes through
+/// `PathNum.n()`, which always writes `80.5`. `path_lint.rs` enforces it.
+export global PathNum {
+    public pure function n(v: float) -> string {
+        return v.to-string-unlocalized();
+    }
+}
+
 export component CutShape inherits Path {
     in property <length> n: Theme.notch;
     in property <string> corner: "tr";
@@ -37,12 +50,12 @@ export component CutShape inherits Path {
 
     commands:
         corner == "tl"
-            ? "M \{x0 + c} \{y0} L \{x1} \{y0} L \{x1} \{y1} L \{x0} \{y1} L \{x0} \{y0 + c} Z"
+            ? "M \{PathNum.n(x0 + c)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y0 + c)} Z"
         : corner == "br"
-            ? "M \{x0} \{y0} L \{x1} \{y0} L \{x1} \{y1 - c} L \{x1 - c} \{y1} L \{x0} \{y1} Z"
+            ? "M \{PathNum.n(x0)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y1 - c)} L \{PathNum.n(x1 - c)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y1)} Z"
         : corner == "bl"
-            ? "M \{x0} \{y0} L \{x1} \{y0} L \{x1} \{y1} L \{x0 + c} \{y1} L \{x0} \{y1 - c} Z"
-        :   "M \{x0} \{y0} L \{x1 - c} \{y0} L \{x1} \{y0 + c} L \{x1} \{y1} L \{x0} \{y1} Z";
+            ? "M \{PathNum.n(x0)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y1)} L \{PathNum.n(x0 + c)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y1 - c)} Z"
+        :   "M \{PathNum.n(x0)} \{PathNum.n(y0)} L \{PathNum.n(x1 - c)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y0 + c)} L \{PathNum.n(x1)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y1)} Z";
 }
 
 /// Button and tile silhouette: top-left AND bottom-right cut.
@@ -61,7 +74,7 @@ export component CutButtonShape inherits Path {
     property <float> y1: (self.height - self.inset) / 1px;
     property <float> c: self.n / 1px;
 
-    commands: "M \{x0 + c} \{y0} L \{x1} \{y0} L \{x1} \{y1 - c} L \{x1 - c} \{y1} L \{x0} \{y1} L \{x0} \{y0 + c} Z";
+    commands: "M \{PathNum.n(x0 + c)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y0)} L \{PathNum.n(x1)} \{PathNum.n(y1 - c)} L \{PathNum.n(x1 - c)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y1)} L \{PathNum.n(x0)} \{PathNum.n(y0 + c)} Z";
 }
 
 /// A person. Four corners cut — the octagon means "human".
@@ -77,7 +90,7 @@ export component OctShape inherits Path {
     property <float> h: self.height / 1px;
     property <float> c: self.n / 1px;
 
-    commands: "M \{c} 0 L \{w - c} 0 L \{w} \{c} L \{w} \{h - c} L \{w - c} \{h} L \{c} \{h} L 0 \{h - c} L 0 \{c} Z";
+    commands: "M \{PathNum.n(c)} 0 L \{PathNum.n(w - c)} 0 L \{PathNum.n(w)} \{PathNum.n(c)} L \{PathNum.n(w)} \{PathNum.n(h - c)} L \{PathNum.n(w - c)} \{PathNum.n(h)} L \{PathNum.n(c)} \{PathNum.n(h)} L 0 \{PathNum.n(h - c)} L 0 \{PathNum.n(c)} Z";
 }
 
 /// A card with one corner cut away and a 1px keyline.
@@ -160,10 +173,10 @@ export component CutMask inherits Path {
     property <float> c: self.n / 1px;
 
     commands:
-        corner == "tl" ? "M 0 0 L \{c} 0 L 0 \{c} Z"
-      : corner == "br" ? "M \{w} \{h - c} L \{w} \{h} L \{w - c} \{h} Z"
-      : corner == "bl" ? "M 0 \{h - c} L \{c} \{h} L 0 \{h} Z"
-      :                  "M \{w - c} 0 L \{w} 0 L \{w} \{c} Z";
+        corner == "tl" ? "M 0 0 L \{PathNum.n(c)} 0 L 0 \{PathNum.n(c)} Z"
+      : corner == "br" ? "M \{PathNum.n(w)} \{PathNum.n(h - c)} L \{PathNum.n(w)} \{PathNum.n(h)} L \{PathNum.n(w - c)} \{PathNum.n(h)} Z"
+      : corner == "bl" ? "M 0 \{PathNum.n(h - c)} L \{PathNum.n(c)} \{PathNum.n(h)} L 0 \{PathNum.n(h)} Z"
+      :                  "M \{PathNum.n(w - c)} 0 L \{PathNum.n(w)} 0 L \{PathNum.n(w)} \{PathNum.n(c)} Z";
 }
 
 /// Paints the four corners in the surrounding colour, so an image placed
@@ -182,10 +195,10 @@ export component OctMask inherits Path {
     property <float> c: self.n / 1px;
 
     commands:
-        "M 0 0 L \{c} 0 L 0 \{c} Z " +
-        "M \{w - c} 0 L \{w} 0 L \{w} \{c} Z " +
-        "M \{w} \{h - c} L \{w} \{h} L \{w - c} \{h} Z " +
-        "M 0 \{h - c} L \{c} \{h} L 0 \{h} Z";
+        "M 0 0 L \{PathNum.n(c)} 0 L 0 \{PathNum.n(c)} Z " +
+        "M \{PathNum.n(w - c)} 0 L \{PathNum.n(w)} 0 L \{PathNum.n(w)} \{PathNum.n(c)} Z " +
+        "M \{PathNum.n(w)} \{PathNum.n(h - c)} L \{PathNum.n(w)} \{PathNum.n(h)} L \{PathNum.n(w - c)} \{PathNum.n(h)} Z " +
+        "M 0 \{PathNum.n(h - c)} L \{PathNum.n(c)} \{PathNum.n(h)} L 0 \{PathNum.n(h)} Z";
 }
 
 /// A person: four corners cut.
@@ -243,7 +256,7 @@ export component OctFrame inherits Path {
     // The outer rectangle runs clockwise and the octagon runs the other
     // way, so it is a hole under either fill rule. `fill-rule: evenodd`
     // alone was not enough: the renderer filled the whole box.
-    commands: "M 0 0 L \{w} 0 L \{w} \{h} L 0 \{h} Z "
-        + "M \{c} 0 L 0 \{c} L 0 \{h - c} L \{c} \{h} "
-        + "L \{w - c} \{h} L \{w} \{h - c} L \{w} \{c} L \{w - c} 0 Z";
+    commands: "M 0 0 L \{PathNum.n(w)} 0 L \{PathNum.n(w)} \{PathNum.n(h)} L 0 \{PathNum.n(h)} Z "
+        + "M \{PathNum.n(c)} 0 L 0 \{PathNum.n(c)} L 0 \{PathNum.n(h - c)} L \{PathNum.n(c)} \{PathNum.n(h)} "
+        + "L \{PathNum.n(w - c)} \{PathNum.n(h)} L \{PathNum.n(w)} \{PathNum.n(h - c)} L \{PathNum.n(w)} \{PathNum.n(c)} L \{PathNum.n(w - c)} 0 Z";
 }
