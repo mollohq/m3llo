@@ -1,0 +1,38 @@
+// The render probe for the cut shapes (src/cut_shape_tests.rs). Compiled by
+// build.rs in debug builds only, with the same bundle as main.slint, so the
+// test can select a language that writes decimals with a comma.
+//
+// Each shape is 80.5px by 40.5px, one per 50px row, white on black. The
+// half pixels are the point: an integer size has no decimal separator.
+import {
+    CutCard, CutFill, CutButton, CutMask, OctMask, OctAvatar, CutTile, OctFrame
+} from "../components/cut.slint";
+
+component Row inherits Rectangle {
+    in property <int> index;
+    x: 0px;
+    y: self.index * 50px;
+    width: 80.5px;
+    height: 40.5px;
+}
+
+export component CutProbe inherits Window {
+    width: 100px;
+    height: 600px;
+    background: #000000;
+
+    Row { index: 0;  CutCard { corner: "tr"; line-color: #ffffff; fill-color: #ffffff; } }
+    Row { index: 1;  CutCard { corner: "tl"; line-color: #ffffff; fill-color: #ffffff; } }
+    Row { index: 2;  CutCard { corner: "br"; line-color: #ffffff; fill-color: #ffffff; } }
+    Row { index: 3;  CutCard { corner: "bl"; line-color: #ffffff; fill-color: #ffffff; } }
+    Row { index: 4;  CutFill { fill-color: #ffffff; } }
+    Row { index: 5;  CutButton { fill-color: #ffffff; } }
+    Row { index: 6;  CutButton { outlined: true; line-color: #000000; surface-color: #ffffff; } }
+    Row { index: 7;  OctAvatar { fill-color: #ffffff; } }
+    Row { index: 8;  CutTile { fill-color: #ffffff; } }
+    // The masks and the frame paint corners only: the test reads the
+    // bottom-right corner of these rows.
+    Row { index: 9;  CutMask { width: parent.width; height: parent.height; corner: "br"; fill: #ffffff; } }
+    Row { index: 10; OctMask { width: parent.width; height: parent.height; n: 12px; fill: #ffffff; } }
+    Row { index: 11; OctFrame { width: parent.width; height: parent.height; n: 12px; fill: #ffffff; } }
+}

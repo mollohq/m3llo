@@ -1311,6 +1311,102 @@ msgstr "ELIMINAR SQUAD"
 msgid "Saved"
 msgstr "Guardado"
 
+#: client/ui/panels/delete_account_modal.slint
+msgid "ACCOUNT"
+msgstr "CUENTA"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete your account"
+msgstr "Eliminar tu cuenta"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETED"
+msgstr "SE ELIMINA"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your account, your name and your sign-in."
+msgstr "Tu cuenta, tu nombre y tu inicio de sesión."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips, streams and events you started."
+msgstr "Los clips, directos y eventos que empezaste."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your chat messages and the images you posted."
+msgstr "Tus mensajes del chat y las imágenes que publicaste."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "REMOVED"
+msgstr "SE QUITA"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your name, from the events, clips and weekly recaps of other members."
+msgstr "Tu nombre, de los eventos, clips y resúmenes semanales de otros miembros."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "STAYS"
+msgstr "SE QUEDA"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips and events of other members, without you."
+msgstr "Los clips y eventos de otros miembros, sin ti."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The totals of weekly recaps."
+msgstr "Los totales de los resúmenes semanales."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "YOUR CREWS"
+msgstr "TUS SQUADS"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew you own goes to an admin, or to the member who joined first."
+msgstr "Un squad del que eres líder pasa a un admin, o al miembro que se unió primero."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew where you are the only member is deleted."
+msgstr "Un squad en el que eres el único miembro se elimina."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "This cannot be undone."
+msgstr "Esto no se puede deshacer."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete my account"
+msgstr "Eliminar mi cuenta"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETING"
+msgstr "ELIMINANDO"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETE MY ACCOUNT"
+msgstr "ELIMINAR MI CUENTA"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "CREW"
+msgstr "SQUAD"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The crew, for every member."
+msgstr "El squad, para todos los miembros."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The chat of the crew."
+msgstr "El chat del squad."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The clips and the history of the crew."
+msgstr "Los clips y el historial del squad."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "Delete this crew"
+msgstr "Eliminar este squad"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "DELETE THIS CREW"
+msgstr "ELIMINAR ESTE SQUAD"
+
 #: client/ui/panels/discover_panel.slint
 msgid "0{n} Member"
 msgid_plural "0{n} Members"
@@ -2031,6 +2127,14 @@ msgstr "APARIENCIA"
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
 msgstr "Idioma"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Delete account"
+msgstr "Eliminar cuenta"
+
+#: client/ui/panels/settings_modal.slint
+msgid "DELETE ACCOUNT"
+msgstr "ELIMINAR CUENTA"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"
@@ -4289,6 +4393,17 @@ msgstr "Error de WebSocket: {}"
 #: client/ui/tr.slint
 msgid "Couldn't create your account. Check your connection and try again."
 msgstr "No se pudo crear tu cuenta. Revisa tu conexión y vuelve a intentarlo."
+
+#. Settings, account delete: the delete failed and the server gave no text to 
+#. show.
+#: client/ui/tr.slint
+msgid "Your account was not deleted. Check the connection and try again."
+msgstr "Tu cuenta no se eliminó. Revisa la conexión y vuelve a intentarlo."
+
+#. Crew settings, crew delete: the delete failed.
+#: client/ui/tr.slint
+msgid "The crew was not deleted. Check the connection and try again."
+msgstr "El squad no se eliminó. Revisa la conexión y vuelve a intentarlo."
 
 #. Onboarding: the app did not connect.
 #: client/ui/tr.slint

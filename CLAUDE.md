@@ -183,6 +183,9 @@ Two failure modes have each cost a day. Check for both:
   from the font tables), so both sit on one baseline. Bottom-aligned or
   centred boxes do not: the bigger face has a deeper box. A middle unit
   ("19 h 40") uses its `tail`. `stat_value_tests.rs` guards it at 120/34 and 20/11.
+- **A number in `Path` `commands` goes through `PathNum.n()`.** A bare `\{x}` takes the
+  decimal separator of the app language. In Swedish or German `314.67` becomes `314,67`,
+  the parser rejects the string, and Slint draws nothing. `path_lint.rs` enforces it.
 - **The bundled fonts carry no symbol glyphs.** Oxanium and Barlow have letters,
   digits, the middot and dashes. They do not have `✂ ▾ ✓ ▶ › ●`. A symbol
   written as text renders as a tofu box. Use an SVG from `client/ui/icons/`

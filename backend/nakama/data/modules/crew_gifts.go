@@ -765,27 +765,37 @@ func foundingWeeks(q *CrewQuests) []int64 {
 // questsGrantPlus grants m3llo+ to every member of the crew when step 5 is
 // done, and keeps who got it here on the record.
 func questsGrantPlus(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID string) {
-	members, _, err := nk.GroupUsersList(ctx, crewID, MaxCrewMembers, nil, "")
-	if err != nil {
-		logger.Warn("quests m3llo+: members of crew %s: %v", crewID, err)
-		return
-	}
 	nowMs := time.Now().UnixMilli()
 	var granted []string
-	for _, m := range members {
-		// 0 superadmin, 1 admin, 2 member; 3 is a join request.
-		if m.GetState().GetValue() > 2 {
-			continue
-		}
-		uid := m.GetUser().GetId()
-		ok, err := grantQuestPlus(ctx, nk, uid, crewID, nowMs)
+	// A crew has no member cap, and Nakama lists at most 100 members for
+	// each call: read every page.
+	cursor := ""
+	for {
+		members, next, err := nk.GroupUsersList(ctx, crewID, groupUsersPage, nil, cursor)
 		if err != nil {
-			logger.Warn("quests m3llo+: %v", err)
-			continue
+			// The members of the pages before this one keep their grant.
+			logger.Warn("quests m3llo+: members of crew %s: %v", crewID, err)
+			break
 		}
-		if ok {
-			granted = append(granted, uid)
+		for _, m := range members {
+			// 0 superadmin, 1 admin, 2 member; 3 is a join request.
+			if m.GetState().GetValue() > 2 {
+				continue
+			}
+			uid := m.GetUser().GetId()
+			ok, err := grantQuestPlus(ctx, nk, uid, crewID, nowMs)
+			if err != nil {
+				logger.Warn("quests m3llo+: %v", err)
+				continue
+			}
+			if ok {
+				granted = append(granted, uid)
+			}
 		}
+		if next == "" {
+			break
+		}
+		cursor = next
 	}
 	if len(granted) == 0 {
 		return

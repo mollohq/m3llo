@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { CutButtonShape, CutShape } from "../components/cut.slint";
+import { CutButtonShape, CutShape, PathNum } from "../components/cut.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { H2hHue } from "../components/head2head.slint";
 import { StatValue } from "../components/stat.slint";
@@ -672,7 +672,7 @@ export component SealedStage inherits Rectangle {
         height: 1200px;
         viewbox-width: 1200;
         viewbox-height: 1200;
-        commands: "M 600 600 L \{600 + self.sx} \{600 + self.sy} L \{600 + self.ex} \{600 + self.ey} Z";
+        commands: "M 600 600 L \{PathNum.n(600 + self.sx)} \{PathNum.n(600 + self.sy)} L \{PathNum.n(600 + self.ex)} \{PathNum.n(600 + self.ey)} Z";
         fill: @radial-gradient(circle, root.hue.with-alpha(0.5) 0%, root.hue.with-alpha(0.1) 39%, root.hue.with-alpha(0) 70%);
         opacity: root.rays-a;
     }
@@ -715,7 +715,7 @@ export component SealedStage inherits Rectangle {
         height: root.height;
         viewbox-width: root.width / 1px;
         viewbox-height: root.height / 1px;
-        commands: "M \{root.cx / 1px + Math.sin(self.a) * self.d0} \{root.cy / 1px - Math.cos(self.a) * self.d0} L \{root.cx / 1px + Math.sin(self.a) * self.d1} \{root.cy / 1px - Math.cos(self.a) * self.d1}";
+        commands: "M \{PathNum.n(root.cx / 1px + Math.sin(self.a) * self.d0)} \{PathNum.n(root.cy / 1px - Math.cos(self.a) * self.d0)} L \{PathNum.n(root.cx / 1px + Math.sin(self.a) * self.d1)} \{PathNum.n(root.cy / 1px - Math.cos(self.a) * self.d1)}";
         stroke: Theme.on-media.mix(root.hue, 1 - self.u);
         stroke-width: 3px;
         opacity: 1 - self.u;

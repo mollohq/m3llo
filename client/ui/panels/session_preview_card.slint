@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { CutShape } from "../components/cut.slint";
+import { CutShape, PathNum } from "../components/cut.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { StreamTag, PlayButton, FootageWash } from "../components/stream_hero.slint";
 import { CutMask, CutButtonShape } from "../components/cut.slint";
@@ -557,7 +557,7 @@ export component SessionPreviewCard inherits Rectangle {
         viewbox-height: self.height / 1px;
         stroke: card-hover.has-hover ? Theme.graphic-med : Theme.card-border;
         stroke-width: 1px;
-        commands: "M \{(self.width - Theme.notch) / 1px} 0 L \{self.width / 1px} \{Theme.notch / 1px}";
+        commands: "M \{PathNum.n((self.width - Theme.notch) / 1px)} 0 L \{PathNum.n(self.width / 1px)} \{PathNum.n(Theme.notch / 1px)}";
     }
 
     card-hover := TouchArea {

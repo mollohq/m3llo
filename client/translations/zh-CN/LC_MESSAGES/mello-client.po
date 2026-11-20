@@ -1304,6 +1304,102 @@ msgstr "删除小队"
 msgid "Saved"
 msgstr "已保存"
 
+#: client/ui/panels/delete_account_modal.slint
+msgid "ACCOUNT"
+msgstr "账号"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete your account"
+msgstr "删除你的账号"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETED"
+msgstr "将被删除"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your account, your name and your sign-in."
+msgstr "你的账号、名字和登录方式。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips, streams and events you started."
+msgstr "你发起的高光、直播和事件。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your chat messages and the images you posted."
+msgstr "你的聊天消息和你发的图片。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "REMOVED"
+msgstr "将被移除"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your name, from the events, clips and weekly recaps of other members."
+msgstr "其他成员的事件、高光和周报里的你的名字。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "STAYS"
+msgstr "会保留"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips and events of other members, without you."
+msgstr "其他成员的高光和事件，不含你。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The totals of weekly recaps."
+msgstr "周报里的总数。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "YOUR CREWS"
+msgstr "你的小队"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew you own goes to an admin, or to the member who joined first."
+msgstr "你是队长的小队会交给一位管理员，或最早加入的成员。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew where you are the only member is deleted."
+msgstr "只有你一个成员的小队会被删除。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "This cannot be undone."
+msgstr "此操作无法撤销。"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete my account"
+msgstr "删除我的账号"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETING"
+msgstr "删除中"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETE MY ACCOUNT"
+msgstr "删除我的账号"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "CREW"
+msgstr "小队"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The crew, for every member."
+msgstr "整个小队，对所有成员都生效。"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The chat of the crew."
+msgstr "小队的聊天。"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The clips and the history of the crew."
+msgstr "高光和小队历史。"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "Delete this crew"
+msgstr "删除这个小队"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "DELETE THIS CREW"
+msgstr "删除这个小队"
+
 #: client/ui/panels/discover_panel.slint
 msgid "0{n} Member"
 msgid_plural "0{n} Members"
@@ -2018,6 +2114,14 @@ msgstr "外观"
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
 msgstr "语言"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Delete account"
+msgstr "删除账号"
+
+#: client/ui/panels/settings_modal.slint
+msgid "DELETE ACCOUNT"
+msgstr "删除账号"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"
@@ -4255,6 +4359,17 @@ msgstr "WebSocket 失败：{}"
 #: client/ui/tr.slint
 msgid "Couldn't create your account. Check your connection and try again."
 msgstr "无法创建你的账号。请检查网络连接后重试。"
+
+#. Settings, account delete: the delete failed and the server gave no text to 
+#. show.
+#: client/ui/tr.slint
+msgid "Your account was not deleted. Check the connection and try again."
+msgstr "你的账号没有被删除。请检查网络连接后重试。"
+
+#. Crew settings, crew delete: the delete failed.
+#: client/ui/tr.slint
+msgid "The crew was not deleted. Check the connection and try again."
+msgstr "小队没有被删除。请检查网络连接后重试。"
 
 #. Onboarding: the app did not connect.
 #: client/ui/tr.slint

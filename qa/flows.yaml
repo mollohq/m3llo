@@ -134,6 +134,33 @@ flows:
     protocol: []
     issues: []
 
+  - id: AUTH-06
+    title: A member deletes the account in Settings, is signed out, and cannot sign in again
+    priority: P0
+    users: 2
+    harness: [the_account_button_opens_the_confirm_and_cancel_sends_nothing, the_red_button_sends_one_delete_and_a_second_press_sends_nothing, a_refused_delete_shows_the_server_text_and_allows_a_retry, a_failure_with_no_server_text_shows_the_client_text, a_new_open_shows_no_old_failure]
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
+  - id: AUTH-07
+    title: The only owner of a crew with other members deletes the account, another member becomes the owner
+    priority: P0
+    users: 2
+    harness: []
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
+  - id: AUTH-08
+    title: The only member of a crew deletes the account, the crew is gone
+    priority: P1
+    users: 3
+    harness: []
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
   # ── Invites ───────────────────────────────────────────────────
   - id: INV-01
     title: Create and copy an invite link
@@ -286,7 +313,7 @@ flows:
     priority: P2
     users: 1
     harness: []
-    journeys: []
+    journeys: [qa/journeys/crew-delete.ts]
     protocol: []
     issues: []
 
@@ -391,6 +418,43 @@ flows:
     users: 2
     harness: [the_pill_has_the_pip_only_with_an_open_ask, the_popover_asks_the_picked_members_for_a_game, an_ask_in_the_history_shows_its_card, in_answers_and_joins_the_voice_channel_of_the_ask, the_asker_cancels_the_ask]
     journeys: [qa/journeys/looking-to-play-two-users.ts]
+    protocol: []
+    issues: []
+
+  - id: LTP-02
+    title: A member answers In 15, changes to In 30 and to Not now, the asker cancels, and the next ask waits 10 minutes
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
+  - id: LTP-03
+    title: Every member answers Not now, the ask closes with "No one this time"
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
+  - id: LTP-04
+    title: A member with another crew on screen gets the toast and answers on it; with the crew's Looking to play switch off, no toast
+    priority: P1
+    users: 3
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
+  # ── Localization ──────────────────────────────────────────────
+  - id: L10N-01
+    title: One Looking to play ask, each app shows it in its UI language and each phone push is in the account language
+    priority: P1
+    users: 5
+    harness: [the_catchup_line_follows_the_ui_language, recap_game_awards_follow_the_ui_language]
+    journeys: [qa/journeys/l10n-readers.ts]
     protocol: []
     issues: []
 
@@ -586,6 +650,15 @@ flows:
     protocol: []
     issues: []
 
+  - id: FEED-15
+    title: "Crew history: a past week of game sessions is an open week for a viewer with m3llo+, and is not there for a viewer without it"
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/feed-history-sessions.ts]
+    protocol: []
+    issues: []
+
   # ── Settings ──────────────────────────────────────────────────
   - id: SET-01
     title: Change the profile avatar
@@ -611,6 +684,15 @@ flows:
     users: 1
     harness: []
     journeys: []
+    protocol: []
+    issues: []
+
+  - id: SET-04
+    title: Change the app language in Settings, the restart panel, the app starts again in the new language
+    priority: P1
+    users: 1
+    harness: []
+    journeys: [qa/journeys/settings-language.ts]
     protocol: []
     issues: []
 

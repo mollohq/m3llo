@@ -132,6 +132,16 @@ fn main() {
         .unwrap();
     }
 
+    // The cut shape probe for src/cut_shape_tests.rs. It needs the bundle:
+    // the test selects each language and renders the shapes under it.
+    if debug_info && pseudo {
+        slint_build::compile_with_config(
+            "ui/previews/cut_probe.slint",
+            with_translations(slint_build::CompilerConfiguration::new().with_style(style.into())),
+        )
+        .unwrap();
+    }
+
     slint_build::compile_with_config(
         "ui/main.slint",
         with_translations(

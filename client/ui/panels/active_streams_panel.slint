@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { CutShape, CutButtonShape, CutMask } from "../components/cut.slint";
+import { CutShape, CutButtonShape, CutMask, PathNum } from "../components/cut.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { SmallToggle } from "../components/small_toggle.slint";
 import { MemberVolumeSlider } from "member_volume_popover.slint";
@@ -345,7 +345,7 @@ component LiveStripsCard inherits Rectangle {
         viewbox-height: self.height / 1px;
         stroke: Theme.card-border;
         stroke-width: 1px;
-        commands: "M \{self.width / 1px} \{(self.height - Theme.notch) / 1px} L \{(self.width - Theme.notch) / 1px} \{self.height / 1px}";
+        commands: "M \{PathNum.n(self.width / 1px)} \{PathNum.n((self.height - Theme.notch) / 1px)} L \{PathNum.n((self.width - Theme.notch) / 1px)} \{PathNum.n(self.height / 1px)}";
     }
     StreamTag {
         x: 18px;
@@ -1045,7 +1045,7 @@ component StreamCard inherits Rectangle {
         viewbox-height: self.height / 1px;
         stroke: Theme.card-border;
         stroke-width: 1px;
-        commands: "M \{self.width / 1px} \{(self.height - Theme.notch) / 1px} L \{(self.width - Theme.notch) / 1px} \{self.height / 1px}";
+        commands: "M \{PathNum.n(self.width / 1px)} \{PathNum.n((self.height - Theme.notch) / 1px)} L \{PathNum.n((self.width - Theme.notch) / 1px)} \{PathNum.n(self.height / 1px)}";
     }
 }
 

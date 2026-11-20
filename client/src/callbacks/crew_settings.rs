@@ -2,6 +2,7 @@ use mello_core::Command;
 use slint::ComponentHandle;
 
 use crate::app_context::AppContext;
+use crate::DeleteCrewUi;
 
 pub fn wire(ctx: &AppContext) {
     // --- Crew settings opened: load the push switches of the crew ---
@@ -214,17 +215,29 @@ pub fn wire(ctx: &AppContext) {
     }
 
     // --- Delete crew ---
+    //
+    // DELETE CREW in crew settings opens a confirm (delete_crew_modal.slint).
+    // Its red button sends one delete at a time. `busy` stays set until core
+    // answers with `CrewDeleted` or `CrewDeleteFailed` (handlers/crew.rs).
     {
         let cmd = ctx.cmd_tx.clone();
         let app_weak = ctx.app.as_weak();
-        ctx.app.on_crew_settings_delete_crew(move || {
+        ctx.app.global::<DeleteCrewUi>().on_confirm(move || {
             let Some(app) = app_weak.upgrade() else {
                 return;
             };
+            let ui = app.global::<DeleteCrewUi>();
+            if ui.get_busy() {
+                log::debug!("[crew] crew delete already sent, press ignored");
+                return;
+            }
             let crew_id = app.get_active_crew_id().to_string();
             if crew_id.is_empty() {
                 return;
             }
+            log::info!("[crew] crew delete confirmed, sending crew={}", crew_id);
+            ui.set_busy(true);
+            ui.set_error("".into());
             let _ = cmd.send(Command::DeleteCrew { crew_id });
         });
     }

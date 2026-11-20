@@ -535,6 +535,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
         }
         Event::CrewDeleted { crew_id } => {
             log::info!("[crew] crew deleted: {}", crew_id);
+            let ui = ctx.app.global::<crate::DeleteCrewUi>();
+            ui.set_busy(false);
+            ui.set_error("".into());
+            ui.set_open(false);
             ctx.app.set_crew_settings_open(false);
             // Remove from local list
             let crews = ctx.app.get_crews();
@@ -549,6 +553,10 @@ pub fn handle(ctx: &AppContext, event: Event) {
         }
         Event::CrewDeleteFailed { reason } => {
             log::error!("[crew] crew delete failed: {}", reason);
+            // The confirm stays open with the text, and allows a retry.
+            let ui = ctx.app.global::<crate::DeleteCrewUi>();
+            ui.set_busy(false);
+            ui.set_error(ctx.app.global::<crate::Tr>().get_crew_delete_failed());
         }
         Event::CrewRoleChanged {
             crew_id,

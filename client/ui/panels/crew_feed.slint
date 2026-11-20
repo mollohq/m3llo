@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { CutShape, CutMask, CutButtonShape } from "../components/cut.slint";
+import { CutShape, CutMask, CutButtonShape, PathNum } from "../components/cut.slint";
 import { UserAvatar, AvatarOverflow } from "../components/avatar.slint";
 import { FeedCardData, FeedView, StreamCardData, YouStripData } from "../types.slint";
 import { ActiveStreamsPanel, StreamCardSize } from "./active_streams_panel.slint";
@@ -1230,7 +1230,7 @@ component PlayedSessionCard inherits Rectangle {
         viewbox-height: self.height / 1px;
         stroke: Theme.card-border;
         stroke-width: 1px;
-        commands: "M \{self.width / 1px} \{(self.height - Theme.notch) / 1px} L \{(self.width - Theme.notch) / 1px} \{self.height / 1px}";
+        commands: "M \{PathNum.n(self.width / 1px)} \{PathNum.n((self.height - Theme.notch) / 1px)} L \{PathNum.n((self.width - Theme.notch) / 1px)} \{PathNum.n(self.height / 1px)}";
     }
 
     // PLAYED | 4m ago

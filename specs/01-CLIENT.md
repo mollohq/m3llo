@@ -157,9 +157,16 @@ The e2e state port reports `id`, `volume` and `local_muted` for each voice membe
 The settings modal (`settings_modal.slint`) has six tabs, in this order:
 PROFILE, GENERAL, AUDIO, GAMES, ABOUT, KEYBINDS.
 
+#### PROFILE tab: order
+
+From top to bottom: the avatar and the display name (with the avatar grid when it is open),
+the "Language" row (specs/features/LOCALIZATION.md, "The Settings row"), then the ACCOUNT panel.
+
 #### PROFILE tab: ACCOUNT
 
-The last section of the PROFILE tab is ACCOUNT. It has one row: "Delete account", the
+The ACCOUNT panel is pinned to the bottom edge of the PROFILE tab. It is not in the scroll
+area. When the content above is taller than the tab, the content scrolls and the panel stays.
+It has one row: "Delete account", the
 sentence "This cannot be undone.", and the outline button "DELETE ACCOUNT". The button opens
 the confirm (`delete_account_modal.slint`, global `DeleteAccountUi`). The button does not commit,
 so it is not red.
@@ -187,6 +194,30 @@ After a delete the client forgets `Settings::device_id` and sends no `Logout` an
 Finalize makes a new id, as on a fresh install.
 
 The iOS app has the same copy and states in Settings, Account (a sheet).
+
+#### Crew settings: DELETE CREW
+
+DELETE CREW in the footer of crew settings shows only to the owner. It opens a confirm
+(`delete_crew_modal.slint`, global `DeleteCrewUi`). The button does not commit, so it is not red.
+The confirm has the same parts as the delete account confirm, in the same order.
+
+The title is "Delete" and the name of the crew. The confirm lists what the delete does
+(spec 16 section 10.3):
+
+| Label | Lines |
+|---|---|
+| DELETED | The crew, for every member. The chat of the crew. The clips and the history of the crew. |
+
+Then "This cannot be undone.", the outline button CANCEL and the red button DELETE THIS CREW.
+
+| State | The confirm |
+|---|---|
+| Sent | The red button reads DELETING. Both buttons, Escape and the backdrop do nothing. A second press sends nothing |
+| Failed (`CrewDeleteFailed`) | "The crew was not deleted. Check the connection and try again." shows in red. Both buttons work: the user can retry |
+| Deleted (`CrewDeleted`) | The confirm and crew settings close. The crew leaves the crew list |
+
+CANCEL, Escape and the backdrop close the confirm and keep the crew. When crew settings open
+again, the confirm is closed.
 
 #### KEYBINDS tab
 

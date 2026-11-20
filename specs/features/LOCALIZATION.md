@@ -386,7 +386,7 @@ English UI keeps the Japanese glyph shapes.
 
 ### The Settings row
 
-The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
+The PROFILE tab has a "Language" dropdown, under the avatar and the display name.
 
 - The first row is "System" (`Tr.language-system`). It saves an empty
   `Settings.language`.
@@ -400,7 +400,11 @@ The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
   build shows `qps` too.
 - A change saves `Settings.language` and applies at the next start. When the
   choice differs from the setting of this run, a panel shows under the row:
-  "m3llo restarts to switch to {}." with two buttons.
+  "m3llo restarts to switch to {}." with two buttons. The sentence wraps.
+  The name in it does not wrap in the middle: a name in Han script or kana
+  gets a word joiner (U+2060) between its characters
+  (`locale::unbreakable_name`). Without it "中文（简体）" wraps as "中文（简"
+  and "体）.", in every UI language.
   - "Keep {}" (white) names the language of this run. It sets the setting
     back to the value of this run, saves it and sends the account language
     again. No restart.

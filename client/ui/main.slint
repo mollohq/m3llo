@@ -2,6 +2,7 @@ import { CrewEmojiModal } from "panels/crew_emoji_modal.slint";
 import { CrewEmojiUi } from "components/crew_emoji.slint";
 import { InviteNameModal, InviteNamePicker } from "panels/invite_name_modal.slint";
 import { DeleteAccountModal, DeleteAccountUi } from "panels/delete_account_modal.slint";
+import { DeleteCrewModal, DeleteCrewUi } from "panels/delete_crew_modal.slint";
 import { CrewBannerModal, BannerPicker } from "panels/crew_banner_modal.slint";
 import { Theme } from "theme.slint";
 import {
@@ -80,7 +81,7 @@ export { ClipPlayerUi }
 // --- end stage 9 ---
 
 
-export { BannerPicker, InviteNamePicker, CrewEmojiUi, DeleteAccountUi }
+export { BannerPicker, InviteNamePicker, CrewEmojiUi, DeleteAccountUi, DeleteCrewUi }
 // Looking to play: the pill, the ask popover and the presses of the cards.
 import { LookingToPlayUi } from "components/looking_to_play_ui.slint";
 import { LookingToPlayToast, LookingToPlayToastData } from "components/looking_to_play.slint";
@@ -350,6 +351,9 @@ export component MainWindow inherits Window {
     in property <[AudioDeviceData]> settings-languages: [];
     in property <string> settings-language: "";
     in-out property <string> settings-language-name: "";
+    /// The name of the choice for the sentence of the restart panel: it does
+    /// not wrap in the middle (locale::unbreakable_name).
+    in property <string> settings-language-restart-name: "";
     in property <bool> settings-language-restart: false;
     /// The name of the language of this run, for the "Keep" button.
     in property <string> settings-language-keep-name: "";
@@ -575,6 +579,8 @@ export component MainWindow inherits Window {
     // state that the modal does not get from the crew state.
     public function open-crew-settings(tab: int) {
         root.crew-settings-active-tab = tab;
+        // A confirm of an earlier visit does not come back.
+        DeleteCrewUi.open = false;
         root.crew-settings-open = true;
         root.crew-settings-opened();
     }
@@ -583,7 +589,6 @@ export component MainWindow inherits Window {
     callback crew-settings-add-channel(/* name */ string);
     callback crew-settings-rename-channel(/* id */ string, /* name */ string);
     callback crew-settings-delete-channel(/* id */ string);
-    callback crew-settings-delete-crew();
     callback crew-settings-promote-member(/* user_id */ string);
     callback crew-settings-demote-member(/* user_id */ string);
     callback crew-settings-kick-member(/* user_id */ string);
@@ -1960,6 +1965,7 @@ export component MainWindow inherits Window {
         languages: root.settings-languages;
         language: root.settings-language;
         language-name <=> root.settings-language-name;
+        language-restart-name: root.settings-language-restart-name;
         language-restart: root.settings-language-restart;
         language-keep-name: root.settings-language-keep-name;
         // Audio
@@ -2248,7 +2254,8 @@ export component MainWindow inherits Window {
             root.crew-settings-delete-channel(id);
         }
         delete-crew-requested => {
-            root.crew-settings-delete-crew();
+            DeleteCrewUi.error = "";
+            DeleteCrewUi.open = true;
         }
         promote-member(id) => {
             root.crew-settings-promote-member(id);
@@ -2258,6 +2265,19 @@ export component MainWindow inherits Window {
         }
         kick-member(id) => {
             root.crew-settings-kick-member(id);
+        }
+    }
+
+    // Crew settings, DELETE CREW: the delete confirm, over crew settings.
+    if crew-settings-open && DeleteCrewUi.open: DeleteCrewModal {
+        crew-name: root.crew-settings-name;
+        busy: DeleteCrewUi.busy;
+        error: DeleteCrewUi.error;
+        confirm => { DeleteCrewUi.confirm(); }
+        close-requested => {
+            if !DeleteCrewUi.busy {
+                DeleteCrewUi.open = false;
+            }
         }
     }
 

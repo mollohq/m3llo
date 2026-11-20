@@ -35,6 +35,13 @@ export default journey({
         { id: "steam-1245620", name: "Elden Ring", playtimeMin: 9_000 },
       ]);
       await endSession(token, crewId, { id: "steam-291550", name: "Brawlhalla" }, 40, 23 * 60);
+      // The steps below scroll the feed. A feed that loads again under a
+      // scroll moves the zones, so wait for the feed with the session, and
+      // then until no load came for longer than the 5 s between two loads.
+      for (const app of [alice, bob]) {
+        await app.waitFor("the feed with alice's session", (s) => s.feed_zones.sessions.some((c) => c.game_name === "Brawlhalla"), 45_000);
+        await app.settle(["FeedLoaded"], 5_500, 30_000);
+      }
     });
 
     for (const app of [bob, alice]) {
@@ -47,6 +54,10 @@ export default journey({
         const z = s.feed_zones;
         expect(z.people.shown, "the People zone shows");
         expect(z.belts.every((t) => t.holder_name !== ""), "every holder is on the member list");
+        // A new crew has the quest card on the Stage (crew quests, FEED-13),
+        // and the People zone is under the fold. A control under the fold is
+        // not in the element tree: bring it on screen first.
+        await app.scrollToControl("Invite your crew");
         expect((await app.find("Invite your crew")).role === "Button", "the red invite is a control");
       });
     }
@@ -76,6 +87,8 @@ export default journey({
     await step("alice's Say hi sends a greeting that mentions bob, and the button goes", async () => {
       const s0 = await alice.state();
       const name = s0.feed_zones.people.joined[0];
+      // Under the fold too, as the invite above.
+      await alice.scrollToControl(`Say hi to ${name}`);
       await alice.click(`Say hi to ${name}`);
       // The click is the intent: the message goes at once and nothing sits in the input.
       const a = await alice.waitFor(

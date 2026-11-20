@@ -1,0 +1,181 @@
+import { Theme } from "../theme.slint";
+import { CutShape, CutButton } from "../components/cut.slint";
+import { ZoneButton, Kicker } from "../components/feed_board.slint";
+
+// ============================================================
+//  Delete crew: the confirm of DELETE CREW in crew settings.
+//  It says what is deleted (spec 16 section 10.3). The red button commits
+//  the delete. It is built as the delete account confirm
+//  (delete_account_modal.slint): the same parts, the same order.
+// ============================================================
+
+/// The state of the dialog, driven from Rust (callbacks/crew_settings.rs).
+export global DeleteCrewUi {
+    in-out property <bool> open: false;
+    /// The delete is sent and has no answer yet.
+    in-out property <bool> busy: false;
+    /// The text of the last failure. Empty: no failure.
+    in-out property <string> error;
+    /// The user pressed the red button.
+    callback confirm();
+}
+
+export component DeleteCrewModal inherits Rectangle {
+    in property <string> crew-name;
+    in property <bool> busy;
+    in property <string> error;
+    callback confirm();
+    callback close-requested();
+
+    width: 100%;
+    height: 100%;
+    background: Theme.scrim;
+
+    init => { key-scope.focus(); }
+
+    key-scope := FocusScope {
+        width: 100%;
+        height: 100%;
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.close-requested();
+                accept
+            } else {
+                reject
+            }
+        }
+
+        TouchArea {
+            // a11y: none (backdrop: a click outside the dialog closes it)
+            clicked => { root.close-requested(); }
+        }
+
+        Rectangle {
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            width: 480px;
+            height: inner.preferred-height;
+            background: transparent;
+
+            CutShape { width: parent.width; height: parent.height; n: Theme.notch; fill: Theme.graphic-light; }
+            CutShape { width: parent.width; height: parent.height; n: Theme.notch; inset: Theme.keyline; fill: Theme.surface; }
+            TouchArea {
+                // a11y: none (input blocker: stops clicks reaching the backdrop)
+            }
+
+            inner := VerticalLayout {
+                padding: 24px;
+                spacing: 16px;
+
+                VerticalLayout {
+                    spacing: 6px;
+                    Kicker { text: @tr("CREW"); }
+                    Text {
+                        text: @tr("Delete {}", root.crew-name);
+                        font-family: Theme.font-display;
+                        font-weight: Theme.weight-display;
+                        font-size: 20px;
+                        color: Theme.text-primary;
+                        wrap: word-wrap;
+                    }
+                }
+
+                VerticalLayout {
+                    spacing: 4px;
+                    Kicker { text: @tr("DELETED"); }
+                    for line in [
+                        @tr("The crew, for every member."),
+                        @tr("The chat of the crew."),
+                        @tr("The clips and the history of the crew."),
+                    ]: Text {
+                        text: line;
+                        font-family: Theme.font-body;
+                        font-weight: Theme.weight-sentence;
+                        font-size: 13px;
+                        color: Theme.text-body;
+                        wrap: word-wrap;
+                    }
+                }
+
+                Text {
+                    text: @tr("This cannot be undone.");
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 13px;
+                    color: Theme.text-primary;
+                    wrap: word-wrap;
+                }
+
+                if root.error != "": Text {
+                    text: root.error;
+                    font-family: Theme.font-body;
+                    font-weight: Theme.weight-sentence;
+                    font-size: 13px;
+                    color: Theme.live;
+                    wrap: word-wrap;
+                }
+
+                HorizontalLayout {
+                    padding-top: 4px;
+                    spacing: 10px;
+                    alignment: end;
+
+                    ZoneButton {
+                        label: @tr("CANCEL");
+                        a11y-label: @tr("Cancel");
+                        tone: "line";
+                        opacity: root.busy ? 0.4 : 1;
+                        accessible-enabled: !root.busy;
+                        clicked => { root.close-requested(); }
+                    }
+                    Rectangle {
+                        width: delete-text.preferred-width + 56px;
+                        height: 36px;
+                        opacity: root.busy ? 0.4 : 1;
+                        accessible-role: button;
+                        accessible-label: @tr("Delete this crew");
+                        accessible-enabled: !root.busy;
+                        CutButton { width: parent.width; height: parent.height; fill-color: Theme.confirm; }
+                        delete-text := Text {
+                            text: root.busy ? @tr("DELETING") : @tr("DELETE THIS CREW");
+                            font-family: Theme.font-label;
+                            font-weight: Theme.weight-label;
+                            font-size: 10px;
+                            letter-spacing: Theme.track-kicker;
+                            color: Theme.on-confirm;
+                        }
+                        TouchArea {
+                            enabled: !root.busy;
+                            mouse-cursor: root.busy ? default : pointer;
+                            clicked => { root.confirm(); }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+component PreviewFrame inherits Rectangle {
+    width: 1000px;
+    height: 780px;
+    background: Theme.bg-app;
+}
+
+/// The confirm, before a press.
+export component Preview inherits PreviewFrame {
+    DeleteCrewModal { crew-name: "Night Shift"; }
+}
+
+/// The delete is sent.
+export component PreviewBusy inherits PreviewFrame {
+    DeleteCrewModal { crew-name: "Night Shift"; busy: true; }
+}
+
+/// The delete failed.
+export component PreviewFailed inherits PreviewFrame {
+    DeleteCrewModal {
+        crew-name: "Night Shift";
+        error: "The crew was not deleted. Check the connection and try again.";
+    }
+}

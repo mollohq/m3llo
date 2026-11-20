@@ -170,6 +170,7 @@ fn show_language_settings(app: &MainWindow, settings: &Settings, started_with: &
         crate::locale::native_name(tag).into()
     };
     app.set_settings_language(tag.into());
+    app.set_settings_language_restart_name(crate::locale::unbreakable_name(&name).into());
     app.set_settings_language_name(name);
     app.set_settings_language_restart(tag != started_with);
     app.set_settings_language_keep_name(

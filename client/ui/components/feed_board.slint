@@ -1,5 +1,5 @@
 import { Theme } from "../theme.slint";
-import { CutShape, CutMask, CutButtonShape } from "./cut.slint";
+import { CutShape, CutMask, CutButtonShape, PathNum } from "./cut.slint";
 import { UserAvatar } from "./avatar.slint";
 import { StatValue } from "./stat.slint";
 import { DotWaveform } from "./clip_wave.slint";
@@ -652,7 +652,7 @@ export component BoardHero inherits Rectangle {
         viewbox-height: self.height / 1px;
         stroke: root.live ? Theme.live : Theme.card-border;
         stroke-width: 1px;
-        commands: "M \{(self.width - Theme.notch) / 1px} 0 L \{self.width / 1px} \{Theme.notch / 1px}";
+        commands: "M \{PathNum.n((self.width - Theme.notch) / 1px)} 0 L \{PathNum.n(self.width / 1px)} \{PathNum.n(Theme.notch / 1px)}";
     }
 }
 

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,12 +50,33 @@ func (f *fakeQuestsNk) UserGroupsList(_ context.Context, userID string, _ int, _
 	return out, "", nil
 }
 
-func (f *fakeQuestsNk) GroupUsersList(_ context.Context, id string, _ int, _ *int, _ string) ([]*api.GroupUserList_GroupUser, string, error) {
+// GroupUsersList lists the members as Nakama does: it refuses a limit outside
+// 1 to 100, and it returns one page and a cursor to the next one.
+func (f *fakeQuestsNk) GroupUsersList(_ context.Context, id string, limit int, _ *int, cursor string) ([]*api.GroupUserList_GroupUser, string, error) {
+	if limit < 1 || limit > 100 {
+		return nil, "", runtime.NewError("expects limit to be 1-100", 3)
+	}
+	start := 0
+	if cursor != "" {
+		n, err := strconv.Atoi(cursor)
+		if err != nil {
+			return nil, "", runtime.NewError("expects cursor to be valid when provided", 3)
+		}
+		start = n
+	}
+	all := f.members[id]
+	end := start + limit
+	next := ""
+	if end < len(all) {
+		next = strconv.Itoa(end)
+	} else {
+		end = len(all)
+	}
 	var out []*api.GroupUserList_GroupUser
-	for _, m := range f.members[id] {
+	for _, m := range all[start:end] {
 		out = append(out, &api.GroupUserList_GroupUser{User: m.GetUser(), State: wrapperspb.Int32(int32(f.role(id, m.GetUser().GetId())))})
 	}
-	return out, "", nil
+	return out, next, nil
 }
 
 // giftsCrew is a crew "gc" with the owner "own" and the member "ida", a quest
@@ -442,6 +465,32 @@ func TestFirstSessionGrantsPlusToEveryMember(t *testing.T) {
 	}
 	if q := readQuestsT(t, nk, "gc"); len(q.PlusGranted) != 2 {
 		t.Fatalf("plus_granted = %v", q.PlusGranted)
+	}
+}
+
+// A crew has no member cap. Nakama lists 100 members for each call, so the
+// grant reads every page.
+func TestFirstSessionGrantsPlusToACrewOfMoreThan100(t *testing.T) {
+	nk := giftsCrew(t)
+	ctx := context.Background()
+	const total = 250
+	for i := 2; i < total; i++ {
+		nk.addMember("gc", fmt.Sprintf("u%03d", i), fmt.Sprintf("User %d", i))
+	}
+	// A join request is not a member: it gets no grant.
+	nk.addMember("gc", "ask", "Asker")
+	nk.setRole("gc", "ask", 3)
+	questsMarkSession(ctx, testLogger(), nk, "gc", 1, GameSessionData{GameID: "g"})
+	for _, u := range []string{"own", "ida", "u002", "u099", "u100", "u101", "u249"} {
+		if !IsUserPremium(ctx, nk, u) {
+			t.Fatalf("%s has no m3llo+ after step 5", u)
+		}
+	}
+	if IsUserPremium(ctx, nk, "ask") {
+		t.Fatal("a join request got m3llo+")
+	}
+	if q := readQuestsT(t, nk, "gc"); len(q.PlusGranted) != total {
+		t.Fatalf("plus_granted has %d members, want %d", len(q.PlusGranted), total)
 	}
 }
 

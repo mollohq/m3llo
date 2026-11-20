@@ -1311,6 +1311,102 @@ msgstr "RADERA GÄNG"
 msgid "Saved"
 msgstr "Sparat"
 
+#: client/ui/panels/delete_account_modal.slint
+msgid "ACCOUNT"
+msgstr "KONTO"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete your account"
+msgstr "Radera ditt konto"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETED"
+msgstr "RADERAS"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your account, your name and your sign-in."
+msgstr "Ditt konto, ditt namn och din inloggning."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips, streams and events you started."
+msgstr "Klippen, streamarna och händelserna du startade."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your chat messages and the images you posted."
+msgstr "Dina chattmeddelanden och bilderna du lade upp."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "REMOVED"
+msgstr "TAS BORT"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Your name, from the events, clips and weekly recaps of other members."
+msgstr "Ditt namn, från andra medlemmars händelser, klipp och veckosummeringar."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "STAYS"
+msgstr "BLIR KVAR"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The clips and events of other members, without you."
+msgstr "Andra medlemmars klipp och händelser, utan dig."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "The totals of weekly recaps."
+msgstr "Totalsiffrorna i veckosummeringarna."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "YOUR CREWS"
+msgstr "DINA GÄNG"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew you own goes to an admin, or to the member who joined first."
+msgstr "Ett gäng du äger går till en admin, eller till den medlem som gick med först."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "A crew where you are the only member is deleted."
+msgstr "Ett gäng där du är enda medlemmen raderas."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "This cannot be undone."
+msgstr "Det går inte att ångra."
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "Delete my account"
+msgstr "Radera mitt konto"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETING"
+msgstr "RADERAR"
+
+#: client/ui/panels/delete_account_modal.slint
+msgid "DELETE MY ACCOUNT"
+msgstr "RADERA MITT KONTO"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "CREW"
+msgstr "GÄNG"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The crew, for every member."
+msgstr "Gänget, för alla medlemmar."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The chat of the crew."
+msgstr "Gängets chatt."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The clips and the history of the crew."
+msgstr "Gängets klipp och gänghistorik."
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "Delete this crew"
+msgstr "Radera det här gänget"
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "DELETE THIS CREW"
+msgstr "RADERA DET HÄR GÄNGET"
+
 #: client/ui/panels/discover_panel.slint
 msgid "0{n} Member"
 msgid_plural "0{n} Members"
@@ -2031,6 +2127,14 @@ msgstr "UTSEENDE"
 #: client/ui/panels/settings_modal.slint
 msgid "Language"
 msgstr "Språk"
+
+#: client/ui/panels/settings_modal.slint
+msgid "Delete account"
+msgstr "Radera konto"
+
+#: client/ui/panels/settings_modal.slint
+msgid "DELETE ACCOUNT"
+msgstr "RADERA KONTO"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"
@@ -4289,6 +4393,17 @@ msgstr "WebSocket misslyckades: {}"
 #: client/ui/tr.slint
 msgid "Couldn't create your account. Check your connection and try again."
 msgstr "Kunde inte skapa ditt konto. Kolla din anslutning och försök igen."
+
+#. Settings, account delete: the delete failed and the server gave no text to 
+#. show.
+#: client/ui/tr.slint
+msgid "Your account was not deleted. Check the connection and try again."
+msgstr "Ditt konto raderades inte. Kolla anslutningen och försök igen."
+
+#. Crew settings, crew delete: the delete failed.
+#: client/ui/tr.slint
+msgid "The crew was not deleted. Check the connection and try again."
+msgstr "Gänget raderades inte. Kolla anslutningen och försök igen."
 
 #. Onboarding: the app did not connect.
 #: client/ui/tr.slint
