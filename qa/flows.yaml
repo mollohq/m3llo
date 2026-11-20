@@ -613,6 +613,15 @@ flows:
     protocol: []
     issues: []
 
+  - id: FEED-15
+    title: "Crew history: a past week of game sessions is an open week for a viewer with m3llo+, and is not there for a viewer without it"
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/feed-history-sessions.ts]
+    protocol: []
+    issues: []
+
   # ── Settings ──────────────────────────────────────────────────
   - id: SET-01
     title: Change the profile avatar
