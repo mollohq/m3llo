@@ -751,6 +751,14 @@ Journeys for the features of the release after v0.7.5. Run on macOS against an o
 | `looking-to-play-flows.ts#answers`, `#allNo`, `#toastAndSwitch` | LTP-02, LTP-03, LTP-04 | |
 | `l10n-readers.ts` | L10N-01 | The push stub address on the Nakama of the run |
 
+The tab of a settings row is one constant in `qa/journeys/lib/settings.ts`: `LANGUAGE_TAB` and
+`DELETE_ACCOUNT_TAB`. No journey names a settings tab.
+
+`settings-language.ts` ends in Swedish with the crew feed on screen, and fails when the log of the
+Swedish run has "Error while parsing path commands". Swedish writes a decimal comma, and a path
+with `8,8` in it is not drawn. The driver starts every other app with `MELLO_LANG=en`, so no other
+journey sees this.
+
 `feed-history-sessions.ts#openWeeks` fails until the server grants the m3llo+ of quest step 5:
 `questsGrantPlus` (`crew_gifts.go`) lists the crew members with the limit `MaxCrewMembers` (10000),
 and Nakama takes 1 to 100.

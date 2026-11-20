@@ -1,19 +1,47 @@
-// Steps in the settings modal ("SYSTEM PARAMETERS"). The steps of the
-// Language row take their labels, so a journey can use them in any language.
+// Steps in the settings modal ("SYSTEM PARAMETERS").
+//
+// Where a setting is, is in one place here: LANGUAGE_TAB and
+// DELETE_ACCOUNT_TAB. When a row moves to another tab, change the constant.
+// No journey names a settings tab itself.
 
 import type { App } from "../../../tools/mello-driver/src/app.ts";
 
-/** Open the settings from the control bar. The modal opens on the PROFILE tab. */
-export async function openSettings(app: App): Promise<void> {
-  await app.click("Settings");
+/** The UI languages that the journeys run the settings in. */
+export type UiLanguage = "en" | "sv" | "zh-CN";
+
+/** A tab of the settings. */
+export type SettingsTab = "profile" | "general";
+
+/** The tab with the Language row. */
+export const LANGUAGE_TAB: SettingsTab = "general";
+
+/** The tab with the ACCOUNT section and "Delete account". */
+export const DELETE_ACCOUNT_TAB: SettingsTab = "profile";
+
+/** The labels on the way to a settings row, as the catalogs have them (client/translations). */
+const LABELS: Record<UiLanguage, { settings: string; language: string; tabs: Record<SettingsTab, string> }> = {
+  en: { settings: "Settings", language: "Language", tabs: { profile: "PROFILE", general: "GENERAL" } },
+  sv: { settings: "Inställningar", language: "Språk", tabs: { profile: "PROFIL", general: "ALLMÄNT" } },
+  "zh-CN": { settings: "设置", language: "语言", tabs: { profile: "个人资料", general: "通用" } },
+};
+
+/** The label of the Language dropdown in a UI language. */
+export function languageLabel(ui: UiLanguage = "en"): string {
+  return LABELS[ui].language;
+}
+
+/** Open the settings from the control bar, on a tab. The tab is always clicked: the modal can keep another one. */
+export async function openSettings(app: App, tab: SettingsTab, ui: UiLanguage = "en"): Promise<void> {
+  await app.click(LABELS[ui].settings);
   await app.waitFor("settings open", (s) => s.open_modals.includes("settings"), 5_000);
+  await app.click(LABELS[ui].tabs[tab]);
 }
 
 /**
  * Bring a control of the open settings page on screen. The page scrolls
  * under the pointer, and the page is the right part of the modal, which is in
  * the centre of the window: the pointer goes at 62 % of the width and half of
- * the height.
+ * the height. A control that is on screen already needs no scroll.
  */
 export async function scrollSettingsTo(app: App, label: string): Promise<void> {
   const [win] = await app.ui.props([await app.ui.window()]);
@@ -22,49 +50,41 @@ export async function scrollSettingsTo(app: App, label: string): Promise<void> {
   await app.find(label);
 }
 
-/** Settings, PROFILE, ACCOUNT: open the delete confirm. */
-export async function openDeleteAccount(app: App): Promise<void> {
-  await openSettings(app);
+/** Open the settings and bring the "Delete account" row on screen. */
+export async function openDeleteAccountRow(app: App): Promise<void> {
+  await openSettings(app, DELETE_ACCOUNT_TAB);
   await scrollSettingsTo(app, "Delete account");
+}
+
+/** Open the delete confirm: the settings, the "Delete account" row, its button. */
+export async function openDeleteAccount(app: App): Promise<void> {
+  await openDeleteAccountRow(app);
   await app.click("Delete account");
   await app.find("Delete my account");
 }
 
-/** The labels of the way to the Language row, in the language of the run. */
-export type LanguageLabels = { settings: string; general: string; language: string };
-
-export const LANGUAGE_LABELS_EN: LanguageLabels = { settings: "Settings", general: "GENERAL", language: "Language" };
-
-/** Open Settings on the GENERAL tab and bring the Language row on screen. */
-export async function openLanguageRow(app: App, l: LanguageLabels = LANGUAGE_LABELS_EN): Promise<void> {
-  await app.click(l.settings);
-  await app.waitFor("settings open", (s) => s.open_modals.includes("settings"), 5_000);
-  await app.click(l.general);
-  // The row is under the fold of the page. The pointer goes on the first
-  // switch of the page, whatever its label is in this language.
-  const deadline = Date.now() + 5_000;
-  let row = (await app.controls()).find((c) => c.role === "Switch");
-  while (!row && Date.now() < deadline) row = (await app.controls()).find((c) => c.role === "Switch");
-  if (!row) throw new Error(`${app.name}: the GENERAL page shows no switch`);
-  await app.scrollToControl(l.language, row.x, row.y);
-  await app.find(l.language);
+/** Open the settings and bring the Language row on screen. */
+export async function openLanguageRow(app: App, ui: UiLanguage = "en"): Promise<void> {
+  await openSettings(app, LANGUAGE_TAB, ui);
+  await scrollSettingsTo(app, LABELS[ui].language);
 }
 
 /** Pick a language in the dropdown by the name that it shows. An item of a PopupWindow takes `activate`. */
-export async function pickLanguage(app: App, l: LanguageLabels, name: string): Promise<void> {
-  await app.click(l.language);
+export async function pickLanguage(app: App, name: string, ui: UiLanguage = "en"): Promise<void> {
+  await app.click(LABELS[ui].language);
   await app.activate(name);
 }
 
 /**
  * Change the language of an app that shows English, the way a user does:
- * Settings, GENERAL, Language, "Restart now". The app starts itself again.
- * The app must run from its Language setting (`launch(name, { language })`).
- * `tag` is the tag of the new language on the state port ("sv", "zh-CN").
+ * the Language row, the new language, "Restart now". The app starts itself
+ * again. The app must run from its Language setting
+ * (`launch(name, { language })`). `tag` is the tag of the new language on the
+ * state port ("sv", "zh-CN").
  */
 export async function switchLanguage(app: App, name: string, tag: string): Promise<void> {
   await openLanguageRow(app);
-  await pickLanguage(app, LANGUAGE_LABELS_EN, name);
+  await pickLanguage(app, name);
   await app.find("Restart now");
   await app.click("Restart now");
   await app.awaitSelfRestart();

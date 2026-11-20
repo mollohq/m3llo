@@ -26,3 +26,21 @@ export async function waitNoControl(app: App, label: string, timeoutMs = 5_000):
     if (Date.now() > deadline) return false;
   }
 }
+
+/** The number of lines in the app's log now. A later `logLines` call takes it as its start. */
+export function logMark(app: App): number {
+  return app.logTail(Number.MAX_SAFE_INTEGER).split("\n").length;
+}
+
+/**
+ * The lines of the app's log (stdout and stderr of the process) from `mark`
+ * on that contain `fragment`, without the colour codes.
+ */
+export function logLines(app: App, fragment: string, mark = 0): string[] {
+  return app
+    .logTail(Number.MAX_SAFE_INTEGER)
+    .split("\n")
+    .slice(Math.max(0, mark - 1))
+    .map((l) => l.replace(/\x1b\[[0-9;]*m/g, ""))
+    .filter((l) => l.includes(fragment));
+}
