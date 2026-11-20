@@ -448,6 +448,16 @@ flows:
     protocol: []
     issues: []
 
+  # ── Localization ──────────────────────────────────────────────
+  - id: L10N-01
+    title: One Looking to play ask, each app shows it in its UI language and each phone push is in the account language
+    priority: P1
+    users: 5
+    harness: [the_catchup_line_follows_the_ui_language, recap_game_awards_follow_the_ui_language]
+    journeys: [qa/journeys/l10n-readers.ts]
+    protocol: []
+    issues: []
+
   # ── Streaming ─────────────────────────────────────────────────
   - id: STREAM-01
     title: Start a stream, a second user watches it

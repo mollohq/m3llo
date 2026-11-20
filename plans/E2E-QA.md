@@ -723,3 +723,34 @@ The guards read no configuration file. They resolve each host and check every ad
 
 On 2026-10-14 the shared stack hands out `us-east` on `sfu-us.m3llo.app`, the built-in default in `sfu_routing.go`, because `SFU_ENDPOINT_US` is not set.
 That name does not resolve, so the run continues with a warning. When it resolves, every run stops until the local stack sets `SFU_ENDPOINT_US`.
+
+## 16.9 Release Journeys (2026-11-20)
+
+Journeys for the features of the release after v0.7.5. Run on macOS against an own stack
+(compose project `mello-rc`, Nakama on 17350) and the local SFU.
+
+### 16.9.1 Driver
+
+| API | What it does |
+|---|---|
+| `ctx.launch(name, { language })` | The Language setting of the user before the first start (`"en"`, `"sv"`, `"zh-CN"`). The driver writes it to the settings file and starts the app with an empty `MELLO_LANG`, so the setting selects the language, as in a release build. Without it the app gets `MELLO_LANG=en`, and a change of the setting has no effect at the next start. |
+| `app.awaitSelfRestart()` | After "Restart now": waits until the process of the driver has exited and the process that the app started answers on both ports. The driver finds it by its `--instance` argument (`pgrep -f`). macOS and Linux only. `kill` and `restart` work on it. |
+| `lib/glyphs.ts`, `textInk`, `hasGlyphs` | Reads the pixels of a text element in a screenshot. A text with no font has no ink, or equal boxes. The accessibility tree cannot tell. |
+| `lib/push.ts`, `startPushStub` | A push Worker stand-in in the journey. The Nakama of the run must post to it: `PUSH_WORKER_URL=http://host.docker.internal:<MELLO_E2E_PUSH_PORT>` and a `PUSH_WORKER_TOKEN`. |
+| `lib/screen.ts`, `waitText`, `waitNoControl` | Wait for a text, or for a control to go. A text of a panel can come a frame after its buttons. |
+
+### 16.9.2 Journeys
+
+| Journey | Flows | Needs |
+|---|---|---|
+| `settings-language.ts` | SET-04 | |
+| `account-delete.ts#member`, `#ownerHandover`, `#soleMember` | AUTH-06, AUTH-07, AUTH-08 | |
+| `account-delete.ts#handoverRefused` | AUTH-07 | `MELLO_ENABLE_DEV_FAULT=1` |
+| `crew-delete.ts` | CREW-07 | |
+| `feed-history-sessions.ts#lockedWeeks`, `#openWeeks` | FEED-15 | |
+| `looking-to-play-flows.ts#answers`, `#allNo`, `#toastAndSwitch` | LTP-02, LTP-03, LTP-04 | |
+| `l10n-readers.ts` | L10N-01 | The push stub address on the Nakama of the run |
+
+`feed-history-sessions.ts#openWeeks` fails until the server grants the m3llo+ of quest step 5:
+`questsGrantPlus` (`crew_gifts.go`) lists the crew members with the limit `MaxCrewMembers` (10000),
+and Nakama takes 1 to 100.
