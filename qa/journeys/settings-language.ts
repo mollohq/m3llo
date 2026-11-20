@@ -7,7 +7,8 @@
 // again (client/src/restart.rs, a new process) and shows Chinese, signed in
 // as before. In Chinese she picks Svenska and restarts into Swedish, and the
 // journey ends in Swedish with the crew feed on screen. The account language
-// (`lang_tag`) follows each choice.
+// (`lang_tag`) follows each choice. MELLO_JOURNEY_LATIN=de runs German in
+// the place of Swedish.
 //
 // The labels are the translations of client/translations/<lang>. A member
 // whose name is in Han script ("小明") is in the crew: the journey reads the
@@ -29,12 +30,15 @@ import { hasGlyphs, textInk } from "./lib/glyphs.ts";
 import { onboardWithNewCrew, type Credentials } from "./lib/onboarding.ts";
 import { logLines, logMark, waitNoControl, waitText } from "./lib/screen.ts";
 import { accountLangTag, profilesFrom, seedMember, signInEmail } from "./lib/seed.ts";
-import { openLanguageRow, pickLanguage, type UiLanguage } from "./lib/settings.ts";
+import { openLanguageRow, pickLanguage } from "./lib/settings.ts";
 import { readInviteCode } from "./lib/setup.ts";
 
 /** The labels of one UI language that the journey reads, as the catalog has them. */
 type Labels = {
-  tag: UiLanguage;
+  /** The tag of the language on the state port. */
+  tag: string;
+  /** The name of the language in the dropdown. */
+  name: string;
   restartNow: string;
   settings: string;
   accountMenu: string;
@@ -49,6 +53,7 @@ type Labels = {
 
 const EN: Labels = {
   tag: "en",
+  name: "English",
   restartNow: "Restart now",
   settings: "Settings",
   accountMenu: "Account menu",
@@ -63,6 +68,7 @@ const EN: Labels = {
 
 const ZH: Labels = {
   tag: "zh-CN",
+  name: "中文（简体）",
   restartNow: "立即重启",
   settings: "设置",
   accountMenu: "账号菜单",
@@ -77,6 +83,7 @@ const ZH: Labels = {
 
 const SV: Labels = {
   tag: "sv",
+  name: "Svenska",
   restartNow: "Starta om nu",
   settings: "Inställningar",
   accountMenu: "Kontomeny",
@@ -88,6 +95,34 @@ const SV: Labels = {
   members: "MEDLEMMAR",
   inviteYourCrew: "Bjud in gänget",
 };
+
+const DE: Labels = {
+  tag: "de",
+  name: "Deutsch",
+  restartNow: "Jetzt neu starten",
+  settings: "Einstellungen",
+  accountMenu: "Account-Menü",
+  lookingToPlay: "Bock zu zocken",
+  newCrew: "Neue Crew",
+  discover: "Entdecken",
+  crewMenu: "Crew-Menü",
+  crewSettings: "Crew-Einstellungen",
+  members: "MITGLIEDER",
+  inviteYourCrew: "Lade deine Crew ein",
+};
+
+/**
+ * The language with a decimal comma that the journey ends in: Swedish, or
+ * German with MELLO_JOURNEY_LATIN=de. Both write "0,5" for a half.
+ */
+const LATIN: Labels = process.env.MELLO_JOURNEY_LATIN === "de" ? DE : SV;
+
+/**
+ * A name in Han script as the restart panel shows it in a sentence: a word
+ * joiner (U+2060) between the characters, so that the name does not wrap in
+ * the middle (client/src/locale.rs, unbreakable_name).
+ */
+const unbreakable = (name: string): string => [...name].join("\u2060");
 
 /** The controls of the main screen that every language must name in its own words. */
 const MAIN: (keyof Labels)[] = ["settings", "accountMenu", "lookingToPlay", "newCrew", "discover", "crewMenu"];
@@ -115,7 +150,7 @@ export default journey({
       expect(s.user_name === name, `signed in as ${name}, got "${s.user_name}"`);
       for (const key of MAIN) await app.find(l[key]);
       const on = (await app.controls()).map((c) => c.label);
-      for (const other of [EN, SV, ZH]) {
+      for (const other of [EN, LATIN, ZH]) {
         if (other === l) continue;
         for (const key of MAIN) expect(!on.includes(other[key]), `no "${other[key]}" on a screen in ${l.tag}`);
       }
@@ -176,7 +211,7 @@ export default journey({
       await pickLanguage(lena, "中文（简体）");
       await lena.find("Restart now");
       await lena.find("Keep English");
-      expect(await waitText(lena, "m3llo restarts to switch to 中文（简体）."), "the panel names 中文（简体）");
+      expect(await waitText(lena, `m3llo restarts to switch to ${unbreakable("中文（简体）")}.`), "the panel names 中文（简体）");
       expect((await lena.state()).ui_language === "en", "the language of this run is still en");
       await lena.checkpoint("panel-chinese");
     });
@@ -203,30 +238,30 @@ export default journey({
       await lena.waitFor("crew settings closed", (s) => !s.open_modals.includes("crew_settings"), 5_000);
     });
 
-    let swedishStart = 0;
-    await step("in Chinese, lena picks Svenska: the panel is in Chinese, and she restarts into Swedish", async () => {
+    let latinStart = 0;
+    await step(`in Chinese, lena picks ${LATIN.name}: the panel is in Chinese, and she restarts into ${LATIN.tag}`, async () => {
       await openLanguageRow(lena, "zh-CN");
       expect((await lena.controls()).every((c) => c.label !== ZH.restartNow), "no restart panel: the setting is the language of this run");
-      await pickLanguage(lena, "Svenska", "zh-CN");
+      await pickLanguage(lena, LATIN.name, "zh-CN");
       await lena.find(ZH.restartNow);
       await lena.find("保留中文（简体）");
-      expect(await waitText(lena, "切换到Svenska需要重启 m3llo。"), "the panel is in Chinese and names Svenska");
-      await lena.checkpoint("panel-svenska");
-      swedishStart = logMark(lena);
-      await restartInto(lena, ZH.restartNow, SV);
-      await expectAccountLanguage("sv");
+      expect(await waitText(lena, `切换到${LATIN.name}需要重启 m3llo。`), `the panel is in Chinese and names ${LATIN.name}`);
+      await lena.checkpoint(`panel-${LATIN.tag}`);
+      latinStart = logMark(lena);
+      await restartInto(lena, ZH.restartNow, LATIN);
+      await expectAccountLanguage(LATIN.tag);
     });
 
-    await step("in Swedish, the crew feed draws with no path error in the log", async () => {
+    await step(`in ${LATIN.tag}, the crew feed draws with no path error in the log`, async () => {
       // The feed of the crew: the quest card, the board and the People zone
       // with its octagons. The screenshot comes after the app drew them.
       const s = await lena.waitFor("the feed with two members", (st) => st.feed_zones.people.shown && st.feed_zones.people.members === 2, 30_000);
-      expect(s.ui_language === "sv", "the feed is on screen in Swedish");
-      await lena.scrollToControl(SV.inviteYourCrew);
-      await lena.find(SV.inviteYourCrew);
-      await lena.checkpoint("swedish-feed");
-      const errors = logLines(lena, PATH_ERROR, swedishStart);
-      expect(errors.length === 0, `no "${PATH_ERROR}" in the log of the Swedish run, got ${errors.length}, the first: ${errors[0]}`);
+      expect(s.ui_language === LATIN.tag, `the feed is on screen in ${LATIN.tag}`);
+      await lena.scrollToControl(LATIN.inviteYourCrew);
+      await lena.find(LATIN.inviteYourCrew);
+      await lena.checkpoint(`${LATIN.tag}-feed`);
+      const errors = logLines(lena, PATH_ERROR, latinStart);
+      expect(errors.length === 0, `no "${PATH_ERROR}" in the log of the ${LATIN.tag} run, got ${errors.length}, the first: ${errors[0]}`);
     });
 
     await step("no Error events", async () => {

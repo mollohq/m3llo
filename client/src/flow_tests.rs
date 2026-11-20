@@ -11171,8 +11171,12 @@ fn another_language_shows_the_restart_panel() {
     pick_language(&mut h, &chinese);
     assert_eq!(h.controls_labelled("Restart now").len(), 1);
     assert_eq!(h.controls_labelled("Keep English").len(), 1);
+    // The name has word joiners in the sentence: it does not wrap in the
+    // middle (locale::unbreakable_name).
+    let joined = crate::locale::unbreakable_name(&chinese);
+    assert_ne!(joined, chinese);
     assert!(
-        text_shown(&h, &format!("m3llo restarts to switch to {chinese}.")),
+        text_shown(&h, &format!("m3llo restarts to switch to {joined}.")),
         "the sentence names the chosen language"
     );
 }

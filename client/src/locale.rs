@@ -247,6 +247,32 @@ pub(crate) fn native_name(tag: &str) -> String {
     name.to_string()
 }
 
+/// U+2060 WORD JOINER: no line break before it or after it.
+const WORD_JOINER: char = '\u{2060}';
+
+/// A name for a sentence that wraps: no line break in the middle of it.
+///
+/// Text in Han script or kana has a line break between every two characters,
+/// so "中文（简体）" in a narrow sentence wraps as "中文（简" and "体）.". A word
+/// joiner between the characters keeps the name on one line. A name in a
+/// script with spaces is not changed: it has a line break only at a space.
+pub fn unbreakable_name(name: &str) -> String {
+    // CJK radicals and above: Han, kana, Hangul, the full-width forms.
+    let no_spaces = |c: char| c >= '\u{2E80}';
+    let mut out = String::with_capacity(name.len() * 2);
+    let mut prev: Option<char> = None;
+    for c in name.chars() {
+        if let Some(p) = prev {
+            if no_spaces(p) || no_spaces(c) {
+                out.push(WORD_JOINER);
+            }
+        }
+        out.push(c);
+        prev = Some(c);
+    }
+    out
+}
+
 /// The language choices of the settings after "System": the source
 /// language, then each bundled language, as tags. Each tag one time.
 pub(crate) fn setting_choices(bundled: &[&str]) -> Vec<String> {
@@ -424,6 +450,21 @@ mod tests {
             assert_eq!(theme.get_track_label(), 0.0, "{tag}");
             assert_eq!(theme.get_track_kicker(), 0.0, "{tag}");
         }
+    }
+
+    #[test]
+    fn a_name_with_no_spaces_gets_no_line_break_in_the_middle() {
+        let wj = '\u{2060}';
+        let joined = unbreakable_name("中文（简体）");
+        assert_eq!(joined.chars().filter(|c| *c == wj).count(), 5);
+        assert_eq!(joined.replace(wj, ""), "中文（简体）");
+        assert_eq!(unbreakable_name("日本語").replace(wj, ""), "日本語");
+        // A script with spaces keeps its text: it wraps only at a space.
+        for tag in ["en", "sv", "de", "es", "fr", "pt-BR", "qps"] {
+            let name = native_name(tag);
+            assert_eq!(unbreakable_name(&name), name);
+        }
+        assert_eq!(unbreakable_name(""), "");
     }
 
     #[test]

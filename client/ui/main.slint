@@ -351,6 +351,9 @@ export component MainWindow inherits Window {
     in property <[AudioDeviceData]> settings-languages: [];
     in property <string> settings-language: "";
     in-out property <string> settings-language-name: "";
+    /// The name of the choice for the sentence of the restart panel: it does
+    /// not wrap in the middle (locale::unbreakable_name).
+    in property <string> settings-language-restart-name: "";
     in property <bool> settings-language-restart: false;
     /// The name of the language of this run, for the "Keep" button.
     in property <string> settings-language-keep-name: "";
@@ -1962,6 +1965,7 @@ export component MainWindow inherits Window {
         languages: root.settings-languages;
         language: root.settings-language;
         language-name <=> root.settings-language-name;
+        language-restart-name: root.settings-language-restart-name;
         language-restart: root.settings-language-restart;
         language-keep-name: root.settings-language-keep-name;
         // Audio
