@@ -43,8 +43,12 @@ $signalDir = Join-Path ([System.IO.Path]::GetTempPath()) ("mello-smoke-" + [guid
 New-Item -ItemType Directory -Path $signalDir -Force | Out-Null
 
 try {
-    # Unique crew name per run so repeated runs never collide.
-    $env:MELLO_SMOKE_ID = "$([int][double]::Parse((Get-Date -UFormat %s)))-$PID"
+    # Unique crew name per run so repeated runs never collide. The server accepts
+    # a crew name of at most 24 characters (CrewNameMaxChars, text_rules.go), and
+    # the scenario names the crew "Smoke <id>". Keep the id at 15 characters or
+    # fewer: the time in seconds (10 digits), a dash, and the last 4 digits of
+    # the PID.
+    $env:MELLO_SMOKE_ID = "$([int][double]::Parse((Get-Date -UFormat %s)))-$($PID % 10000)"
 
     # Isolated config dir: the smoke run must not read or clobber whatever
     # onboarding state exists on the machine. A runner with completed

@@ -31,8 +31,11 @@ SCENARIO="$(pwd)/tools/perf-harness/scenarios/signup_smoke.json"
 SIGNAL_DIR="$(mktemp -d)"
 trap 'rm -rf "$SIGNAL_DIR"' EXIT
 
-# Unique crew name per run so repeated runs never collide.
-MELLO_SMOKE_ID="$(date +%s)-$$"
+# Unique crew name per run so repeated runs never collide. The server accepts a
+# crew name of at most 24 characters (CrewNameMaxChars, text_rules.go), and the
+# scenario names the crew "Smoke <id>". Keep the id at 15 characters or fewer:
+# the time in seconds (10 digits), a dash, and the last 4 digits of the PID.
+MELLO_SMOKE_ID="$(date +%s)-$(($$ % 10000))"
 export MELLO_SMOKE_ID
 
 # Isolated config dir: the smoke run must not read or clobber whatever
