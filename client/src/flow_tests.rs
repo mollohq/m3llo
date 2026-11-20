@@ -10393,6 +10393,7 @@ fn the_format_label_follows_the_rung_and_the_decoded_size() {
 
 mod account_delete;
 mod art_worker;
+mod crew_delete;
 mod looking_to_play;
 mod push_prefs;
 mod quests;

@@ -1531,6 +1531,30 @@ msgstr ""
 msgid "DELETE MY ACCOUNT"
 msgstr ""
 
+#: client/ui/panels/delete_crew_modal.slint
+msgid "CREW"
+msgstr ""
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The crew, for every member."
+msgstr ""
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The chat of the crew."
+msgstr ""
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "The clips and the history of the crew."
+msgstr ""
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "Delete this crew"
+msgstr ""
+
+#: client/ui/panels/delete_crew_modal.slint
+msgid "DELETE THIS CREW"
+msgstr ""
+
 #: client/ui/panels/discover_panel.slint
 msgid "0{n} Member"
 msgid_plural "0{n} Members"
@@ -2245,10 +2269,6 @@ msgid "APPEARANCE"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint
-msgid "Language"
-msgstr ""
-
-#: client/ui/panels/settings_modal.slint
 msgid "Hardware Acceleration"
 msgstr ""
 
@@ -2467,6 +2487,10 @@ msgstr ""
 
 #: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Upload"
+msgstr ""
+
+#: client/ui/panels/settings_modal.slint
+msgid "Language"
 msgstr ""
 
 #: client/ui/panels/settings_modal.slint
@@ -4513,6 +4537,11 @@ msgstr ""
 #. show.
 #: client/ui/tr.slint
 msgid "Your account was not deleted. Check the connection and try again."
+msgstr ""
+
+#. Crew settings, crew delete: the delete failed.
+#: client/ui/tr.slint
+msgid "The crew was not deleted. Check the connection and try again."
 msgstr ""
 
 #. Onboarding: the app did not connect.

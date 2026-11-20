@@ -1,7 +1,9 @@
 // CREW-07: the owner deletes a crew (specs/16-CREW-EVENT-LEDGER.md section 10).
 //
 // alice owns a crew with bob in it. Both write in the chat. alice opens crew
-// settings and presses DELETE CREW. Her crew list loses the crew at once.
+// settings and presses DELETE CREW. A confirm opens. Cancel keeps the crew and
+// its chat. She presses DELETE CREW again and confirms with the red button.
+// Her crew list loses the crew at once.
 // bob's loses it when he starts mello again: the server sends a member no
 // event for a deleted crew. The invite link of the crew is not valid any
 // more, and the server gives bob no chat of the crew.
@@ -12,6 +14,7 @@
 
 import { journey } from "../../tools/mello-driver/src/journey.ts";
 import { openCrewSettings } from "./lib/crew.ts";
+import { waitNoControl, waitText } from "./lib/screen.ts";
 import { crewChatTexts, signInEmail } from "./lib/seed.ts";
 import { twoUsersInOneCrew } from "./lib/setup.ts";
 
@@ -38,11 +41,29 @@ export default journey({
       expect(texts !== null && texts.includes(fromAlice) && texts.includes(fromBob), `the server gives bob both messages, got ${JSON.stringify(texts)}`);
     });
 
-    await step("alice deletes the crew in crew settings: it leaves her crew list", async () => {
+    await step("alice presses DELETE CREW: a confirm opens, and Cancel keeps the crew", async () => {
       await openCrewSettings(alice);
       await alice.click("DELETE CREW");
+      await alice.find("Delete this crew");
+      expect(await waitText(alice, `Delete ${crew}`), "the confirm names the crew");
+      expect(await waitText(alice, "This cannot be undone."), "the confirm says that it cannot be undone");
+      await alice.checkpoint("confirm");
+      await alice.click("Cancel");
+      expect(await waitNoControl(alice, "Delete this crew"), "Cancel closes the confirm");
+      const s = await alice.state();
+      expect(s.crews.includes(crew) && s.active_crew_id === crewId && s.open_modals.includes("crew_settings"), "the crew stays, with crew settings open");
+      const types = (await alice.events()).map((e) => e.type);
+      expect(!types.includes("CrewDeleted") && !types.includes("CrewDeleteFailed"), "Cancel sends no delete");
+      const texts = await crewChatTexts(bobToken, crewId);
+      expect(texts !== null && texts.includes(fromAlice) && texts.includes(fromBob), `the server still has the chat, got ${JSON.stringify(texts)}`);
+    });
+
+    await step("alice presses DELETE CREW and confirms: the crew leaves her crew list", async () => {
+      await alice.click("DELETE CREW");
+      await alice.click("Delete this crew");
       const s = await alice.waitFor("the crew is gone for alice", (st) => !st.crews.includes(crew) && !st.open_modals.includes("crew_settings"), 15_000);
       expect(s.active_crew_id !== crewId, "the deleted crew is not the active crew");
+      expect(await waitNoControl(alice, "Delete this crew"), "the confirm is closed");
       const types = (await alice.events()).map((e) => e.type);
       expect(types.includes("CrewDeleted") && !types.includes("CrewDeleteFailed"), "one CrewDeleted, no CrewDeleteFailed");
       await alice.checkpoint("deleted");
