@@ -421,6 +421,33 @@ flows:
     protocol: []
     issues: []
 
+  - id: LTP-02
+    title: A member answers In 15, changes to In 30 and to Not now, the asker cancels, and the next ask waits 10 minutes
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
+  - id: LTP-03
+    title: Every member answers Not now, the ask closes with "No one this time"
+    priority: P1
+    users: 2
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
+  - id: LTP-04
+    title: A member with another crew on screen gets the toast and answers on it; with the crew's Looking to play switch off, no toast
+    priority: P1
+    users: 3
+    harness: []
+    journeys: [qa/journeys/looking-to-play-flows.ts]
+    protocol: []
+    issues: []
+
   # ── Streaming ─────────────────────────────────────────────────
   - id: STREAM-01
     title: Start a stream, a second user watches it

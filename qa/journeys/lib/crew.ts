@@ -2,8 +2,11 @@
 
 import type { App } from "../../../tools/mello-driver/src/app.ts";
 
-/** The items of the crew menu (crew_panel.slint). "Crew settings" and "Add channel" show only for an owner or an admin. */
-export type CrewMenuItem = "Crew settings" | "Add channel" | "Invite" | "Leave crew";
+/**
+ * The items of the crew menu (crew_panel.slint). "Crew settings" and "Add channel" show only for an owner or an admin.
+ * "Notifications" shows for a plain member: it opens crew settings on the NOTIFICATIONS tab.
+ */
+export type CrewMenuItem = "Crew settings" | "Add channel" | "Invite" | "Leave crew" | "Notifications";
 
 /** The tabs of crew settings (crew_settings_modal.slint). */
 export type CrewSettingsTab = "OVERVIEW" | "CHANNELS" | "MEMBERS";
