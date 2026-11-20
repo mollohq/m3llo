@@ -25,6 +25,10 @@ async function gifts(app: App): Promise<Gift[]> {
 
 /** Open the first ready gift in the centre and wait for its face at rest. */
 async function openGift(app: App, step: string): Promise<void> {
+  // The rail of gifts is at the top of the feed. Wait for the control first:
+  // it can trail the state port, and `scrollToControl` scrolls down for a
+  // control that is absent, which takes the rail off the screen for good.
+  await app.find("Sealed gift, open it");
   await app.scrollToControl("Sealed gift, open it");
   await app.click("Sealed gift, open it");
   await app.waitFor(`${step}: the gift in the centre`, (s) => s.sealed.open_center === "quest", 5_000);
