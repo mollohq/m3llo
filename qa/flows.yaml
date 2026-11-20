@@ -134,6 +134,33 @@ flows:
     protocol: []
     issues: []
 
+  - id: AUTH-06
+    title: A member deletes the account in Settings, is signed out, and cannot sign in again
+    priority: P0
+    users: 2
+    harness: [the_account_button_opens_the_confirm_and_cancel_sends_nothing, the_red_button_sends_one_delete_and_a_second_press_sends_nothing, a_refused_delete_shows_the_server_text_and_allows_a_retry, a_failure_with_no_server_text_shows_the_client_text, a_new_open_shows_no_old_failure]
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
+  - id: AUTH-07
+    title: The only owner of a crew with other members deletes the account, another member becomes the owner
+    priority: P0
+    users: 2
+    harness: []
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
+  - id: AUTH-08
+    title: The only member of a crew deletes the account, the crew is gone
+    priority: P1
+    users: 3
+    harness: []
+    journeys: [qa/journeys/account-delete.ts]
+    protocol: []
+    issues: []
+
   # ── Invites ───────────────────────────────────────────────────
   - id: INV-01
     title: Create and copy an invite link

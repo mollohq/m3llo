@@ -5,7 +5,7 @@ import type { JourneyContext } from "../../../tools/mello-driver/src/journey.ts"
 import { onboardFromInvite, onboardWithNewCrew, type Credentials, type Visibility } from "./onboarding.ts";
 import { openInvite } from "./crew.ts";
 
-export type Crew = { alice: App; bob: App; crew: string; aliceName: string; bobName: string; aliceCreds: Credentials };
+export type Crew = { alice: App; bob: App; crew: string; aliceName: string; bobName: string; aliceCreds: Credentials; bobCreds: Credentials; code: string };
 
 /**
  * alice creates a crew and invites bob. bob opens the link on a fresh install:
@@ -27,15 +27,16 @@ export async function twoUsersInOneCrew(ctx: JourneyContext, visibility: Visibil
   });
 
   const bob = await launch("bob", `mello://join/${code}`);
+  let bobCreds: Credentials = { email: "", password: "" };
   await step("setup: bob opens the link on a fresh install, joins in onboarding, reaches the app", async () => {
-    await onboardFromInvite(bob, crew, bobName);
+    bobCreds = await onboardFromInvite(bob, crew, bobName);
   });
 
   await step("setup: both have the crew active", async () => {
     await selectCrew(alice, crew);
     await selectCrew(bob, crew);
   });
-  return { alice, bob, crew, aliceName, bobName, aliceCreds };
+  return { alice, bob, crew, aliceName, bobName, aliceCreds, bobCreds, code };
 }
 
 /**
