@@ -1,7 +1,7 @@
 // One test user = one real mello process, isolated from every other user and
 // from the developer's own client (plans/E2E-QA.md §5.2).
 
-import { spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess, type SpawnOptions } from "node:child_process";
 import { appendFileSync, mkdirSync, openSync, renameSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -429,6 +429,14 @@ export type UserOptions = {
   deeplink?: string;
   /** Default: DEFAULT_MIC_PERMISSION. */
   micPermission?: MicPermission;
+  /**
+   * The Language setting of the user before the first start (a tag of the
+   * Settings dropdown: "en", "sv", "zh-CN"). The driver writes it to the
+   * settings file and starts the app with an empty MELLO_LANG, so the setting
+   * selects the language, as in a release build. Without it the app gets
+   * MELLO_LANG=en, and a change of the setting has no effect at the next start.
+   */
+  language?: string;
 };
 
 export type AppOptions = {
@@ -444,6 +452,8 @@ export type AppOptions = {
   env?: Record<string, string>;
   /** The microphone permission of this user. Default: DEFAULT_MIC_PERMISSION. */
   micPermission?: MicPermission;
+  /** The Language setting of this user: see UserOptions.language. */
+  language?: string;
   /** Called with the text of each action, the same text as in actions.log. */
   onAction?: (user: string, text: string) => void;
 };
@@ -456,6 +466,32 @@ export const FAKE_OAUTH = process.env.MELLO_E2E_OAUTH_BASE ?? "http://127.0.0.1:
 /** Every app process this driver started and has not reaped yet. */
 const live = new Set<ChildProcess>();
 
+/** The process ids of the apps that started themselves again (App.awaitSelfRestart). */
+const adopted = new Set<number>();
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The process ids whose command line has `--instance <instance>`. macOS and
+ * Linux only (`pgrep -f`).
+ */
+function pidsOfInstance(instance: string): number[] {
+  if (process.platform === "win32") throw new DriverError("the driver cannot find a restarted app on Windows: no pgrep");
+  try {
+    const out = execFileSync("pgrep", ["-f", "--", `--instance ${instance}( |$)`], { encoding: "utf8" });
+    return out.split("\n").map(Number).filter((n) => n > 0);
+  } catch {
+    return []; // pgrep exits 1 when nothing matches
+  }
+}
+
 /**
  * Kill every app this driver started. Installed on SIGINT and SIGTERM so an
  * interrupted run never leaves test apps holding their ports and windows.
@@ -463,6 +499,14 @@ const live = new Set<ChildProcess>();
 export function killAllApps(): void {
   for (const p of live) p.kill("SIGKILL");
   live.clear();
+  for (const pid of adopted) {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch {
+      // Already gone.
+    }
+  }
+  adopted.clear();
 }
 
 const shutdownHooks = new Set<(signal: string) => void>();
@@ -508,6 +552,8 @@ export class App {
   readonly ui: SlintMcp;
   private readonly opts: AppOptions;
   private proc: ChildProcess | null = null;
+  /** The process that the app started when it restarted itself. Not a child of the driver. */
+  private adoptedPid: number | null = null;
   private shots = 0;
   private ready = false;
 
@@ -517,6 +563,12 @@ export class App {
     this.dir = join(opts.runDir, name);
     this.ui = new SlintMcp(opts.mcpPort);
     mkdirSync(join(this.dir, "config"), { recursive: true });
+    // The settings file of the client (client/src/settings.rs, mello.toml).
+    // A missing field takes its default.
+    const settings = join(this.dir, "config", "mello.toml");
+    if (opts.language !== undefined && !existsSync(settings)) {
+      writeFileSync(settings, `language = ${JSON.stringify(opts.language)}\n`);
+    }
   }
 
   get statePort(): number {
@@ -557,7 +609,7 @@ export class App {
 
   /** The process id of the running app, for an external sampler (memory, CPU). */
   get pid(): number | undefined {
-    return this.proc?.pid ?? undefined;
+    return this.proc?.pid ?? this.adoptedPid ?? undefined;
   }
 
   /** Where the app writes an OAuth URL instead of opening the system browser. */
@@ -570,7 +622,7 @@ export class App {
    * reads it only from argv[1] (client/src/deep_link.rs).
    */
   async launch(deeplink?: string): Promise<void> {
-    if (this.proc) throw new DriverError(`${this.name}: already running`);
+    if (this.running) throw new DriverError(`${this.name}: already running`);
     const args = [...(deeplink ? [deeplink] : []), "--instance", this.instance];
     const log = openSync(this.logPath, "a");
     this.proc = spawnBinary(this.opts.binary, args, {
@@ -635,6 +687,9 @@ export class App {
       // reads the same on every PC (l10n_format::clock_form).
       MELLO_CLOCK: "24",
       ...this.opts.env,
+      // The Language setting decides, as in a release build. An empty
+      // MELLO_LANG names no language (client/src/locale.rs, choose).
+      ...(this.opts.language !== undefined ? { MELLO_LANG: "" } : {}),
       // The e2e-mic seam (mello-core/src/client/mic_permission.rs). Last, so
       // the user's option decides, not the developer's shell or the run.
       MELLO_E2E_MIC_PERMISSION: this.opts.micPermission ?? DEFAULT_MIC_PERMISSION,
@@ -665,6 +720,21 @@ export class App {
   }
 
   async kill(): Promise<void> {
+    const pid = this.adoptedPid;
+    if (pid !== null) {
+      try {
+        process.kill(pid, "SIGTERM");
+      } catch {
+        // Already gone.
+      }
+      for (let i = 0; i < 50 && pidAlive(pid); i++) await sleep(100);
+      if (pidAlive(pid)) process.kill(pid, "SIGKILL");
+      for (let i = 0; i < 20 && pidAlive(pid); i++) await sleep(100);
+      adopted.delete(pid);
+      this.adoptedPid = null;
+      this.ready = false;
+      return;
+    }
     const p = this.proc;
     if (!p) return;
     p.kill("SIGTERM");
@@ -679,13 +749,51 @@ export class App {
     await this.launch();
   }
 
+  /**
+   * The app restarts itself (Settings, Language, "Restart now"): it quits and
+   * starts its executable again with the same arguments and environment
+   * (client/src/restart.rs). Call this after the click. It waits until the
+   * process that the driver started has exited, and until the new process
+   * answers on both ports. The new process is not a child of the driver, so
+   * the driver finds it by its `--instance` argument. macOS and Linux only.
+   */
+  async awaitSelfRestart(timeoutMs = 30_000): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    const old = this.pid;
+    if (old === undefined) throw new DriverError(`${this.name}: not running, so it cannot restart itself`);
+    while ((this.proc || (this.adoptedPid !== null && pidAlive(this.adoptedPid))) && Date.now() < deadline) await sleep(100);
+    if (this.proc || (this.adoptedPid !== null && pidAlive(this.adoptedPid))) {
+      throw new DriverError(`${this.name}: the app did not quit within ${timeoutMs} ms; see ${this.logPath}`);
+    }
+    if (this.adoptedPid !== null) adopted.delete(this.adoptedPid);
+    this.adoptedPid = null;
+    this.ready = false;
+    while (Date.now() < deadline) {
+      const pids = pidsOfInstance(this.instance).filter((p) => p !== old);
+      if (pids.length > 1) throw new DriverError(`${this.name}: ${pids.length} processes run as ${this.instance}`);
+      if (pids.length === 1 && this.adoptedPid === null) {
+        this.adoptedPid = pids[0];
+        adopted.add(pids[0]);
+      }
+      if (this.adoptedPid !== null) {
+        if (!pidAlive(this.adoptedPid)) throw new DriverError(`${this.name}: the restarted app exited during start; see ${this.logPath}`);
+        if ((await this.ui.ready()) && (await this.stateOrNull())) {
+          this.ready = true;
+          return;
+        }
+      }
+      await sleep(200);
+    }
+    throw new DriverError(`${this.name}: the app quit and did not start again within ${timeoutMs} ms; see ${this.logPath}`);
+  }
+
   get running(): boolean {
-    return this.proc !== null;
+    return this.proc !== null || this.adoptedPid !== null;
   }
 
   /** The app is started and answers on both ports. */
   get live(): boolean {
-    return this.proc !== null && this.ready;
+    return this.running && this.ready;
   }
 
   /**

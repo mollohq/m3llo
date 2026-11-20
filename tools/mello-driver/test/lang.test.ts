@@ -2,7 +2,7 @@
 // Run: node --test "tools/mello-driver/test/*.test.ts"
 
 import assert from "node:assert/strict";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
@@ -32,6 +32,12 @@ test("an app shows English, whatever the shell has", () => {
 
 test("a journey can select another language", () => {
   assert.equal(app({ env: { MELLO_LANG: "qps" } }).launchEnv().MELLO_LANG, "qps");
+});
+
+test("a user with a Language setting runs from the setting, not from MELLO_LANG", () => {
+  const a = app({ language: "sv", env: { MELLO_LANG: "qps" } });
+  assert.equal(a.launchEnv().MELLO_LANG, "");
+  assert.equal(readFileSync(join(a.dir, "config", "mello.toml"), "utf8"), 'language = "sv"\n');
 });
 
 test("an app shows the 24 h clock, whatever the shell has", () => {

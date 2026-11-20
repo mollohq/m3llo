@@ -429,3 +429,59 @@ export async function setPlaying(
     : { clear_game: true };
   await rpc(member.token, "presence_update", payload);
 }
+
+/** The account language (`lang_tag`) of the account that owns `token` (LOCALIZATION.md section 9a). */
+export async function accountLangTag(token: string): Promise<string> {
+  const r = await call<{ user: { lang_tag?: string } }>("GET", "/v2/account", { token });
+  return r.user.lang_tag ?? "";
+}
+
+/**
+ * The texts of the newest chat messages of a crew, as the member who owns
+ * `token` reads them over REST. Null when the server refuses the read (the
+ * member is not in the crew, or the crew does not exist).
+ */
+export async function crewChatTexts(token: string, crewId: string): Promise<string[] | null> {
+  const r = await fetch(`${nakamaBase()}/v2/channel/${encodeURIComponent(`3.${crewId}..`)}?limit=50&forward=false`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!r.ok) return null;
+  const body = (await r.json()) as { messages?: { content?: string }[] };
+  return (body.messages ?? []).map((m) => {
+    try {
+      return String((JSON.parse(m.content ?? "{}") as { body?: unknown }).body ?? "");
+    } catch {
+      return "";
+    }
+  });
+}
+
+/**
+ * A crew member with a phone and no open app: a device account with a display
+ * name and an account language, joined by invite code, with one registered
+ * push token. The member has no socket, so the server sends a push at once.
+ */
+export async function seedPhoneMember(crewInviteCode: string, name: string, langTag: string, pushToken: string, runId: string): Promise<SeededMember> {
+  const token = await deviceToken(`seed-${runId}-${idPart(name)}`.toLowerCase());
+  const me = await call<{ user: { id: string } }>("GET", "/v2/account", { token });
+  await call("PUT", "/v2/account", { token, body: { display_name: name, lang_tag: langTag } });
+  await joinByCode(token, crewInviteCode);
+  await rpc(token, "register_push_token", { token: pushToken, platform: "ios", environment: "sandbox" });
+  return { name, userId: me.user.id, token };
+}
+
+/**
+ * Make the next crew handover of an account delete fail (`dev_fault`
+ * `fail_next_handover`): the server refuses that delete. False when
+ * `dev_fault` is off on this stack.
+ */
+export async function failNextHandover(token: string): Promise<boolean> {
+  const r = await fetch(`${nakamaBase()}/v2/rpc/dev_fault`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(JSON.stringify({ action: "fail_next_handover" })),
+    signal: AbortSignal.timeout(30_000),
+  });
+  return r.ok;
+}

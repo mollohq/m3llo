@@ -614,6 +614,15 @@ flows:
     protocol: []
     issues: []
 
+  - id: SET-04
+    title: Change the app language in Settings, the restart panel, the app starts again in the new language
+    priority: P1
+    users: 1
+    harness: []
+    journeys: [qa/journeys/settings-language.ts]
+    protocol: []
+    issues: []
+
   # ── Updates ───────────────────────────────────────────────────
   - id: UPD-01
     title: The update banner installs a new version
