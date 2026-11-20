@@ -23,7 +23,7 @@
 import type { App } from "../../tools/mello-driver/src/app.ts";
 import { journey, type JourneyContext } from "../../tools/mello-driver/src/journey.ts";
 import { onboardFromInvite, onboardWithNewCrew } from "./lib/onboarding.ts";
-import { waitText } from "./lib/screen.ts";
+import { scrollToText, waitText } from "./lib/screen.ts";
 import { GAME_POOL, seedMember, type SeedProfile } from "./lib/seed.ts";
 import { readInviteCode } from "./lib/setup.ts";
 
@@ -126,10 +126,10 @@ export const openWeeks = journey({
     await step("the weeks show sara's sessions: Rocket League in the newer week, Valheim in the older one", async () => {
       const weeks = (await alice.state()).feed_zones.history.map((w) => w.label.toUpperCase());
       await alice.scrollToControl(weeks[0], 700, 500, 20);
-      expect(await waitText(alice, ROCKET_LEAGUE.name), `${ROCKET_LEAGUE.name} is on screen`);
+      expect(await scrollToText(alice, ROCKET_LEAGUE.name, 700, 500), `${ROCKET_LEAGUE.name} is on screen`);
       await alice.checkpoint("week-newer");
       await alice.scrollToControl(weeks[1], 700, 500, 20);
-      expect(await waitText(alice, VALHEIM.name), `${VALHEIM.name} is on screen`);
+      expect(await scrollToText(alice, VALHEIM.name, 700, 500), `${VALHEIM.name} is on screen`);
       expect(await waitText(alice, "Sara"), "the card names sara");
       const labels = (await alice.controls()).map((c) => c.label);
       expect(labels.every((l) => !l.startsWith("Locked ")), "no locked teaser");
