@@ -10976,8 +10976,9 @@ fn the_chat_sound_switch_saves_and_silences_chat() {
 // The UI language (specs/features/LOCALIZATION.md section 9)
 // ---------------------------------------------------------------------------
 
-/// A signed-in window with the GENERAL tab of the settings on screen.
-fn general_settings() -> Harness {
+/// A signed-in window with the PROFILE tab of the settings on screen. The
+/// Language row is under the avatar and name block, on the first screen.
+fn profile_settings() -> Harness {
     let mut h = Harness::new();
     h.emit(Event::LoggedIn {
         user: sample_user(),
@@ -10985,19 +10986,20 @@ fn general_settings() -> Harness {
     h.commands();
     h.app().invoke_settings_requested();
     h.pump();
-    h.click_label("GENERAL");
-    // The APPEARANCE section is below the first screen of the tab. The
-    // wheel event goes to the tab content, above the first row.
-    let at = h.controls_labelled("Launch on system startup")[0].absolute_position();
+    h.click_label("PROFILE");
+    h
+}
+
+/// Turn the wheel over the content of the open settings tab.
+fn scroll_settings_content(h: &mut Harness, at: slint::LogicalPosition, delta_y: f32) {
     h.app()
         .window()
         .dispatch_event(slint::platform::WindowEvent::PointerScrolled {
-            position: slint::LogicalPosition::new(at.x, at.y - 60.0),
+            position: at,
             delta_x: 0.0,
-            delta_y: -500.0,
+            delta_y,
         });
     h.pump();
-    h
 }
 
 /// The names of the Language dropdown: "System", English, then each bundled
@@ -11061,11 +11063,107 @@ impl Drop for ThreadConfigDir {
     }
 }
 
+/// The Language row is on the PROFILE tab, between the name field and the
+/// ACCOUNT panel. The GENERAL tab does not have it.
+#[test]
+fn the_language_row_is_on_the_profile_tab_under_the_name() {
+    let mut h = profile_settings();
+    let language = h.controls_labelled("Language");
+    assert_eq!(language.len(), 1, "the dropdown on PROFILE");
+    let language_y = language[0].absolute_position().y;
+    let name = &h.controls_labelled("DISPLAY NAME")[0];
+    let name_bottom = name.absolute_position().y + name.size().height;
+    let delete_y = h.controls_labelled("Delete account")[0]
+        .absolute_position()
+        .y;
+    assert!(
+        language_y > name_bottom,
+        "Language ({language_y}) is below the name field ({name_bottom})"
+    );
+    assert!(
+        language_y < delete_y,
+        "Language ({language_y}) is above Delete account ({delete_y})"
+    );
+
+    h.click_label("GENERAL");
+    assert!(
+        !h.controls_labelled("Launch on system startup").is_empty(),
+        "GENERAL is on screen"
+    );
+    assert!(
+        h.controls_labelled("Language").is_empty(),
+        "no Language row on GENERAL"
+    );
+    assert!(
+        h.controls_labelled("Delete account").is_empty(),
+        "no ACCOUNT panel on GENERAL"
+    );
+}
+
+/// The ACCOUNT panel is pinned to the bottom edge of the PROFILE tab. The
+/// open avatar grid makes the content taller than the tab: the panel stays,
+/// the wheel moves the content and does not move "Delete account". A taller
+/// window moves the panel down with the footer.
+#[test]
+fn the_account_panel_stays_at_the_bottom_of_the_profile_tab() {
+    let mut h = profile_settings();
+    let y_of = |h: &Harness, label: &str| {
+        let found = h.controls_labelled(label);
+        assert!(!found.is_empty(), "no control labelled {label:?}");
+        found[0].absolute_position().y
+    };
+    let delete_before = y_of(&h, "Delete account");
+    let gap_to_footer = y_of(&h, "Close") - delete_before;
+    let name_before = y_of(&h, "DISPLAY NAME");
+
+    // The open grid, without the click: the click loads the avatars.
+    h.app().set_profile_grid_expanded(true);
+    h.pump();
+    assert_eq!(
+        y_of(&h, "Delete account"),
+        delete_before,
+        "taller content does not push the panel"
+    );
+
+    let name = h.controls_labelled("DISPLAY NAME")[0].absolute_position();
+    scroll_settings_content(&mut h, slint::LogicalPosition::new(name.x, name.y), -500.0);
+    let name_after = h.controls_labelled("DISPLAY NAME");
+    assert!(
+        name_after.is_empty() || name_after[0].absolute_position().y < name_before,
+        "the content scrolls"
+    );
+    assert_eq!(
+        y_of(&h, "Delete account"),
+        delete_before,
+        "the panel does not scroll"
+    );
+    let language = &h.controls_labelled("Language")[0];
+    assert!(
+        language.absolute_position().y + language.size().height < delete_before,
+        "the scrolled Language row is above the panel"
+    );
+
+    let size = h.app().window().size();
+    h.app()
+        .window()
+        .set_size(slint::PhysicalSize::new(size.width, size.height + 200));
+    h.pump();
+    assert!(
+        y_of(&h, "Delete account") > delete_before,
+        "a taller window moves the panel down"
+    );
+    assert_eq!(
+        y_of(&h, "Close") - y_of(&h, "Delete account"),
+        gap_to_footer,
+        "the panel keeps its distance to the footer"
+    );
+}
+
 /// The language of the chosen row and the language of this run name the
 /// panel text and the "Keep" button. The tests run in English.
 #[test]
 fn another_language_shows_the_restart_panel() {
-    let mut h = general_settings();
+    let mut h = profile_settings();
     let chinese = crate::locale::native_name("zh-CN");
     assert!(!restart_hint_shown(&h), "no panel before a change");
 
@@ -11083,7 +11181,7 @@ fn another_language_shows_the_restart_panel() {
 #[test]
 fn keep_restores_the_language_of_this_run() {
     let _dir = ThreadConfigDir::new();
-    let mut h = general_settings();
+    let mut h = profile_settings();
     let chinese = crate::locale::native_name("zh-CN");
     pick_language(&mut h, &chinese);
     assert_eq!(h.settings().borrow().language, "zh-CN");
@@ -11112,7 +11210,7 @@ fn keep_restores_the_language_of_this_run() {
 /// tray "Quit".
 #[test]
 fn restart_now_asks_for_a_restart_and_quits() {
-    let mut h = general_settings();
+    let mut h = profile_settings();
     let asked = std::rc::Rc::new(std::cell::Cell::new(0u32));
     let seen = asked.clone();
     *h.ctx().restart.borrow_mut() = Some(Box::new(move || seen.set(seen.get() + 1)));
@@ -11130,7 +11228,7 @@ fn restart_now_asks_for_a_restart_and_quits() {
 
 #[test]
 fn the_language_row_lists_system_and_the_bundled_languages() {
-    let mut h = general_settings();
+    let mut h = profile_settings();
     assert_eq!(h.controls_labelled("Language").len(), 1, "the dropdown");
     assert_eq!(h.app().get_settings_language_name(), "System");
 
@@ -11165,7 +11263,7 @@ fn the_language_row_lists_system_and_the_bundled_languages() {
 
 #[test]
 fn a_language_choice_is_saved_and_shows_the_restart_hint() {
-    let mut h = general_settings();
+    let mut h = profile_settings();
     assert!(!restart_hint_shown(&h), "no hint before a change");
 
     pick_language(&mut h, "English");
@@ -11198,7 +11296,7 @@ fn a_language_choice_is_saved_and_shows_the_restart_hint() {
 #[test]
 fn each_translated_language_can_be_chosen() {
     let _dir = ThreadConfigDir::new();
-    let mut h = general_settings();
+    let mut h = profile_settings();
     for (tag, name) in [
         ("de", "Deutsch"),
         ("es", "Español"),
@@ -11226,7 +11324,7 @@ fn each_translated_language_can_be_chosen() {
 #[cfg(debug_assertions)]
 #[test]
 fn the_pseudo_language_can_be_chosen_in_a_debug_build() {
-    let mut h = general_settings();
+    let mut h = profile_settings();
     pick_language(&mut h, "Pseudo (qps)");
     assert_eq!(h.settings().borrow().language, "qps");
     assert_eq!(

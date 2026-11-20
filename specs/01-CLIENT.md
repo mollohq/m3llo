@@ -157,9 +157,16 @@ The e2e state port reports `id`, `volume` and `local_muted` for each voice membe
 The settings modal (`settings_modal.slint`) has six tabs, in this order:
 PROFILE, GENERAL, AUDIO, GAMES, ABOUT, KEYBINDS.
 
+#### PROFILE tab: order
+
+From top to bottom: the avatar and the display name (with the avatar grid when it is open),
+the "Language" row (specs/features/LOCALIZATION.md, "The Settings row"), then the ACCOUNT panel.
+
 #### PROFILE tab: ACCOUNT
 
-The last section of the PROFILE tab is ACCOUNT. It has one row: "Delete account", the
+The ACCOUNT panel is pinned to the bottom edge of the PROFILE tab. It is not in the scroll
+area. When the content above is taller than the tab, the content scrolls and the panel stays.
+It has one row: "Delete account", the
 sentence "This cannot be undone.", and the outline button "DELETE ACCOUNT". The button opens
 the confirm (`delete_account_modal.slint`, global `DeleteAccountUi`). The button does not commit,
 so it is not red.

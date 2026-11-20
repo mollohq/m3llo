@@ -386,7 +386,7 @@ English UI keeps the Japanese glyph shapes.
 
 ### The Settings row
 
-The GENERAL tab has a "Language" dropdown in the APPEARANCE section.
+The PROFILE tab has a "Language" dropdown, under the avatar and the display name.
 
 - The first row is "System" (`Tr.language-system`). It saves an empty
   `Settings.language`.
