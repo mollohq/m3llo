@@ -1,6 +1,6 @@
 // CHAT-02: emoji in chat. The picker stays open across picks, an emoji-only
-// message reaches the other member, and the GIF picker says why it is empty
-// instead of showing a blank grid. The checkpoints are the visual proof of
+// message reaches the other member, and the GIF picker shows GIFs or says why it
+// is empty, never a blank grid. The checkpoints are the visual proof of
 // the Twemoji glyphs and the jumbo size, which no headless render can show.
 
 import { journey } from "../../tools/mello-driver/src/journey.ts";
@@ -31,12 +31,28 @@ export default journey({
       await bob.checkpoint("bob-jumbo");
     });
 
-    await step("the GIF picker says why it is empty", async () => {
+    await step("the GIF picker shows GIFs, or says why it is empty", async () => {
       await bob.click("GIF");
-      // This build carries no GIPHY_API_KEY, so the picker must say so and
-      // offer a retry, not show a blank grid.
-      await bob.find("Try again", 0, 10_000);
-      expect((await bob.text("GIFs are off in this build")) !== null, "the reason is on screen");
+      // A build without GIPHY_API_KEY must give the reason and a retry. A build
+      // with the key shows cells, and each cell is a control labelled "GIF", as
+      // the pill is. The two outcomes are the only correct ones: a grid that
+      // stays blank fails the wait.
+      const deadline = Date.now() + 10_000;
+      let outcome: "cells" | "reason" | null = null;
+      while (outcome === null && Date.now() < deadline) {
+        const all = await bob.controls();
+        if (all.some((c) => c.label === "Try again")) outcome = "reason";
+        else if (all.filter((c) => c.label === "GIF").length > 1) outcome = "cells";
+        else await new Promise((r) => setTimeout(r, 200));
+      }
+      expect(outcome !== null, "the GIF picker shows cells or a retry within 10 s, not a blank grid");
+      if (outcome === "reason") {
+        // The sentence depends on the cause (no key, no answer, rate limit).
+        // Without a key it is this one.
+        const noKey = (await bob.text("GIFs are off in this build")) !== null;
+        const noAnswer = (await bob.text("The GIF service did not answer")) !== null;
+        expect(noKey || noAnswer, "the reason is on screen");
+      }
       await bob.checkpoint("bob-gif-picker");
     });
   },
