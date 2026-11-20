@@ -313,7 +313,7 @@ flows:
     priority: P2
     users: 1
     harness: []
-    journeys: []
+    journeys: [qa/journeys/crew-delete.ts]
     protocol: []
     issues: []
 
