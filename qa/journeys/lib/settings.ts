@@ -13,7 +13,7 @@ export type UiLanguage = "en" | "sv" | "zh-CN";
 export type SettingsTab = "profile" | "general";
 
 /** The tab with the Language row. */
-export const LANGUAGE_TAB: SettingsTab = "general";
+export const LANGUAGE_TAB: SettingsTab = "profile";
 
 /** The tab with the ACCOUNT section and "Delete account". */
 export const DELETE_ACCOUNT_TAB: SettingsTab = "profile";
@@ -63,10 +63,10 @@ export async function openDeleteAccount(app: App): Promise<void> {
   await app.find("Delete my account");
 }
 
-/** Open the settings and bring the Language row on screen. */
+/** Open the settings on the tab of the Language row. The row is at the top of the page: it needs no scroll. */
 export async function openLanguageRow(app: App, ui: UiLanguage = "en"): Promise<void> {
   await openSettings(app, LANGUAGE_TAB, ui);
-  await scrollSettingsTo(app, LABELS[ui].language);
+  await app.find(LABELS[ui].language);
 }
 
 /** Pick a language in the dropdown by the name that it shows. An item of a PopupWindow takes `activate`. */
