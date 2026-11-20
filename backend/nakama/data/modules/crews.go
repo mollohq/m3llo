@@ -15,6 +15,9 @@ import (
 const (
 	MaxCrewMembers  = 10000
 	MaxCrewsPerUser = 100
+	// groupUsersPage is the most members that Nakama lists for one
+	// GroupUsersList call: it refuses a limit outside 1 to 100.
+	groupUsersPage = 100
 )
 
 const (
