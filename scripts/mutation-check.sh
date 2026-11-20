@@ -97,9 +97,11 @@ mut "retry loses the pending crew avatar" \
 
 echo "chat:"
 mut "send drops the message body" \
-    client/src/callbacks/chat.rs "content: text.to_string()" "content: String::new()"
+    client/src/callbacks/chat.rs "content: text," "content: String::new(),"
 mut "reply loses its parent message" \
-    client/src/callbacks/chat.rs "reply_to: Some(reply_to.to_string())" "reply_to: None"
+    client/src/callbacks/chat.rs "content: text,
+            reply_to," "content: text,
+            reply_to: None,"
 
 echo "crew:"
 mut "select sends an empty crew id" \
@@ -114,12 +116,12 @@ mut "the Google button signs in with Discord" \
 # four branches, and an unanchored pattern silently mutates whichever comes
 # first rather than the one named here.
 mut "a failed login leaves the spinner running" \
-    client/src/handlers/auth.rs 'log::warn!("[auth] login-failed  reason={}", reason);
-            ctx.app.set_login_loading(false);' 'log::warn!("[auth] login-failed  reason={}", reason);
+    client/src/handlers/auth.rs 'log::warn!("[auth] login-failed  reason={:?}", reason);
+            ctx.app.set_login_loading(false);' 'log::warn!("[auth] login-failed  reason={:?}", reason);
             ctx.app.set_login_loading(true);'
 mut "a failed social link leaves the spinner running" \
-    client/src/handlers/auth.rs 'log::warn!("[auth] social-link-failed  reason={}", reason);
-            ctx.app.set_login_loading(false);' 'log::warn!("[auth] social-link-failed  reason={}", reason);
+    client/src/handlers/auth.rs 'log::warn!("[auth] social-link-failed  reason={:?}", reason);
+            ctx.app.set_login_loading(false);' 'log::warn!("[auth] social-link-failed  reason={:?}", reason);
             ctx.app.set_login_loading(true);'
 
 echo ""
