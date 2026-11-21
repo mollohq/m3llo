@@ -4,7 +4,7 @@ import { InviteNameModal, InviteNamePicker } from "panels/invite_name_modal.slin
 import { DeleteAccountModal, DeleteAccountUi } from "panels/delete_account_modal.slint";
 import { DeleteCrewModal, DeleteCrewUi } from "panels/delete_crew_modal.slint";
 import { CrewBannerModal, BannerPicker } from "panels/crew_banner_modal.slint";
-import { Theme } from "theme.slint";
+import { Theme, TextRules } from "theme.slint";
 import {
     CrewData,
     MemberData,
@@ -93,6 +93,8 @@ export {
     LookingToPlayUi, LookingToPlayRow, LookingToPlayCardData, LookingToPlayOpenAsk, LookingToPlayToastData,
     LookingToPlayMember, LookingToPlayFace, LookingToPlayGroup, LookingToPlayGame,
 }
+// The length limits of typed names; Rust implements TextRules.fit.
+export { TextRules }
 // The messages that Rust shows (specs/features/LOCALIZATION.md).
 import { Tr } from "tr.slint";
 export { Tr }

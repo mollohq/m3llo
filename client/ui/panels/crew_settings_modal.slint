@@ -1,4 +1,4 @@
-import { Theme, MelloInputField, MelloScrollArea } from "../theme.slint";
+import { Theme, MelloInputField, MelloScrollArea, TextRules } from "../theme.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { CutShape, CutButtonShape } from "../components/cut.slint";
 import { VoiceChannelData, MemberData } from "../types.slint";
@@ -237,6 +237,7 @@ component OverviewTab inherits VerticalLayout {
                     MelloInputField {
                         label: @tr("CREW NAME");
                         text <=> crew-name-value;
+                        max-chars: TextRules.crew-name-max;
                     }
                 }
 
@@ -514,6 +515,7 @@ component VoiceChannelsTab inherits VerticalLayout {
                 label: @tr("New channel");
                 horizontal-stretch: 1;
                 text <=> new-channel-name;
+                max-chars: TextRules.channel-name-max;
                 placeholder: "channel-name";
                 accepted => {
                     if new-channel-name != "" {

@@ -451,9 +451,9 @@ jobs:
         run: cargo clean
 
   # Linux: a Velopack AppImage on GitHub's Ubuntu 24.04 runner, the glibc
-  # floor of the release (glibc 2.39, as scripts/linux/Dockerfile). Same
-  # steps as the Linux lane of PR Checks (linux-build-test.yml) plus the
-  # production build and the pack.
+  # floor of the release (glibc 2.39, as scripts/linux/Dockerfile). The
+  # production build, the pack and a headless smoke test. The tests and
+  # Clippy run in the Linux lane of PR Checks (linux-build-test.yml).
   build-linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
@@ -584,11 +584,13 @@ jobs:
           # A fresh install takes an invite from the clipboard only on this host.
           LOUNGE_HOST: m3llo.app
 
-      - name: Run tests
-        run: cargo test --workspace --locked
-
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      # No cargo test or Clippy: see the Windows job. The Linux lane of PR
+      # Checks (linux-build-test.yml) runs both. Here they also failed the
+      # v0.8.0 run: without sccache, the debug compile of mello_client and of
+      # its unit tests ran in parallel at about 11 GB each (measured on a
+      # Mac, 2026-11-21), the 16 GB runner
+      # ran out of memory, and the job ended with "The hosted runner lost
+      # communication with the server" (run 44820903506).
 
       # The earlier Linux releases become delta packages. The first Linux
       # release has none to download.

@@ -1,4 +1,4 @@
-import { Theme, MelloTextInput } from "../theme.slint";
+import { Theme, MelloTextInput, TextRules } from "../theme.slint";
 import { CutShape, CutButtonShape, CutButton, CutMask } from "../components/cut.slint";
 import { SearchUserData } from "../types.slint";
 
@@ -21,6 +21,8 @@ export component NewCrewModal inherits Rectangle {
 
     property <bool> is-private: true;
     property <string> crew-name-text: "";
+    // The server refuses a crew name under 2 characters (text_rules.go).
+    property <bool> crew-name-ok: crew-name-text.character-count >= 2;
     property <string> crew-desc-text: "";
     property <bool> link-copied: false;
 
@@ -365,7 +367,13 @@ export component NewCrewModal inherits Rectangle {
                             font-size: 14px;
                             color: Theme.text-primary;
                             vertical-alignment: center;
-                            edited => { crew-name-text = self.text; }
+                            edited => {
+                                let fitted = TextRules.keep(self.text, TextRules.crew-name-max);
+                                if fitted != self.text {
+                                    self.text = fitted;
+                                }
+                                crew-name-text = self.text;
+                            }
                         }
 
                         if crew-name-text == "": Text {
@@ -741,7 +749,7 @@ export component NewCrewModal inherits Rectangle {
                                 width: parent.width;
                                 height: parent.height;
                                 n: Theme.cut;
-                                fill: crew-name-text != ""
+                                fill: crew-name-ok
                                     ? (create-touch.has-hover ? Theme.confirm-press : Theme.confirm)
                                     : Theme.graphic-light;
                             }
@@ -751,7 +759,7 @@ export component NewCrewModal inherits Rectangle {
                                 font-family: Theme.font-sans;
                                 font-size: 13px;
                                 font-weight: Theme.weight-display;
-                                color: crew-name-text != "" ? Theme.on-confirm : Theme.text-tertiary;
+                                color: crew-name-ok ? Theme.on-confirm : Theme.text-tertiary;
                                 horizontal-alignment: center;
                                 vertical-alignment: center;
                             }
@@ -759,9 +767,9 @@ export component NewCrewModal inherits Rectangle {
                             create-touch := TouchArea {
                                 accessible-role: button;
                                 accessible-label: onboarding-mode ? @tr("Save & Continue") : @tr("Establish Crew");
-                                mouse-cursor: crew-name-text != "" ? pointer : default;
+                                mouse-cursor: crew-name-ok ? pointer : default;
                                 clicked => {
-                                    if crew-name-text != "" {
+                                    if crew-name-ok {
                                         create-requested(crew-name-text, crew-desc-text, is-private);
                                     }
                                 }

@@ -1,4 +1,4 @@
-import { Theme, MelloInputField, MelloScrollArea } from "../theme.slint";
+import { Theme, MelloInputField, MelloScrollArea, TextRules } from "../theme.slint";
 import { UserAvatar } from "../components/avatar.slint";
 import { CutShape, CutButtonShape, CutCard } from "../components/cut.slint";
 import { AudioDeviceData, GameIntegrationData, InstalledGameData, NoticeEntryData, SoundSettings, TesterData } from "../types.slint";
@@ -1714,6 +1714,7 @@ component ProfileTab inherits VerticalLayout {
             nick-input := MelloInputField {
                 label: @tr("DISPLAY NAME");
                 text <=> profile-nickname-value;
+                max-chars: TextRules.display-name-max;
                 accepted => {
                     profile-nickname-accepted(profile-nickname-value);
                 }

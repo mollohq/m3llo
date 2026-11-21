@@ -10395,6 +10395,7 @@ mod account_delete;
 mod art_worker;
 mod crew_delete;
 mod looking_to_play;
+mod name_limits;
 mod push_prefs;
 mod quests;
 mod sealed;
