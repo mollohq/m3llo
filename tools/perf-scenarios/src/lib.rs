@@ -174,6 +174,50 @@ mod tests {
         );
     }
 
+    /// The release smoke test creates its crew in **production**, and the server
+    /// rejects a crew name above `CrewNameMaxChars`. With a longer name the
+    /// crew is not made, onboarding does not finish, and the release stops at
+    /// "timed out waiting for event OnboardingReady". The id that the smoke
+    /// scripts make is at most 15 characters (see `run-signup-smoke.sh`).
+    #[test]
+    fn signup_smoke_crew_name_fits_the_server_limit() {
+        let rules = std::fs::read_to_string(format!(
+            "{}/../../backend/nakama/data/modules/text_rules.go",
+            env!("CARGO_MANIFEST_DIR")
+        ))
+        .expect("text_rules.go must be readable");
+        let max: usize = rules
+            .lines()
+            .find_map(|l| l.trim().strip_prefix("CrewNameMaxChars"))
+            .and_then(|rest| rest.trim().strip_prefix('='))
+            .and_then(|n| n.trim().parse().ok())
+            .expect("CrewNameMaxChars must be a number in text_rules.go");
+
+        let longest_id = "9999999999-9999";
+        let raw = std::fs::read_to_string(scenario_path("signup_smoke"))
+            .expect("scenario must be readable")
+            .replace("${MELLO_SMOKE_ID}", longest_id);
+        let scenario: Scenario = serde_json::from_str(&raw).expect("scenario must parse");
+
+        let name = scenario
+            .steps
+            .iter()
+            .find_map(|s| match s {
+                Step::FinalizeOnboarding { crew_name, .. } => crew_name.clone(),
+                _ => None,
+            })
+            .expect("signup_smoke must create a crew by name");
+        assert!(
+            name.contains(longest_id),
+            "the crew name must carry the id of the run, got {name:?}"
+        );
+        assert!(
+            name.chars().count() <= max,
+            "{name:?} has {} characters, the server accepts {max}",
+            name.chars().count()
+        );
+    }
+
     /// Both deletions must be awaited. Without the `expect_event` the client
     /// quits as soon as the command is queued and the process can exit before
     /// the request is even sent.
