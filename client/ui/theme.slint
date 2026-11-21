@@ -219,6 +219,30 @@ export global Theme {
 }
 
 /// TextInput with Mello selection colors (not platform default blue).
+/// The length limits of names that people type. The server refuses a longer
+/// name (backend/nakama/data/modules/text_rules.go), so a field stops at the
+/// limit instead.
+export global TextRules {
+    out property <int> crew-name-max: 24;
+    out property <int> channel-name-max: 24;
+    out property <int> display-name-max: 32;
+    /// `text` cut to `max` characters. A character is a Unicode scalar value,
+    /// as the server counts (Slint's `character-count` counts graphemes).
+    /// Rust implements it (client/src/callbacks/text_rules.rs). Without Rust,
+    /// in slint-viewer, it returns "" and `keep` keeps the text.
+    pure callback fit(/* text */ string, /* max */ int) -> string;
+
+    /// The text that a field keeps after an edit: `text` cut to `max`
+    /// characters. A `max` of 0 has no limit.
+    public pure function keep(text: string, max: int) -> string {
+        if max <= 0 {
+            return text;
+        }
+        let fitted = root.fit(text, max);
+        return fitted == "" ? text : fitted;
+    }
+}
+
 export component MelloTextInput inherits TextInput {
     selection-background-color: Theme.selection-bg;
     selection-foreground-color: Theme.selection-fg;
@@ -238,6 +262,9 @@ export component MelloInputField inherits Rectangle {
     in property <length> font-size: 14px;
     /// The value is refused: the outline turns red until it is edited.
     in property <bool> invalid: false;
+    /// The most characters that the user can type. 0 has no limit. A longer
+    /// text set from code stays until the user edits it.
+    in property <int> max-chars: 0;
     callback accepted();
     /// The user changed the text. A change from code does not emit it.
     callback edited();
@@ -263,7 +290,13 @@ export component MelloInputField inherits Rectangle {
         wrap: single-line ? no-wrap : word-wrap;
         read-only: root.read-only;
         accepted => { root.accepted(); }
-        edited => { root.edited(); }
+        edited => {
+            let fitted = TextRules.keep(self.text, root.max-chars);
+            if fitted != self.text {
+                self.text = fitted;
+            }
+            root.edited();
+        }
     }
 
     if placeholder != "" && input.text == "" && !read-only: Text {

@@ -20,6 +20,7 @@ pub(crate) use quests::{
 mod sealed;
 pub(crate) mod settings;
 pub(crate) mod streaming;
+mod text_rules;
 mod voice;
 mod window;
 
@@ -56,4 +57,5 @@ pub fn wire_all(ctx: &AppContext) {
     games::wire(ctx);
     looking_to_play::wire(ctx);
     window::wire(ctx);
+    text_rules::wire(ctx);
 }
