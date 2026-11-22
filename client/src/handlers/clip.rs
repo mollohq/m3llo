@@ -1766,6 +1766,8 @@ pub(super) fn build_feed_card(
     let session_kind = if feed_type == "session" || feed_type == "session-preview" {
         match backend_type {
             "stream_session" => "stream",
+            // The Sessions zone holds voice sessions (CREW-FEED-ZONES.md 6).
+            "voice_session" => "voice",
             _ => "",
         }
     } else {

@@ -471,3 +471,167 @@ fn the_first_five_and_the_empty_channel_are_two_cards() {
         assert!(p.x + s.width <= bx, "{label} ends before the board at {bx}");
     }
 }
+
+/// Bob's week (v0.8.0): a full crew, voice idle, belts and game sessions, no
+/// stream and no clip. Every belt of the client on the board (seven).
+fn week_with_sessions_and_nine_belts(h: &mut Harness) {
+    use mello_core::crew_state::{CrewState, VoiceChannelState};
+    zones_on(h, 6);
+    set_roster(
+        h,
+        &[("user-1", "Test User"), ("u2", "Jonas"), ("u3", "Max")],
+    );
+    h.emit(Event::CrewStateLoaded {
+        state: CrewState {
+            crew_id: "crew-0".into(),
+            name: "Crew".into(),
+            voice_channels: vec![VoiceChannelState {
+                id: "ch-general".into(),
+                name: "General".into(),
+                is_default: true,
+                ..Default::default()
+            }],
+            ..Default::default()
+        },
+    });
+    let ids = [
+        "the_carry",
+        "night_owl",
+        "the_collector",
+        "locked_in",
+        "has_a_life",
+        "sampler",
+        "one_trick",
+        "clipper",
+        "mouth",
+    ];
+    let titles = ids
+        .iter()
+        .enumerate()
+        .map(|(i, id)| {
+            h2h_title(
+                id,
+                if i % 2 == 0 { "u2" } else { "u3" },
+                serde_json::json!(10 + i),
+                "h",
+            )
+        })
+        .collect();
+    let session = |id: &str, game: &str| {
+        feed_entry(
+            id,
+            "session",
+            serde_json::json!({"game_name": game, "duration_min": 60, "player_ids": ["u2"], "player_names": ["Jonas"]}),
+        )
+    };
+    let mut feed = feed_of(vec![
+        h2h_entry(6, titles, vec![], None),
+        session("s1", "Counter-Strike 2"),
+        session("s2", "Deep Rock Galactic"),
+        session("s3", "Hearthstone"),
+    ]);
+    feed.zones.board.mode = "tabs".into();
+    h.emit(Event::FeedLoaded { response: feed });
+    super::sealed::size_feed_panel(h, 865.0, 1600.0);
+    h.pump();
+}
+
+/// ★ Regression (Bob, v0.8.0): beside the three-row board the left column
+/// held only the voice card, and the sessions waited under the board. The
+/// sessions now stand beside the board, the board ends with the left
+/// column, and the belts it cannot show are counted in its more button.
+#[test]
+fn the_sessions_move_up_and_the_board_ends_with_the_left_column() {
+    let mut h = Harness::new();
+    week_with_sessions_and_nine_belts(&mut h);
+
+    let (bx, by, _, bh) = super::sealed::bounds_of(&h, "FeedBoard");
+    let (sx, sy, sw, sh) = super::sealed::bounds_of(&h, "ClipCarousel");
+    assert!(
+        sx + sw <= bx && sy < by + bh,
+        "the sessions stand beside the board: sessions at ({sx}, {sy}), board at ({bx}, {by})"
+    );
+    assert!(
+        (sy + sh - (by + bh)).abs() < 1.0 || bh <= 2.0 * 232.0 + 12.0 + 1.0,
+        "the board ends with the left column or is two rows: sessions end {}, board ends {}",
+        sy + sh,
+        by + bh
+    );
+    assert!(
+        bh < 3.0 * 232.0 + 24.0,
+        "the board is under three rows: {bh}"
+    );
+
+    let total = h.app().get_feed_zones().title_count as usize;
+    assert_eq!(total, 7, "every belt goes to the board");
+    let shown = count_of(&h, "TitleRow");
+    assert!(
+        shown < total,
+        "the short board shows {shown} of {total} belts"
+    );
+    let more = format!("+{} MORE", total - shown);
+    assert_eq!(h.controls_labelled(&more).len(), 1, "{more} is a button");
+}
+
+/// The more button opens the board to every belt, and Show less closes it.
+#[test]
+fn the_more_button_opens_and_closes_every_belt() {
+    let mut h = Harness::new();
+    week_with_sessions_and_nine_belts(&mut h);
+    let total = h.app().get_feed_zones().title_count as usize;
+    let shown = count_of(&h, "TitleRow");
+    let (.., closed_h) = super::sealed::bounds_of(&h, "FeedBoard");
+
+    h.click_label(&format!("+{} MORE", total - shown));
+    h.pump();
+    assert_eq!(count_of(&h, "TitleRow"), total, "every belt shows");
+    let (.., open_h) = super::sealed::bounds_of(&h, "FeedBoard");
+    assert!(open_h > closed_h, "the board grows: {closed_h} to {open_h}");
+    assert!(h
+        .controls_labelled(&format!("+{} MORE", total - shown))
+        .is_empty());
+
+    h.click_label("SHOW LESS");
+    h.pump();
+    assert_eq!(count_of(&h, "TitleRow"), shown, "closed again");
+    let (.., again_h) = super::sealed::bounds_of(&h, "FeedBoard");
+    assert!((again_h - closed_h).abs() < 1.0);
+}
+
+/// ★ Regression (Bob, v0.8.0): a voice session in the Sessions zone drew an
+/// empty card, only "SESSION" and the time. The session card had lost its
+/// voice body. It shows the channel, the call and who was in it.
+#[test]
+fn a_voice_session_card_shows_the_channel_and_the_people() {
+    let mut h = Harness::new();
+    zones_on(&mut h, 3);
+    set_roster(
+        &h,
+        &[("user-1", "Test User"), ("u2", "Jonas"), ("u3", "Max")],
+    );
+    let voice = feed_entry(
+        "v1",
+        "session",
+        serde_json::json!({"channel_name": "General", "duration_min": 117, "peak_count": 3,
+                           "participant_ids": ["user-1", "u2", "u3"],
+                           "participant_names": ["Test User", "Jonas", "Max"]}),
+    );
+    h.emit(Event::FeedLoaded {
+        response: feed_of(vec![voice]),
+    });
+    let z = h.app().get_feed_zones();
+    let card = z.sessions.row_data(0).expect("the voice session");
+    assert_eq!(card.session_kind.as_str(), "voice");
+    super::sealed::size_feed_panel(&h, 865.0, 1200.0);
+    h.pump();
+
+    let texts = drawn_texts(&h);
+    for want in ["VOICE", "General", "Test User, Jonas +1"] {
+        assert!(texts.iter().any(|t| t == want), "{want:?} in {texts:?}");
+    }
+    assert!(
+        texts.iter().any(|t| t.ends_with("3 in the call")),
+        "the call count in {texts:?}"
+    );
+    assert!(!texts.iter().any(|t| t == "SESSION"), "{texts:?}");
+}

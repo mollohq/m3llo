@@ -18,8 +18,6 @@ use crate::{
     BoardGame, BoardStat, BoardTitle, FeedCardData, H2hPerson, HistoryWeek, LockedTeaser, ZonesData,
 };
 
-/// Belt rows on the board before "+N more".
-const BOARD_BELTS: usize = 7;
 /// The octagons of the People zone: the first five of a crew.
 const FIRST_FIVE: usize = 5;
 /// People in the voice part before "+N".
@@ -802,10 +800,9 @@ fn board_belts(
     };
     let mut titles = rows(&d.titles);
     titles.sort_by_key(|t| !(t.belt.sealed || t.moved_recent));
+    // Every belt goes to the board. The board shows the rows that fit its
+    // height and counts the rest in its more button (CREW-FEED-ZONES.md 3).
     z.title_count = titles.len() as i32;
-    if titles.len() > BOARD_BELTS {
-        z.more_label = tr.invoke_zones_more_upper((titles.len() - BOARD_BELTS) as i32);
-    }
     let first = titles.first().filter(|t| !t.belt.sealed).map(|t| {
         (
             person(t.holder_id.as_str()).name.to_string(),
@@ -815,7 +812,6 @@ fn board_belts(
     z.titles = model(
         titles
             .iter()
-            .take(BOARD_BELTS)
             .map(|t| BoardTitle {
                 person: person(t.holder_id.as_str()),
                 title: crate::head2head::title_name_upper(&tr, &t.id)

@@ -73,6 +73,10 @@ msgstr ""
 msgid "BELTS"
 msgstr ""
 
+#: client/ui/components/feed_board.slint
+msgid "SHOW LESS"
+msgstr ""
+
 #. The badge of a live stream.
 #: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"

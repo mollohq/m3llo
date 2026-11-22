@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { Tr } from "../tr.slint";
 import { CutShape, CutMask, CutButtonShape, PathNum } from "./cut.slint";
 import { UserAvatar } from "./avatar.slint";
 import { StatValue } from "./stat.slint";
@@ -325,7 +326,6 @@ export component FeedBoard inherits BoardShell {
     in property <string> quiet-sub;
     in property <[BoardTitle]> titles;
     in property <int> title-count: 13;
-    in property <string> more-label;
     in property <bool> show-titles: true;
     in property <bool> show-numbers: true;
     /// Day 0: your games, from the library scan.
@@ -348,8 +348,12 @@ export component FeedBoard inherits BoardShell {
     in property <H2hPerson> most-clipped;
     in property <string> most-clipped-value;
     in property <[image]> games-played;
+    /// Every belt shows: the board grows to its rows.
+    in property <bool> belts-open: false;
     callback tab-clicked(int);
     callback open-week();
+    /// The more button: open or close the belt list.
+    callback belts-toggled();
 
     corner: "bl";
 
@@ -547,7 +551,12 @@ export component FeedBoard inherits BoardShell {
         // Belts: standing state, so they show in every mode.
         if root.show-titles: VerticalLayout {
             spacing: 0px;
-            vertical-stretch: 0;
+            vertical-stretch: 1;
+            // The belt rows that fit the height the board is given. The rest
+            // are counted in the more button. Open, every row shows.
+            property <int> belts-shown: root.belts-open ? root.titles.length
+                : Math.min(root.titles.length, Math.floor(belt-area.height / 44px));
+            property <int> belts-hidden: root.title-count - self.belts-shown;
             Rectangle { height: 1px; background: Theme.card-border; }
             HorizontalLayout {
                 height: 34px;
@@ -562,11 +571,49 @@ export component FeedBoard inherits BoardShell {
                     color: Theme.text-dim;
                 }
             }
-            for t in root.titles: TitleRow { entry: t; }
+            belt-area := Rectangle {
+                vertical-stretch: 1;
+                min-height: root.belts-open ? root.titles.length * 44px : 0px;
+                for t[i] in root.titles: TitleRow {
+                    x: 0px;
+                    y: i * 44px;
+                    width: parent.width;
+                    visible: root.belts-open || (i + 1) * 44px <= parent.height;
+                    entry: t;
+                }
+            }
+            // A fixed box: the label depends on the height left for the rows,
+            // so the label must not size the layout.
+            // Always in the layout: a box that comes and goes would move the
+            // rows it counts. The button inside it is not in a layout.
+            Rectangle {
+                height: 22px;
+                vertical-stretch: 0;
+                if root.belts-open || belts-hidden > 0: Rectangle {
+                    x: 0px;
+                    y: 0px;
+                    width: parent.width;
+                    height: parent.height;
+                    accessible-role: button;
+                    accessible-label: more.text;
+                    more := Kicker {
+                        x: 0px;
+                        y: 0px;
+                        width: parent.width;
+                        height: parent.height;
+                        vertical-alignment: center;
+                        text: root.belts-open ? @tr("SHOW LESS") : Tr.zones-more-upper(belts-hidden);
+                        color: more-ta.has-hover ? Theme.text-primary : Theme.text-body;
+                    }
+                    more-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => { root.belts-toggled(); }
+                    }
+                }
+            }
         }
 
-        Rectangle { vertical-stretch: 1; }
-        Kicker { text: root.more-label; color: Theme.text-body; }
+        if !root.show-titles: Rectangle { vertical-stretch: 1; }
     }
 }
 
@@ -1386,7 +1433,6 @@ export struct ZonesData {
     quiet-sub: string,
     titles: [BoardTitle],
     title-count: int,
-    more-label: string,
     solo-games: [BoardGame],
 
     // Clips: game and voice mixed, ranked, then "+N".

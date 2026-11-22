@@ -1,4 +1,5 @@
 import { Theme } from "../theme.slint";
+import { Tr } from "../tr.slint";
 import { CutShape, CutMask, CutButtonShape, PathNum } from "../components/cut.slint";
 import { UserAvatar, AvatarOverflow } from "../components/avatar.slint";
 import { FeedCardData, FeedView, StreamCardData, YouStripData } from "../types.slint";
@@ -925,15 +926,18 @@ component RecapCard inherits Rectangle {
 }
 
 // Session card
-// The stream session card, per designs/feed/session-cards-redesign.html
-// (Option B: game first). Typed header, real avatars, humanized duration,
-// peak stat: a card answers "who did what, for how long" at a glance. A voice
-// session is a row of the day card, never a card (spec 19 section 3.5a).
+// The stream and voice session card of the Sessions zone, per
+// designs/feed/session-cards-redesign.html (Option B: game first). Typed
+// header, real avatars, humanized duration, peak stat: a card answers "who
+// did what, for how long" at a glance (CREW-FEED-ZONES.md section 6).
 component SessionCard inherits Rectangle {
     in property <FeedCardData> card;
 
     property <bool> is-stream: card.session-kind == "stream";
-    property <color> kind-color: is-stream ? Theme.accent : Theme.id-blue;
+    property <bool> is-voice: card.session-kind == "voice";
+    // Chrome: white for a stream, the body grey for a call. Identity hues
+    // are for people, crews and games only.
+    property <color> kind-color: is-stream ? Theme.accent : Theme.text-body;
 
     background: transparent;
     border-width: 0px;
@@ -973,7 +977,7 @@ component SessionCard inherits Rectangle {
             }
             Text {
                 font-family: Theme.font-label;
-                text: is-stream ? @tr("noun" => "STREAM") : @tr("SESSION");
+                text: is-stream ? @tr("noun" => "STREAM") : is-voice ? @tr("VOICE") : @tr("SESSION");
                 font-size: 10px;
                 font-weight: Theme.weight-label;
                 color: kind-color;
@@ -1037,6 +1041,72 @@ component SessionCard inherits Rectangle {
             text: @tr("{n} watched at peak" | "{n} watched at peak" % card.peak-count);
             font-size: 11px;
             color: Theme.text-sub;
+        }
+
+        // ── VOICE: the channel, how long, then who was in the call ──
+        if is-voice: VerticalLayout {
+            spacing: 2px;
+            Text {
+                font-family: Theme.font-display;
+                text: card.channel-name != "" ? card.channel-name : card.title;
+                font-size: 13px;
+                font-weight: Theme.weight-display;
+                color: Theme.text-primary;
+                overflow: elide;
+            }
+            Text {
+                font-weight: Theme.weight-sentence;
+                font-family: Theme.font-body;
+                text: card.peak-count > 1
+                    ? card.duration-human + " · " + Tr.zones-in-call(card.peak-count)
+                    : card.duration-human;
+                font-size: 11px;
+                color: Theme.text-sub;
+                overflow: elide;
+            }
+        }
+
+        if is-voice && card.participant-count > 0: HorizontalLayout {
+            spacing: 4px;
+            alignment: start;
+            height: 40px;
+            padding-top: 6px;
+
+            UserAvatar {
+                initials: card.part0-initials;
+                avatar: card.part0-avatar;
+                has-avatar: card.part0-has-avatar;
+                color-index: 0;
+                size: 34px;
+            }
+            if card.participant-count > 1: UserAvatar {
+                initials: card.part1-initials;
+                avatar: card.part1-avatar;
+                has-avatar: card.part1-has-avatar;
+                color-index: 1;
+                size: 34px;
+            }
+            if card.participant-count > 2: UserAvatar {
+                initials: card.part2-initials;
+                avatar: card.part2-avatar;
+                has-avatar: card.part2-has-avatar;
+                color-index: 2;
+                size: 34px;
+            }
+            // The roster is wider than the three octagons.
+            if card.participant-count > 3: AvatarOverflow {
+                count: card.participant-count - 3;
+                size: 34px;
+            }
+        }
+
+        if is-voice && card.participants-line != "": Text {
+            font-weight: Theme.weight-sentence;
+            font-family: Theme.font-body;
+            text: card.participants-line;
+            font-size: 11px;
+            color: Theme.text-sub;
+            overflow: elide;
         }
 
         Rectangle { vertical-stretch: 1; }
@@ -2166,14 +2236,42 @@ export component CrewFeed inherits Rectangle {
             ? max(rh * 2 + 12px, StreamCardSize.watch-height(root.stage-w, root.stream-cards.length))
         : rh * 2 + 12px;
     property <bool> has-board: zones.board != "";
-    property <length> board-h: zones.board == "sealed" || zones.board == "past" || zones.board == "solo"
+    // The board is at most three rows. The zones beside it fill the left
+    // column up to that height; the board then ends where the left column
+    // ends, but is never under two rows. Belts that do not fit are counted
+    // in the more button, which opens the board to every belt.
+    property <length> board-max: zones.board == "sealed" || zones.board == "past" || zones.board == "solo"
         ? rh * 2 + 12px : rh * 3 + 24px;
+    property <length> left-h4: left-h3 + (plus-left ? (left-h3 > 0px ? 12px : 0px) + 88px : 0px);
+    property <length> board-h: zones.board == "sealed" || zones.board == "solo" || left-h4 <= 0px ? board-max
+        : Math.max(rh * 2 + 12px, Math.min(board-max, left-h4));
     property <bool> has-clips: zones.clips.length > 0;
     // The clip row stands beside the board while the left column is shorter.
-    property <bool> clips-left: has-board && has-clips && stage-h + 12px + rh <= board-h;
+    property <bool> clips-left: has-board && has-clips && stage-h + 12px + rh <= board-max;
     property <length> left-h: stage-h + (clips-left ? (has-stage ? 12px : 0px) + rh : 0px);
     property <bool> people-left: zones.people && has-board
-        && left-h + (left-h > 0px ? 12px : 0px) + PeopleStack.height(zones, false) <= board-h;
+        && left-h + (left-h > 0px ? 12px : 0px) + PeopleStack.height(zones, false) <= board-max;
+    // The zones under the top block move up beside the board in feed order,
+    // each while it fits and every zone before it stands there too:
+    // Sessions, then the installed games, then the m3llo+ strip. A zone
+    // never moves past one that waits under the board.
+    property <bool> order-ok: (!has-clips || clips-left) && (!zones.people || people-left);
+    property <length> left-h2: left-h + (people-left ? (left-h > 0px ? 12px : 0px) + PeopleStack.height(zones, false) : 0px);
+    property <bool> sessions-left: has-board && order-ok && zones.sessions.length > 0
+        && left-h2 + (left-h2 > 0px ? 12px : 0px) + rh <= board-max;
+    property <length> installed-h: 52px + 44px * zones.installed.length;
+    property <bool> installed-left: has-board && order-ok && zones.sessions.length == 0 && zones.installed.length > 0
+        && left-h2 + (left-h2 > 0px ? 12px : 0px) + installed-h <= board-max;
+    property <length> left-h3: left-h2
+        + (sessions-left ? (left-h2 > 0px ? 12px : 0px) + rh : 0px)
+        + (installed-left ? (left-h2 > 0px ? 12px : 0px) + installed-h : 0px);
+    property <bool> has-plus-strip: zones.history.length > 0 && !zones.plus;
+    property <bool> plus-left: has-board && has-plus-strip && order-ok
+        && (zones.sessions.length == 0 || sessions-left)
+        && (zones.sessions.length > 0 || zones.installed.length == 0 || installed-left)
+        && left-h3 + (left-h3 > 0px ? 12px : 0px) + 88px <= board-max;
+    /// The more button opened the board: it shows every belt.
+    in-out property <bool> belts-open: false;
     // Tab of the board: Week when today has nothing.
     property <int> tab-pick: -1;
     property <int> tab: tab-pick >= 0 ? tab-pick : (zones.today-empty ? 1 : 0);
@@ -2316,6 +2414,30 @@ export component CrewFeed inherits Rectangle {
                             invite => { root.invite-clicked(); }
                             voice-clicked => { root.start-voice-clicked(zones.channel-id); }
                         }
+
+                        if root.sessions-left: ClipCarousel {
+                            height: root.rh;
+                            clips: zones.sessions;
+                            per-page: 2;
+                            playing-path: root.clip-playing-path;
+                            clip-progress: root.clip-progress;
+                            clip-paused: root.clip-paused;
+                            clip-anim-tick: root.clip-anim-tick;
+                            clip-position-text: root.clip-position-text;
+                            clip-duration-text: root.clip-duration-text;
+                            clip-duration-ms: root.clip-duration-ms;
+                            play-clicked(path) => { root.card-clicked(path); }
+                            seek-clip-ms(m) => { root.seek-clip-ms(m); }
+                        }
+                        if root.installed-left: MostInstalledCard {
+                            height: root.installed-h;
+                            games: zones.installed;
+                        }
+                        if root.plus-left: PlusStrip {
+                            height: 88px;
+                            weeks: zones.history.length;
+                            clicked => { root.plus-clicked(); }
+                        }
                     }
 
                     if zones.board == "sealed": RecapSlot {
@@ -2325,7 +2447,9 @@ export component CrewFeed inherits Rectangle {
                     }
                     if has-board && zones.board != "sealed": FeedBoard {
                         width: root.cw;
-                        height: root.board-h;
+                        height: root.belts-open ? Math.max(root.board-h, self.preferred-height) : root.board-h;
+                        belts-open: root.belts-open;
+                        belts-toggled => { root.belts-open = !root.belts-open; }
                         mode: zones.board == "solo" ? "past" : zones.board;
                         active-tab: root.tab;
                         today-empty: zones.today-empty;
@@ -2346,7 +2470,6 @@ export component CrewFeed inherits Rectangle {
                         quiet-sub: zones.quiet-sub;
                         titles: zones.titles;
                         title-count: zones.title-count;
-                        more-label: zones.more-label;
                         show-titles: zones.board != "solo" && zones.titles.length > 0;
                         show-numbers: zones.board != "solo";
                         game-rows-label: @tr("YOUR GAMES");
@@ -2381,7 +2504,7 @@ export component CrewFeed inherits Rectangle {
 
                 // Sessions: real session cards (now playing, game, voice,
                 // stream), the carousel of the clips.
-                if zones.sessions.length > 0: ClipCarousel {
+                if zones.sessions.length > 0 && !root.sessions-left: ClipCarousel {
                     height: root.rh;
                     clips: zones.sessions;
                     per-page: 3;
@@ -2395,15 +2518,15 @@ export component CrewFeed inherits Rectangle {
                     play-clicked(path) => { root.card-clicked(path); }
                     seek-clip-ms(m) => { root.seek-clip-ms(m); }
                 }
-                if zones.sessions.length == 0 && zones.installed.length > 0: MostInstalledCard {
-                    height: 52px + 44px * zones.installed.length;
+                if zones.sessions.length == 0 && zones.installed.length > 0 && !root.installed-left: MostInstalledCard {
+                    height: root.installed-h;
                     games: zones.installed;
                 }
 
                 // Crew history: every week before the last 7 days (m3llo+).
                 hist := VerticalLayout {
                     spacing: 12px;
-                    if zones.history.length > 0 && !zones.plus: PlusStrip {
+                    if root.has-plus-strip && !root.plus-left: PlusStrip {
                         height: 88px;
                         weeks: zones.history.length;
                         clicked => { root.plus-clicked(); }
