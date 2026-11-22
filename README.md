@@ -46,15 +46,15 @@ Made in Europe.
 Grab the latest build for your platform:
 
 <p align="center">
-  <a href="https://github.com/mollohq/m3llo/releases/latest/download/m3llo-win-x64-stable-Setup.exe">
+  <a href="https://m3llo.app/get/windows?ref=readme">
     <img src="https://img.shields.io/badge/Download-Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Download for Windows" />
   </a>
   &nbsp;
-  <a href="https://github.com/mollohq/m3llo/releases/latest/download/m3llo-osx-arm64-stable-Setup.pkg">
+  <a href="https://m3llo.app/get/macos?ref=readme">
     <img src="https://img.shields.io/badge/Download-macOS-000000?style=for-the-badge&logo=apple&logoColor=white" alt="Download for macOS" />
   </a>
   &nbsp;
-  <a href="https://github.com/mollohq/m3llo/releases/latest/download/m3llo-linux-x64-stable.AppImage">
+  <a href="https://m3llo.app/get/linux?ref=readme">
     <img src="https://img.shields.io/badge/Download-Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Download for Linux" />
   </a>
 </p>
