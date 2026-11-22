@@ -8280,6 +8280,88 @@ fn a_stored_member_volume_is_sent_again_when_the_member_comes_back() {
     );
 }
 
+/// ★ A member volume is stored on this machine. After a restart and the
+/// next sign-in, bob's row shows 70 % and libmello gets 0.7 when he is in
+/// the channel. The local mute is not stored: it ends with the app.
+#[test]
+fn a_member_volume_survives_a_restart() {
+    let mut h = Harness::new();
+    in_squad_with_bob_on_screen(&mut h);
+    h.app().invoke_member_volume_changed("u-bob".into(), 70);
+    h.app()
+        .invoke_member_local_mute_changed("u-bob".into(), true);
+    h.commands();
+
+    let mut h2 = h.restart();
+    in_squad_with_bob_on_screen(&mut h2);
+    assert_eq!(
+        squad_member_audio(&h2, "u-bob"),
+        (70, false),
+        "the volume is back, the mute is not"
+    );
+    h2.emit(Event::VoiceUpdated {
+        crew_id: "crew-1".into(),
+        channel_id: "ch-squad".into(),
+        members: vec![mello_core::crew_state::VoiceMember {
+            user_id: "u-me".into(),
+            username: "me".into(),
+            ..Default::default()
+        }],
+    });
+    h2.emit(squad_update_with_bob_speaking(false));
+    assert_eq!(
+        peer_volumes(&mut h2),
+        vec![("u-bob".to_string(), 0.7)],
+        "bob's peer gets the stored gain"
+    );
+
+    // Back at 100 % the entry goes, also from the file.
+    h2.app().invoke_member_volume_changed("u-bob".into(), 100);
+    let mut h3 = h2.restart();
+    in_squad_with_bob_on_screen(&mut h3);
+    assert_eq!(squad_member_audio(&h3, "u-bob"), (100, false));
+}
+
+/// Two accounts on one machine keep their own member volumes. A sign-out
+/// and a sign-in as another account does not carry them over.
+#[test]
+fn member_volumes_belong_to_the_signed_in_account() {
+    let mut h = Harness::new();
+    in_squad_with_bob_on_screen(&mut h);
+    h.app().invoke_member_volume_changed("u-bob".into(), 70);
+
+    h.app().invoke_logout();
+    // Core leaves the call on `Command::Logout`.
+    h.emit(Event::VoiceStateChanged {
+        in_call: false,
+        transport: VoiceMode::Disconnected,
+    });
+    h.emit(Event::LoggedIn {
+        user: mello_core::events::User {
+            id: "user-2".into(),
+            username: "other".into(),
+            display_name: "Other User".into(),
+            tag: "#0002".into(),
+            created_at: None,
+        },
+    });
+    in_squad_with_bob(&mut h, VoiceMode::SFU);
+    next_frame();
+    assert_eq!(
+        squad_member_audio(&h, "u-bob"),
+        (100, false),
+        "the other account hears bob at 100 %"
+    );
+
+    let mut h2 = h.restart();
+    in_squad_with_bob_on_screen(&mut h2);
+    assert_eq!(
+        squad_member_audio(&h2, "u-bob"),
+        (70, false),
+        "user-1 gets its own value back"
+    );
+}
+
 /// Finishing onboarding sets start on boot from the share toggle, once.
 /// The OS entry is behind the `autolaunch` test seam, never the real crate.
 fn finalize_with_share(share: bool) -> (Harness, Option<bool>) {

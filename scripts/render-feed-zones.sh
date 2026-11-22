@@ -34,7 +34,17 @@ JoinCall|9 · Three members, a join and a call (tall)
 Quests1|10 · Quests: a crew of one, minute one, the banner ready
 Quests2|11 · Quests: the owner, a friend joined, the invite link ready
 Quests3|12 · Quests: a member, the crew emoji waiting for the owner
-Quests4|13 · Quests: the owner at 4 / 5, game activity off'
+Quests4|13 · Quests: the owner at 4 / 5, game activity off
+GapWeek|14 · Sessions and belts, no stream, no clip: the sessions beside the board (tall)
+GapWeekOpen|15 · The same week, the belts open (tall)
+GapWeek30|16 · A 30 day window: many sessions, no older week (tall)
+GapClip|17 · A clip on the stage, no stream (tall)
+GapBoth|18 · A clip on the stage and more clips (tall)
+GapNothing|19 · No stream, no clip, no session (tall)
+GapFifty|20 · A crew of 50: joins and a call (tall)
+GapClips30|21 · A 30 day window with clips and older weeks (tall)
+GapQuestsCall|22 · A new crew in its first call: the quest card and the people
+GapNarrow|23 · The narrowest window, the feed 444 px (tall)'
 
 {
     echo '<!doctype html><meta charset="utf-8"><title>Zone feed matrix</title>'

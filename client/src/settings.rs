@@ -96,6 +96,11 @@ pub struct Settings {
     /// The members this user said hi to from a joined card, by crew id. The
     /// card then reads "Said hi" and stays off, once for each member. Local.
     pub said_hi: std::collections::HashMap<String, Vec<String>>,
+    /// The playback volume (percent, 0 to 200) this user set for other
+    /// voice members: by the signed-in user id, then by the member's user
+    /// id. Only members not at 100 % have an entry. Local only, never sent
+    /// (spec 01 section 4.1).
+    pub member_volumes: std::collections::HashMap<String, std::collections::HashMap<String, u16>>,
     /// When the viewer first saw the own chips of a crew sealed (ms, by crew
     /// id). The day 0 reveal lasts 7 days from this time (`sealed.rs`).
     pub own_seal_since: std::collections::HashMap<String, i64>,
@@ -182,6 +187,7 @@ impl Default for Settings {
             feed_seen_ms: Default::default(),
             sealed_opened: Default::default(),
             said_hi: Default::default(),
+            member_volumes: Default::default(),
             own_seal_since: Default::default(),
             feed_baseline_ms: Default::default(),
             disabled_game_integrations: Vec::new(),

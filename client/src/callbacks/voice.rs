@@ -59,6 +59,7 @@ pub fn wire(ctx: &AppContext) {
         let cmd = ctx.cmd_tx.clone();
         let app_weak = ctx.app.as_weak();
         let table = ctx.member_audio.clone();
+        let settings = ctx.settings.clone();
         ctx.app.on_member_volume_changed(move |user_id, percent| {
             let Some(app) = app_weak.upgrade() else {
                 return;
@@ -68,6 +69,7 @@ pub fn wire(ctx: &AppContext) {
             }
             let command = table.borrow_mut().set_volume(&user_id, percent);
             let _ = cmd.send(command);
+            crate::member_audio::store(&settings, &table.borrow());
             show_member_audio(&app, &user_id, table.borrow().get(&user_id));
         });
     }

@@ -23,6 +23,25 @@ no other layout rule.
 | Sessions | Live sessions, then every game, voice and stream session of the free window, in one carousel | A session exists |
 | Crew history | One row for each past week, newest first: its clips, streams and game sessions | Past weeks exist |
 
+### 1.1 The top block
+
+The Board stands at the right, one column wide. The column beside it, two
+columns wide, takes the zones in feed order while each fits beside a board of
+three rows: the Stage, Clips, People, Sessions (two cards to a page), the
+installed games, then the m3llo+ strip. A zone that does not fit runs full
+width under the top block. Sessions, the installed games and the m3llo+
+strip move up only when every zone before them stands beside the board: a
+zone never moves past one that waits under the board.
+
+| Board | Height |
+|---|---|
+| `tabs`, `quiet`, `past` | The height of the column beside it, at least two rows and at most the height of the mode (three rows; two for `past`). With nothing beside it, the height of the mode. |
+| `sealed`, `solo` | Two rows. |
+
+A row is `Theme.feed-row` (232 px) and the gap 12 px. The board ends where the
+column beside it ends, so a week with no stream and no clip leaves no empty
+column beside the board.
+
 The feed has cards only. There are no headings or label lines outside a card.
 The You strip (`YOU-STRIP.md`) stays pinned above the zones. It shows once the
 crew's quests are done and two members share game activity.
@@ -75,7 +94,10 @@ The belts are rows: the holder's octagon, the holder, the title and the
 value. A belt that moved and is not opened is sealed: a muted octagon with
 "?", and the sealed chip in place of the holder and value. A moved belt the
 viewer has not seen wears the unread mark. Belts that moved or are sealed come
-first. The board draws seven and counts the rest ("+6 MORE").
+first. Every belt goes to the board. The board draws the rows that fit its
+height and counts the rest in a button ("+6 MORE"). The button opens the
+board in place to every belt; the board grows to its rows, and "SHOW LESS"
+closes it.
 
 ## 4. Clips
 
@@ -113,7 +135,9 @@ One card is 120 px high. A card in a stack of cards is 88 px high.
 
 Live sessions (client state from presence, `LiveSessionCard`) lead, then the
 server's sessions newest first: game sessions (`GameSessionCard`), voice
-sessions and streams without snapshots (`SessionCard`). A live session and the
+sessions and streams without snapshots (`SessionCard`). A voice session card
+shows VOICE, the channel, how long, the call size ("4 in the call"), up to
+three octagons and "+N", and the names. A live session and the
 session it ends in never show together. On a quiet week with no session the
 zone shows the games most members have installed (`installed`).
 

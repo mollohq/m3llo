@@ -159,6 +159,13 @@ global Hist {
         duration-human: "2m", duration-value: "2", duration-unit: "m", timestamp: "4m ago", timestamp-upper: "4M AGO", participant-count: 1,
         participants-line: "Oskar",
         part0-initials: "OS", part0-avatar: Crew.oskar.avatar, part0-has-avatar: true };
+    /// A voice session in the Sessions zone (the "PASS" card of v0.8.0).
+    out property <FeedCardData> s-voice: { id: "s-voice", card-type: "session", session-kind: "voice", channel-name: "General",
+        duration-human: "1h 57m", peak-count: 4, timestamp: "Yesterday", participant-count: 4,
+        participants-line: "Jonas, Max +2",
+        part0-initials: "JO", part0-avatar: Crew.jonas.avatar, part0-has-avatar: true,
+        part1-initials: "MA", part1-avatar: Crew.max.avatar, part1-has-avatar: true,
+        part2-initials: "SA", part2-avatar: Crew.sara.avatar, part2-has-avatar: true };
     out property <FeedCardData> s-bg3: { id: "s-bg3", card-type: "game-session", game-name: "Baldur's Gate 3: The Long Night Edition", game-monogram: "BG",
         actor-name: "Saga", actor-initials: "SA", actor-avatar: Crew.saga.avatar, actor-has-avatar: true,
         duration-human: "1h 30m", duration-value: "1", duration-unit: "h", duration-tail: "30", timestamp: "2h ago", timestamp-upper: "2H AGO", participant-count: 5,
@@ -248,11 +255,12 @@ global Hist {
 component Panel inherits Rectangle {
     in property <ZonesData> zones;
     in property <YouStripData> strip;
+    in property <bool> belts-open;
     width: 865px;
     height: 865px;
     background: Theme.bg-app;
     VerticalLayout {
-        CrewFeed { vertical-stretch: 1; zones: root.zones; you-strip: root.strip; }
+        CrewFeed { vertical-stretch: 1; zones: root.zones; you-strip: root.strip; belts-open: root.belts-open; }
         ControlBar {
             height: Theme.control-bar-height;
             user-name: "b0bben";
@@ -321,7 +329,7 @@ export component PreviewFeedSmall inherits Panel {
         today-stats: [{ value: "1", label: "CLIPS" }, { value: "2", label: "SESSIONS" }, { value: "3", label: "ON" }],
         today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-monday, title-count: 13, more-label: "+8 MORE",
+        titles: Data.titles-monday, title-count: 13,
         people: true, members: [Crew.bob, Crew.jonas, Crew.max], open-seats: 2,
         sessions: [Hist.s-drg, Hist.s-hs, Hist.s-rl],
     };
@@ -337,7 +345,7 @@ export component PreviewFeedBig inherits Panel {
         board: "tabs",
         today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        titles: Data.titles-today, title-count: 13,
         clips: [Hist.g1, Hist.v1, Hist.g2, Hist.v2, Hist.g3],
         people: true,
         joined: [Crew.elin, Crew.noah, Crew.saga], joined-line: "Elin, Noah and Saga joined", joined-sub: "invited by Max, 20:46", say-hi-card: "j1",
@@ -365,7 +373,7 @@ export component PreviewFeedQuiet inherits Panel {
         you: Crew.bob,
         stage: "card", stage-card: Hist.belt-hero, stage-short: true,
         board: "quiet", quiet-line: "No crew time last week.", quiet-sub: "Sara, Max and 2 more still played.",
-        titles: Data.titles-opened, title-count: 13, more-label: "+9 MORE",
+        titles: Data.titles-opened, title-count: 13,
         people: true, voice: "idle", channel: "Lounge", voice-line: "Empty. Last call 6 November",
         installed: [
             { name: "Deep Rock Galactic", art: Crew.drg, count: "23" },
@@ -383,7 +391,7 @@ export component PreviewFeedDormant inherits Panel {
         stage: "card", stage-card: Hist.hero-old,
         board: "past", past-label: "WEEK 46", past-age: "3 weeks ago",
         week-big: { value: "38", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Base.week-stats,
-        titles: Data.titles-opened, title-count: 13, more-label: "+9 MORE",
+        titles: Data.titles-opened, title-count: 13,
         people: true, voice: "idle", channel: "Lounge", voice-line: "Empty. Last call 13 November",
     };
 }
@@ -397,7 +405,7 @@ export component PreviewFeedHistoryPlus inherits Panel {
         board: "tabs",
         today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        titles: Data.titles-today, title-count: 13,
         clips: [Hist.g1, Hist.v1, Hist.g2],
         sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
         history: Hist.open, plus: true,
@@ -414,7 +422,7 @@ export component PreviewFeedHistorySessions inherits Panel {
         board: "tabs",
         today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        titles: Data.titles-today, title-count: 13,
         clips: [Hist.g1, Hist.v1, Hist.g2],
         sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
         history: Hist.open-sessions, plus: true,
@@ -431,7 +439,7 @@ export component PreviewFeedHistorySessionsLocked inherits Panel {
         board: "tabs",
         today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-today, title-count: 13, more-label: "+6 MORE",
+        titles: Data.titles-today, title-count: 13,
         clips: [Hist.g1, Hist.v1, Hist.g2],
         sessions: [Hist.s-cs, Hist.s-drg, Hist.s-rl],
         history: Hist.locked-sessions,
@@ -445,7 +453,7 @@ export component PreviewFeedQuietTwo inherits Panel {
         you: Crew.bob,
         stage: "card", stage-card: Hist.belt-hero, stage-short: true,
         board: "quiet", quiet-line: "No crew time last week.", quiet-sub: "Max still played.",
-        titles: Data.titles-opened, title-count: 7, more-label: "",
+        titles: Data.titles-opened, title-count: 7,
         people: true, members: [Crew.bob, Crew.max], open-seats: 3,
         voice: "idle", channel: "Lounge", voice-line: "Empty. Last call 6 November",
     };
@@ -463,7 +471,7 @@ export component PreviewFeedJoinCall inherits Panel {
         today-stats: [{ value: "1", label: "CLIPS" }, { value: "2", label: "SESSIONS" }, { value: "3", label: "ON" }],
         today-has-top: true, today-top: Base.cs2,
         week-big: Base.week-big, week-stats: Base.week-stats,
-        titles: Data.titles-monday, title-count: 13, more-label: "+8 MORE",
+        titles: Data.titles-monday, title-count: 13,
         people: true, members: [Crew.bob, Crew.jonas, Crew.elin], open-seats: 2,
         joined: [Crew.elin], joined-line: "Elin joined", joined-sub: "invited by Jonas, 20:46", say-hi-card: "j1", say-hi-name: "Elin",
         voice: "call", channel: "Lounge", voice-line: "2 in the call", voice-people: [Crew.jonas, Crew.elin],
@@ -557,5 +565,200 @@ export component PreviewFeedQuests4 inherits Panel {
         today-stats: [{ value: "1", label: "CLIPS" }, { value: "0", label: "SESSIONS" }, { value: "2", label: "ON" }],
         week-big: { value: "34", unit: "min", label: "HANGOUT" }, week-stats: Base.week-stats,
         people: true, members: [Crew.bob, Crew.ida], open-seats: 3,
+    };
+}
+
+// ── The left column beside a tall board (Bob, v0.8.0, 2026-11-22) ──────
+//
+// A week with sessions and belts and no stream or clip: the board is three
+// rows high and the left column holds only the voice card.
+
+global Gap {
+    out property <[BoardTitle]> titles: [
+        { person: Crew.sara, title: "MARATHON", icon: Crew.i-marathon, value: "3", unit: "h", tail: "52", belt: Data.marathon-sealed },
+        { person: Crew.leo, title: "THE CARRY", icon: Crew.i-carry, value: "412", unit: "h", belt: Data.carry-sealed },
+        { person: Crew.oskar, title: "CLIPPER", icon: Crew.i-clipper, value: "41", unit: "clips", belt: Data.marathon-sealed },
+        { person: Crew.max, title: "THE COLLECTOR", icon: Crew.i-collector, value: "34", unit: "installed" },
+        { person: Crew.jonas, title: "LOCKED IN", icon: Crew.i-locked, value: "20.8", unit: "h" },
+        { person: Crew.you, title: "NIGHT OWL", icon: Crew.i-owl, value: "03:14" },
+        { person: Crew.ida, title: "MOUTH", icon: Crew.i-mouth, value: "99", unit: "%" },
+    ];
+    out property <[BoardStat]> week-stats: [
+        { value: "0", label: "CLIPS" }, { value: "1", unit: "h", tail: "57", label: "LONGEST" }, { value: "1", label: "GAMES" },
+    ];
+}
+
+/// Gap 1 · Bob's week: sessions and belts, no stream, no clip. A full crew,
+/// so People is the voice card only.
+export component PreviewFeedGapWeek inherits Panel {
+    height: 1300px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        today-stats: [{ value: "0", label: "CLIPS" }, { value: "0", label: "SESSIONS" }, { value: "0", label: "ON" }],
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        games-played: [Crew.cs2],
+        titles: Gap.titles, title-count: 7,
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-voice, Hist.s-cs, Hist.s-drg],
+        history: Hist.locked,
+    };
+}
+
+/// Gap 2 · The same week with a clip on the stage, no stream.
+export component PreviewFeedGapClip inherits Panel {
+    height: 1300px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        stage: "card", stage-card: Hist.hero-max,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        titles: Gap.titles, title-count: 7,
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-hs, Hist.s-cs, Hist.s-drg],
+    };
+}
+
+/// Gap 3 · A clip on the stage and more clips: the left column is full.
+export component PreviewFeedGapBoth inherits Panel {
+    height: 1300px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        stage: "card", stage-card: Hist.hero-max,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        titles: Gap.titles, title-count: 7,
+        clips: [Hist.g1, Hist.v1, Hist.g2],
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-hs, Hist.s-cs, Hist.s-drg],
+    };
+}
+
+/// Gap 4 · No stream, no clip, no session: the board and the voice card.
+export component PreviewFeedGapNothing inherits Panel {
+    height: 1100px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "0", unit: "min", label: "HANGOUT" }, week-stats: Base.week-stats,
+        titles: Gap.titles, title-count: 7,
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+    };
+}
+
+/// Gap 5 · A crew of 50: joins and a call, no stream or clip.
+export component PreviewFeedGapFifty inherits Panel {
+    height: 1300px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        board: "tabs",
+        today-big: Base.today-big, today-stats: Base.today, today-has-top: true, today-top: Base.cs2,
+        week-big: Base.week-big, week-stats: Base.week-stats,
+        titles: Data.titles-today, title-count: 21,
+        people: true,
+        joined: [Crew.elin, Crew.noah, Crew.saga], joined-line: "Elin, Noah and Saga joined", joined-sub: "invited by Max, 20:46", say-hi-card: "j1",
+        voice: "call", channel: "Lounge", voice-line: "9 in the call", voice-people: [Crew.jonas, Crew.sara, Crew.ida, Crew.oskar], voice-more: 5,
+        sessions: [Hist.s-drg, Hist.s-bg3, Hist.s-cs],
+        history: Hist.locked,
+    };
+}
+
+/// Gap 6 · Bob's week in the narrowest window (1024 px: the feed is 444 px).
+export component PreviewFeedGapNarrow inherits PreviewFeedGapWeek {
+    width: 444px;
+}
+
+/// Gap 7 · Bob's week in a 30 day free window: more sessions, no week
+/// before the window yet, so no m3llo+ strip.
+export component PreviewFeedGapWeek30 inherits Panel {
+    height: 1300px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        games-played: [Crew.cs2],
+        titles: Gap.titles, title-count: 7,
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-voice, Hist.s-hs, Hist.s-cs, Hist.s-drg, Hist.s-rl, Hist.s-bg3, Hist.p-cs, Hist.p-drg, Hist.p-rl],
+    };
+}
+
+/// Gap 8 · A 30 day window with clips: a clip on the stage, more clips,
+/// many sessions, older weeks locked.
+export component PreviewFeedGapClips30 inherits Panel {
+    height: 1500px;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        stage: "card", stage-card: Hist.hero-max,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        titles: Gap.titles, title-count: 7,
+        clips: [Hist.g1, Hist.v1, Hist.g2, Hist.v2, Hist.g3],
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-hs, Hist.s-cs, Hist.s-drg, Hist.s-rl, Hist.s-bg3, Hist.p-cs],
+        history: Hist.locked,
+    };
+}
+
+/// Gap 9 · A new crew in its first call: the quest card, the seats, the
+/// join and the call. The people cards do not fit beside the board.
+export component PreviewFeedGapQuestsCall inherits Panel {
+    height: 1200px;
+    zones: {
+        you: Crew.bob,
+        stage: "quests", quest-count: "3 / 5", quest-fill: 0.5,
+        quest-gifts: [Q.banner-open, Q.link-open, Q.emoji-locked, Q.week-locked, Q.plus-locked],
+        quest-rows: [Q.made, Q.friend-done, Q.call-done, Q.clip-todo, Q.session-todo],
+        board: "tabs",
+        today-big: { value: "34", unit: "min", label: "HANGOUT" },
+        today-stats: [{ value: "0", label: "CLIPS" }, { value: "0", label: "SESSIONS" }, { value: "2", label: "ON" }],
+        week-big: { value: "34", unit: "min", label: "HANGOUT" }, week-stats: Base.week-stats,
+        titles: Data.titles-opened, title-count: 2,
+        people: true, members: [Crew.bob, Crew.ida], open-seats: 3,
+        joined: [Crew.ida], joined-line: "Ida joined", joined-sub: "Invited by you · 2 min", say-hi-card: "j1", say-hi-name: "Ida",
+        voice: "call", channel: "General", voice-line: "2 in the call", voice-people: [Crew.bob, Crew.ida],
+    };
+}
+
+/// Gap 10 · Bob's week with the belts open: the board shows all seven.
+export component PreviewFeedGapWeekOpen inherits Panel {
+    height: 1300px;
+    belts-open: true;
+    strip: Strip.three;
+    zones: {
+        you: Crew.bob,
+        board: "tabs", today-empty: true,
+        today-big: { value: "0", unit: "min", label: "HANGOUT" },
+        week-big: { value: "12", unit: "h", tail: "05", label: "HANGOUT" }, week-stats: Gap.week-stats,
+        week-has-top: true, week-top: Base.cs2,
+        most-active: Crew.jonas, most-active-value: "7 h 04",
+        games-played: [Crew.cs2],
+        titles: Gap.titles, title-count: 7,
+        people: true, voice: "idle", channel: "General", voice-line: "Empty. Last call 20 November",
+        sessions: [Hist.s-voice, Hist.s-cs, Hist.s-drg],
+        history: Hist.locked,
     };
 }

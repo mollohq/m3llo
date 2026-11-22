@@ -23,6 +23,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 created
             );
             let uid = user.id.clone();
+            crate::member_audio::sign_in(ctx, &user.id);
             ctx.app.set_user_id(user.id.into());
             ctx.app
                 .set_user_initials(make_initials(&user.display_name).into());
@@ -57,6 +58,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
                 user.id,
                 user.display_name
             );
+            crate::member_audio::sign_in(ctx, &user.id);
             ctx.app.set_user_id(user.id.into());
             ctx.app
                 .set_user_initials(make_initials(&user.display_name).into());
@@ -141,6 +143,7 @@ pub fn handle(ctx: &AppContext, event: Event) {
             ctx.app.set_login_error("".into());
             ctx.app.set_login_account_missing(false);
             let uid = user.id.clone();
+            crate::member_audio::sign_in(ctx, &user.id);
             ctx.app.set_user_id(user.id.into());
             ctx.app
                 .set_user_initials(make_initials(&user.display_name).into());
@@ -349,6 +352,7 @@ fn account_deleted(ctx: &AppContext) {
     ui.set_open(false);
     ctx.app.invoke_close_settings();
     ctx.avatar_cache.borrow_mut().clear();
+    crate::member_audio::sign_out(&ctx.settings, &ctx.member_audio, true);
     {
         let mut s = ctx.settings.borrow_mut();
         s.device_id = None;

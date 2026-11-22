@@ -383,6 +383,15 @@ flows:
     protocol: []
     issues: []
 
+  - id: VOICE-08
+    title: A member volume set in the popover comes back after a restart; the local mute does not
+    priority: P1
+    users: 2
+    harness: [a_member_volume_survives_a_restart, member_volumes_belong_to_the_signed_in_account]
+    journeys: [qa/journeys/voice-member-volume.ts]
+    protocol: []
+    issues: []
+
   # ── Chat ──────────────────────────────────────────────────────
   - id: CHAT-01
     title: Send a message, the other user receives it
