@@ -1,9 +1,10 @@
 //! Playback volume and local mute of each voice member, for this user only.
 //!
-//! The member volume popover (crew panel) sets these values. They are kept
-//! in memory for the life of the app, keyed by user id, and are not written
-//! to the settings file: a restart sets every member back to 100 % and not
-//! muted (spec 01 section 4.1).
+//! The member volume popover (crew panel) sets these values, keyed by user
+//! id. The volume is stored on this machine, in the settings file, for each
+//! signed-in account (`Settings::member_volumes`): it comes back after a
+//! restart. The local mute is kept in memory only: a restart unmutes every
+//! member (spec 01 section 4.1). Nothing goes to the server.
 //!
 //! libmello names the receive state of a member after the user id, so the
 //! user id is also the `peer_id` of `Command::SetPeerVolume`.
@@ -54,6 +55,8 @@ impl MemberAudio {
 /// joined channel at the last sync.
 #[derive(Debug, Default)]
 pub struct MemberAudioTable {
+    /// The user id of the signed-in account. Empty when nobody is signed in.
+    account: String,
     /// Only members that are not at the default have an entry.
     entries: HashMap<String, MemberAudio>,
     /// The members of the joined channel at the last [`Self::sync_present`].
@@ -61,6 +64,51 @@ pub struct MemberAudioTable {
 }
 
 impl MemberAudioTable {
+    /// The signed-in account that owns the table. Empty when signed out.
+    pub fn account(&self) -> &str {
+        &self.account
+    }
+
+    /// Start the table of `account` from its stored volumes. A sign-in of
+    /// the account that already owns the table changes nothing, so its local
+    /// mutes stay. Another account gets a new table: the next
+    /// [`Self::sync_present`] sends the stored value of each member present.
+    pub fn sign_in(&mut self, account: &str, stored: Option<&HashMap<String, u16>>) {
+        if account == self.account {
+            return;
+        }
+        log::info!(
+            "Member audio: account {} signed in, {} stored volumes",
+            account,
+            stored.map_or(0, HashMap::len)
+        );
+        *self = Self {
+            account: account.to_string(),
+            ..Self::default()
+        };
+        for (user_id, percent) in stored.into_iter().flatten() {
+            if user_id != account {
+                self.set_volume(user_id, i32::from(*percent));
+            }
+        }
+    }
+
+    /// Forget every value and the account: a sign-out.
+    pub fn sign_out(&mut self) {
+        log::info!("Member audio: account {} signed out", self.account);
+        *self = Self::default();
+    }
+
+    /// The volumes to store: every member not at 100 %. The local mute is
+    /// not stored.
+    pub fn stored_volumes(&self) -> HashMap<String, u16> {
+        self.entries
+            .iter()
+            .filter(|(_, a)| a.volume_percent != DEFAULT_PERCENT)
+            .map(|(id, a)| (id.clone(), a.volume_percent))
+            .collect()
+    }
+
     /// The settings of `user_id`. The default when it has no entry.
     pub fn get(&self, user_id: &str) -> MemberAudio {
         self.entries.get(user_id).copied().unwrap_or_default()
@@ -116,6 +164,53 @@ impl MemberAudioTable {
         );
         apply(user_id, audio)
     }
+}
+
+/// A sign-in as `account`: the table takes that account's stored volumes.
+/// Called by every event that sets the signed-in user.
+pub(crate) fn sign_in(ctx: &crate::app_context::AppContext, account: &str) {
+    let settings = ctx.settings.borrow();
+    ctx.member_audio
+        .borrow_mut()
+        .sign_in(account, settings.member_volumes.get(account));
+}
+
+/// A sign-out: the table forgets every value. `forget_account` also deletes
+/// the stored volumes of the account (the account was deleted).
+pub(crate) fn sign_out(
+    ctx_settings: &std::rc::Rc<std::cell::RefCell<crate::Settings>>,
+    table: &std::rc::Rc<std::cell::RefCell<MemberAudioTable>>,
+    forget_account: bool,
+) {
+    let account = table.borrow().account().to_string();
+    table.borrow_mut().sign_out();
+    if forget_account && !account.is_empty() {
+        let mut s = ctx_settings.borrow_mut();
+        if s.member_volumes.remove(&account).is_some() {
+            log::info!("Member audio: stored volumes of {} deleted", account);
+            s.save();
+        }
+    }
+}
+
+/// Write the volumes of the signed-in account to the settings file.
+pub(crate) fn store(
+    settings: &std::rc::Rc<std::cell::RefCell<crate::Settings>>,
+    table: &MemberAudioTable,
+) {
+    if table.account().is_empty() {
+        log::warn!("Member audio: no signed-in account, the volume is not stored");
+        return;
+    }
+    let volumes = table.stored_volumes();
+    let mut s = settings.borrow_mut();
+    if volumes.is_empty() {
+        s.member_volumes.remove(table.account());
+    } else {
+        s.member_volumes
+            .insert(table.account().to_string(), volumes);
+    }
+    s.save();
 }
 
 /// The command that gives `user_id` the gain of `audio`.
@@ -219,6 +314,49 @@ mod tests {
             .map(gain_of)
             .collect();
         assert_eq!(bob, vec![("u-bob".to_string(), 0.7)]);
+    }
+
+    #[test]
+    fn only_the_volume_is_stored() {
+        let mut t = MemberAudioTable::default();
+        t.sign_in("u-me", None);
+        t.set_volume("u-bob", 70);
+        t.set_muted_locally("u-eve", true);
+        t.set_volume("u-ann", 150);
+        t.set_muted_locally("u-ann", true);
+        let stored = t.stored_volumes();
+        assert_eq!(stored.len(), 2, "{stored:?}");
+        assert_eq!(stored["u-bob"], 70);
+        assert_eq!(stored["u-ann"], 150, "a muted member keeps its volume");
+    }
+
+    #[test]
+    fn a_sign_in_loads_the_stored_volumes_of_that_account() {
+        let stored: HashMap<String, u16> =
+            [("u-bob".to_string(), 70), ("u-me".to_string(), 50)].into();
+        let mut t = MemberAudioTable::default();
+        t.sign_in("u-me", Some(&stored));
+        assert_eq!(t.account(), "u-me");
+        assert_eq!(t.get("u-bob").volume_percent, 70);
+        assert_eq!(t.get("u-me"), MemberAudio::default(), "never your own id");
+
+        let sent: Vec<_> = t.sync_present(["u-bob"]).iter().map(gain_of).collect();
+        assert_eq!(sent, vec![("u-bob".to_string(), 0.7)]);
+    }
+
+    #[test]
+    fn the_same_account_keeps_its_table_and_another_gets_a_new_one() {
+        let mut t = MemberAudioTable::default();
+        t.sign_in("u-me", None);
+        t.set_muted_locally("u-bob", true);
+        t.sign_in("u-me", None);
+        assert!(t.get("u-bob").muted_locally, "a second sign-in keeps it");
+
+        t.sign_in("u-other", None);
+        assert_eq!(t.get("u-bob"), MemberAudio::default());
+        t.sign_out();
+        assert_eq!(t.account(), "");
+        assert!(t.entries.is_empty());
     }
 
     #[test]

@@ -48,7 +48,7 @@ The client uses a `Command`/`Event` IPC pattern to communicate with `mello-core`
 |-----------|-----------|---------|
 | UI-only, single-thread | `Rc<RefCell<T>>` | Invited users list, discover cursor, loading flags |
 | Cross-thread (UI ↔ tokio) | `Arc<Mutex<T>>` | Avatar base64 data (picked on main thread, sent via Command) |
-| Persistent across restarts | `Settings` struct via `confy` | Audio device IDs, onboarding step, pending crew details |
+| Persistent across restarts | `Settings` struct via `confy` | Audio device IDs, onboarding step, pending crew details, member volumes |
 | Slint-managed | `in`/`in-out` properties | Crew list, chat messages, UI toggles |
 
 ---
@@ -142,7 +142,9 @@ Only your local mute dims the row (avatar and name). The green name of a member 
 |---|---|
 | Key | The user id. The value follows the person into every channel and crew. |
 | Value | `{ volume_percent: u16 (default 100, max 200), muted_locally: bool }`. A member at the default has no entry. |
-| Lifetime | In memory for the life of the app. Leaving a channel keeps it. A restart clears it. Nothing goes to the settings file or to the server. |
+| Lifetime | The volume is stored on this machine and comes back after a restart. The local mute is in memory only: a restart unmutes the member. Leaving a channel keeps both. Nothing goes to the server. |
+| Storage | `Settings::member_volumes`: by the signed-in user id, then by the member's user id, the percent. A member at 100 % has no entry. `member_audio::store` writes it on each volume change. |
+| Account | Each sign-in (`DeviceAuthed`, `OnboardingReady`, `LoggedIn`) gives the table the stored volumes of that account. A sign-out clears the table. Another account on the same machine has its own volumes. A deleted account loses its stored volumes. |
 | Apply | `Command::SetPeerVolume { peer_id: user_id, volume }`, `volume = 0.0` when muted, else `percent / 100`. |
 | Apply again | `handlers::voice::sync_member_audio` runs after each event that changes the voice channel models. It sends the stored value for each member who appears in the joined channel: a join, a rejoin, a reconnect. |
 

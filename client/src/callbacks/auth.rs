@@ -27,8 +27,10 @@ pub fn wire(ctx: &AppContext) {
         let settings_ref = ctx.settings.clone();
         let fx = crate::onboarding::EffectCtx::from_ctx(ctx);
         let avatar_cache_ref = ctx.avatar_cache.clone();
+        let member_audio = ctx.member_audio.clone();
         ctx.app.on_logout(move || {
             avatar_cache_ref.borrow_mut().clear();
+            crate::member_audio::sign_out(&settings_ref, &member_audio, false);
             let _ = cmd.send(Command::Logout);
             if let Some(app) = app_weak.upgrade() {
                 show_signed_out(&app, &settings_ref, &fx);

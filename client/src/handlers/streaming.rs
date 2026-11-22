@@ -659,7 +659,7 @@ impl StreamAudio {
 #[derive(Debug, Default)]
 pub struct StreamCardState {
     /// The volume of each host's game audio, by host id, for the life of
-    /// the app (a restart clears it, as the member volumes).
+    /// the app (a restart clears it).
     audio: HashMap<String, StreamAudio>,
     /// The host of the watched stream: the key of `audio`.
     watched_host: String,
