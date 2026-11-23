@@ -261,6 +261,52 @@ func TestQuestsCallWithAGuestCountsAndTheGuestHasNoName(t *testing.T) {
 	}
 }
 
+func TestQuestsGuestVoiceIsAGuestAndAMemberInOneRoom(t *testing.T) {
+	nk, _, _ := newVoiceTest(t)
+	// Two members are not guest voice.
+	joinT(t, nk, "crew", "ch", "own", false)
+	joinT(t, nk, "crew", "ch", "ida", false)
+	if q := readQuestsT(t, nk, "crew"); q.GuestVoiceMs != 0 {
+		t.Fatalf("guest_voice_ms = %d with members only", q.GuestVoiceMs)
+	}
+	joinT(t, nk, "crew", "ch", "guest:abc", true)
+	first := readQuestsT(t, nk, "crew").GuestVoiceMs
+	if first == 0 {
+		t.Fatal("guest_voice_ms is not set after a guest joined the members")
+	}
+	// A second guest, and a re-join of the first, change nothing.
+	time.Sleep(2 * time.Millisecond)
+	joinT(t, nk, "crew", "ch", "guest:def", true)
+	joinT(t, nk, "crew", "ch", "guest:abc", true)
+	if got := readQuestsT(t, nk, "crew").GuestVoiceMs; got != first {
+		t.Fatalf("guest_voice_ms = %d then %d", first, got)
+	}
+}
+
+func TestQuestsGuestVoiceCountsWhenTheMemberJoinsTheGuest(t *testing.T) {
+	// The guest is first in the room. Alone, and with a second guest, it is
+	// not guest voice. The member's join makes it.
+	nk, _, _ := newVoiceTest(t)
+	joinT(t, nk, "crew", "ch", "guest:abc", true)
+	joinT(t, nk, "crew", "ch", "guest:def", true)
+	if q := readQuestsT(t, nk, "crew"); q.GuestVoiceMs != 0 {
+		t.Fatalf("guest_voice_ms = %d with guests only", q.GuestVoiceMs)
+	}
+	joinT(t, nk, "crew", "ch", "own", false)
+	if q := readQuestsT(t, nk, "crew"); q.GuestVoiceMs == 0 {
+		t.Fatal("guest_voice_ms is not set after a member joined the guests")
+	}
+}
+
+func TestQuestsGuestVoiceNeedsOneRoom(t *testing.T) {
+	nk, _, _ := newVoiceTest(t)
+	joinT(t, nk, "crew", "ch-a", "own", false)
+	joinT(t, nk, "crew", "ch-b", "guest:abc", true)
+	if q := readQuestsT(t, nk, "crew"); q.GuestVoiceMs != 0 {
+		t.Fatalf("guest_voice_ms = %d for two rooms", q.GuestVoiceMs)
+	}
+}
+
 func TestQuestsCallIsWrittenOnce(t *testing.T) {
 	nk, ctx, lg := newVoiceTest(t)
 	joinT(t, nk, "crew", "ch", "own", false)

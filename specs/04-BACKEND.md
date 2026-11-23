@@ -163,6 +163,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `crew_emoji_remove` | Yes | `{crew_id, name}`. The adder or the owner. Deletes the object. |
 | `report_crew_media` | Optional | `{crew_id, kind: "banner" \| "emoji", name?}`. Records a report of an uploaded banner or a crew emoji. A user session, or the `http_key` from the join page. |
 | `report_invite_copied` | Yes | `{crew_id}`. Marks the first copy of an invite link in the quest record. Member. |
+| `report_invite_step` | No (`http_key`, server-to-server only) | `{code, step: "opened" \| "install", call?, device?, os?}`. Marks the first open of a crew's invite page, or the first click on its install button, in the quest record. Rejects client sessions. See features/CREW-INVITES.md §4.9. |
 | `admin_media_reports_list` | No (`http_key`, server-to-server only) | `{status?: "open"}` → `{reports}`: the media reports, newest first, at most 500, with the crew name and whether the image is still live. Rejects client sessions. |
 | `admin_media_takedown` | No (`http_key`, server-to-server only) | `{report_id, reason, actor}` → `{removed, closed}`. Removes the reported image when it is still the crew's, deletes its object, closes every open report of it. Rejects client sessions. |
 | `admin_media_report_dismiss` | No (`http_key`, server-to-server only) | `{report_id, reason, actor}` → `{closed}`. Closes the reports and keeps the image. Rejects client sessions. |

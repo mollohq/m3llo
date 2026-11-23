@@ -44,6 +44,12 @@ reveal.
 | `steps.session` | `done_ms`, `game_id`, `game_name`, `game_igdb_id`, `minutes`, `user_ids`, `names` |
 | `plus_granted` | The members who got m3llo+ from step 5 |
 | `invite_copied_ms` | The first copy of an invite link. Not a step |
+| `invite_opened_ms` | The first open of the invite page in a browser. Not a step |
+| `invite_opened_call` | True when a member was in voice at that open |
+| `invite_opened_device` | `desktop` or `phone` at that open |
+| `invite_install_ms` | The first click on the install button of the invite page. Not a step |
+| `invite_install_os` | The installer of that click: `windows`, `macos` or `linux` |
+| `guest_voice_ms` | The first time a browser guest and a member sat in one voice room. Not a step |
 
 - A step that is not done is absent. A done step never changes.
 - The writers sit where the events happen: `recordMemberJoined`, `joinVoiceRoom`,
@@ -51,6 +57,9 @@ reveal.
 - A write uses the storage version and retries on a conflict.
 - After a write the server sends `feed_changed` (reason `quest`) to the
   members who have the crew open, so the card updates at once.
+- The invite page fields and `guest_voice_ms` send no `feed_changed`. The card
+  does not show them. `report_invite_step` writes the page fields
+  (CREW-INVITES.md section 4.9). `joinVoiceRoom` writes `guest_voice_ms`.
 
 ## 3. The gifts on the server
 
@@ -205,7 +214,9 @@ instead of a dialog.
 
 - Go: `crew_quests_test.go` (the record, each writer, the window, the call
   rules), `crew_gifts_test.go` (each gift, `giftOpen`, the invite name rules,
-  the m3llo+ grant, reports), `admin_media_reports_test.go`.
+  the m3llo+ grant, reports), `admin_media_reports_test.go`,
+  `guest_sessions_test.go` (`report_invite_step`: the first report wins, a
+  client session is refused, no `feed_changed`).
 - Harness: `client/src/flow_tests/quests.rs`.
 - Previews: `PreviewFeedQuests1-4`, `PreviewRevealQuest1-5`.
 - Journey: `qa/journeys/feed-quests.ts` (flow FEED-13).

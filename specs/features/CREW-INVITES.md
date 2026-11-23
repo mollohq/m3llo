@@ -222,6 +222,32 @@ Guests always use the SFU. An invite to any crew can therefore create SFU
 traffic, including for crews without the premium entitlement. Voice is about
 40 kbit/s for each participant. The limits in §4.7 bound the exposure.
 
+### 4.9 `report_invite_step`
+
+Auth: the Nakama HTTP key. The RPC refuses a call with a user session, so a
+client cannot set a step.
+
+The invite page reports two steps (§9.6). The server keeps the first time of
+each step in the crew's quest record (CREW-QUESTS.md section 2).
+
+| Field | Content |
+|---|---|
+| `code` | The invite code, or the custom invite name, of the link |
+| `step` | `opened`: the page loaded in a browser. `install`: a click on a download button |
+| `call` | With `opened`: true when a member was in voice |
+| `device` | With `opened`: `desktop` or `phone` |
+| `os` | With `install`: `windows`, `macos` or `linux` |
+
+- The first report of a step wins. A later report changes nothing.
+- A value the server does not know is stored as empty.
+- An unknown step is refused (code 3). An unknown code is refused (code 5).
+- A crew without a quest record gets no write.
+- The payload says nothing about the visitor: no id, no name, no address.
+- The write sends no `feed_changed`.
+
+`joinVoiceRoom` marks `guest_voice_ms` in the same record the first time a
+guest and a member sit in one voice room.
+
 ---
 
 ## 5. Client: Deep Link Parsing
@@ -525,6 +551,31 @@ guest reaches first is measurable.
 <meta name="twitter:card"       content="summary_large_image" />
 ```
 
+### 9.6 Page steps
+
+**Files:** `mello-site/lounge/steps.js`,
+`mello-site/functions/api/lounge/[code]/step.ts`
+
+The lounge reports two steps to its own origin: `opened` when the page has
+loaded, and `install` on a click on a download button.
+
+1. The browser posts `{step, call, device, os}` to `/api/lounge/{code}/step`
+   with `navigator.sendBeacon`. A download does not wait for the answer.
+2. `opened` goes after the first refresh of the voice channels, so `call` is
+   what the visitor saw.
+3. A step goes once for each tab session.
+4. The function accepts the two steps and keeps the known values. It calls
+   `report_invite_step` (§4.9) with the HTTP key.
+5. The function answers 204, also when Nakama does not answer.
+6. After Nakama took a report, the edge remembers the code and the step for a
+   day and makes no call for them.
+
+The `?mock=1` view reports nothing. A link preview runs no script, so it
+reports nothing.
+
+The function reads no cookie and passes no address on. The page makes no id
+for the visitor.
+
 ---
 
 ## 10. OG Image Generator (Cloudflare Pages Function)
@@ -587,6 +638,7 @@ key passed as a query parameter (`&http_key=...`).
 |---|---|
 | `resolveCrewInvite(env, code)` | The lounge shell and the OG image |
 | `guestCrewFeed(env, code)` | The lounge feed |
+| `reportInviteStep(env, code, step)` | The page steps (§9.6) |
 
 The `Env` interface:
 

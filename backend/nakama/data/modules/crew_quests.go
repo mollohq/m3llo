@@ -40,6 +40,22 @@ type CrewQuests struct {
 	PlusGranted []string `json:"plus_granted,omitempty"`
 	// InviteCopiedMs is the first copy of an invite link, for the funnel.
 	InviteCopiedMs int64 `json:"invite_copied_ms,omitempty"`
+	// The invite page, for the funnel. None is a step, and each is the first
+	// time it happened.
+	// InviteOpenedMs is the first open of the invite page in a browser.
+	InviteOpenedMs int64 `json:"invite_opened_ms,omitempty"`
+	// InviteOpenedCall says a member was in voice at that open.
+	InviteOpenedCall bool `json:"invite_opened_call,omitempty"`
+	// InviteOpenedDevice is "desktop" or "phone" at that open.
+	InviteOpenedDevice string `json:"invite_opened_device,omitempty"`
+	// InviteInstallMs is the first click on the install button of the page.
+	InviteInstallMs int64 `json:"invite_install_ms,omitempty"`
+	// InviteInstallOS is the installer of that click: "windows", "macos" or
+	// "linux".
+	InviteInstallOS string `json:"invite_install_os,omitempty"`
+	// GuestVoiceMs is the first time a browser guest and a member sat in one
+	// voice room.
+	GuestVoiceMs int64 `json:"guest_voice_ms,omitempty"`
 }
 
 // CrewQuestsSteps holds the four steps after crew made. A nil step is not done.
@@ -180,6 +196,16 @@ func questsCreate(ctx context.Context, logger runtime.Logger, nk runtime.NakamaM
 // feed changed: the quest card is in the feed, and no other event of a step
 // reloads it (a member join sends none).
 func questsMark(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, step string, set func(*CrewQuests) bool) bool {
+	return questsWrite(ctx, logger, nk, crewID, step, set, true)
+}
+
+// questsNote sets a field that is not a step. The quest card does not show
+// it, so no feed_changed goes out.
+func questsNote(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, field string, set func(*CrewQuests) bool) bool {
+	return questsWrite(ctx, logger, nk, crewID, field, set, false)
+}
+
+func questsWrite(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, step string, set func(*CrewQuests) bool, push bool) bool {
 	for attempt := 0; attempt < 3; attempt++ {
 		q, version := readCrewQuests(ctx, nk, crewID)
 		if q == nil || !set(q) {
@@ -188,7 +214,9 @@ func questsMark(ctx context.Context, logger runtime.Logger, nk runtime.NakamaMod
 		err := writeCrewQuests(ctx, nk, q, version)
 		if err == nil {
 			logger.Info("crew_quests %s written for crew %s", step, crewID)
-			PushFeedChanged(ctx, logger, nk, crewID, "quest")
+			if push {
+				PushFeedChanged(ctx, logger, nk, crewID, "quest")
+			}
 			return true
 		}
 		retryWait(attempt)
@@ -270,6 +298,51 @@ func questsMarkCall(ctx context.Context, logger runtime.Logger, nk runtime.Nakam
 	call.UserIDs, call.Names = capNames(call.UserIDs, call.Names)
 	questsMark(ctx, logger, nk, crewID, questStepCall, func(q *CrewQuests) bool {
 		return setQuestCall(&q.Steps, call)
+	})
+}
+
+// questsMarkGuestVoice is called on a voice join that leaves a browser guest
+// and a member in one room.
+func questsMarkGuestVoice(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID string) {
+	if crewID == "" {
+		return
+	}
+	nowMs := time.Now().UnixMilli()
+	questsNote(ctx, logger, nk, crewID, "guest_voice", func(q *CrewQuests) bool {
+		if q.GuestVoiceMs != 0 {
+			return false
+		}
+		q.GuestVoiceMs = nowMs
+		return true
+	})
+}
+
+// questsMarkInviteOpened is called when the invite page reports its first
+// load. call says a member was in voice then.
+func questsMarkInviteOpened(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID string, call bool, device string) {
+	nowMs := time.Now().UnixMilli()
+	questsNote(ctx, logger, nk, crewID, "invite_opened", func(q *CrewQuests) bool {
+		if q.InviteOpenedMs != 0 {
+			return false
+		}
+		q.InviteOpenedMs = nowMs
+		q.InviteOpenedCall = call
+		q.InviteOpenedDevice = device
+		return true
+	})
+}
+
+// questsMarkInviteInstall is called when the invite page reports a click on
+// its install button.
+func questsMarkInviteInstall(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, os string) {
+	nowMs := time.Now().UnixMilli()
+	questsNote(ctx, logger, nk, crewID, "invite_install", func(q *CrewQuests) bool {
+		if q.InviteInstallMs != 0 {
+			return false
+		}
+		q.InviteInstallMs = nowMs
+		q.InviteInstallOS = os
+		return true
 	})
 }
 

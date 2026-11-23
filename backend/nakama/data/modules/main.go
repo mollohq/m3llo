@@ -299,6 +299,9 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	if err := initializer.RegisterRpc("guest_crew_feed", GuestCrewFeedRPC); err != nil {
 		return err
 	}
+	if err := initializer.RegisterRpc("report_invite_step", ReportInviteStepRPC); err != nil {
+		return err
+	}
 	if err := initializer.RegisterRpc("guest_voice_roster", GuestVoiceRosterRPC); err != nil {
 		return err
 	}
