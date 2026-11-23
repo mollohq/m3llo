@@ -401,6 +401,73 @@ func GuestVoiceRosterRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 }
 
 // ---------------------------------------------------------------------------
+// RPC: report_invite_step
+// ---------------------------------------------------------------------------
+
+// The steps the invite page reports.
+const (
+	inviteStepOpened  = "opened"
+	inviteStepInstall = "install"
+)
+
+type reportInviteStepRequest struct {
+	Code   string `json:"code"`
+	Step   string `json:"step"`
+	Call   bool   `json:"call,omitempty"`
+	Device string `json:"device,omitempty"`
+	OS     string `json:"os,omitempty"`
+}
+
+// inviteDevice keeps the two kinds of device the page knows.
+func inviteDevice(v string) string {
+	if v == "desktop" || v == "phone" {
+		return v
+	}
+	return ""
+}
+
+// inviteInstallOS keeps the installers the page offers.
+func inviteInstallOS(v string) string {
+	switch v {
+	case "windows", "macos", "linux":
+		return v
+	}
+	return ""
+}
+
+// ReportInviteStepRPC marks the first open of a crew's invite page, and the
+// first click on its install button, in the crew's quest record. Neither is a
+// quest step and neither unlocks anything.
+//
+// Auth: the HTTP key only. The page reports to its own origin and that
+// function calls this RPC, so a client session cannot set a step. The payload
+// says nothing about the visitor: the step, whether a member was in voice,
+// the kind of device and the installer.
+func ReportInviteStepRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	if err := requireServerCaller(ctx, "report_invite_step"); err != nil {
+		return "", err
+	}
+	var req reportInviteStepRequest
+	if err := json.Unmarshal([]byte(payload), &req); err != nil {
+		return "", runtime.NewError("invalid request", 3)
+	}
+	if req.Step != inviteStepOpened && req.Step != inviteStepInstall {
+		return "", runtime.NewError("unknown step", 3)
+	}
+	crewID, _, err := lookupInviteCode(ctx, nk, normalizeInviteCode(req.Code))
+	if err != nil {
+		return "", err
+	}
+	switch req.Step {
+	case inviteStepOpened:
+		questsMarkInviteOpened(ctx, logger, nk, crewID, req.Call, inviteDevice(req.Device))
+	case inviteStepInstall:
+		questsMarkInviteInstall(ctx, logger, nk, crewID, inviteInstallOS(req.OS))
+	}
+	return `{"success":true}`, nil
+}
+
+// ---------------------------------------------------------------------------
 // RPC: guest_crew_feed
 // ---------------------------------------------------------------------------
 

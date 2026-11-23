@@ -794,3 +794,159 @@ func TestSeatedGuestCanSetMuteAndSpeaking(t *testing.T) {
 		t.Error("expected a voice_update push to be queued for the guest's crew")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// report_invite_step
+// ---------------------------------------------------------------------------
+
+// inviteStepT calls the RPC as the join page's function does: with the HTTP
+// key, so with no user in the context.
+func inviteStepT(t *testing.T, nk runtime.NakamaModule, payload string) error {
+	t.Helper()
+	_, err := ReportInviteStepRPC(context.Background(), testLogger(), nil, nk, payload)
+	return err
+}
+
+// inviteStepCrew is a crew with a quest record and one invite code.
+func inviteStepCrew(t *testing.T) *fakeQuestsNk {
+	t.Helper()
+	nk := giftsCrew(t)
+	nk.put(InviteCodeCollection, "ABCD-EFGH", SystemUserID, inviteCodeObject{CrewID: "gc", InviterUserID: "own"})
+	return nk
+}
+
+func TestReportInviteStep_RefusesAClientSession(t *testing.T) {
+	nk := inviteStepCrew(t)
+	if _, err := rpcT(t, ReportInviteStepRPC, nk, "own", `{"code":"ABCD-EFGH","step":"opened"}`); errCode(err) != 7 {
+		t.Fatalf("a member's session: %v, want PERMISSION_DENIED", err)
+	}
+	if q := readQuestsT(t, nk, "gc"); q.InviteOpenedMs != 0 {
+		t.Fatalf("invite_opened_ms = %d after a refused call", q.InviteOpenedMs)
+	}
+}
+
+func TestReportInviteStep_OpenedIsSetOnceWithItsFlags(t *testing.T) {
+	nk := inviteStepCrew(t)
+	// The page sends the code as the visitor's link has it.
+	if err := inviteStepT(t, nk, `{"code":"abcd-efgh","step":"opened","call":true,"device":"desktop"}`); err != nil {
+		t.Fatal(err)
+	}
+	q := readQuestsT(t, nk, "gc")
+	first := q.InviteOpenedMs
+	if first == 0 || !q.InviteOpenedCall || q.InviteOpenedDevice != "desktop" {
+		t.Fatalf("opened = %d call=%v device=%q", first, q.InviteOpenedCall, q.InviteOpenedDevice)
+	}
+	if q.InviteInstallMs != 0 {
+		t.Fatalf("invite_install_ms = %d after an open", q.InviteInstallMs)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if err := inviteStepT(t, nk, `{"code":"ABCD-EFGH","step":"opened","call":false,"device":"phone"}`); err != nil {
+		t.Fatal(err)
+	}
+	q = readQuestsT(t, nk, "gc")
+	if q.InviteOpenedMs != first || !q.InviteOpenedCall || q.InviteOpenedDevice != "desktop" {
+		t.Fatalf("a second open changed the record: %d call=%v device=%q", q.InviteOpenedMs, q.InviteOpenedCall, q.InviteOpenedDevice)
+	}
+}
+
+func TestReportInviteStep_InstallIsSetOnceWithTheInstaller(t *testing.T) {
+	nk := inviteStepCrew(t)
+	if err := inviteStepT(t, nk, `{"code":"ABCD-EFGH","step":"install","os":"windows"}`); err != nil {
+		t.Fatal(err)
+	}
+	q := readQuestsT(t, nk, "gc")
+	first := q.InviteInstallMs
+	if first == 0 || q.InviteInstallOS != "windows" {
+		t.Fatalf("install = %d os=%q", first, q.InviteInstallOS)
+	}
+	if q.InviteOpenedMs != 0 {
+		t.Fatalf("invite_opened_ms = %d after an install click", q.InviteOpenedMs)
+	}
+	time.Sleep(2 * time.Millisecond)
+	if err := inviteStepT(t, nk, `{"code":"ABCD-EFGH","step":"install","os":"macos"}`); err != nil {
+		t.Fatal(err)
+	}
+	q = readQuestsT(t, nk, "gc")
+	if q.InviteInstallMs != first || q.InviteInstallOS != "windows" {
+		t.Fatalf("a second click changed the record: %d os=%q", q.InviteInstallMs, q.InviteInstallOS)
+	}
+}
+
+func TestReportInviteStep_KeepsOnlyKnownValues(t *testing.T) {
+	nk := inviteStepCrew(t)
+	if err := inviteStepT(t, nk, `{"code":"ABCD-EFGH","step":"opened","device":"Kim's laptop"}`); err != nil {
+		t.Fatal(err)
+	}
+	if err := inviteStepT(t, nk, `{"code":"ABCD-EFGH","step":"install","os":"beos"}`); err != nil {
+		t.Fatal(err)
+	}
+	q := readQuestsT(t, nk, "gc")
+	if q.InviteOpenedMs == 0 || q.InviteOpenedDevice != "" {
+		t.Fatalf("opened = %d device=%q, want a time and no device", q.InviteOpenedMs, q.InviteOpenedDevice)
+	}
+	if q.InviteInstallMs == 0 || q.InviteInstallOS != "" {
+		t.Fatalf("install = %d os=%q, want a time and no installer", q.InviteInstallMs, q.InviteInstallOS)
+	}
+}
+
+func TestReportInviteStep_RefusesAnUnknownStepAndAnUnknownCode(t *testing.T) {
+	nk := inviteStepCrew(t)
+	cases := []struct {
+		payload string
+		code    int
+	}{
+		{`{"code":"ABCD-EFGH","step":"joined"}`, 3},
+		{`{"code":"ABCD-EFGH"}`, 3},
+		{`{"code":"NOPE-NOPE","step":"opened"}`, 5},
+		{`{"step":"opened"}`, 3},
+		{`not json`, 3},
+	}
+	for _, c := range cases {
+		if err := inviteStepT(t, nk, c.payload); errCode(err) != c.code {
+			t.Errorf("%s: %v, want code %d", c.payload, err, c.code)
+		}
+	}
+	q := readQuestsT(t, nk, "gc")
+	if q.InviteOpenedMs != 0 || q.InviteInstallMs != 0 {
+		t.Fatalf("a refused call wrote the record: %+v", q)
+	}
+}
+
+func TestReportInviteStep_CrewWithNoRecordWritesNothing(t *testing.T) {
+	// A crew made before quests has an invite code and no record.
+	nk := newFakeQuestsNk()
+	nk.put(InviteCodeCollection, "OLDC-REWW", SystemUserID, inviteCodeObject{CrewID: "old-crew"})
+	if err := inviteStepT(t, nk, `{"code":"OLDC-REWW","step":"opened"}`); err != nil {
+		t.Fatal(err)
+	}
+	if q, _ := readCrewQuests(context.Background(), nk, "old-crew"); q != nil {
+		t.Fatalf("a record was made: %+v", q)
+	}
+}
+
+func TestReportInviteStep_SendsNoFeedChanged(t *testing.T) {
+	// The quest card does not show a page step, so the crew's open feeds do
+	// not reload for it.
+	nk := newFakeQuestsNk()
+	nk.addMember("ris-crew", "ris-own", "b0bben")
+	openCrew("ris-own", "ris-crew")
+	questsCreate(context.Background(), testLogger(), nk, "ris-crew", "ris-own")
+	nk.put(InviteCodeCollection, "RISC-REWW", SystemUserID, inviteCodeObject{CrewID: "ris-crew"})
+	feedNotesMu.Lock()
+	feedNotes = nil
+	feedNotesMu.Unlock()
+	for _, p := range []string{
+		`{"code":"RISC-REWW","step":"opened","device":"desktop"}`,
+		`{"code":"RISC-REWW","step":"install","os":"windows"}`,
+	} {
+		if err := inviteStepT(t, nk, p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if q := readQuestsT(t, nk, "ris-crew"); q.InviteOpenedMs == 0 || q.InviteInstallMs == 0 {
+		t.Fatalf("the steps were not written: %+v", q)
+	}
+	if got := feedChangedTo("ris-own"); len(got) != 0 {
+		t.Fatalf("feed_changed to the owner = %+v, want none", got)
+	}
+}
