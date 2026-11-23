@@ -49,7 +49,7 @@ msgstr "head2head"
 
 #: client/ui/components/feed_board.slint
 msgid "Go head2head with your crew"
-msgstr "Kör head2head med gänget"
+msgstr "Kör head2head med crewet"
 
 #: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
 msgid "MOST ACTIVE"
@@ -118,7 +118,7 @@ msgstr "BJUD IN"
 #. keeps the name unique.
 #: client/ui/components/feed_board.slint
 msgid "Invite your crew"
-msgstr "Bjud in gänget"
+msgstr "Bjud in crewet"
 
 #: client/ui/components/feed_board.slint
 msgid "SAY HI"
@@ -163,7 +163,7 @@ msgstr "STREAM"
 
 #: client/ui/components/feed_board.slint
 msgid "Unlock your crew's full story"
-msgstr "Lås upp gängets hela historia"
+msgstr "Lås upp crewets hela historia"
 
 #: client/ui/components/feed_board.slint
 msgid "Keep every clip and recap forever with m3llo+. {n} week so far."
@@ -177,7 +177,7 @@ msgstr "Kommer snart"
 
 #: client/ui/components/feed_board.slint
 msgid "Every clip and recap of your crew, kept forever."
-msgstr "Alla gängets klipp och summeringar, sparade för alltid."
+msgstr "Alla crewets klipp och summeringar, sparade för alltid."
 
 #: client/ui/components/feed_board.slint
 msgid "CLOSE"
@@ -210,7 +210,7 @@ msgstr "ÖPPNA"
 #. What the button says, in upper case.
 #: client/ui/components/head2head.slint
 msgid "INVITE YOUR CREW"
-msgstr "BJUD IN GÄNGET"
+msgstr "BJUD IN CREWET"
 
 #: client/ui/components/head2head.slint
 msgid "WAS HELD BY"
@@ -571,7 +571,7 @@ msgstr "Drivs av GIPHY"
 
 #: client/ui/panels/chat_panel.slint
 msgid "Crew chat"
-msgstr "Gängchatt"
+msgstr "Crewchatt"
 
 #: client/ui/panels/chat_panel.slint
 msgid "{n} message this week"
@@ -694,11 +694,11 @@ msgstr "Emoji"
 
 #: client/ui/panels/chat_panel.slint
 msgid "Message crewmates"
-msgstr "Skriv till gänget"
+msgstr "Skriv till crewet"
 
 #: client/ui/panels/chat_panel.slint
 msgid "Message crewmates..."
-msgstr "Skriv till gänget..."
+msgstr "Skriv till crewet..."
 
 #: client/ui/panels/chat_panel.slint
 msgid "Send"
@@ -831,7 +831,7 @@ msgstr "Ögonblick"
 
 #: client/ui/panels/control_bar.slint
 msgid "Moment shared with crew"
-msgstr "Ögonblicket delat med gänget"
+msgstr "Ögonblicket delat med crewet"
 
 #: client/ui/panels/control_bar.slint
 msgid "CLIP 30S"
@@ -843,7 +843,7 @@ msgstr "Inställningar"
 
 #: client/ui/panels/crew_banner_modal.slint
 msgid "CREW BANNER"
-msgstr "GÄNGBANNER"
+msgstr "CREWBANNER"
 
 #. The buttons of a reveal in upper case, as the buttons show them.
 #: client/ui/panels/crew_banner_modal.slint client/ui/tr.slint
@@ -913,7 +913,7 @@ msgstr "SPARA"
 
 #: client/ui/panels/crew_emoji_modal.slint client/ui/tr.slint
 msgid "CREW EMOJI"
-msgstr "GÄNGEMOJI"
+msgstr "CREWEMOJI"
 
 #: client/ui/panels/crew_emoji_modal.slint
 msgid "SQUARE"
@@ -1063,11 +1063,11 @@ msgstr "Äldre klipp"
 
 #: client/ui/panels/crew_feed.slint
 msgid "Crew history"
-msgstr "Gänghistorik"
+msgstr "Crewhistorik"
 
 #: client/ui/panels/crew_feed.slint
 msgid "CREW HISTORY"
-msgstr "GÄNGHISTORIK"
+msgstr "CREWHISTORIK"
 
 #: client/ui/panels/crew_feed.slint
 msgid "{n} WEEK"
@@ -1077,7 +1077,7 @@ msgstr[1] "{n} VECKOR"
 
 #: client/ui/panels/crew_feed.slint
 msgid "Crew feed"
-msgstr "Gängflöde"
+msgstr "Crewflöde"
 
 #: client/ui/panels/crew_feed.slint
 msgid "YOU"
@@ -1129,11 +1129,11 @@ msgstr "I SPEL NU"
 
 #: client/ui/panels/crew_panel.slint
 msgid "Crew menu"
-msgstr "Gängmeny"
+msgstr "Crewmeny"
 
 #: client/ui/panels/crew_panel.slint
 msgid "Crew settings"
-msgstr "Gänginställningar"
+msgstr "Crewinställningar"
 
 #: client/ui/panels/crew_panel.slint
 msgid "Add channel"
@@ -1145,11 +1145,11 @@ msgstr "Aviseringar"
 
 #: client/ui/panels/crew_panel.slint
 msgid "Leave crew"
-msgstr "Lämna gänget"
+msgstr "Lämna crewet"
 
 #: client/ui/panels/crew_panel.slint
 msgid "New crew"
-msgstr "Nytt gäng"
+msgstr "Nytt crew"
 
 #: client/ui/panels/crew_panel.slint
 msgid "Discover"
@@ -1157,7 +1157,7 @@ msgstr "Upptäck"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "CREW IDENTITY"
-msgstr "GÄNGETS IDENTITET"
+msgstr "CREWETS IDENTITET"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "Change"
@@ -1165,7 +1165,7 @@ msgstr "Ändra"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "CREW NAME"
-msgstr "GÄNGNAMN"
+msgstr "CREWNAMN"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "DESCRIPTION"
@@ -1177,11 +1177,11 @@ msgstr "INTEGRITET"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "Open crew"
-msgstr "Öppet gäng"
+msgstr "Öppet crew"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "Anyone can find and join this crew without an invite"
-msgstr "Vem som helst kan hitta och gå med i gänget utan inbjudan"
+msgstr "Vem som helst kan hitta och gå med i crewet utan inbjudan"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "INVITES"
@@ -1277,7 +1277,7 @@ msgstr "Meddelanden"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "A phone push for each new message in this crew"
-msgstr "En push till mobilen för varje nytt meddelande i gänget"
+msgstr "En push till mobilen för varje nytt meddelande i crewet"
 
 #: client/ui/panels/chat_panel.slint client/ui/panels/crew_settings_modal.slint
 msgid "Looking to play"
@@ -1285,11 +1285,11 @@ msgstr "Vill lira"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "A push, a toast and a sound when a crew member asks"
-msgstr "En push, en toast och ett ljud när någon i gänget frågar"
+msgstr "En push, en toast och ett ljud när någon i crewet frågar"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "CREW SETTINGS"
-msgstr "GÄNGINSTÄLLNINGAR"
+msgstr "CREWINSTÄLLNINGAR"
 
 #: client/ui/components/looking_to_play.slint client/ui/panels/crew_settings_modal.slint
 msgid "Close"
@@ -1305,7 +1305,7 @@ msgstr "KANALER"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "DELETE CREW"
-msgstr "RADERA GÄNG"
+msgstr "RADERA CREW"
 
 #: client/ui/panels/crew_settings_modal.slint
 msgid "Saved"
@@ -1361,11 +1361,11 @@ msgstr "DINA GÄNG"
 
 #: client/ui/panels/delete_account_modal.slint
 msgid "A crew you own goes to an admin, or to the member who joined first."
-msgstr "Ett gäng du äger går till en admin, eller till den medlem som gick med först."
+msgstr "Ett crew du äger går till en admin, eller till den medlem som gick med först."
 
 #: client/ui/panels/delete_account_modal.slint
 msgid "A crew where you are the only member is deleted."
-msgstr "Ett gäng där du är enda medlemmen raderas."
+msgstr "Ett crew där du är enda medlemmen raderas."
 
 #: client/ui/panels/delete_account_modal.slint
 msgid "This cannot be undone."
@@ -1389,19 +1389,19 @@ msgstr "GÄNG"
 
 #: client/ui/panels/delete_crew_modal.slint
 msgid "The crew, for every member."
-msgstr "Gänget, för alla medlemmar."
+msgstr "Crewet, för alla medlemmar."
 
 #: client/ui/panels/delete_crew_modal.slint
 msgid "The chat of the crew."
-msgstr "Gängets chatt."
+msgstr "Crewets chatt."
 
 #: client/ui/panels/delete_crew_modal.slint
 msgid "The clips and the history of the crew."
-msgstr "Gängets klipp och gänghistorik."
+msgstr "Crewets klipp och crewhistorik."
 
 #: client/ui/panels/delete_crew_modal.slint
 msgid "Delete this crew"
-msgstr "Radera det här gänget"
+msgstr "Radera det här crewet"
 
 #: client/ui/panels/delete_crew_modal.slint
 msgid "DELETE THIS CREW"
@@ -1431,7 +1431,7 @@ msgstr "Ingen online"
 
 #: client/ui/panels/discover_panel.slint
 msgid "Join Crew"
-msgstr "Gå med i gäng"
+msgstr "Gå med i crew"
 
 #: client/ui/panels/discover_panel.slint
 msgid "Join"
@@ -1451,7 +1451,7 @@ msgstr "PRIVAT INGÅNG"
 
 #: client/ui/panels/discover_panel.slint
 msgid "Join a Private Crew"
-msgstr "Gå med i ett privat gäng"
+msgstr "Gå med i ett privat crew"
 
 #: client/ui/panels/discover_panel.slint
 msgid "Enter an invite code to join a crew directly."
@@ -1467,7 +1467,7 @@ msgstr "t.ex. ALPHA-992-K"
 
 #: client/ui/panels/discover_panel.slint
 msgid "FEATURED CREWS"
-msgstr "UTVALDA GÄNG"
+msgstr "UTVALDA CREW"
 
 #: client/ui/panels/force_update_dialog.slint
 msgid "Updating m3llo"
@@ -1572,7 +1572,7 @@ msgstr "Bjud in folk"
 
 #: client/ui/panels/invite_share_modal.slint
 msgid "Share this link to invite anyone to your crew:"
-msgstr "Dela länken för att bjuda in vem som helst till gänget:"
+msgstr "Dela länken för att bjuda in vem som helst till crewet:"
 
 #: client/ui/panels/invite_share_modal.slint
 msgid "Invite link"
@@ -1612,7 +1612,7 @@ msgstr "Välj ett namn och en avatar, testa micken, så är du inne.\nDet tar un
 
 #: client/ui/panels/invite_welcome.slint
 msgid "Not now — show me other crews"
-msgstr "Inte nu – visa andra gäng"
+msgstr "Inte nu – visa andra crew"
 
 #: client/ui/panels/join_crew_modal.slint
 msgid "Dismiss"
@@ -1628,7 +1628,7 @@ msgstr "Går med…"
 
 #: client/ui/panels/join_crew_modal.slint
 msgid "Join crew"
-msgstr "Gå med i gänget"
+msgstr "Gå med i crewet"
 
 #: client/ui/components/looking_to_play.slint client/ui/panels/join_crew_modal.slint
 msgid "Not now"
@@ -1652,15 +1652,15 @@ msgstr "Återställ volymen till 100 %"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "CREW ESTABLISHED"
-msgstr "GÄNGET ÄR SKAPAT"
+msgstr "CREWET ÄR SKAPAT"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "INITIALIZE NEW CREW"
-msgstr "SKAPA NYTT GÄNG"
+msgstr "SKAPA NYTT CREW"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Your crew is ready. Share this link to invite others:"
-msgstr "Gänget är redo. Dela länken för att bjuda in andra:"
+msgstr "Crewet är redo. Dela länken för att bjuda in andra:"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Done"
@@ -1672,11 +1672,11 @@ msgstr "LADDA UPP"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Upload crew avatar"
-msgstr "Ladda upp gängavatar"
+msgstr "Ladda upp crewavatar"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "CREW IDENTIFIER"
-msgstr "GÄNGNAMN"
+msgstr "CREWNAMN"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "JPG, PNG or GIF. Max 20MB."
@@ -1688,7 +1688,7 @@ msgstr "t.ex. Shadow Syndicate"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Define your crew's primary objective..."
-msgstr "Vad går gänget ut på..."
+msgstr "Vad går crewet ut på..."
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "INVITE MEMBERS"
@@ -1724,7 +1724,7 @@ msgstr "Offentligt"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Your crew will be created after account setup."
-msgstr "Gänget skapas när kontot är klart."
+msgstr "Crewet skapas när kontot är klart."
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Save & Continue"
@@ -1732,7 +1732,7 @@ msgstr "Spara och fortsätt"
 
 #: client/ui/panels/new_crew_modal.slint
 msgid "Establish Crew"
-msgstr "Skapa gäng"
+msgstr "Skapa crew"
 
 #: client/ui/panels/onboarding.slint
 msgid "{} MEMBERS"
@@ -1748,11 +1748,11 @@ msgstr "ANSLUT"
 
 #: client/ui/panels/onboarding.slint
 msgid "Create your own crew"
-msgstr "Skapa ett eget gäng"
+msgstr "Skapa ett eget crew"
 
 #: client/ui/panels/onboarding.slint
 msgid "CREATE YOUR\nOWN CREW"
-msgstr "SKAPA ETT\nEGET GÄNG"
+msgstr "SKAPA ETT\nEGET CREW"
 
 #: client/ui/panels/onboarding.slint
 msgid "GOT AN INVITE?"
@@ -1800,13 +1800,13 @@ msgstr "Gå till steg 3"
 
 #: client/ui/panels/onboarding.slint
 msgid "Discover Your Crew"
-msgstr "Hitta ditt gäng"
+msgstr "Hitta ditt crew"
 
 #: client/ui/panels/onboarding.slint
 msgid ""
 "Pick a crew to hang out with, start your own, or open an invite from a "
 "friend."
-msgstr "Välj ett gäng att hänga med, starta ett eget eller öppna en inbjudan från en kompis."
+msgstr "Välj ett crew att hänga med, starta ett eget eller öppna en inbjudan från en kompis."
 
 #: client/ui/panels/onboarding.slint
 msgid "Use another account"
@@ -1818,11 +1818,11 @@ msgstr "Jag har redan ett konto"
 
 #: client/ui/panels/onboarding.slint
 msgid "Couldn't load crews"
-msgstr "Kunde inte ladda gäng"
+msgstr "Kunde inte ladda crew"
 
 #: client/ui/panels/onboarding.slint
 msgid "Check your connection, or create your own crew below."
-msgstr "Kolla din anslutning eller skapa ett eget gäng nedan."
+msgstr "Kolla din anslutning eller skapa ett eget crew nedan."
 
 #: client/ui/panels/onboarding.slint
 msgid "Retry"
@@ -1830,7 +1830,7 @@ msgstr "Försök igen"
 
 #: client/ui/panels/onboarding.slint
 msgid "Pick a crew below, or create your own."
-msgstr "Välj ett gäng nedan eller skapa ett eget."
+msgstr "Välj ett crew nedan eller skapa ett eget."
 
 #: client/ui/panels/onboarding.slint
 msgid "Profile & Device Setup"
@@ -1838,7 +1838,7 @@ msgstr "Profil och enhet"
 
 #: client/ui/panels/onboarding.slint
 msgid "JOINING CREW"
-msgstr "GÅR MED I GÄNG"
+msgstr "GÅR MED I CREW"
 
 #: client/ui/panels/onboarding.slint
 msgid "CHOOSE IDENTITY"
@@ -1858,7 +1858,7 @@ msgstr "SLUMPA ALLT"
 
 #: client/ui/panels/onboarding.slint
 msgid "CREW NICKNAME"
-msgstr "VISNINGSNAMN I GÄNGET"
+msgstr "VISNINGSNAMN I CREWET"
 
 #: client/ui/panels/onboarding.slint
 msgid "Enter handle..."
@@ -1866,7 +1866,7 @@ msgstr "Skriv ett namn..."
 
 #: client/ui/panels/onboarding.slint
 msgid "Show crew what I play"
-msgstr "Visa gänget vad jag spelar"
+msgstr "Visa crewet vad jag spelar"
 
 #: client/ui/panels/onboarding.slint
 msgid "Your installed games, play sessions and what you're in right now."
@@ -2216,7 +2216,7 @@ msgstr "Streams"
 
 #: client/ui/panels/settings_modal.slint
 msgid "A crew member goes live, you go live, a stream you watch ends."
-msgstr "Någon i gänget går live, du går live, en stream du kollar på slutar."
+msgstr "Någon i crewet går live, du går live, en stream du kollar på slutar."
 
 #: client/ui/panels/settings_modal.slint
 msgid "Chat"
@@ -2232,16 +2232,16 @@ msgstr "Klipp"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Your clip is saved, someone in the crew clips."
-msgstr "Ditt klipp sparas, någon i gänget klipper."
+msgstr "Ditt klipp sparas, någon i crewet klipper."
 
 #. The title of a notification about a member of the crew.
 #: client/ui/panels/settings_modal.slint client/ui/tr.slint
 msgid "Crew"
-msgstr "Gäng"
+msgstr "Crew"
 
 #: client/ui/panels/settings_modal.slint
 msgid "A new member joins the crew."
-msgstr "En ny medlem går med i gänget."
+msgstr "En ny medlem går med i crewet."
 
 #: client/ui/panels/settings_modal.slint
 msgid "SIGNAL PROCESSING"
@@ -2371,11 +2371,11 @@ msgstr "DOLD I STEAM"
 
 #: client/ui/panels/settings_modal.slint
 msgid "HIDDEN FROM CREW"
-msgstr "DOLD FÖR GÄNGET"
+msgstr "DOLD FÖR CREWET"
 
 #: client/ui/panels/settings_modal.slint
 msgid "Hidden from crew: {}"
-msgstr "Dold för gänget: {}"
+msgstr "Dold för crewet: {}"
 
 #: client/ui/panels/settings_modal.slint
 msgid "ACTIVITY SHARING"
@@ -2385,7 +2385,7 @@ msgstr "AKTIVITETSDELNING"
 msgid ""
 "Let crewmates see your installed games, what game you're in, and your play "
 "sessions in the crew feed."
-msgstr "Låt polarna se dina installerade spel, vilket spel du är i och dina spelpass i gängflödet."
+msgstr "Låt polarna se dina installerade spel, vilket spel du är i och dina spelpass i crewflödet."
 
 #: client/ui/panels/settings_modal.slint
 msgid "GAME CLIPS"
@@ -2445,7 +2445,7 @@ msgstr "m3llo sparar matchresultat för de här spelen medan du spelar. Vissa sp
 msgid ""
 "Games you hide stay off the crew feed. A game hidden in Steam stays hidden "
 "here."
-msgstr "Spel du döljer syns inte i gängflödet. Ett spel som är dolt i Steam är dolt här också."
+msgstr "Spel du döljer syns inte i crewflödet. Ett spel som är dolt i Steam är dolt här också."
 
 #: client/ui/panels/settings_modal.slint
 msgid "CONNECTED ACCOUNTS"
@@ -2527,7 +2527,7 @@ msgstr "m3llo bygger på arbete från många människor och tjänster.\nVi hade 
 
 #: client/ui/panels/settings_modal.slint
 msgid "THE OG CREW THAT HELPED SHAPE M3LLO"
-msgstr "OG-GÄNGET SOM HJÄLPTE TILL ATT FORMA m3llo"
+msgstr "OG-CREWET SOM HJÄLPTE TILL ATT FORMA m3llo"
 
 #: client/ui/panels/settings_modal.slint
 msgid "SERVICES WE USE"
@@ -2582,7 +2582,7 @@ msgstr "Klipptangent"
 #: client/ui/panels/settings_modal.slint
 msgid ""
 "Saves the last 30 seconds: your game while it runs, otherwise the crew voice."
-msgstr "Sparar de senaste 30 sekunderna: ditt spel medan det körs, annars gängets röst."
+msgstr "Sparar de senaste 30 sekunderna: ditt spel medan det körs, annars crewets röst."
 
 #: client/ui/panels/settings_modal.slint
 msgid "Start / end stream"
@@ -3483,7 +3483,7 @@ msgstr "Bilden är större än 8 MB efter skalning."
 #. The upload failed because no crew is open.
 #: client/ui/tr.slint
 msgid "No crew is open."
-msgstr "Inget gäng är öppet."
+msgstr "Inget crew är öppet."
 
 #. The server did not give a place to upload the image.
 #: client/ui/tr.slint
@@ -3684,16 +3684,16 @@ msgstr "Den här inbjudningskoden är inte giltig."
 
 #: client/ui/tr.slint
 msgid "This crew is full."
-msgstr "Gänget är fullt."
+msgstr "Crewet är fullt."
 
 #: client/ui/tr.slint
 msgid "You cannot join this crew."
-msgstr "Du kan inte gå med i det här gänget."
+msgstr "Du kan inte gå med i det här crewet."
 
 #. The join failed for a reason that a retry can fix.
 #: client/ui/tr.slint
 msgid "Could not join the crew. Try again."
-msgstr "Kunde inte gå med i gänget. Försök igen."
+msgstr "Kunde inte gå med i crewet. Försök igen."
 
 #. The invite did not load for a reason that a retry can fix.
 #: client/ui/tr.slint
@@ -3720,7 +3720,7 @@ msgstr "streamar"
 #. Nothing happened while the user was away.
 #: client/ui/tr.slint
 msgid "All quiet, crew's been chilling. Nothing new since you left."
-msgstr "Lugnt här, gänget har bara chillat. Inget nytt sedan du gick."
+msgstr "Lugnt här, crewet har bara chillat. Inget nytt sedan du gick."
 
 #. {0} is the member, {1} is the text that the member wrote.
 #: client/ui/tr.slint
@@ -3774,11 +3774,11 @@ msgstr[1] "{0} gick {1} i {2}, med {n} förluster i rad"
 
 #: client/ui/tr.slint
 msgid "{} joined the crew"
-msgstr "{} gick med i gänget"
+msgstr "{} gick med i crewet"
 
 #: client/ui/tr.slint
 msgid "{} left the crew"
-msgstr "{} lämnade gänget"
+msgstr "{} lämnade crewet"
 
 #. {n} is the messages, {0} is the members who wrote.
 #: client/ui/tr.slint
@@ -3835,7 +3835,7 @@ msgstr "30 DAGAR"
 #. The names of the steps.
 #: client/ui/tr.slint
 msgid "Crew made"
-msgstr "Gänget skapat"
+msgstr "Crewet skapat"
 
 #: client/ui/tr.slint
 msgid "A friend joins"
@@ -3856,7 +3856,7 @@ msgstr "Första passet"
 #. The names of the steps in upper case, in the label of a gift.
 #: client/ui/tr.slint
 msgid "CREW MADE"
-msgstr "GÄNGET SKAPAT"
+msgstr "CREWET SKAPAT"
 
 #: client/ui/tr.slint
 msgid "A FRIEND JOINS"
@@ -3882,7 +3882,7 @@ msgstr "Skapat {}"
 #. The names of the gifts in a reveal.
 #: client/ui/tr.slint
 msgid "Crew banner"
-msgstr "Gängbanner"
+msgstr "Crewbanner"
 
 #: client/ui/tr.slint
 msgid "Your invite link"
@@ -3890,7 +3890,7 @@ msgstr "Din inbjudningslänk"
 
 #: client/ui/tr.slint
 msgid "Crew emoji"
-msgstr "Gängemoji"
+msgstr "Crewemoji"
 
 #: client/ui/tr.slint
 msgid "Founding week"
@@ -3898,7 +3898,7 @@ msgstr "Grundarveckan"
 
 #: client/ui/tr.slint
 msgid "For the crew"
-msgstr "För gänget"
+msgstr "För crewet"
 
 #: client/ui/tr.slint
 msgid "Set the link"
@@ -3944,12 +3944,12 @@ msgstr[1] "{n} platser"
 #. Where the founding week opens.
 #: client/ui/tr.slint
 msgid "Open in Crew history for every member"
-msgstr "Öppna i gänghistoriken för alla medlemmar"
+msgstr "Öppna i crewhistoriken för alla medlemmar"
 
 #. The gift of the last step, on two lines.
 #: client/ui/tr.slint
 msgid "30 days of m3llo+\nfor every member in the crew"
-msgstr "30 dagar m3llo+\nför alla i gänget"
+msgstr "30 dagar m3llo+\nför alla i crewet"
 
 #. {0} is the names, {n} is the count of guests.
 #: client/ui/tr.slint
@@ -4216,7 +4216,7 @@ msgstr "KLIPP OCH STREAMS"
 #. The board of a week with no crew time.
 #: client/ui/tr.slint
 msgid "No crew time last week."
-msgstr "Ingen gängtid förra veckan."
+msgstr "Ingen crewtid förra veckan."
 
 #: client/ui/tr.slint
 msgid "{} still played."
@@ -4249,7 +4249,7 @@ msgstr "Din sparade ljudenhet hittades inte. Bytte till systemstandard – du ka
 
 #: client/ui/tr.slint
 msgid "{} made it. Welcome to the crew."
-msgstr "{} tog sig hit. Välkommen till gänget."
+msgstr "{} tog sig hit. Välkommen till crewet."
 
 #: client/ui/tr.slint
 msgid "{} is in. Grab a seat."
@@ -4403,7 +4403,7 @@ msgstr "Ditt konto raderades inte. Kolla anslutningen och försök igen."
 #. Crew settings, crew delete: the delete failed.
 #: client/ui/tr.slint
 msgid "The crew was not deleted. Check the connection and try again."
-msgstr "Gänget raderades inte. Kolla anslutningen och försök igen."
+msgstr "Crewet raderades inte. Kolla anslutningen och försök igen."
 
 #. Onboarding: the app did not connect.
 #: client/ui/tr.slint
@@ -4413,24 +4413,24 @@ msgstr "Kunde inte ansluta. Kolla din anslutning och försök igen."
 #. Onboarding: the new crew was not made.
 #: client/ui/tr.slint
 msgid "Couldn't create the crew. Try again."
-msgstr "Kunde inte skapa gänget. Försök igen."
+msgstr "Kunde inte skapa crewet. Försök igen."
 
 #. Onboarding: the chosen crew was not joined, and why.
 #: client/ui/tr.slint
 msgid "That crew is full. Pick another one."
-msgstr "Gänget är fullt. Välj ett annat."
+msgstr "Crewet är fullt. Välj ett annat."
 
 #: client/ui/tr.slint
 msgid "That crew no longer exists. Pick another one."
-msgstr "Gänget finns inte längre. Välj ett annat."
+msgstr "Crewet finns inte längre. Välj ett annat."
 
 #: client/ui/tr.slint
 msgid "You can't join that crew. Pick another one."
-msgstr "Du kan inte gå med i det gänget. Välj ett annat."
+msgstr "Du kan inte gå med i det crewet. Välj ett annat."
 
 #: client/ui/tr.slint
 msgid "Couldn't join the crew. Check your connection and try again."
-msgstr "Kunde inte gå med i gänget. Kolla din anslutning och försök igen."
+msgstr "Kunde inte gå med i crewet. Kolla din anslutning och försök igen."
 
 #: client/ui/tr.slint
 msgid "Server requires protocol {0} but client speaks {1}. Please update m3llo."
@@ -4550,7 +4550,7 @@ msgstr "Emojin är för stor."
 #. The user is not a member of the crew any more.
 #: client/ui/tr.slint
 msgid "Not a crew member."
-msgstr "Inte medlem i gänget."
+msgstr "Inte medlem i crewet."
 
 #. The crew has used all of its emoji slots.
 #: client/ui/tr.slint
@@ -4732,7 +4732,7 @@ msgstr "Streamen misslyckades"
 #. The stream key found no active crew.
 #: client/ui/tr.slint
 msgid "Pick a crew to stream to"
-msgstr "Välj ett gäng att streama till"
+msgstr "Välj ett crew att streama till"
 
 #. The stream key found no detected game.
 #: client/ui/tr.slint
@@ -4775,7 +4775,7 @@ msgstr "FRÅGA"
 
 #: client/ui/components/looking_to_play_popover.slint
 msgid "ASK THE CREW"
-msgstr "FRÅGA GÄNGET"
+msgstr "FRÅGA CREWET"
 
 #. The red button of the ask popover. {} is the count of picked members.
 #: client/ui/components/looking_to_play_popover.slint
@@ -4788,7 +4788,7 @@ msgstr "Valfritt spel"
 
 #: client/ui/components/looking_to_play_popover.slint
 msgid "Ask the crew"
-msgstr "Fråga gänget"
+msgstr "Fråga crewet"
 
 #: client/ui/components/looking_to_play_popover.slint
 msgid "Ask {n} member"
@@ -4903,7 +4903,7 @@ msgstr "Du frågade nyss. Försök igen om några minuter."
 
 #: client/ui/tr.slint
 msgid "You have an open ask in this crew."
-msgstr "Du har redan en öppen fråga i gänget."
+msgstr "Du har redan en öppen fråga i crewet."
 
 #: client/ui/components/looking_to_play.slint
 msgid "{n} MORE IN"

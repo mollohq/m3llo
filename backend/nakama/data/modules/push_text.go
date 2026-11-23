@@ -435,7 +435,7 @@ var pushTextFrench = map[string]string{
 
 // pushTextSwedish is the sv table. The words are the words of the glossary
 // and of the client catalogue: a belt is "titel", take is "sno", hold is
-// "hålla", the crew is "gänget". The push title fallback is the brand and stays.
+// "hålla", the crew is "crewet". The push title fallback is the brand and stays.
 var pushTextSwedish = map[string]string{
 	"recap_took":          "%s snodde %s. Du håller %d.",
 	"recap_you_took":      "Du snodde %s. Du håller %d.",
@@ -473,7 +473,7 @@ var pushTextSwedish = map[string]string{
 	"ltp_playing":       "%s och %s lirar",
 	"ltp_nobody":        "Ingen den här gången",
 	"ltp_called_off":    "%s blåste av det",
-	"ltp_name_fallback": "En i gänget",
+	"ltp_name_fallback": "En i crewet",
 
 	titleTheCarry:   "Bäraren",
 	titleLockedIn:   "I zonen",
