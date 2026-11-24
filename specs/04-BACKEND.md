@@ -81,6 +81,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | Module | Responsibilities |
 |--------|-----------------|
 | `main.go` | RPC and hook registration |
+| `server_caller.go` | `requireServerCaller`: the check of the server-to-server RPCs (§4) |
 | `auth.go` | Post-authentication hooks (create default metadata); `BeforeUpdateAccount`, the display name rule (§4.4) |
 | `text_rules.go` | `cleanName`, `nameLength` and the name limits (§4.4) |
 | `crews.go` | `CreateCrewRPC`, `DiscoverCrewsRPC`, `UpdateCrewRPC`, `DeleteCrewRPC`, `ChangeCrewRoleRPC`, `KickCrewMemberRPC`, `GetCrewAvatarRPC`, after-join/leave hooks, the kick hooks (`BeforeKickCrewMembers`, `AfterKickCrewMembers`), `recordMemberLeft` |
@@ -125,6 +126,28 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 ---
 
 ## 4. Custom RPCs
+
+**The Auth column.**
+
+| Value | The server accepts |
+|---|---|
+| Yes | A call with a user session |
+| No (`http_key`) | A call with the HTTP key and no session, or a call with a session. A client calls these RPCs before it has a session |
+| No (`http_key`, server-to-server only) | A call from a server-side caller: the HTTP key, no user session, and the server secret when one is set |
+
+**Server-to-server RPCs.** The handler of each one starts with `requireServerCaller` (`server_caller.go`).
+
+| Rule | Detail |
+|---|---|
+| A call with a user session | `PERMISSION_DENIED` (7) |
+| `MELLO_SERVER_RPC_SECRET` is set in the environment of Nakama | The request must carry the same value in the header `X-Mello-Server-Secret`. A call with no header, or with another value, gets `PERMISSION_DENIED` (7) and changes nothing. The compare does not show how much of a value is right |
+| `MELLO_SERVER_RPC_SECRET` is not set, or empty | The header is not read |
+| Who holds the secret | The server-side callers. It is not in a client build, in a web page or in a repository. A caller sends the header only when it holds the secret |
+| The RPCs | `admin_dashboard_stats`, `admin_live_snapshot`, `admin_recent_signups`, `admin_capture_policy_get`, `admin_capture_policy_set`, `admin_feed_config_get`, `admin_feed_config_set`, `admin_discover_curation_get`, `admin_discover_curation_set`, `admin_media_reports_list`, `admin_media_takedown`, `admin_media_report_dismiss`, `admin_media_orphans`, `admin_purge_crew`, `admin_scrub_user`, `guest_crew_feed`, `report_invite_step` |
+| Never a server-to-server RPC | `discover_crews`, `get_crew_avatar` and `resolve_crew_invite`. Released clients call them with the HTTP key before a session exists, and a client cannot send the secret |
+| The test | `server_caller_test.go` reads the module source. It fails when the list of the RPCs changes without the test, and when one of the three client RPCs gets the check |
+
+Set the variable on a production install. `backend/docker-compose.yml` passes it from `backend/.env` and does not set it: on a local stack the header is not needed.
 
 | RPC name | Auth | Description |
 |----------|------|-------------|

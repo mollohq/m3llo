@@ -295,6 +295,7 @@ Set these in Render Dashboard → mello-nakama → Environment:
 | `DATABASE_URL` | Auto (from mello-db) | Render injects this |
 | `NAKAMA_SERVER_KEY` | Auto-generated | Used by client to connect |
 | `NAKAMA_HTTP_KEY` | Auto-generated | Used for RPC calls |
+| `MELLO_SERVER_RPC_SECRET` | Manual | The secret of the server-to-server RPCs (spec 04 section 4). Each server-side caller holds the same value |
 | `NAKAMA_CONSOLE_USERNAME` | Manual | Admin console login |
 | `NAKAMA_CONSOLE_PASSWORD` | Auto-generated | Admin console login |
 | `DISCORD_CLIENT_ID` | Manual | From Discord Developer Portal |

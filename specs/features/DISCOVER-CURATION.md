@@ -66,7 +66,7 @@ Both admin RPCs are registered in `main.go`, in the admin block. The full contra
 
 ## 5. Admin Tool
 
-The admin tool calls the two admin RPCs with the http key. It sets `actor` to
+The admin tool calls the two admin RPCs with the http key, and with the server secret when one is set (spec 04 section 4). It sets `actor` to
 the signed-in admin and keeps each `diff` in its audit log. The admin tool is
 not in this repository.
 
