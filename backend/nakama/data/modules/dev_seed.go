@@ -15,7 +15,14 @@ import (
 // crews.  Idempotent — safe to run repeatedly.
 //
 // Accepts no payload (uses hardcoded seed usernames / crew names).
+//
+// Only on an install with MELLO_ENABLE_DEV_SEED=1 (dev_seed_gate.go). On
+// every other install it answers as an RPC that does not exist, and reads and
+// writes nothing.
 func DevSeedStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	if !devSeedEnabled() {
+		return "", errDevSeedOff
+	}
 
 	// ── resolve seed users ──────────────────────────────────────────
 	type seedUser struct {
