@@ -73,6 +73,10 @@ msgstr "PARTIES JOUÉES"
 msgid "BELTS"
 msgstr "TITRES"
 
+#: client/ui/components/feed_board.slint
+msgid "SHOW LESS"
+msgstr "VOIR MOINS"
+
 #. The badge of a live stream.
 #: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"
