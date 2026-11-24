@@ -950,3 +950,15 @@ func TestReportInviteStep_SendsNoFeedChanged(t *testing.T) {
 		t.Fatalf("feed_changed to the owner = %+v, want none", got)
 	}
 }
+
+// guest_crew_feed is for the Pages function, which holds the HTTP key
+// (CREW-INVITES.md section 4.6). A client session does not call it.
+func TestGuestCrewFeed_RefusesAClientSession(t *testing.T) {
+	nk := seedGuestCrew()
+	payload := `{"code":"` + testGuestCode + `"}`
+	out, err := GuestCrewFeedRPC(ctxWithUser("some-device-account"), testLogger(), nil, nk, payload)
+	wantDenied(t, "guest_crew_feed with a client session", out, err)
+	if _, err := GuestCrewFeedRPC(context.Background(), testLogger(), nil, nk, payload); err != nil {
+		t.Fatalf("guest_crew_feed with the HTTP key: %v", err)
+	}
+}
