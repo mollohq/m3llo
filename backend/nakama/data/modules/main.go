@@ -126,6 +126,17 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 
 	// -----------------------------------------------------------------------
+	// Storage hooks: what a client can read and list through the storage API
+	// (storage_hooks.go, specs/04-BACKEND.md section 6).
+	// -----------------------------------------------------------------------
+	if err := initializer.RegisterBeforeReadStorageObjects(BeforeReadStorageObjects); err != nil {
+		return err
+	}
+	if err := initializer.RegisterBeforeListStorageObjects(BeforeListStorageObjects); err != nil {
+		return err
+	}
+
+	// -----------------------------------------------------------------------
 	// RPCs — remote push (spec 23)
 	// -----------------------------------------------------------------------
 	if err := initializer.RegisterRpc("register_push_token", RegisterPushTokenRPC); err != nil {
