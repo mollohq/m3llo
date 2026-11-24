@@ -128,6 +128,12 @@ services:
       # Opens the dev RPCs that write (dev_fault, dev_ledger_selftest). Unset =
       # they refuse. scripts/e2e.sh sets it for the ledger store selftest.
       - MELLO_ENABLE_DEV_FAULT=${MELLO_ENABLE_DEV_FAULT:-}
+      # Opens the dev seed RPCs (dev_seed_state, dev_seed_chat) that
+      # scripts/seed.sh calls. Without the value 1 they do not exist. This
+      # file is the local stack, so the default is 1. Set
+      # MELLO_ENABLE_DEV_SEED=0 before other people can reach the install:
+      # the RPCs rewrite the users and crews with the seed names.
+      - MELLO_ENABLE_DEV_SEED=${MELLO_ENABLE_DEV_SEED:-1}
       # Seconds of dual write before the crew ledger readers move to the
       # durable store (specs/16-CREW-EVENT-LEDGER.md section 3.8). Unset = 24 hours.
       - MELLO_LEDGER_SOAK_SECONDS=${MELLO_LEDGER_SOAK_SECONDS:-}
