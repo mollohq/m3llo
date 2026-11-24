@@ -260,3 +260,30 @@ func TestAKickEndsThePushesOfTheCrew(t *testing.T) {
 		t.Fatal("a kicked member is still subscribed to the crew")
 	}
 }
+
+// A kick through the group API of Nakama ends the pushes as the RPC does.
+func TestAKickThroughTheGroupAPIEndsThePushesOfTheCrew(t *testing.T) {
+	nk := memberCheckCrew(t, "mc-crew-19")
+	if _, err := SetActiveCrewRPC(ctxWithUser(mcMate), testLogger(), nil, nk, `{"crew_id":"mc-crew-19"}`); err != nil {
+		t.Fatal(err)
+	}
+	ctx := ctxWithUser(mcOwner)
+	in := &api.KickGroupUsersRequest{GroupId: "mc-crew-19", UserIds: []string{mcMate}}
+	if _, err := BeforeKickCrewMembers(ctx, testLogger(), nil, nk, in); err != nil {
+		t.Fatal(err)
+	}
+	// Nakama removes the row between the two hooks.
+	kept := nk.members["mc-crew-19"][:0]
+	for _, m := range nk.members["mc-crew-19"] {
+		if m.GetUser().GetId() != mcMate {
+			kept = append(kept, m)
+		}
+	}
+	nk.members["mc-crew-19"] = kept
+	if err := AfterKickCrewMembers(ctx, testLogger(), nil, nk, in); err != nil {
+		t.Fatal(err)
+	}
+	if subscribedTo("mc-crew-19", mcMate) {
+		t.Fatal("a member kicked through the group API is still subscribed to the crew")
+	}
+}
