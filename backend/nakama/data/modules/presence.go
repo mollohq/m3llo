@@ -113,17 +113,57 @@ func ReadPresence(ctx context.Context, nk runtime.NakamaModule, userID string) (
 		return nil, err
 	}
 	if len(objects) == 0 {
-		return &UserPresence{
-			UserID:   userID,
-			Status:   StatusOffline,
-			Activity: &Activity{Type: ActivityNone},
-		}, nil
+		return noPresence(userID), nil
 	}
 	var p UserPresence
 	if err := json.Unmarshal([]byte(objects[0].Value), &p); err != nil {
 		return nil, err
 	}
 	return &p, nil
+}
+
+// noPresence is the presence of a user with no presence record: offline, no
+// activity. presence_get gives it for a user the caller cannot see, so that
+// answer is the answer for a user id that does not exist.
+func noPresence(userID string) *UserPresence {
+	return &UserPresence{
+		UserID:   userID,
+		Status:   StatusOffline,
+		Activity: &Activity{Type: ActivityNone},
+	}
+}
+
+// presenceVisibleTo returns the users among ids whose presence the caller
+// can read: the caller, a member of a crew that the caller is a member of,
+// and a friend when both sides accepted. A failed lookup shows less, never
+// more.
+func presenceVisibleTo(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, callerID string, ids []string) map[string]bool {
+	visible := map[string]bool{callerID: true}
+	others := false
+	for _, id := range ids {
+		if id != callerID {
+			others = true
+			break
+		}
+	}
+	if !others {
+		return visible
+	}
+	mates, err := crewMates(ctx, nk, callerID)
+	if err != nil {
+		logger.Warn("presence_get: crew mates of %s: %v", callerID, err)
+	}
+	for id := range mates {
+		visible[id] = true
+	}
+	friends, err := mutualFriends(ctx, nk, callerID)
+	if err != nil {
+		logger.Warn("presence_get: friends of %s: %v", callerID, err)
+	}
+	for id := range friends {
+		visible[id] = true
+	}
+	return visible
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +275,7 @@ func PresenceHeartbeatRPC(ctx context.Context, logger runtime.Logger, db *sql.DB
 }
 
 func PresenceGetRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	_, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
+	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
 		return "", runtime.NewError("authentication required", 16)
 	}
@@ -247,8 +287,13 @@ func PresenceGetRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	visible := presenceVisibleTo(ctx, logger, nk, userID, req.UserIDs)
 	presences := make(map[string]*UserPresence, len(req.UserIDs))
 	for _, uid := range req.UserIDs {
+		if !visible[uid] {
+			presences[uid] = noPresence(uid)
+			continue
+		}
 		p, err := ReadPresence(ctx, nk, uid)
 		if err != nil {
 			logger.Warn("failed to read presence for %s: %v", uid, err)

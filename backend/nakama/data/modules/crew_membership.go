@@ -41,3 +41,41 @@ func memberCrews(ctx context.Context, nk runtime.NakamaModule, userID string) (m
 		cursor = next
 	}
 }
+
+// crewMates returns the members of every crew that the user is a member of.
+func crewMates(ctx context.Context, nk runtime.NakamaModule, userID string) (map[string]bool, error) {
+	crews, err := memberCrews(ctx, nk, userID)
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]bool{}
+	for crewID := range crews {
+		for id := range crewMemberSet(ctx, nk, crewID) {
+			out[id] = true
+		}
+	}
+	return out, nil
+}
+
+// mutualFriends returns the users who are friends of the user and accepted
+// it: state 0 of the friend list. A request that one side sent is not in it.
+func mutualFriends(ctx context.Context, nk runtime.NakamaModule, userID string) (map[string]bool, error) {
+	out := map[string]bool{}
+	accepted := 0
+	cursor := ""
+	for {
+		friends, next, err := nk.FriendsList(ctx, userID, 100, &accepted, cursor)
+		if err != nil {
+			return nil, err
+		}
+		for _, f := range friends {
+			if id := f.GetUser().GetId(); id != "" && f.GetState().GetValue() == 0 {
+				out[id] = true
+			}
+		}
+		if next == "" || len(friends) == 0 {
+			return out, nil
+		}
+		cursor = next
+	}
+}
