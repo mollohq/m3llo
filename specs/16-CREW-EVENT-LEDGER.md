@@ -244,7 +244,7 @@ The ledger has two stores during the migration: the legacy document (sections 3.
 | Collection | `crew_events` |
 | Key | `{crew_id}` |
 | UserID | `""` (system-owned) |
-| PermissionRead | `2` (public read) |
+| PermissionRead | `2`. A client cannot read or list the document: the storage hooks refuse it (spec 04 section 6) |
 | PermissionWrite | `0` (server-only write) |
 
 ```go
@@ -334,7 +334,7 @@ Clips, weekly recaps and stream replays are durable crew memory. Each is a row o
 - **`crew_recaps/{crew_id}`** -- array of `WeeklyRecapData`, newest appended last, no cap (recaps are tiny, one per crew per week). Written by the weekly recap job (via `AppendRecap`).
 - **`crew_stream_sessions/{crew_id}`** -- array of `StoredStreamSession` (a lean, display-only projection: streamer, title, duration, peak viewers, snapshot URLs; viewer IDs dropped), capped at the most-recent 150 entries. Upserted by `UpsertStreamSession` when a stream ends (`stop_stream`, host cleanup) and again from the snapshot backfill job, so the copy tracks the ledger's snapshot lifecycle. The backfill job also recreates a missing copy when ledger snapshots are already current. Snapshot URLs only ever grow on upsert. The store has no cap.
 
-All three mirror the storage pattern of the ledger document (system-owned, public read, server-only write, optimistic-concurrency retry). The first write of a clips document is create-only (version `*`), so two uploads at once to a new crew both stay.
+All three mirror the storage pattern of the ledger document (system-owned, read permission 2 with no client read (spec 04 section 6), server-only write, optimistic-concurrency retry). The first write of a clips document is create-only (version `*`), so two uploads at once to a new crew both stay.
 
 Crew quests (features/CREW-QUESTS.md) add these durable stores. All are system-owned and server-written, with the same retry:
 

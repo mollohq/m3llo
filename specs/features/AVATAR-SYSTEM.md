@@ -229,7 +229,7 @@ If no avatar is selected and Continue is pressed: proceed without an avatar. The
 | Key | `current` |
 | User ID | Authenticated user's ID |
 | Value | `{ "format": "svg", "data": "<svg>...</svg>", "style": "adventurer-neutral", "seed": "a7f3c9e1-..._r3_2" }` |
-| Read permission | Public read (2) |
+| Read permission | Public read (2). A client reads the object by key. A list of the collection is refused (spec 04 §6) |
 | Write permission | Owner only (1) |
 
 For uploaded images, `format` is `"png"`, `data` is a base64-encoded string, and `style` and `seed` are omitted.
