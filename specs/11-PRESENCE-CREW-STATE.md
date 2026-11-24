@@ -601,7 +601,10 @@ Subscribe to sidebar updates for crews.
 Join a voice channel. If the user is already in another channel, they are
 automatically removed from the old channel first (implicit move).
 
-If `channel_id` is omitted, the server picks the crew's default channel.
+If `channel_id` is omitted, the server picks the crew's default channel. A
+`channel_id` that is not a channel of the crew fails with `CHANNEL_NOT_FOUND`
+(code 5). The checks are in [13-VOICE-CHANNELS.md](./13-VOICE-CHANNELS.md)
+section 4.2.
 
 **Request:**
 ```json

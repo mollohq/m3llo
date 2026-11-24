@@ -222,6 +222,14 @@ func cleanupVoiceOnCrewExit(ctx context.Context, logger runtime.Logger, nk runti
 // resolveVoiceChannel picks the channel a caller should join and returns its ID
 // and name. An empty requested ID resolves to the crew's default channel, or the
 // first one if no default is flagged.
+//
+// A requested ID must be a channel of the crew. Any other ID is refused with
+// errChannelNotFound: the caller sent it, and rooms are keyed by channel ID
+// alone, so an ID from outside the list is a room of another crew or a room
+// that no crew sees.
+//
+// Call it only for a crew that exists: GetVoiceChannels writes a default
+// channel list for a crew ID that has none.
 func resolveVoiceChannel(ctx context.Context, nk runtime.NakamaModule, crewID, requested string) (string, string, error) {
 	channelList, err := GetVoiceChannels(ctx, nk, crewID)
 	if err != nil || len(channelList.Channels) == 0 {
@@ -245,12 +253,14 @@ func resolveVoiceChannel(ctx context.Context, nk runtime.NakamaModule, crewID, r
 			return ch.ID, ch.Name, nil
 		}
 	}
-	return requested, "", nil
+	return "", "", errChannelNotFound
 }
 
 // voiceJoinParams is everything joinVoiceRoom needs to seat a participant.
 type voiceJoinParams struct {
-	CrewID      string
+	CrewID string
+	// ChannelID is a channel of CrewID: the ID that resolveVoiceChannel
+	// returned, never the ID of the request.
 	ChannelID   string
 	ChannelName string
 	UserID      string
@@ -276,13 +286,24 @@ func recordLedgerSession(p voiceJoinParams) {
 
 // joinVoiceRoom seats a participant in a voice room, updates presence and the
 // event ledger, and broadcasts the roster change to the crew. Callers are
-// responsible for authorization and for choosing MaxMembers; everything after
-// that is identical for every kind of participant.
+// responsible for authorization, for the channel (resolveVoiceChannel) and for
+// choosing MaxMembers; everything after that is identical for every kind of
+// participant.
+//
+// A room belongs to the crew that opened it. A join for another crew is
+// refused with errChannelNotFound, the answer for an unknown channel ID.
 func joinVoiceRoom(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, p voiceJoinParams) (*VoiceSnapshot, error) {
-	// Capacity. An existing member re-joining the same channel is already
-	// counted, so don't reject them when the room is full.
 	voiceRoomsMu.RLock()
 	room, exists := voiceRooms[p.ChannelID]
+	// The owner check comes before any change, so a refused caller keeps the
+	// seat they have.
+	if exists && room.CrewID != p.CrewID {
+		owner := room.CrewID
+		voiceRoomsMu.RUnlock()
+		return nil, refuseForeignVoiceRoom(logger, p, owner)
+	}
+	// Capacity. An existing member re-joining the same channel is already
+	// counted, so don't reject them when the room is full.
 	alreadyMember := false
 	if exists {
 		_, alreadyMember = room.Members[p.UserID]
@@ -323,6 +344,12 @@ func joinVoiceRoom(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 				Members:   make(map[string]*VoiceMemberState),
 			}
 			voiceRooms[p.ChannelID] = room
+		} else if room.CrewID != p.CrewID {
+			// The leave above ran without the lock. Another crew opened the
+			// room in that time.
+			owner := room.CrewID
+			voiceRoomsMu.Unlock()
+			return nil, refuseForeignVoiceRoom(logger, p, owner)
 		}
 		room.Members[p.UserID] = &VoiceMemberState{
 			UserID:   p.UserID,
@@ -401,6 +428,15 @@ func joinVoiceRoom(ctx context.Context, logger runtime.Logger, nk runtime.Nakama
 	return GetVoiceChannelSnapshot(p.ChannelID), nil
 }
 
+// refuseForeignVoiceRoom logs a join for a room that another crew owns and
+// returns the error for the caller. The caller gets no sign that the room
+// exists.
+func refuseForeignVoiceRoom(logger runtime.Logger, p voiceJoinParams, ownerCrewID string) error {
+	logger.Warn("Voice join refused: channel=%s is a room of crew=%s, not of crew=%s (user=%s guest=%v)",
+		p.ChannelID, ownerCrewID, p.CrewID, p.UserID, p.IsGuest)
+	return errChannelNotFound
+}
+
 // voiceRoomSFURegion returns the SFU region for a member of the voice room on
 // channelID. The first member to get a token picks it with selectSFURegion
 // (preferred, else SFU_DEFAULT_REGION, else eu-west) and the room keeps it.
@@ -469,14 +505,16 @@ func VoiceJoinRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		return "", runtime.NewError("crew_id required", 3)
 	}
 
-	channelID, channelName, err := resolveVoiceChannel(ctx, nk, req.CrewID, req.ChannelID)
-	if err != nil {
-		return "", err
-	}
-
-	// Verify membership
+	// Membership comes first. A caller outside the crew gets this answer for
+	// every channel ID, and a crew ID that is no crew gets no channel list.
 	if !isCrewMember(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not a crew member", 7)
+	}
+
+	channelID, channelName, err := resolveVoiceChannel(ctx, nk, req.CrewID, req.ChannelID)
+	if err != nil {
+		logger.Warn("voice_join refused: user=%s crew=%s channel=%q: %v", userID, req.CrewID, req.ChannelID, err)
+		return "", err
 	}
 
 	// The SFU is the only voice transport.

@@ -52,6 +52,14 @@ var (
 	errBannerNotFound       = runtime.NewError("BANNER_NOT_FOUND", 5)
 )
 
+// Voice channels (voice_state.go, guest_sessions.go).
+var (
+	// errChannelNotFound is a voice join with a channel ID that is not a
+	// channel of the crew (specs/13-VOICE-CHANNELS.md section 8). A channel
+	// of another crew gets the same answer as an ID that no crew has.
+	errChannelNotFound = runtime.NewError("CHANNEL_NOT_FOUND", 5)
+)
+
 // Looking to play (looking_to_play_rpc.go).
 var (
 	errAskNotFound   = runtime.NewError("ASK_NOT_FOUND", 5)

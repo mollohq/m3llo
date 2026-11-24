@@ -132,20 +132,28 @@ Auth: a device session. Crew membership is **not** required.
 
 **Request:** `{ "code": "XXXX-XXXX", "nickname": "…", "channel_id": "…" }`
 
-`channel_id` is optional and defaults to the crew's default channel.
+`channel_id` is optional and defaults to the crew's default channel. A
+`channel_id` that is not a channel of the crew of the code fails with
+`CHANNEL_NOT_FOUND` (code 5). An invite of one crew gives no seat in a channel
+of another crew.
 
 **Response:** `success`, `crew_id`, `channel_id`, `channel_name`, `voice_state`,
 `mode` (always `sfu`), `sfu_endpoint`, `sfu_token`, `expires_in`.
 
 **Order of checks:**
 1. Resolve the code with `lookupInviteCode`.
-2. Reject when `guest_policy` is `off`.
-3. Apply the per-code rate limit.
-4. Reject when SFU auth is not configured.
-5. Resolve the channel.
-6. Reject when the channel is at the guest cap.
-7. Seat the guest with `joinVoiceRoom`.
-8. Sign the SFU token. On failure, release the seat and return an error.
+2. Reject when the crew of the code no longer exists. The error is the one for
+   an unknown code (`invalid invite code`, code 5). A code outlives its crew:
+   the purge of a deleted crew does not list the codes.
+3. Reject when `guest_policy` is `off`.
+4. Apply the per-code rate limit.
+5. Reject when SFU auth is not configured.
+6. Resolve the channel with `resolveVoiceChannel`. Reject a `channel_id` that
+   is not in the channel list of the crew.
+7. Reject when the channel is at the guest cap.
+8. Seat the guest with `joinVoiceRoom`. It rejects a room that another crew
+   owns (`13-VOICE-CHANNELS.md` section 3.2).
+9. Sign the SFU token. On failure, release the seat and return an error.
 
 ### 4.3 Two rules that differ from `voice_join`
 

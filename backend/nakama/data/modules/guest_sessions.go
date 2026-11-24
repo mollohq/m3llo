@@ -207,6 +207,18 @@ func GuestVoiceJoinRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		return "", err
 	}
 
+	// A code outlives its crew: the purge of a deleted crew cannot list the
+	// codes (ledger_purge.go). Such a code is a dead link, and the answer is
+	// the one for a code that does not exist.
+	exists, err := crewGroupExists(ctx, nk, crewID)
+	if err != nil {
+		logger.Error("guest_voice_join: group read for crew %s: %v", crewID, err)
+		return "", runtime.NewError("failed to load crew", 13)
+	}
+	if !exists {
+		return "", runtime.NewError("invalid invite code", 5)
+	}
+
 	if guestPolicyFor(ctx, nk, crewID) == GuestPolicyOff {
 		return "", runtime.NewError("this crew does not accept web guests", 7)
 	}
@@ -229,6 +241,7 @@ func GuestVoiceJoinRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 
 	channelID, channelName, err := resolveVoiceChannel(ctx, nk, crewID, req.ChannelID)
 	if err != nil {
+		logger.Warn("guest_voice_join refused: user=%s crew=%s channel=%q: %v", userID, crewID, req.ChannelID, err)
 		return "", err
 	}
 
