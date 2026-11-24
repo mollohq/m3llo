@@ -155,6 +155,7 @@ set `RUSTC` to the toolchain `rustc.exe`.
 | libmello `ctest` | C++ audio/video DSP | No | ✅ yes | `ctest --test-dir libmello/build` (configure with `-DMELLO_BUILD_TESTS=ON` first) |
 | Nakama `go test` | Backend modules | No | ✅ yes | `cd backend/nakama/data/modules && go test ./...` |
 | Nakama `gofmt` / `go vet` | Backend modules | No | ✅ yes | `cd backend/nakama/data/modules && gofmt -l . && go vet ./...` |
+| `dev_seed_state`, `dev_seed_chat` RPCs | Seed data for the local stack: presence, voice rooms, a stream, feed events, chat history | Yes (local Nakama) | No (manual) | `./scripts/seed.sh`, gated by `MELLO_ENABLE_DEV_SEED=1` |
 | `dev_fault` RPC | Backend fault injection | Yes (live Nakama) | No (manual/integration) | RPC call, gated by `MELLO_ENABLE_DEV_FAULT=1` |
 | `dev_ledger_selftest` RPC | The SQL crew ledger store against the store contract | Yes (live Nakama) | No (manual) | `./scripts/e2e.sh`, gated by `MELLO_ENABLE_DEV_FAULT=1` |
 | `dev_delete_selftest` RPC | The SQL statements of the deletion rules (chat messages, reactions, membership rows) on the real tables | Yes (live Nakama) | No (manual) | `./scripts/e2e.sh`, gated by `MELLO_ENABLE_DEV_FAULT=1` |
@@ -1347,6 +1348,27 @@ For anything touching live RPCs/hooks, bring up the Docker stack:
 cd backend
 docker-compose up
 ```
+
+### Seed data (`scripts/seed.sh`, `dev_seed_state`, `dev_seed_chat`)
+
+`./scripts/seed.sh` (Windows: `scripts\seed.ps1`) makes the seed users and
+crews with the normal API. Then it calls two dev RPCs for the data that the
+API cannot make: presence, voice rooms, a stream, feed events and chat history.
+
+The two RPCs exist only on a Nakama that runs with `MELLO_ENABLE_DEV_SEED=1`.
+On every other install a call gets `RPC function not found`
+(`specs/04-BACKEND.md` section 4.7).
+
+| Stack | The variable |
+|---|---|
+| `backend/docker-compose.yml`, and each stack made from it | `1` when it is not set |
+| `scripts/e2e.sh` | Sets `1` |
+| Production (`render.yaml`) | Not set. Never set it there |
+
+The seed fails with `dev_seed_state failed` on a container that was made
+before the compose file had the variable. Run `docker compose up -d` in
+`backend/`: that makes the container again. A restart keeps the old
+environment.
 
 ### `dev_fault` RPC (fault injection)
 

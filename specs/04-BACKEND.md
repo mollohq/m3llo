@@ -121,6 +121,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_capture_policy.go` | `AdminCapturePolicyGetRPC`, `AdminCapturePolicySetRPC` — server-to-server read and conditional write of the game capture hook policy (§4.2). Powers the admin Hook policy page. |
 | `discover_curation.go` | `AdminDiscoverCurationGetRPC`, `AdminDiscoverCurationSetRPC`: server-to-server read and conditional write of the Discover curation (§4.3). `readDiscoverCuration` is also read by `DiscoverCrewsRPC`. Powers the admin Discover page. |
 | `dev_seed.go` | Development seed data. A reset also deletes the rows of the crew in the durable store |
+| `dev_seed_gate.go` | `devSeedEnabled`: `dev_seed_state` (`dev_seed.go`) and `dev_seed_chat` (`dev_seed_chat.go`) exist only with `MELLO_ENABLE_DEV_SEED=1` (§4.7) |
 
 ---
 
@@ -175,6 +176,8 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_media_orphans` | No (`http_key`, server-to-server only) | Scans the clips and snapshots buckets for objects that no clip and no stream session points at. Deletes only keys that the caller names, and only with `MELLO_MEDIA_ORPHAN_DELETE=1` (see §4.5). Rejects client sessions. |
 | `admin_scrub_user` | No (`http_key`, server-to-server only) | `{user_id}`. Runs the scrub of a deleted account again (see §4.6). Refuses while the account exists (FAILED_PRECONDITION, 9). Rejects client sessions. |
 | `admin_purge_crew` | No (`http_key`, server-to-server only) | `{crew_id}`. Runs the purge of a deleted crew (see §4.6). Refuses while the group exists (9), and for a crew id this install holds nothing of (NOT_FOUND, 5). Rejects client sessions. |
+| `dev_seed_state` | Yes, or `http_key`. Only with `MELLO_ENABLE_DEV_SEED=1` | Dev and test only (§4.7). Writes presence, voice rooms, a stream, game stats, ledger events and invite codes for the users and crews with the seed names. `scripts/seed.sh` calls it. Without the variable the RPC is not registered: NOT_FOUND (5), `RPC function not found`. |
+| `dev_seed_chat` | Yes, or `http_key`. Only with `MELLO_ENABLE_DEV_SEED=1` | Dev and test only (§4.7). Writes chat history into the crews named Gamers and Devs. `{"reset": true}` deletes the seeded messages first. Without the variable the RPC is not registered: NOT_FOUND (5). |
 | `dev_ledger_selftest` | Yes, or `http_key` | Dev and test only. Runs the store conformance on the real ledger tables, on throwaway crew ids. Needs `MELLO_ENABLE_DEV_FAULT=1`, else FAILED_PRECONDITION (9). Returns `{"success": true, "store": "sql"}`. |
 | `dev_delete_selftest` | Yes, or `http_key` | Dev and test only. Runs the SQL statements of the deletion rules (chat messages, reactions, membership rows) on the real tables, on rows it makes and deletes itself, and checks the group update of Nakama. Refuses unless `MELLO_ENABLE_DEV_FAULT=1`. |
 
@@ -439,6 +442,24 @@ Call it again while `done` is false. `chat_deleted` is the number of deleted cha
 | The account or the group still exists | `FAILED_PRECONDITION` (9) |
 | `admin_purge_crew`: no purge record, no document, no chat message and no row of the crew on this install | `NOT_FOUND` (5) |
 | The account, the group or the record was not read or written | `INTERNAL` (13) |
+
+### 4.7 Dev seed RPCs
+
+`dev_seed_state` and `dev_seed_chat` write test data for a local stack. `scripts/seed.sh` and `scripts/seed.ps1` call them after they make the seed users and crews.
+
+The RPCs find their targets by name, not by id: the users `alice`, `bob`, `charlie`, `diana` and the crews `Devs`, `Gamers`, `Music`, `Design`, `Ops`, `Retro`. They replace the presence, the game stats and the crew ledger of those users and crews, and write invite codes and chat messages for the crews. So they must not exist on an install that other people can reach.
+
+| Rule | Detail |
+|---|---|
+| Gate | `MELLO_ENABLE_DEV_SEED=1` in the environment of Nakama. Only the value `1` turns the seed on |
+| Without it | `main.go` does not register the two RPCs (`registerDevSeedRPCs`). Nakama answers a call as it answers any RPC that does not exist: NOT_FOUND (5), `RPC function not found`. Each handler also checks the variable before it reads or writes |
+| Set to 1 | `backend/docker-compose.yml`, when the variable is not set: the local stack and each stack made from that file. `scripts/e2e.sh` |
+| Not set | `render.yaml`, `backend/Dockerfile`. Production does not have the two RPCs |
+| A compose stack that other people can reach | Set `MELLO_ENABLE_DEV_SEED=0` (`docs/self-hosting.md`) |
+
+A container that was made before the variable was in the compose file does not have it. `docker compose up -d` in `backend/` makes the container again. A restart keeps the old environment.
+
+`dev_fault`, `dev_ledger_selftest` and `dev_delete_selftest` have their own gate, `MELLO_ENABLE_DEV_FAULT=1`.
 
 ---
 
@@ -727,7 +748,7 @@ Backend changes that make the Nakama-authoritative voice roster correct and dura
 - **Sequenced + coalesced `voice_update`.** Pushes carry a per-crew monotonic `seq` and are debounced to avoid VAD push storms.
 - **Tighter GC with grace + consecutive detections.** `voiceRoomGC` now combines: offline grace (`30s`), stale-online threshold (`5m`), and `2` consecutive stale detections before pruning. This reduces false-prune churn during transient reconnects while still removing ghosts.
 - **SFU reconcile oracle with miss hysteresis.** For SFU crews, Nakama pulls the SFU admin session API (`/admin/api/session/{id}`, `SFU_ADMIN_PASSWORD`) to correct membership drift, then re-pushes a sequenced update. Pruning requires `2` consecutive SFU misses and respects a `45s` post-join grace. A session that no SFU has counts as a miss: every voice room uses the SFU. A failed lookup does not prune.
-- **`dev_fault` RPC (dev/test only).** Alongside `dev_seed_state`, injects drift for testing: force a ghost voice member, force `voice_leave`, drop the next push. Used by the reconcile/resync tests.
+- **`dev_fault` RPC (dev/test only).** Alongside `dev_seed_state` (§4.7), injects drift for testing: force a ghost voice member, force `voice_leave`, drop the next push. Used by the reconcile/resync tests.
 - **Diagnostic upload URL RPC.** Issues a short-lived presigned PUT URL so production clients can upload a captured diagnostic log bundle (see [15-DEBUG-TELEMETRY.md](./15-DEBUG-TELEMETRY.md)).
 
 ---
