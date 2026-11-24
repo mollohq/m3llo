@@ -65,13 +65,6 @@ type AdminCapturePolicySetResponse struct {
 	Diff          CapturePolicyDiff `json:"diff"`
 }
 
-func requireServerCaller(ctx context.Context, rpc string) error {
-	if uid, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string); uid != "" {
-		return runtime.NewError(rpc+" is server-to-server only", 7) // PERMISSION_DENIED
-	}
-	return nil
-}
-
 // readStoredCapturePolicy returns the stored policy, or the safe default with
 // stored=false when nothing is stored.
 func readStoredCapturePolicy(ctx context.Context, nk runtime.NakamaModule) (AdminCapturePolicyRead, error) {

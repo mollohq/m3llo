@@ -46,9 +46,8 @@ var (
 // dashboard. It is server-to-server only (called with http_key, never a client
 // session) and reads directly from Nakama's users and groups tables.
 func AdminDashboardStatsRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	// Reject client-session calls; only http_key (no user in context) is allowed.
-	if uid, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string); uid != "" {
-		return "", runtime.NewError("admin_dashboard_stats is server-to-server only", 7) // PERMISSION_DENIED
+	if err := requireServerCaller(ctx, "admin_dashboard_stats"); err != nil {
+		return "", err
 	}
 
 	dashboardStatsMu.Lock()

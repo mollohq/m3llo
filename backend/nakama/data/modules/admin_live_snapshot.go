@@ -54,9 +54,8 @@ var (
 // internal admin dashboard. It is server-to-server only (called with
 // http_key, never a client session).
 func AdminLiveSnapshotRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	// Reject client-session calls; only http_key (no user in context) is allowed.
-	if uid, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string); uid != "" {
-		return "", runtime.NewError("admin_live_snapshot is server-to-server only", 7) // PERMISSION_DENIED
+	if err := requireServerCaller(ctx, "admin_live_snapshot"); err != nil {
+		return "", err
 	}
 
 	liveSnapshotMu.Lock()

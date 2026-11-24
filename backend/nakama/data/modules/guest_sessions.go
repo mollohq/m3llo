@@ -540,6 +540,9 @@ type guestCrewFeedResponse struct {
 // URLs, no local paths, no user IDs. Keep this rule when you add a field. The
 // guest structs carry no field for these values, so a leak needs a new field.
 func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	if err := requireServerCaller(ctx, "guest_crew_feed"); err != nil {
+		return "", err
+	}
 	var req struct {
 		Code string `json:"code"`
 	}
