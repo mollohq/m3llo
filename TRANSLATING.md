@@ -537,8 +537,8 @@ Register: "tu", the casual voice of French gamers on Discord and Twitch. Game ti
 |---|---|---|
 | m3llo, m3llo+ | m3llo, m3llo+ | Never translated. Lower case, also in an upper-case label. |
 | head2head | head2head | Never translated. |
-| crew | gäng (gänget, gängen) | check. The word friends use for their group. Compounds: gängflöde, gänghistorik, gängemoji, gängbanner. Rejected: lag (a sports or esports team), klan (a guild word), crew (an English loan, not needed). |
-| member | medlem | Crewmate, crew mate: polare. "Message crewmates": Skriv till gänget. |
+| crew | crew (crewet, crewen) | Neuter ("ett crew"). The English word is kept as the product term. Compounds as one word: crewflöde, crewhistorik, crewemoji, crewbanner. Rejected: gäng (close to "gang"), lag (a sports or esports team), klan (a guild word). |
+| member | medlem | Crewmate, crew mate: polare. "Message crewmates": Skriv till crewet. |
 | owner | ägare | check. The word in Swedish chat apps. Rejected: grundare (a founder, not a role), boss (too much slang for a role label). |
 | admin | admin | |
 | channel | kanal | Voice channel: röstkanal. |
@@ -556,9 +556,9 @@ Register: "tu", the casual voice of French gamers on Discord and Twitch. Game ti
 | clip (verb) | klippa | "{} clipped that": {} klippte det. |
 | moment | ögonblick | check. The moment kind "Highlight": Höjdpunkt. |
 | recap | summering | Weekly recap: veckosummering, in a label VECKANS SUMMERING. Rejected: sammanfattning (long, school word). |
-| feed | flöde | Crew feed: gängflöde. |
+| feed | flöde | Crew feed: crewflöde. |
 | catch up | ikapp | check. The title: Ikapp. The body: Medan du var borta. Rejected: återblick (formal). |
-| crew history | gänghistorik | |
+| crew history | crewhistorik | |
 | belt, title | titel (titeln, titlar) | check. Belt and title are the same thing. Hold: hålla ("håller titeln", a sports phrase). Take: sno (casual "snatch"). Rejected: bälte (boxing only). |
 | The Carry | Bäraren | check. Swedish gamers say "carry" as a verb ("han carryade"); Bäraren keeps the meaning in Swedish. Rejected: Carryn (an English noun with a Swedish ending). |
 | Locked In | I zonen | check. Rejected: Fokuserad (too calm). |
@@ -580,8 +580,8 @@ Register: "tu", the casual voice of French gamers on Discord and Twitch. Game ti
 | streak | svit | "{n}-win streak": {n} vinster i rad. "{n}-loss streak": {n} förluster i rad. |
 | quest | uppdrag | Founding week: grundarveckan. FIRST WEEK: FÖRSTA VECKAN. |
 | gift | belöning | Sealed: oöppnad. Rejected: present, gåva (a birthday gift). |
-| banner | banner | Crew banner: gängbanner. |
-| emoji | emoji | Crew emoji: gängemoji. |
+| banner | banner | Crew banner: crewbanner. |
+| emoji | emoji | Crew emoji: crewemoji. |
 | invite | bjuda in (verb), inbjudan (noun) | Invite link: inbjudningslänk. Invite code: inbjudningskod. |
 | join, leave | gå med, lämna | Join voice: gå med i röst. |
 | friend, guest | kompis, gäst | Rejected: vän (formal in a game app). |
