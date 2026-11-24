@@ -32,17 +32,25 @@ jobs:
         id: stats
         env:
           NAKAMA_HTTP_KEY: ${{ secrets.NAKAMA_HTTP_KEY }}
+          MELLO_SERVER_RPC_SECRET: ${{ secrets.MELLO_SERVER_RPC_SECRET }}
           NAKAMA_HOST: mello-api-1iiv.onrender.com
         run: |
           set -euo pipefail
 
-          # Server-to-server only: this RPC rejects client sessions and accepts
-          # the http_key alone.
+          # A server-to-server RPC (specs/04-BACKEND.md section 4): it rejects
+          # client sessions. The header goes only when the repository has the
+          # secret, so this step works before the secret exists.
+          secret_header=()
+          if [ -n "${MELLO_SERVER_RPC_SECRET:-}" ]; then
+            secret_header=(-H "X-Mello-Server-Secret: ${MELLO_SERVER_RPC_SECRET}")
+          fi
+
           response=$(curl -sf -X POST \
             "https://${NAKAMA_HOST}/v2/rpc/admin_dashboard_stats?http_key=${NAKAMA_HTTP_KEY}" \
             -H 'Content-Type: application/json' \
+            ${secret_header[@]+"${secret_header[@]}"} \
             -d '""') || {
-              echo "::error::could not reach admin_dashboard_stats. Either the backend is down or NAKAMA_HTTP_KEY no longer matches the server."
+              echo "::error::could not reach admin_dashboard_stats. Either the backend is down, or NAKAMA_HTTP_KEY or MELLO_SERVER_RPC_SECRET no longer matches the server."
               exit 1
             }
 
