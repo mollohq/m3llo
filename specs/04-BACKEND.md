@@ -121,6 +121,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_capture_policy.go` | `AdminCapturePolicyGetRPC`, `AdminCapturePolicySetRPC` — server-to-server read and conditional write of the game capture hook policy (§4.2). Powers the admin Hook policy page. |
 | `discover_curation.go` | `AdminDiscoverCurationGetRPC`, `AdminDiscoverCurationSetRPC`: server-to-server read and conditional write of the Discover curation (§4.3). `readDiscoverCuration` is also read by `DiscoverCrewsRPC`. Powers the admin Discover page. |
 | `storage_hooks.go` | `BeforeReadStorageObjects`, `BeforeListStorageObjects`: what a client can read and list through the storage API (§6) |
+| `builtin_api_hooks.go` | The hooks before the group, user, friend and channel calls of Nakama and before the socket messages: what a client can call (§7). `StartJoinRequestSweep` |
 | `dev_seed.go` | Development seed data. A reset also deletes the rows of the crew in the durable store |
 
 ---
@@ -587,6 +588,35 @@ Storage writes use `PermissionRead: 2` and `PermissionWrite: 0` (server-only wri
 
 Media signaling (SDP offer and answer, ICE candidates) goes to the SFU on its own WebSocket, not through Nakama. The chat channel carries no signaling. `OnChatMessage` and the chat validation still skip `"signal": true` messages, which older clients wrote into chat history.
 
+### Built-in API and socket: what a client can call
+
+A client gets crew data and changes a crew through the RPCs (§4). Of the built-in API of Nakama and of the realtime socket it can use the calls of the two tables. Hooks in `builtin_api_hooks.go` and `storage_hooks.go` refuse every other call with the error code 7 (`PERMISSION_DENIED`). The hooks run for a client call only. A call from the server runtime and the console API do not pass them.
+
+| Built-in call | Rule |
+|---|---|
+| Account: sign-in, link, unlink, session refresh, read, update, delete | Not changed by these hooks. `BeforeUpdateAccount` holds the name rule (§4.4) |
+| `ListUserGroups` | The crews of the caller only |
+| `ListGroups` | With no name: open crews only. With a name: the crew with that full name, when it is open or the caller is a member of it. The wildcards of the name filter are plain characters |
+| `JoinGroup` | An open crew. The join of an invite-only crew is refused and makes no join request (§8) |
+| `ListGroupUsers` | For the owner, an admin or a member of the crew. The answer has no provider ids |
+| `GetUsers` | By user id. A lookup by username or by a provider id is refused. The answer has no provider ids (Apple, Google, Steam, Facebook, Game Center) |
+| `ListChannelMessages` | The chat of a crew. Nakama checks that the caller is a member of the crew |
+| `CreateGroup`, `LeaveGroup`, `KickGroupUsers`, `DeleteGroup` | Not changed. The role rules of Nakama hold, and the after hooks of `crews.go` and `ledger_purge.go` run |
+| Storage | See §6 |
+| Every other call: `UpdateGroup`, `AddGroupUsers`, `BanGroupUsers`, `PromoteGroupUsers`, `DemoteGroupUsers`, friends, stored notifications, leaderboards, tournaments, matches, purchases and subscriptions | Refused |
+
+| Socket message | Rule |
+|---|---|
+| `channel_join` | The chat of a crew (type 3). A room and a direct message are refused. Nakama checks that the caller is a member of the crew |
+| `channel_leave`, `channel_message_send`, `channel_message_update`, `channel_message_remove` | Not changed. `BeforeChannelMessageSendHook` checks a message |
+| `status_follow` | By user id. The server keeps the ids of the caller and of the members of the crews of the caller, and drops every other id. A follow by username is refused |
+| `rpc`, `ping`, `pong` | Not changed |
+| Every other message: `status_unfollow`, `status_update`, the match, matchmaker and party messages | Refused |
+
+A member of a crew is its owner, an admin or a member. A join request and a ban are rows of the crew too, and are not a membership.
+
+**Join requests.** A join request is a `group_edge` row with state 3. No client shows a join request or accepts one. `StartJoinRequestSweep` removes the join requests that exist, one time after each start of the module, and logs how many it removed.
+
 ---
 
 ## 8. Invite Code System
@@ -606,6 +636,8 @@ authorization, for open and private crews.
 > **Do not use `GroupUserJoin`.** For a closed group it only files a join
 > request (`group_edge.state` 3). New crews are private, so the caller never
 > becomes a member, and the crew chat refuses them.
+
+The built-in join of a client on an invite-only crew is refused (§7), so a client makes no join request. The row of the table for a pending join request is for a row that an older server made.
 
 The RPC reads the caller's state in the crew first. `GroupUsersAdd` returns no
 error for a banned user and does not add them.
@@ -660,6 +692,7 @@ Estimated cost: ~$2,000-5,000/mo
 | TURN credentials | Time-limited HMAC-SHA1 (24h TTL) |
 | Rate limiting | Nakama built-in + nginx |
 | DDoS protection | Cloudflare |
+| Built-in API and socket | A client can make the calls that the clients make, each with its rule. Every other call is refused (§7) |
 | Storage permissions | System-owned data: server-only write. A client cannot list a collection. A client can read `avatars/current` of a user and its own objects, nothing else (§6) |
 
 ---
@@ -689,7 +722,7 @@ Estimated cost: ~$2,000-5,000/mo
 | POST | `/v2/account/authenticate/custom` | No | OAuth (Discord, Steam, etc.) |
 | GET | `/v2/account` | Yes | Get current user |
 | GET | `/v2/user/group` | Yes | List user's crews |
-| POST | `/v2/group/{id}/join` | Yes | Join crew |
+| POST | `/v2/group/{id}/join` | Yes | Join an open crew (§7) |
 | POST | `/v2/group/{id}/leave` | Yes | Leave crew |
 | POST | `/v2/rpc/create_crew` | Yes | Create crew + avatar + invite code |
 | POST | `/v2/rpc/update_crew` | Yes | Update crew name, description, avatar, privacy, invite policy |
@@ -725,7 +758,7 @@ Estimated cost: ~$2,000-5,000/mo
 | `channel_message_send` | Client→Server | Send chat/signal message |
 | `channel_message` | Server→Client | Receive chat/signal message |
 | `presence_event` | Server→Client | Member join/leave notification |
-| `status_update` | Client→Server | Update presence status |
+| `status_follow` | Client→Server | Follow the online state of crew mates (§7) |
 | `notifications` | Server→Client | Invite notifications, system alerts |
 
 ---
