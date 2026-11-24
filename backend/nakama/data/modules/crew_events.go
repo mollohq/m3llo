@@ -445,6 +445,11 @@ func CrewCatchupRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 	if req.CrewID == "" {
 		return "", runtime.NewError("crew_id required", 3)
 	}
+	// Only a member reads the catch-up. The answer is the same for a crew
+	// that does not exist.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", errNotAMember
+	}
 
 	lastSeen := req.LastSeen
 	if lastSeen == 0 {

@@ -547,6 +547,8 @@ func KickCrewMemberRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 
 	// Remove the kicked user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, req.UserID, req.CrewID)
+	// The pushes of the crew end with the membership.
+	dropCrewSubscription(req.UserID, req.CrewID)
 
 	// A kick writes the same member_left event as a leave. GroupUsersKick of
 	// the runtime runs no hook, so the RPC writes it.
@@ -632,6 +634,8 @@ func AfterLeaveCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 
 	// Remove the departing user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
+	// The pushes of the crew end with the membership.
+	dropCrewSubscription(userID, crewID)
 
 	recordMemberLeft(ctx, logger, nk, crewID, userID)
 
@@ -732,6 +736,7 @@ func AfterKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB
 		}
 		kicked = true
 		cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
+		dropCrewSubscription(userID, crewID)
 		recordMemberLeft(ctx, logger, nk, crewID, userID)
 	}
 	if kicked {
