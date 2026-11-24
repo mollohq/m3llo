@@ -602,6 +602,9 @@ Values of `marker=`:
 initializer.RegisterRpc("crew_catchup", CrewCatchupRPC)
 ```
 
+Only a member of the crew. Another caller gets PERMISSION_DENIED (7) with the
+token `NOT_A_MEMBER`, also for a crew id that does not exist.
+
 **Request:**
 
 ```json
