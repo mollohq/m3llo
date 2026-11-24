@@ -98,6 +98,10 @@ services:
       - APPLE_TEAM_ID=${APPLE_TEAM_ID:-}
       - APPLE_KEY_ID=${APPLE_KEY_ID:-}
       - NAKAMA_HTTP_KEY=${NAKAMA_HTTP_KEY:-defaulthttpkey}
+      # The secret of the server-to-server RPCs (specs/04-BACKEND.md section 4).
+      # Not set = those RPCs accept the HTTP key alone, which a local stack
+      # needs: the local callers send no secret.
+      - MELLO_SERVER_RPC_SECRET=${MELLO_SERVER_RPC_SECRET:-}
       - TURN_SECRET=${TURN_SECRET:-}
       - TURN_HOST=${TURN_HOST:-}
       - SFU_JWT_PRIVATE_KEY=${SFU_JWT_PRIVATE_KEY:-}
