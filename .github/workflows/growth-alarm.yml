@@ -40,9 +40,11 @@ jobs:
           # A server-to-server RPC (specs/04-BACKEND.md section 4): it rejects
           # client sessions. The header goes only when the repository has the
           # secret, so this step works before the secret exists.
+          # A pasted secret can end with a line break. It must not reach the header.
+          server_secret="$(printf '%s' "${MELLO_SERVER_RPC_SECRET:-}" | tr -d '\r\n')"
           secret_header=()
-          if [ -n "${MELLO_SERVER_RPC_SECRET:-}" ]; then
-            secret_header=(-H "X-Mello-Server-Secret: ${MELLO_SERVER_RPC_SECRET}")
+          if [ -n "$server_secret" ]; then
+            secret_header=(-H "X-Mello-Server-Secret: ${server_secret}")
           fi
 
           response=$(curl -sf -X POST \
