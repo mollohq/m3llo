@@ -72,6 +72,10 @@ msgstr "プレイしたゲーム"
 msgid "BELTS"
 msgstr "称号"
 
+#: client/ui/components/feed_board.slint
+msgid "SHOW LESS"
+msgstr "折りたたむ"
+
 #. The badge of a live stream.
 #: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"

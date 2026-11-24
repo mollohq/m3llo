@@ -72,6 +72,10 @@ msgstr "玩过的游戏"
 msgid "BELTS"
 msgstr "称号"
 
+#: client/ui/components/feed_board.slint
+msgid "SHOW LESS"
+msgstr "收起"
+
 #. The badge of a live stream.
 #: client/ui/components/feed_board.slint client/ui/tr.slint
 msgid "LIVE"
