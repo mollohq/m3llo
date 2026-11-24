@@ -137,6 +137,15 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 
 	// -----------------------------------------------------------------------
+	// Built-in API hooks: the part of the group, user, friend, channel and
+	// socket calls of Nakama that a client uses (builtin_api_hooks.go,
+	// specs/04-BACKEND.md section 7).
+	// -----------------------------------------------------------------------
+	if err := registerBuiltinAPIHooks(initializer); err != nil {
+		return err
+	}
+
+	// -----------------------------------------------------------------------
 	// RPCs — remote push (spec 23)
 	// -----------------------------------------------------------------------
 	if err := initializer.RegisterRpc("register_push_token", RegisterPushTokenRPC); err != nil {
@@ -539,6 +548,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	go StartSnapshotBackfillJob(ctx, nk, logger)
 	go StartLedgerReconcile(ctx, nk, logger)
 	go StartLedgerDeletionJob(ctx, nk, logger)
+	go StartJoinRequestSweep(ctx, nk, logger)
 	go StartWeeklyRecapJob(ctx, nk, logger)
 	go StartGameClipUploadCleanupJob(ctx, logger)
 	go StartHead2headDirtyLoop(ctx, nk, logger, head2headDirtyInterval)
