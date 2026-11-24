@@ -231,21 +231,16 @@ func CreateInviteCodeRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 		return "", runtime.NewError("crew_id required", 3)
 	}
 
-	// Check membership and enforce invite_policy
-	members, _, err := nk.GroupUsersList(ctx, req.CrewID, 100, nil, "")
+	// Check membership and enforce invite_policy. A pending join request is
+	// not a membership: it gets no code.
+	state, err := callerCrewState(ctx, nk, userID, req.CrewID)
 	if err != nil {
 		return "", runtime.NewError("failed to check permissions", 13)
 	}
-	callerRole := -1
-	for _, m := range members {
-		if m.GetUser().GetId() == userID {
-			callerRole = int(m.GetState().GetValue())
-			break
-		}
-	}
-	if callerRole < 0 {
+	if state == nil || !isMemberState(int32(*state)) {
 		return "", runtime.NewError("not a crew member", 7)
 	}
+	callerRole := *state
 
 	// Check invite_policy from group metadata
 	groups, err := nk.GroupsGetId(ctx, []string{req.CrewID})
