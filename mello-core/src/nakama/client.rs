@@ -2094,8 +2094,12 @@ impl NakamaClient {
         self.ws_send(msg).await
     }
 
+    /// Leaves the chat channel of the active crew and clears the active
+    /// crew. The local state clears also when the message cannot be sent:
+    /// a socket that is down has no channel presence on the server.
     pub async fn leave_crew_channel(&mut self) -> Result<()> {
-        let channel_id = self.ws_shared.read().await.channel_id.clone();
+        let channel_id = self.ws_shared.write().await.channel_id.take();
+        self.active_crew_id = None;
         if let Some(channel_id) = channel_id {
             let cid = self.next_cid();
             let msg = serde_json::json!({
@@ -2107,9 +2111,6 @@ impl NakamaClient {
             .to_string();
             self.ws_send(msg).await?;
         }
-
-        self.active_crew_id = None;
-        self.ws_shared.write().await.channel_id = None;
         Ok(())
     }
 
@@ -2951,6 +2952,23 @@ mod tests {
                 "{code}"
             );
         }
+    }
+
+    /// The channel leave clears the local state also when the socket is
+    /// down. A crew that stayed active here after "Leave crew" took chat and
+    /// voice commands for a crew the user is not in.
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_channel_leave_with_no_socket_clears_the_active_crew() {
+        let mut client = NakamaClient::new(Config::default());
+        client.set_test_session("test-session", Some("crew-1"));
+        client.ws_shared.write().await.channel_id = Some("channel-1".into());
+
+        assert!(
+            client.leave_crew_channel().await.is_err(),
+            "no socket: the leave message is not sent"
+        );
+        assert_eq!(client.active_crew_id(), None);
+        assert_eq!(client.channel_id().await, None);
     }
 
     #[test]
