@@ -121,6 +121,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `admin_live_snapshot.go` | `AdminLiveSnapshotRPC` — server-to-server snapshot of non-empty voice rooms (channel, crew, members) plus active streams (`stream_meta` scan). Powers the admin Live view. |
 | `admin_capture_policy.go` | `AdminCapturePolicyGetRPC`, `AdminCapturePolicySetRPC` — server-to-server read and conditional write of the game capture hook policy (§4.2). Powers the admin Hook policy page. |
 | `discover_curation.go` | `AdminDiscoverCurationGetRPC`, `AdminDiscoverCurationSetRPC`: server-to-server read and conditional write of the Discover curation (§4.3). `readDiscoverCuration` is also read by `DiscoverCrewsRPC`. Powers the admin Discover page. |
+| `storage_hooks.go` | `BeforeReadStorageObjects`, `BeforeListStorageObjects`: what a client can read and list through the storage API (§6) |
 | `dev_seed.go` | Development seed data. A reset also deletes the rows of the crew in the durable store |
 
 ---
@@ -508,7 +509,19 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 
 **Cloud object storage (S3/R2):** Clip media files (MP4/AAC) are stored in an S3-compatible bucket (`mello-clips`). Clients upload directly via presigned PUT URLs — no data passes through Nakama. See [CLIPS.md §6](./features/CLIPS.md) for the full flow.
 
-Storage writes use `PermissionRead: 2` (public read) and `PermissionWrite: 0` (server-only write) for system-owned data. The owner for crew avatars and invite codes is the empty string (system user) so that any client can read them.
+Storage writes use `PermissionRead: 2` and `PermissionWrite: 0` (server-only write) for most system-owned data. The stored read permission does not open an object to a client. Two hooks guard the storage API of Nakama for clients (`storage_hooks.go`, `BeforeReadStorageObjects` and `BeforeListStorageObjects`):
+
+| Client call | Result |
+|---|---|
+| List a collection | Refused. No collection can be listed, not for the caller's own objects either. |
+| Read `avatars/current` of a user | Allowed |
+| Read an object that the caller owns | Allowed. Nakama then applies the stored read permission. |
+| Read an object of the system user or of another user | Refused |
+
+- A refused call gets the error code 7 (`PERMISSION_DENIED`).
+- One object that is not allowed refuses the full read request.
+- The hooks run for a client call only. A read from the server runtime (`nk.StorageRead`) does not pass them.
+- A client gets crew data from the RPCs (§4), not from the storage API.
 
 ---
 
@@ -650,7 +663,7 @@ Estimated cost: ~$2,000-5,000/mo
 | TURN credentials | Time-limited HMAC-SHA1 (24h TTL) |
 | Rate limiting | Nakama built-in + nginx |
 | DDoS protection | Cloudflare |
-| Storage permissions | System-owned data: public read, server-only write |
+| Storage permissions | System-owned data: server-only write. A client cannot list a collection. A client can read `avatars/current` of a user and its own objects, nothing else (§6) |
 
 ---
 

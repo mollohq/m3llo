@@ -479,7 +479,7 @@ func afterCreateCrew(crewID, creatorID string) {
         Key:        crewID,
         UserID:     "", // system-owned
         Value:      marshal(channels),
-        PermissionRead: 2,  // public read
+        PermissionRead: 2,  // no client read: the storage hooks refuse it (spec 04 §6)
         PermissionWrite: 0, // server-only write
     }})
 }
