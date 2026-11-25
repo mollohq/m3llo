@@ -106,6 +106,21 @@ fn client_in_crew(config: Config) -> (Client, std::sync::mpsc::Receiver<Event>) 
     (client, events)
 }
 
+/// The events that the client sent, in order.
+///
+/// `Client::with_voice` puts the event channel of the client in a slot of
+/// the process (`log_bundle::set_event_sender`). The client that was built
+/// last holds the slot. A log bundle test that runs at the same time sends
+/// `Event::LogsRequested` through the slot, so that event can be in the
+/// channel of a leave test. It is the only event that goes through the
+/// slot, and a leave does not send it.
+fn events_of_the_client(events: &std::sync::mpsc::Receiver<Event>) -> Vec<Event> {
+    events
+        .try_iter()
+        .filter(|e| !matches!(e, Event::LogsRequested { .. }))
+        .collect()
+}
+
 /// ★ Regression: "Leave crew" ends the membership on the server. The leave
 /// is the only request: the leave hook of the server does the voice cleanup,
 /// so the client sends no `voice_leave`. Then the client closes the crew.
@@ -121,7 +136,7 @@ async fn leave_crew_ends_the_membership_on_the_server() {
         vec!["POST /v2/group/crew-1/leave".to_string()],
         "the client asks the server to end the membership, and sends nothing else"
     );
-    let events: Vec<Event> = events.try_iter().collect();
+    let events = events_of_the_client(&events);
     assert!(
         events
             .iter()
@@ -165,7 +180,7 @@ async fn assert_a_refused_leave_changes_nothing(
         vec!["POST /v2/group/crew-1/leave".to_string()],
         "one leave request, and no retry"
     );
-    let events: Vec<Event> = events.try_iter().collect();
+    let events = events_of_the_client(&events);
     assert!(
         matches!(
             events.as_slice(),
@@ -214,7 +229,7 @@ async fn a_leave_with_no_answer_keeps_the_crew() {
 
     client.handle_leave_crew().await;
 
-    let events: Vec<Event> = events.try_iter().collect();
+    let events = events_of_the_client(&events);
     assert!(
         matches!(
             events.as_slice(),
