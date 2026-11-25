@@ -156,7 +156,7 @@ Stored in Nakama storage: `voice_channels/{crew_id}`
 }
 ```
 
-**Channel ID format:** `ch_` prefix + 8 random alphanumeric characters (e.g. `ch_a3f8b2c1`). The default channel uses `ch_general` as a well-known ID for simplicity.
+**Channel ID format:** `ch_` prefix + 8 random alphanumeric characters (e.g. `ch_a3f8b2c1`). The default channel gets a generated ID too (`InitDefaultChannel`). `ch_general` in the examples of this spec is a placeholder. The voice rooms are keyed by the channel ID alone (section 3.2), so two crews must not have the same channel ID. The ID is random, and the server does not compare a new ID with the IDs of other crews.
 
 **Channel bitrate.** Each channel has `bitrate_kbps`: the voice bitrate of its members, the top rung of their encoder ladder (spec 10 section 4.6).
 
@@ -189,6 +189,12 @@ var (
     voiceChannelCrew map[string]string      // channelID → crewID (reverse lookup)
 )
 ```
+
+**A room belongs to the crew that opened it.** The first member of a room sets
+`CrewID`. `joinVoiceRoom` refuses a join whose crew is not the `CrewID` of the
+room, with `CHANNEL_NOT_FOUND` (section 8). The caller keeps the seat they
+have. The refusal does not say that the room exists. If two crews have the
+same channel ID, only one of them has the room at a time.
 
 ### 3.3 Crew State Update (Spec 11 Amendment)
 
@@ -389,6 +395,29 @@ type VoiceJoinRequest struct {
 // 6. Update crew state cache
 // 7. Push voice_update to all crew subscribers
 ```
+
+The checks of `voice_join`, in order. A refused join changes no voice state.
+
+| Check | Error |
+|---|---|
+| No authenticated user | code 16 |
+| Not JSON, or no `crew_id` | code 3 |
+| The caller is not a member of the crew | code 7 |
+| `channel_id` is not a channel of the crew | `CHANNEL_NOT_FOUND`, code 5 |
+| No SFU key, or the crew kill switch | `SFU_UNAVAILABLE`, code 14 |
+| A room with that `channel_id` belongs to another crew (section 3.2) | `CHANNEL_NOT_FOUND`, code 5 |
+| The channel is full | code 9 |
+
+- The membership check comes before the channel check. A caller outside the
+  crew gets code 7 for every `channel_id`, so the answer does not say which
+  channel IDs exist.
+- `channel_id` comes from the client. The server takes it only from the
+  channel list of the crew (`resolveVoiceChannel`). An absent `channel_id` is
+  the default channel.
+- The client sends `channel_id` again on a reconnect. When the channel was
+  deleted in the meantime, the join fails with `CHANNEL_NOT_FOUND`. The server
+  opens no room for a channel ID that no channel list holds.
+- `guest_voice_join` uses the same channel check (`CREW-INVITES.md` section 4.2).
 
 #### `voice_leave` (Updated)
 
@@ -768,7 +797,7 @@ This allows the sidebar to show "user_abc is in General @ Neon Syndicate" withou
 | Code | Name | Description |
 |------|------|-------------|
 | `CHANNEL_FULL` | Channel is full | 50/50 members in target channel |
-| `CHANNEL_NOT_FOUND` | Channel not found | Invalid channel_id for this crew |
+| `CHANNEL_NOT_FOUND` | Channel not found | Invalid channel_id for this crew. `voice_join` and `guest_voice_join` return it as the error token `CHANNEL_NOT_FOUND` with code 5 (`rpc_error_codes.go`) |
 | `CANNOT_DELETE_DEFAULT` | Cannot delete default channel | Attempted to delete is_default channel |
 | `CHANNEL_NAME_TAKEN` | Name already exists | Duplicate channel name within crew |
 | `CHANNEL_NAME_INVALID` | Invalid channel name | Empty after the clean rule, or too long (>24 characters) |
