@@ -127,6 +127,10 @@ func (n *builtinNk) UserGroupsList(_ context.Context, userID string, _ int, _ *i
 	if n.failReads {
 		return nil, "", runtime.NewError("database is down", 13)
 	}
+	if userID == "" {
+		// Nakama takes a user id only.
+		return nil, "", runtime.NewError("expects user ID to be a valid identifier", 3)
+	}
 	var out []*api.UserGroupList_UserGroup
 	for crew, users := range n.edges {
 		if state, ok := users[userID]; ok {
@@ -231,6 +235,85 @@ func TestBuiltinJoinRefusesWhenTheCrewReadFails(t *testing.T) {
 func TestBuiltinJoinRefusesWithoutSession(t *testing.T) {
 	out, err := BeforeJoinGroup(context.Background(), noopLogger{}, nil, newBuiltinNk(), &api.JoinGroupRequest{GroupId: biaOpenCrew})
 	wantBuiltinRefused(t, "join with no session", out == nil, err)
+}
+
+// ---- leave ----
+
+func TestBuiltinLeavePassesAMember(t *testing.T) {
+	nk := newBuiltinNk()
+	for _, caller := range []string{biaOwner, biaAdmin, biaMember} {
+		in := &api.LeaveGroupRequest{GroupId: biaClosedCrew}
+		out, err := BeforeLeaveGroup(ctxWithUser(caller), noopLogger{}, nil, nk, in)
+		if err != nil || out != in {
+			t.Errorf("leave by %s of its crew: out=%v err=%v, want the request passed on", caller, out, err)
+		}
+	}
+	// The only owner passes the hook too: the answer to that leave is the
+	// answer of Nakama.
+	in := &api.LeaveGroupRequest{GroupId: biaOpenCrew}
+	out, err := BeforeLeaveGroup(ctxWithUser(biaOwner), noopLogger{}, nil, nk, in)
+	if err != nil || out != in {
+		t.Errorf("leave by the only owner: out=%v err=%v, want the request passed on", out, err)
+	}
+	if len(nk.kicked) != 0 {
+		t.Errorf("the hook removed %d rows, want none: the leave is done by Nakama", len(nk.kicked))
+	}
+}
+
+func TestBuiltinLeaveRefusesACallerOutsideTheCrew(t *testing.T) {
+	nk := newBuiltinNk()
+	out, err := BeforeLeaveGroup(ctxWithUser(biaOutsider), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	wantBuiltinRefused(t, "leave of a closed crew by an outsider", out == nil, err)
+	out, err = BeforeLeaveGroup(ctxWithUser(biaOutsider), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaOpenCrew})
+	wantBuiltinRefused(t, "leave of an open crew by an outsider", out == nil, err)
+	// A member of one crew is outside another crew.
+	out, err = BeforeLeaveGroup(ctxWithUser(biaMember), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaOpenCrew})
+	wantBuiltinRefused(t, "leave of a crew that the caller is not in", out == nil, err)
+}
+
+func TestBuiltinLeaveRefusesAJoinRequestRow(t *testing.T) {
+	nk := newBuiltinNk()
+	out, err := BeforeLeaveGroup(ctxWithUser(biaRequester), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	wantBuiltinRefused(t, "leave by a user with a join request row", out == nil, err)
+	out, err = BeforeLeaveGroup(ctxWithUser(biaBanned), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	wantBuiltinRefused(t, "leave by a user with a ban row", out == nil, err)
+	if state := nk.edges[biaClosedCrew][biaRequester]; state != groupStateJoinRequest {
+		t.Errorf("the row of the requester has state %d after the refused leave, want %d", state, groupStateJoinRequest)
+	}
+}
+
+func TestBuiltinLeaveRefusesACrewThatDoesNotExist(t *testing.T) {
+	nk := newBuiltinNk()
+	_, outsideErr := BeforeLeaveGroup(ctxWithUser(biaOutsider), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	for _, id := range []string{biaUnknownCrew, "not-an-id", ""} {
+		for _, caller := range []string{biaOutsider, biaMember, biaOwner} {
+			out, err := BeforeLeaveGroup(ctxWithUser(caller), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: id})
+			wantBuiltinRefused(t, "leave of the crew id "+id, out == nil, err)
+			if err != outsideErr {
+				t.Errorf("leave of the crew id %q: error %v, want the error of a caller outside a crew that exists (%v)", id, err, outsideErr)
+			}
+		}
+	}
+	if outsideErr != errBuiltinNotAMember {
+		t.Errorf("leave by an outsider: error %v, want errBuiltinNotAMember", outsideErr)
+	}
+}
+
+func TestBuiltinLeaveRefusesWhenTheMembershipReadFails(t *testing.T) {
+	nk := newBuiltinNk()
+	nk.failReads = true
+	out, err := BeforeLeaveGroup(ctxWithUser(biaMember), noopLogger{}, nil, nk, &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	if err == nil || out != nil {
+		t.Fatalf("leave with a failed membership read: out=%v err=%v, want refused", out, err)
+	}
+	if rerr, ok := err.(*runtime.Error); !ok || rerr.Code != 13 {
+		t.Errorf("leave with a failed membership read: error %v, want code 13", err)
+	}
+}
+
+func TestBuiltinLeaveRefusesWithoutSession(t *testing.T) {
+	out, err := BeforeLeaveGroup(context.Background(), noopLogger{}, nil, newBuiltinNk(), &api.LeaveGroupRequest{GroupId: biaClosedCrew})
+	wantBuiltinRefused(t, "leave with no session", out == nil, err)
 }
 
 // ---- member list ----
@@ -582,7 +665,7 @@ func TestBuiltinHooksAreRegistered(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read builtin_api_hooks.go: %v", err)
 	}
-	guarded := []string{"JoinGroup", "ListGroupUsers", "ListUserGroups", "ListGroups", "GetUsers", "ListChannelMessages"}
+	guarded := []string{"JoinGroup", "LeaveGroup", "ListGroupUsers", "ListUserGroups", "ListGroups", "GetUsers", "ListChannelMessages"}
 	refused := []string{
 		"UpdateGroup", "AddGroupUsers", "BanGroupUsers", "PromoteGroupUsers", "DemoteGroupUsers",
 		"AddFriends", "BlockFriends", "DeleteFriends", "ImportFacebookFriends", "ImportSteamFriends", "ListFriends",

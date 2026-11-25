@@ -601,7 +601,8 @@ A client gets crew data and changes a crew through the RPCs (§4). Of the built-
 | `ListGroupUsers` | For the owner, an admin or a member of the crew. The answer has no provider ids |
 | `GetUsers` | By user id. A lookup by username or by a provider id is refused. The answer has no provider ids (Apple, Google, Steam, Facebook, Game Center) |
 | `ListChannelMessages` | The chat of a crew. Nakama checks that the caller is a member of the crew |
-| `CreateGroup`, `LeaveGroup`, `KickGroupUsers`, `DeleteGroup` | Not changed. The role rules of Nakama hold, and the after hooks of `crews.go` and `ledger_purge.go` run |
+| `LeaveGroup` | For the owner, an admin or a member of the crew. Another caller is refused, with the same answer for a crew that does not exist. Nakama then applies its own rules: it refuses the leave of the only owner. `AfterLeaveCrew` runs after a leave |
+| `CreateGroup`, `KickGroupUsers`, `DeleteGroup` | Not changed. The role rules of Nakama hold, and the after hooks of `crews.go` and `ledger_purge.go` run |
 | Storage | See §6 |
 | Every other call: `UpdateGroup`, `AddGroupUsers`, `BanGroupUsers`, `PromoteGroupUsers`, `DemoteGroupUsers`, friends, stored notifications, leaderboards, tournaments, matches, purchases and subscriptions | Refused |
 

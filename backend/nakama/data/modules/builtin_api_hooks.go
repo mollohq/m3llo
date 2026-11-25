@@ -20,9 +20,9 @@ import (
 //
 // A client gets crew data and changes a crew through the RPCs. Of the
 // built-in API it uses a small part: the account calls, the crews of the
-// caller, the join of an open crew, the member list and the chat of a crew
-// of the caller, and the name of a user by id. These hooks keep that part
-// and refuse the rest.
+// caller, the join of an open crew, the leave of a crew of the caller, the
+// member list and the chat of a crew of the caller, and the name of a user
+// by id. These hooks keep that part and refuse the rest.
 //
 // The hooks run for a client call only (HTTP, gRPC or the socket). A call
 // from the server runtime (nk.GroupUsersAdd, nk.GroupUsersKick and so on)
@@ -111,6 +111,27 @@ func BeforeListGroupUsers(ctx context.Context, logger runtime.Logger, db *sql.DB
 	}
 	if !member {
 		logger.Info("built-in member list refused: crew=%s caller=%s", in.GetGroupId(), callerID)
+		return nil, errBuiltinNotAMember
+	}
+	return in, nil
+}
+
+// BeforeLeaveGroup runs before the built-in leave. Only the owner, an admin or
+// a member of the crew leaves it. The answer is the same for a crew that does
+// not exist. Nakama then applies its own rules to the leave, and AfterLeaveCrew
+// runs for a leave that Nakama did.
+func BeforeLeaveGroup(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LeaveGroupRequest) (*api.LeaveGroupRequest, error) {
+	callerID := builtinCaller(ctx)
+	if callerID == "" {
+		return nil, errBuiltinNotAMember
+	}
+	member, err := builtinIsMember(ctx, nk, callerID, in.GetGroupId())
+	if err != nil {
+		logger.Error("built-in leave: crews of %s read failed: %v", callerID, err)
+		return nil, errBuiltinInternal
+	}
+	if !member {
+		logger.Info("built-in leave refused: crew=%s caller=%s", in.GetGroupId(), callerID)
 		return nil, errBuiltinNotAMember
 	}
 	return in, nil
@@ -351,6 +372,7 @@ func registerBuiltinAPIHooks(initializer runtime.Initializer) error {
 	steps := []func() error{
 		// The calls that a client makes, each with its rule.
 		func() error { return initializer.RegisterBeforeJoinGroup(BeforeJoinGroup) },
+		func() error { return initializer.RegisterBeforeLeaveGroup(BeforeLeaveGroup) },
 		func() error { return initializer.RegisterBeforeListGroupUsers(BeforeListGroupUsers) },
 		func() error { return initializer.RegisterBeforeListUserGroups(BeforeListUserGroups) },
 		func() error { return initializer.RegisterBeforeListGroups(BeforeListGroups) },
