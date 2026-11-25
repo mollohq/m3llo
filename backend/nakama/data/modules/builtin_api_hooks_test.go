@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/rtapi"
@@ -41,6 +43,11 @@ type builtinNk struct {
 	failReads     bool
 	// kickKeepsRows makes GroupUsersKick answer nil and remove nothing.
 	kickKeepsRows bool
+	// requestTimes holds the update time of a join request row.
+	requestTimes map[[2]string]time.Time
+	// trace, when set, gets one line for each row that GroupUsersKick is
+	// asked to remove.
+	trace *[]string
 }
 
 func newBuiltinNk() *builtinNk {
@@ -149,6 +156,9 @@ func (n *builtinNk) GroupUsersKick(_ context.Context, _ string, groupID string, 
 			continue
 		}
 		n.kicked = append(n.kicked, [2]string{groupID, id})
+		if n.trace != nil {
+			*n.trace = append(*n.trace, "kick "+groupID+" "+id)
+		}
 		if !n.kickKeepsRows {
 			delete(n.edges[groupID], id)
 		}
@@ -622,7 +632,7 @@ func (f fakeJoinRequests) PendingJoinRequests(_ context.Context, limit int) ([]p
 	for crew, users := range f.nk.edges {
 		for user, state := range users {
 			if state == groupStateJoinRequest {
-				out = append(out, pendingJoinRequest{CrewID: crew, UserID: user})
+				out = append(out, pendingJoinRequest{CrewID: crew, UserID: user, UpdateTime: f.nk.requestTimes[[2]string{crew, user}]})
 			}
 		}
 	}
@@ -670,5 +680,90 @@ func TestJoinRequestSweepEndsWhenARowStays(t *testing.T) {
 	}
 	if len(nk.kicked) != 1 {
 		t.Errorf("the sweep tried the row %d times, want 1", len(nk.kicked))
+	}
+}
+
+// sweepLogRecorder is a logger that keeps each Info line in a trace.
+type sweepLogRecorder struct {
+	noopLogger
+	trace *[]string
+}
+
+func (l sweepLogRecorder) Info(format string, v ...interface{}) {
+	*l.trace = append(*l.trace, "info "+fmt.Sprintf(format, v...))
+}
+
+func TestJoinRequestSweepLogsEachRowBeforeItsKick(t *testing.T) {
+	nk := newBuiltinNk()
+	nk.edges[biaOpenCrew]["req-2"] = groupStateJoinRequest
+	nk.edges[biaClosedCrew]["req-3"] = groupStateJoinRequest
+	// The second time has an offset: the line gives the time in UTC.
+	nk.requestTimes = map[[2]string]time.Time{
+		{biaClosedCrew, biaRequester}: time.Date(2026, 3, 1, 10, 20, 30, 0, time.UTC),
+		{biaOpenCrew, "req-2"}:        time.Date(2026, 4, 2, 9, 0, 0, 0, time.FixedZone("", 2*3600)),
+		{biaClosedCrew, "req-3"}:      time.Date(2026, 5, 3, 23, 59, 59, 0, time.UTC),
+	}
+	want := map[[2]string]string{
+		{biaClosedCrew, biaRequester}: "2026-03-01T10:20:30Z",
+		{biaOpenCrew, "req-2"}:        "2026-04-02T07:00:00Z",
+		{biaClosedCrew, "req-3"}:      "2026-05-03T23:59:59Z",
+	}
+	var trace []string
+	nk.trace = &trace
+
+	sweepJoinRequests(context.Background(), sweepLogRecorder{trace: &trace}, nk, fakeJoinRequests{nk})
+
+	if len(nk.kicked) != len(want) {
+		t.Fatalf("the sweep kicked %d rows, want %d", len(nk.kicked), len(want))
+	}
+	rowLines := 0
+	for row, updateTime := range want {
+		line := "info " + fmt.Sprintf(joinRequestSweepRowLog, row[0], row[1], updateTime)
+		logged, kicked := -1, -1
+		for i, entry := range trace {
+			switch entry {
+			case line:
+				logged = i
+				rowLines++
+			case "kick " + row[0] + " " + row[1]:
+				kicked = i
+			}
+		}
+		switch {
+		case logged < 0:
+			t.Errorf("no log line for the row of crew %s user %s with the time %s; trace: %q", row[0], row[1], updateTime, trace)
+		case kicked < 0:
+			t.Errorf("no kick of the row of crew %s user %s", row[0], row[1])
+		case logged > kicked:
+			t.Errorf("the row of crew %s user %s was kicked before its log line", row[0], row[1])
+		}
+	}
+	if rowLines != len(want) {
+		t.Errorf("the sweep wrote %d row lines, want one line for each of the %d rows", rowLines, len(want))
+	}
+	for _, entry := range trace {
+		for _, user := range []string{biaOwner, biaAdmin, biaMember, biaBanned} {
+			if strings.HasPrefix(entry, "info ") && strings.Contains(entry, user) {
+				t.Errorf("a log line names %s, which has no join request: %q", user, entry)
+			}
+		}
+	}
+}
+
+// A row that stays after its kick is logged one time.
+func TestJoinRequestSweepLogsARowThatStaysOneTime(t *testing.T) {
+	nk := newBuiltinNk()
+	nk.kickKeepsRows = true
+	var trace []string
+	nk.trace = &trace
+	sweepJoinRequests(context.Background(), sweepLogRecorder{trace: &trace}, nk, fakeJoinRequests{nk})
+	lines := 0
+	for _, entry := range trace {
+		if strings.HasPrefix(entry, "info ") && strings.Contains(entry, biaRequester) {
+			lines++
+		}
+	}
+	if lines != 1 {
+		t.Errorf("the row that stays has %d log lines, want 1; trace: %q", lines, trace)
 	}
 }

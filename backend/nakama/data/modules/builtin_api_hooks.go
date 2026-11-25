@@ -496,10 +496,22 @@ func registerBuiltinAPIHooks(initializer runtime.Initializer) error {
 // An invite code joins the user with or without such a row. The sweep
 // removes the join requests that exist.
 
-// pendingJoinRequest is one join request row: a crew and the user who asked.
+// pendingJoinRequest is one join request row: a crew, the user who asked and
+// the update time of the row.
 type pendingJoinRequest struct {
-	CrewID string
-	UserID string
+	CrewID     string
+	UserID     string
+	UpdateTime time.Time
+}
+
+// joinRequestKey names a join request row without its time.
+type joinRequestKey struct {
+	crewID string
+	userID string
+}
+
+func (r pendingJoinRequest) key() joinRequestKey {
+	return joinRequestKey{crewID: r.CrewID, userID: r.UserID}
 }
 
 // joinRequestStore reads the join request rows of the group_edge table.
@@ -524,7 +536,7 @@ type sqlJoinRequests struct {
 
 func (s sqlJoinRequests) PendingJoinRequests(ctx context.Context, limit int) ([]pendingJoinRequest, error) {
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT ge.source_id, ge.destination_id FROM group_edge ge
+		`SELECT ge.source_id, ge.destination_id, ge.update_time FROM group_edge ge
 		 WHERE ge.state = $1
 		   AND EXISTS (SELECT 1 FROM groups g WHERE g.id = ge.source_id)
 		 ORDER BY ge.source_id, ge.destination_id LIMIT $2`, groupStateJoinRequest, limit)
@@ -535,7 +547,7 @@ func (s sqlJoinRequests) PendingJoinRequests(ctx context.Context, limit int) ([]
 	var out []pendingJoinRequest
 	for rows.Next() {
 		var r pendingJoinRequest
-		if err := rows.Scan(&r.CrewID, &r.UserID); err != nil {
+		if err := rows.Scan(&r.CrewID, &r.UserID, &r.UpdateTime); err != nil {
 			return nil, err
 		}
 		out = append(out, r)
@@ -545,13 +557,18 @@ func (s sqlJoinRequests) PendingJoinRequests(ctx context.Context, limit int) ([]
 
 const joinRequestSweepBatch = 200
 
+// joinRequestSweepRowLog is the Info line of one join request row. The sweep
+// writes it before the kick of the row.
+const joinRequestSweepRowLog = "join request sweep: join request crew=%s user=%s update_time=%s"
+
 // sweepJoinRequests removes every join request row. It returns the number of
 // rows it removed and the number of crews they were in. A kick with no
 // caller is how the runtime declines a join request: it removes the row,
-// keeps the member count and writes no chat message.
+// keeps the member count and writes no chat message. Before the kick of a
+// row, the sweep logs the row: crew id, user id and update time.
 func sweepJoinRequests(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, store joinRequestStore) (rows, crews int) {
-	tried := map[pendingJoinRequest]bool{}  // a kick was asked for the row
-	stayed := map[pendingJoinRequest]bool{} // the row was there again after its kick
+	tried := map[joinRequestKey]bool{}  // a kick was asked for the row
+	stayed := map[joinRequestKey]bool{} // the row was there again after its kick
 	limit := joinRequestSweepBatch
 	for {
 		batch, err := store.PendingJoinRequests(ctx, limit)
@@ -559,14 +576,14 @@ func sweepJoinRequests(ctx context.Context, logger runtime.Logger, nk runtime.Na
 			logger.Error("join request sweep: read failed: %v", err)
 			break
 		}
-		fresh := map[string][]string{}
+		fresh := map[string][]pendingJoinRequest{}
 		for _, r := range batch {
-			if tried[r] {
-				stayed[r] = true
+			if tried[r.key()] {
+				stayed[r.key()] = true
 				continue
 			}
-			tried[r] = true
-			fresh[r.CrewID] = append(fresh[r.CrewID], r.UserID)
+			tried[r.key()] = true
+			fresh[r.CrewID] = append(fresh[r.CrewID], r)
 		}
 		if len(fresh) == 0 {
 			if len(batch) < limit {
@@ -577,7 +594,12 @@ func sweepJoinRequests(ctx context.Context, logger runtime.Logger, nk runtime.Na
 			limit *= 2
 			continue
 		}
-		for crewID, userIDs := range fresh {
+		for crewID, requests := range fresh {
+			userIDs := make([]string, 0, len(requests))
+			for _, r := range requests {
+				logger.Info(joinRequestSweepRowLog, r.CrewID, r.UserID, r.UpdateTime.UTC().Format(time.RFC3339))
+				userIDs = append(userIDs, r.UserID)
+			}
 			if err := nk.GroupUsersKick(ctx, "", crewID, userIDs); err != nil {
 				logger.Warn("join request sweep: crew %s: %v", crewID, err)
 			}
@@ -587,7 +609,7 @@ func sweepJoinRequests(ctx context.Context, logger runtime.Logger, nk runtime.Na
 	for r := range tried {
 		if !stayed[r] {
 			rows++
-			swept[r.CrewID] = true
+			swept[r.crewID] = true
 		}
 	}
 	return rows, len(swept)

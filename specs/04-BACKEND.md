@@ -615,7 +615,7 @@ A client gets crew data and changes a crew through the RPCs (§4). Of the built-
 
 A member of a crew is its owner, an admin or a member. A join request and a ban are rows of the crew too, and are not a membership.
 
-**Join requests.** A join request is a `group_edge` row with state 3. No client shows a join request or accepts one. `StartJoinRequestSweep` removes the join requests that exist, one time after each start of the module, and logs how many it removed.
+**Join requests.** A join request is a `group_edge` row with state 3. No client shows a join request or accepts one. `StartJoinRequestSweep` removes the join requests that exist, one time after each start of the module. Before it removes a row it logs the row at Info: crew id, user id and the update time of the row, one line for each row. At the end it logs how many rows it removed.
 
 ---
 
