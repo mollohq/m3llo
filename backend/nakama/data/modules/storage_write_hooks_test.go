@@ -177,8 +177,8 @@ func TestStorageWriteHookAllowsTheLargestAvatar(t *testing.T) {
 // ---- writes that no client makes ----
 
 func TestStorageWriteHookRefusesEveryOtherCollection(t *testing.T) {
-	// The collections that the server reads under the id of a user, some
-	// collections of the system user, and a name that the server does not use.
+	// Collection names of the server, names close to the two that a client
+	// writes, and a name that the server does not use.
 	collections := []string{
 		"user_plus", "user_game_stats", "user_activity_stats", "user_library",
 		"push_tokens", "push_token_owners", "push_prefs", "presence", "riot_account",
