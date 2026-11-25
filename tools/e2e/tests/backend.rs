@@ -511,7 +511,6 @@ fn a_second_user_can_join_a_crew_by_invite_code() {
 /// Nakama `group_edge` states the invite tests assert on.
 const GROUP_STATE_SUPERADMIN: i64 = 0;
 const GROUP_STATE_MEMBER: i64 = 2;
-const GROUP_STATE_JOIN_REQUEST: i64 = 3;
 
 /// The caller's view of `user_id`'s edge state in the crew, or `None` when the
 /// user has no edge.
@@ -602,14 +601,14 @@ fn a_second_user_can_join_a_private_crew_by_invite_code() {
     });
 }
 
-/// An invite code completes a join request the user filed before.
+/// A private crew takes no member through Nakama's own group join.
 ///
-/// A user who asked to join a private crew through Nakama's own group join
-/// has a pending request. The invite code is the authorization, so following
-/// it must make that user a member.
+/// m3llo adds a member to a private crew by invite code. The server refuses
+/// the group join of a private crew and makes no join request. The invite
+/// code then makes that user a member.
 #[test]
-fn an_invite_code_completes_a_pending_join_request() {
-    if !e2e_enabled("an_invite_code_completes_a_pending_join_request") {
+fn a_private_crew_refuses_the_group_join_and_takes_the_invite_code() {
+    if !e2e_enabled("a_private_crew_refuses_the_group_join_and_takes_the_invite_code") {
         return;
     }
 
@@ -622,24 +621,25 @@ fn an_invite_code_completes_a_pending_join_request() {
             .await
             .expect("device auth for the joiner");
 
-        joiner
+        let refused = joiner
             .join_group(&crew_id)
             .await
-            .expect("Nakama group join on a private crew files a request");
+            .expect_err("Nakama group join on a private crew must be refused");
+        assert_eq!(refused.server_code(), Some(7), "the refusal: {refused}");
         assert_eq!(
             crew_member_state(&owner, &crew_id, &joiner_user.id).await,
-            Some(GROUP_STATE_JOIN_REQUEST),
-            "precondition: the joiner must hold a pending join request"
+            None,
+            "the refused join must leave no join request"
         );
 
         joiner
             .join_by_invite_code(&code)
             .await
-            .expect("join_by_invite_code must succeed for a pending request");
+            .expect("join_by_invite_code must succeed after a refused group join");
         assert_eq!(
             crew_member_state(&owner, &crew_id, &joiner_user.id).await,
             Some(GROUP_STATE_MEMBER),
-            "the invite code must turn the join request into a membership"
+            "the invite code must make the user a member"
         );
 
         let _ = joiner.delete_account().await;

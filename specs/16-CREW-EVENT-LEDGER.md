@@ -1102,6 +1102,18 @@ Events stay for good, so these rules say when data leaves. They hold in both sto
 - The noted ids are in process memory for one minute. They hold for the node that runs both hooks of one request.
 - The events, clips and recaps that name the member stay. A leave is not an account delete.
 
+**The leave of an only owner.** The leave call of the group API has a before hook, `BeforeLeaveGroup` (`builtin_api_hooks.go`, spec 04 section 7). The hook refuses a caller who is no member of the crew. For a member it runs the handover of section 10.2 (`handOverCrew`) before Nakama acts:
+
+| The user in the crew | Before the leave | The leave |
+|---|---|---|
+| Not a superadmin, or another superadmin exists | Nothing | Nakama removes the user from the group |
+| The only superadmin, with other members | One member becomes a superadmin, by the rule of section 10.2 | Nakama removes the user. The crew stays, with the new owner |
+| The only member | Nothing. The crew is not deleted | Nakama refuses the leave (`INVALID_ARGUMENT`, 3). The user deletes the crew with `delete_crew` |
+
+- After a handover the hook drops the crew state of the cache and logs `crew_handover` with the user, the crew and the new owner. `AfterLeaveCrew` then writes `member_left` as for any leave.
+- When the crew cannot be handed over (a member read fails, the promote fails, or the member is no superadmin after it), the hook refuses the leave and logs `crew_handover_failed`. The leave answers `UNAVAILABLE` (14, HTTP 503) with a text that is safe to show: "You did not leave the crew. The crew could not be handed to another member. Try again in a moment." The user is still in the crew and tries again.
+- When Nakama fails the leave after a handover, the crew has two owners. This is accepted, as for the account delete. Nothing takes the role back. The next leave of the user needs no handover.
+
 ### 10.2 Account deleted
 
 The client calls `DELETE /v2/account` of Nakama. Two hooks run:
@@ -1113,7 +1125,7 @@ The client calls `DELETE /v2/account` of Nakama. Two hooks run:
 
 The scrub record is `ledger_user_scrub/{user_id}`, system-owned, with no client read. Every write of the record carries its storage version. One scrub of a user runs at a time in a process.
 
-**The crew of an only owner.** Nakama 3.21.0 deletes a group when its last superadmin deletes the account, also when the group has other members. No delete-group hook runs. So `BeforeDeleteAccount` acts before Nakama does (`crew_handover.go`):
+**The crew of an only owner.** Nakama 3.21.0 deletes a group when its last superadmin deletes the account, also when the group has other members. No delete-group hook runs. So `BeforeDeleteAccount` acts before Nakama does (`crew_handover.go`). The same handover runs before the leave of an only owner (section 10.1):
 
 | The user in the crew | Before the delete | After the delete |
 |---|---|---|
