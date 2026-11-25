@@ -221,6 +221,27 @@ Then "This cannot be undone.", the outline button CANCEL and the red button DELE
 CANCEL, Escape and the backdrop close the confirm and keep the crew. When crew settings open
 again, the confirm is closed.
 
+#### Crew menu: Leave crew
+
+"Leave crew" in the menu of the active crew card sends `LeaveCrew` at once. It has no confirm.
+The server ends the membership (spec 02 section 5). When the user is the only owner, the
+server makes another member the owner first.
+
+The only member of a crew has no "Leave crew" and no divider above it: the server refuses
+that leave. DELETE CREW in crew settings is the way out. The menu reads the member count of
+the crew state (`CrewData.member-count`). A count of 0 is a count that is not loaded yet, so
+the item shows.
+
+| State | The client |
+|---|---|
+| Sent | The crew stays in the crew list and stays open. The user is a member until the server answers |
+| Left (`CrewLeft`) | The crew leaves the crew list. No crew is open |
+| Failed (`CrewLeaveFailed`) | The crew stays in the crew list and stays open. The cause goes to the log. No text shows |
+
+A leave fails when the server does not answer, when the crew of an only owner cannot be
+handed over (the server sends a text for that case, and the client does not show it), or
+when the member count was old and the user is the only member.
+
 #### KEYBINDS tab
 
 The KEYBINDS tab has two sections: CLIPS, then STREAMING. Each row is a `KeybindRow`: a title, one sentence, and a key field.

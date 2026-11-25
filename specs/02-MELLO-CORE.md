@@ -113,7 +113,7 @@ app.set_crews(...)
 | Category | Examples |
 |----------|---------|
 | Auth | `Authenticated`, `LoggedOut`, `OnboardingReady`, `OnboardingFailed` |
-| Crews | `CrewsLoaded`, `CrewCreated`, `CrewJoined`, `DiscoverCrewsLoaded` |
+| Crews | `CrewsLoaded`, `CrewCreated`, `CrewJoined`, `CrewLeft`, `CrewLeaveFailed`, `DiscoverCrewsLoaded` |
 | Social | `UserSearchResults`, `CrewAvatarLoaded` |
 | Chat | `ChatHistory`, `ChatMessage` |
 | Voice | `VoiceConnected`, `VoiceMemberJoined`, `VoiceActivity`, `VoiceSfuDisconnected`, `MicPermissionChanged` |
@@ -173,6 +173,21 @@ DiscoverCrews ──▶ browse public crews (paginated, bento grid)
             ▼
       LeaveCrew ──▶ unsubscribe, leave group
 ```
+
+**Leave crew:** `LeaveCrew` ends the membership of the user in the active crew.
+
+1. Core calls `POST /v2/group/{id}/leave`. The leave hooks of the server are in spec 04 section 7 and spec 16 section 10.1. `AfterLeaveCrew` takes the user out of the voice room and writes the `member_left` event. Core sends no `voice_leave` for a leave.
+2. The server takes the leave. Core closes the SFU connection, the call and the chat channel, clears the active crew and sends `CrewLeft { crew_id }`.
+3. The server refuses the leave, or does not answer. Core changes nothing and sends `CrewLeaveFailed { crew_id, reason }`. The user stays in the crew and in the call.
+
+What the server does with a leave (spec 16 section 10.1):
+
+| The user in the crew | The leave |
+|---|---|
+| A member, an admin, or an owner of a crew with another owner | The server takes it |
+| The only owner of a crew with other members | The server makes another member the owner, then takes it |
+| The only owner, and the crew cannot be handed over | Refused (`UNAVAILABLE`, 14). The user tries again |
+| The only member | Refused (`INVALID_ARGUMENT`, 3). The user deletes the crew (spec 01, DELETE CREW) |
 
 **Avatars:** Crew avatars are base64-encoded JPEG (resized to 256x256 on the client using the `image` crate). Stored in Nakama storage collection `crew_avatars`, key = crew ID, value = `{"data":"<base64>"}`, owned by system user. Fetched via `get_crew_avatar` RPC (works without auth for onboarding).
 

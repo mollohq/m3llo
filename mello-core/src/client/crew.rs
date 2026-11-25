@@ -460,27 +460,43 @@ impl super::Client {
         }
     }
 
+    /// "Leave crew": ends the membership of the user in the active crew.
+    ///
+    /// The server ends the membership first (`POST /v2/group/{id}/leave`).
+    /// Its leave hook takes the user out of the voice room of the crew and
+    /// writes the `member_left` event, so the client sends no `voice_leave`.
+    /// Then the client closes its own side: the SFU connection, the call and
+    /// the chat channel.
+    ///
+    /// A leave that the server refuses, or that gets no answer, changes
+    /// nothing here. The user stays in the crew and in the call, and the UI
+    /// gets `CrewLeaveFailed`.
     pub(super) async fn handle_leave_crew(&mut self) {
-        // Leave voice (local + server)
-        self.sfu_leave_if_connected().await;
-        if let Some(crew_id) = self.nakama.active_crew_id().map(String::from) {
-            if let Err(e) = self.nakama.voice_leave(&crew_id).await {
-                log::warn!("voice_leave RPC on crew leave: {}", e);
-            }
+        let Some(crew_id) = self.nakama.active_crew_id().map(String::from) else {
+            log::warn!("[crew] leave: no active crew");
+            return;
+        };
+        if let Err(e) = self.nakama.leave_group(&crew_id).await {
+            log::error!("[crew] failed to leave crew {}: {}", crew_id, e);
+            let _ = self.event_tx.send(Event::CrewLeaveFailed {
+                crew_id,
+                reason: e.to_string(),
+            });
+            return;
         }
+        log::info!("[crew] left crew {}", crew_id);
+
+        self.sfu_leave_if_connected().await;
         self.voice.leave_voice();
         let _ = self.event_tx.send(Event::VoiceStateChanged {
             in_call: false,
             transport: crate::voice::VoiceMode::Disconnected,
         });
-        let crew_id = self.nakama.active_crew_id().map(String::from);
         if let Err(e) = self.nakama.leave_crew_channel().await {
-            log::error!("Failed to leave crew: {}", e);
+            log::warn!("Failed to leave the channel of crew {}: {}", crew_id, e);
         }
         self.history_cursor = None;
-        if let Some(id) = crew_id {
-            let _ = self.event_tx.send(Event::CrewLeft { crew_id: id });
-        }
+        let _ = self.event_tx.send(Event::CrewLeft { crew_id });
     }
 
     /// Tell the server which crew is active and get full state back.

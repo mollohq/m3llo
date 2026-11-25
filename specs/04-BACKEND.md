@@ -793,7 +793,7 @@ Estimated cost: ~$2,000-5,000/mo
 | GET | `/v2/account` | Yes | Get current user |
 | GET | `/v2/user/group` | Yes | List user's crews |
 | POST | `/v2/group/{id}/join` | Yes | Join an open crew (§7) |
-| POST | `/v2/group/{id}/leave` | Yes | Leave crew |
+| POST | `/v2/group/{id}/leave` | Yes | Leave crew. The client calls it for "Leave crew" (§7) |
 | POST | `/v2/rpc/create_crew` | Yes | Create crew + avatar + invite code |
 | POST | `/v2/rpc/update_crew` | Yes | Update crew name, description, avatar, privacy, invite policy |
 | POST | `/v2/rpc/delete_crew` | Yes | Delete crew (owner only) |

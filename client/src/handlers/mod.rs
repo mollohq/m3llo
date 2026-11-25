@@ -90,6 +90,7 @@ fn dispatch(ctx: &AppContext, event: Event) {
         | Event::CrewCreateFailed { .. }
         | Event::CrewJoined { .. }
         | Event::CrewLeft { .. }
+        | Event::CrewLeaveFailed { .. }
         | Event::UserSearchResults { .. }
         | Event::CrewAvatarLoaded { .. }
         | Event::DiscoverCrewsLoaded { .. }

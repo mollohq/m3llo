@@ -688,6 +688,11 @@ component ActiveCrewCard inherits Rectangle {
     callback crew-leave-requested();
     callback crew-add-channel-requested();
 
+    // The only member of a crew gets no "Leave crew": the server refuses
+    // that leave, and DELETE CREW in crew settings is the way out. A count
+    // of 0 is a count that is not loaded yet, so the item stays.
+    property <bool> can-leave: root.crew.member-count != 1;
+
     background: transparent;
     border-width: 0px;
     height: card-height;
@@ -1079,12 +1084,12 @@ component ActiveCrewCard inherits Rectangle {
                         }
                     }
 
-                    Rectangle {
+                    if root.can-leave: Rectangle {
                         height: 1px;
                         background: Theme.graphic-light;
                     }
 
-                    Rectangle {
+                    if root.can-leave: Rectangle {
                         height: 32px;
                         border-radius: 6px;
                         background: ctx-leave-ta.has-hover ? Theme.hover-overlay : transparent;

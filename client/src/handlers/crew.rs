@@ -399,19 +399,23 @@ pub fn handle(ctx: &AppContext, event: Event) {
             s.save();
         }
         Event::CrewLeft { crew_id } => {
-            log::info!("UI: left crew {}", crew_id);
+            log::info!("[crew] left crew: {}", crew_id);
+            // The server ended the membership: the crew leaves the crew
+            // list, as a deleted crew does.
             let crews = ctx.app.get_crews();
             let updated: Vec<CrewData> = (0..crews.row_count())
-                .map(|i| {
-                    let mut c = crews.row_data(i).unwrap();
-                    if c.id == crew_id.as_str() {
-                        c.online_count = 0;
-                    }
-                    c
-                })
+                .filter_map(|i| crews.row_data(i))
+                .filter(|c| c.id != crew_id.as_str())
                 .collect();
             crate::converters::sync_crews(&ctx.app, updated);
-            crate::converters::set_active_crew(&ctx.app, "");
+            if ctx.app.get_active_crew_id() == crew_id.as_str() {
+                crate::converters::set_active_crew(&ctx.app, "");
+            }
+        }
+        Event::CrewLeaveFailed { crew_id, reason } => {
+            // The user is still a member: the crew stays in the crew list
+            // and stays open.
+            log::error!("[crew] leave of crew {} failed: {}", crew_id, reason);
         }
         Event::CrewInviteResolved { code, invite } => {
             log::info!(

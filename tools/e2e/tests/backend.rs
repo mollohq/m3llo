@@ -557,6 +557,229 @@ async fn crew_with_invite(open: bool) -> (NakamaClient, String, String) {
     (owner, crew.id, code)
 }
 
+/// The members of the crew that sit in a voice channel, as `crew_state_get`
+/// lists them.
+async fn crew_voice_member_ids(viewer: &NakamaClient, crew_id: &str) -> Vec<String> {
+    let raw = viewer
+        .rpc("crew_state_get", &serde_json::json!({ "crew_id": crew_id }))
+        .await
+        .expect("crew_state_get");
+    let body: serde_json::Value = serde_json::from_str(&raw).expect("crew_state_get returns JSON");
+    body["voice_channels"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .flat_map(|ch| ch["members"].as_array().cloned().unwrap_or_default())
+        .filter_map(|m| m["user_id"].as_str().map(String::from))
+        .collect()
+}
+
+/// A new account that joined the crew of the invite code.
+async fn joined_account(code: &str) -> (NakamaClient, String) {
+    let mut account = NakamaClient::new(e2e_config());
+    let (user, _) = account
+        .authenticate_device(&random_device_id())
+        .await
+        .expect("device auth");
+    account
+        .join_by_invite_code(code)
+        .await
+        .expect("join by invite");
+    (account, user.id)
+}
+
+/// Whether the crew is in the crew list of the account: what the next start
+/// of its client loads.
+async fn has_crew(account: &NakamaClient, crew_id: &str) -> bool {
+    account
+        .list_user_groups()
+        .await
+        .expect("list_user_groups")
+        .iter()
+        .any(|c| c.id == crew_id)
+}
+
+/// "Leave crew" ends the membership with the group leave of Nakama
+/// (`POST /v2/group/{id}/leave`), and the leave hooks do the rest.
+///
+/// Up to 0.8.1 the desktop client sent no leave. It closed the crew on the
+/// screen, the user stayed in the member list and in the member count, and
+/// the crew came back at the next start. The client depends on these
+/// answers of the server, asserted here against a live one:
+/// 1. The only owner of a crew with other members can leave. The server
+///    hands the crew over first: an admin before a member, also when the
+///    member joined first.
+/// 2. After a leave the user is no member, and the crew is not in the crew
+///    list of the user.
+/// 3. The leave hook takes the user out of the voice room. The client sends
+///    no `voice_leave` for a leave.
+/// 4. The only member of a crew cannot leave. The client hides "Leave crew"
+///    for that member, and keeps the crew open when the leave is refused.
+#[test]
+fn a_leave_ends_the_membership_and_an_only_owner_hands_the_crew_over() {
+    if !e2e_enabled("a_leave_ends_the_membership_and_an_only_owner_hands_the_crew_over") {
+        return;
+    }
+
+    rt().block_on(async {
+        let (owner, crew_id, code) = crew_with_invite(false).await;
+        let owner_id = owner.current_user_id().expect("owner id").to_string();
+        // The member joins before the admin: rank must win over the join time.
+        let (member, member_id) = joined_account(&code).await;
+        let (admin, admin_id) = joined_account(&code).await;
+        owner
+            .change_crew_role(&crew_id, &admin_id, 1)
+            .await
+            .expect("the owner makes the second joiner an admin");
+        member
+            .rpc("voice_join", &serde_json::json!({ "crew_id": crew_id }))
+            .await
+            .expect("voice_join as a member");
+
+        // 1. The only owner leaves a crew of three.
+        owner
+            .leave_group(&crew_id)
+            .await
+            .expect("the only owner can leave a crew that has other members");
+        assert_eq!(
+            crew_member_state(&admin, &crew_id, &admin_id).await,
+            Some(GROUP_STATE_SUPERADMIN),
+            "the admin is the owner now"
+        );
+        assert_eq!(
+            crew_member_state(&admin, &crew_id, &member_id).await,
+            Some(GROUP_STATE_MEMBER),
+            "the member who joined first stays a member"
+        );
+        assert_eq!(
+            crew_member_state(&admin, &crew_id, &owner_id).await,
+            None,
+            "the old owner is no member"
+        );
+        let members = admin
+            .list_group_users(&crew_id)
+            .await
+            .expect("list_group_users");
+        assert!(
+            members.iter().all(|m| m.id != owner_id),
+            "the member list has no row for the old owner. Got: {members:?}"
+        );
+        assert!(
+            !has_crew(&owner, &crew_id).await,
+            "the crew list of the old owner has no row for the crew, so the \
+             next start does not open it"
+        );
+
+        // 2 and 3. A member leaves from a voice channel.
+        assert_eq!(
+            crew_voice_member_ids(&admin, &crew_id).await,
+            vec![member_id.clone()],
+            "before the leave the member sits in the voice channel"
+        );
+        member
+            .leave_group(&crew_id)
+            .await
+            .expect("a member can leave the crew");
+        assert_eq!(
+            crew_member_state(&admin, &crew_id, &member_id).await,
+            None,
+            "after the leave the user is no member"
+        );
+        assert!(
+            !has_crew(&member, &crew_id).await,
+            "the crew list of the user has no row for the crew"
+        );
+        let crews = admin.list_user_groups().await.expect("list_user_groups");
+        assert_eq!(
+            crews
+                .iter()
+                .find(|c| c.id == crew_id)
+                .map(|c| c.member_count),
+            Some(1),
+            "the member count is one: the new owner alone"
+        );
+        assert_eq!(
+            crew_voice_member_ids(&admin, &crew_id).await,
+            Vec::<String>::new(),
+            "the leave hook takes the user out of the voice channel"
+        );
+
+        // 4. The only member: Nakama refuses, and the crew stays.
+        let refused = admin
+            .leave_group(&crew_id)
+            .await
+            .expect_err("the only member of a crew cannot leave it");
+        assert!(
+            refused.to_string().contains("last superadmin"),
+            "the refusal names the cause. Got: {refused}"
+        );
+        assert_eq!(
+            crew_member_state(&admin, &crew_id, &admin_id).await,
+            Some(GROUP_STATE_SUPERADMIN),
+            "the only member is still the owner"
+        );
+        assert!(has_crew(&admin, &crew_id).await, "the crew stays");
+
+        let _ = member.delete_account().await;
+        let _ = owner.delete_account().await;
+        let _ = admin.delete_account().await;
+    });
+}
+
+/// The only owner leaves, and the handover fails (spec 16 section 10.1). The
+/// answer is code 14, and the user is still the owner. The client keeps the
+/// crew open (`CrewLeaveFailed`). A retry hands the crew over and leaves.
+///
+/// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+#[test]
+fn a_leave_with_a_failed_handover_is_refused_and_a_retry_leaves() {
+    if !e2e_enabled("a_leave_with_a_failed_handover_is_refused_and_a_retry_leaves") {
+        return;
+    }
+
+    rt().block_on(async {
+        let (owner, crew_id, code) = crew_with_invite(false).await;
+        let owner_id = owner.current_user_id().expect("owner id").to_string();
+        let (joiner, joiner_id) = joined_account(&code).await;
+
+        owner
+            .rpc(
+                "dev_fault",
+                &serde_json::json!({"action": "fail_next_handover", "count": 1}),
+            )
+            .await
+            .unwrap_or_else(|e| {
+                panic!("dev_fault failed ({e}). The stack needs MELLO_ENABLE_DEV_FAULT=1")
+            });
+
+        let refused = owner
+            .leave_group(&crew_id)
+            .await
+            .expect_err("a failed handover refuses the leave");
+        assert_eq!(refused.server_code(), Some(14), "the refusal: {refused}");
+        assert_eq!(
+            crew_member_state(&joiner, &crew_id, &owner_id).await,
+            Some(GROUP_STATE_SUPERADMIN),
+            "the user is still the owner after a refusal"
+        );
+        assert!(has_crew(&owner, &crew_id).await, "the crew stays");
+
+        owner
+            .leave_group(&crew_id)
+            .await
+            .expect("the retry leaves the crew");
+        assert_eq!(
+            crew_member_state(&joiner, &crew_id, &joiner_id).await,
+            Some(GROUP_STATE_SUPERADMIN),
+            "the other member owns the crew after the leave"
+        );
+        assert!(!has_crew(&owner, &crew_id).await, "the old owner has left");
+
+        let _ = owner.delete_account().await;
+        let _ = joiner.delete_account().await;
+    });
+}
+
 /// Joining a private crew through an invite link.
 ///
 /// New crews are private (a closed Nakama group). `join_by_invite_code` called
