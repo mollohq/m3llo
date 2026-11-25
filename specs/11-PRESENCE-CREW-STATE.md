@@ -686,15 +686,26 @@ needed — the server resolves the user's current channel from the
 }
 ```
 
+The voice update goes to the crew of the caller's seat. The server does not
+read `crew_id`: a client sends it, and it does not choose the crew.
+`voice_mute_state` (`{crew_id, muted, deafened}`) follows the same rule. A
+caller with no seat gets `{"success":true}` and no update is sent.
+
 ### 4.5 Stream RPCs
 
 #### `stream_thumbnail_upload`
 
-Upload a stream thumbnail (called by streamer every 30s).
+Upload a stream thumbnail. No client calls this RPC.
+
+Only the host of the live stream of the crew can call it. `stream_id` must be
+the id of that stream: the thumbnail is stored under it. Any other stream id
+gets NOT_FOUND (5). A caller who is no member of the crew gets
+PERMISSION_DENIED (7), for a crew with a live stream and for a crew without one.
 
 **Request:**
 ```json
 {
+  "crew_id": "crew_xyz",
   "stream_id": "stream_123",
   "thumbnail_base64": "..."
 }

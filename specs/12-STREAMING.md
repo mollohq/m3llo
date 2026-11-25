@@ -1460,6 +1460,10 @@ The poll loop takes each press (`HotkeyManager::poll_stream`) and calls `stream_
 
 The backend removes the stream records when the host's realtime socket ends (`OnSessionEnd` → `StreamCleanupUser`). The SFU session and the encoder keep running. After the reconnect, `resync_after_reconnect` calls `start_stream` with `crew_id` and `resume_session_id` (the live session), bounded by 10 s. The backend restores the same session (specs/04-BACKEND.md §5). When it cannot, no viewer can find the stream, so the host ends it (`StreamEnded { reason: "lost_on_server" }`). No answer within 10 s keeps the stream; the next resync asks again. A start in flight is not advertised yet: `stream_live` advertises it.
 
+### The host leaves the crew or is kicked
+
+Only a member of the crew hosts a stream in it. When the host leaves the crew or is kicked, the backend ends the stream: it removes the stream records, writes the `stream_session` event and pushes `stream_ended` to the crew (specs/04-BACKEND.md §4, "The stream of a member who leaves"). The host gets no new host token from `refresh_stream_token`, and `start_stream` with `resume_session_id` is refused, because both need a member. The backend does not close the SFU session: the client of the host stops the stream. Until then the encoder runs, and a rejoin that needs a new token fails.
+
 ### Viewer start
 
 Streaming-quality stage 6: the watch runs off the command loop (`client/stream_watch.rs`).

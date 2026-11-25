@@ -103,7 +103,7 @@ The random code keeps working. The invite modal shares the custom link first.
 | Item | Value |
 |---|---|
 | Slots | 5 for every crew |
-| Who | Any member adds. The adder and the owner remove |
+| Who | Any member adds. The adder and the owner remove. A user who left the crew removes nothing |
 | Image | The client sends a square PNG of 128 px, at most 256 KB. Key `crew-emoji/{crew_id}/{id}.png` |
 | Name | 2 to 24 lower-case letters, digits or underscores, unique in the crew. Written `:name:` |
 | Stored | `crew_emoji/{crew_id}`: `emoji [{id, name, url, key, added_by, added_by_name, added_ms}]` |
