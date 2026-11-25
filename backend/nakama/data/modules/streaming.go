@@ -692,6 +692,13 @@ func StopStreamRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one. Nothing is
+	// written and nothing is pushed for it.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
+
 	// Read stream metadata before deleting (for event ledger)
 	var streamMeta *StreamMeta
 	metaObjects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
