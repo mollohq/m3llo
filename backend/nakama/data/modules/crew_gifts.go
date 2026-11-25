@@ -693,6 +693,7 @@ func CrewEmojiAddRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 }
 
 // CrewEmojiRemoveRPC removes an emoji. The member who added it, or the owner.
+// A member who left the crew is no member: it removes no emoji.
 func CrewEmojiRemoveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
@@ -704,6 +705,11 @@ func CrewEmojiRemoveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, 
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil || req.CrewID == "" {
 		return "", rpcFail(logger, errBadRequest, "crew_id required")
+	}
+	// Membership comes first, so a caller outside the crew gets one answer
+	// for every name.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", errNotAMember
 	}
 	name := strings.ToLower(strings.TrimSpace(req.Name))
 	owner := isCrewOwner(ctx, nk, req.CrewID, userID)
