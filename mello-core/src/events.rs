@@ -427,8 +427,18 @@ pub enum Event {
     CrewJoined {
         crew_id: String,
     },
+    /// "Leave crew": the server ended the membership of the user. The crew
+    /// is not a crew of the user from here.
     CrewLeft {
         crew_id: String,
+    },
+    /// "Leave crew" failed: the server refused the leave or did not answer.
+    /// The server refuses the only member of a crew, and an only owner whose
+    /// crew could not be handed to another member. The user is still a
+    /// member, and nothing changed in the client.
+    CrewLeaveFailed {
+        crew_id: String,
+        reason: String,
     },
     CrewInviteResolved {
         code: String,

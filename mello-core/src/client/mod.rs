@@ -11,6 +11,8 @@ mod diagnostics;
 mod game_clip_play;
 mod game_clip_upload;
 mod game_services;
+#[cfg(test)]
+mod leave_crew_tests;
 pub mod log_bundle;
 mod looking_to_play;
 #[cfg(test)]
