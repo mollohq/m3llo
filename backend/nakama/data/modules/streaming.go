@@ -532,7 +532,8 @@ type StreamLiveRequest struct {
 // advertise "on_live". The host calls it when its SFU track is open, so the
 // crew never sees a stream that no SFU session carries (streaming-quality
 // stage 6). Only the host of the session can call it. A second call for a
-// stream that is already advertised changes nothing.
+// stream that is already advertised changes nothing. The host must still be
+// a member of the crew.
 func StreamLiveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
@@ -544,6 +545,12 @@ func StreamLiveRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	}
 	if req.CrewID == "" || req.SessionID == "" {
 		return "", runtime.NewError("crew_id and session_id required", 3)
+	}
+	// A stream belongs to a member of the crew. A host who left the crew or
+	// was kicked advertises nothing, and a caller outside the crew gets this
+	// answer for every session id.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
 	}
 	session := loadStreamSession(ctx, nk, req.SessionID)
 	if session == nil || session.CrewID != req.CrewID {
@@ -630,9 +637,10 @@ func StreamPictureRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 }
 
 // RefreshStreamTokenRPC signs a new SFU token for a stream session: a host
-// token for its host, a viewer token for another crew member. A token lives
-// 5 minutes; a client that joins the SFU again after that asks for a new one
-// (streaming-quality stage 6). The session must still exist.
+// token for its host, a viewer token for another crew member. The host must
+// be a member of the crew too. A token lives 5 minutes; a client that joins
+// the SFU again after that asks for a new one (streaming-quality stage 6).
+// The session must still exist.
 func RefreshStreamTokenRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
@@ -651,11 +659,14 @@ func RefreshStreamTokenRPC(ctx context.Context, logger runtime.Logger, db *sql.D
 	if session == nil {
 		return "", runtime.NewError("stream not found", 5)
 	}
+	// Every token is for a member of the crew, the host too. A host who left
+	// the crew or was kicked gets no new host token.
+	if !isCrewMember(ctx, nk, session.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
 	role := "viewer"
 	if session.HostUserID == userID {
 		role = "host"
-	} else if !isCrewMember(ctx, nk, session.CrewID, userID) {
-		return "", runtime.NewError("not a crew member", 7)
 	}
 	if session.SFUEndpoint == "" {
 		return "", errSFUUnavailable
@@ -690,6 +701,13 @@ func StopStreamRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 	var req StopStreamRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
+	}
+
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one. Nothing is
+	// written and nothing is pushed for it.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
 	}
 
 	// Read stream metadata before deleting (for event ledger)
@@ -834,6 +852,12 @@ func StreamThumbnailUploadRPC(ctx context.Context, logger runtime.Logger, db *sq
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
+
 	// Verify the user owns the stream by reading stream metadata
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
@@ -852,6 +876,12 @@ func StreamThumbnailUploadRPC(ctx context.Context, logger runtime.Logger, db *sq
 	}
 	if meta.StreamerID != userID {
 		return "", runtime.NewError("unauthorized: not the streamer", 7)
+	}
+	// The thumbnail is stored under the stream id. Only the id of the live
+	// stream of this crew is accepted, so the host writes no object under
+	// the id of another stream.
+	if req.StreamID != meta.StreamID {
+		return "", runtime.NewError("stream not found", 5)
 	}
 
 	// Validate base64
@@ -1016,6 +1046,11 @@ func StreamViewerLeftRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	if req.CrewID == "" || req.ViewerID == "" {
 		return "", runtime.NewError("crew_id and viewer_id required", 3)
 	}
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
 	meta := readStreamMeta(ctx, nk, req.CrewID)
 	if meta == nil {
 		return "{}", nil
@@ -1049,6 +1084,12 @@ func UpdateStreamResolutionRPC(ctx context.Context, logger runtime.Logger, db *s
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
+	}
+
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
 	}
 
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
@@ -1185,21 +1226,52 @@ func StreamCleanupUser(ctx context.Context, logger runtime.Logger, nk runtime.Na
 }
 
 // cleanupStreamIfHost checks stream_meta for a crew and, if the given user is
-// the host, deletes all stream storage and pushes stream_ended.
+// the host, deletes all stream storage and pushes stream_ended. The host can
+// advertise the same stream again (resumeStream).
 func cleanupStreamIfHost(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, userID string) {
+	endStreamIfHost(ctx, logger, nk, crewID, userID, true)
+}
+
+// endStreamOnCrewExit ends the stream that the user hosts in the crew, when
+// the user leaves the crew or is kicked: only a member hosts a stream. The
+// crew gets stream_ended and the ledger gets the stream_session event, as
+// for a stop. The host gets no record to advertise the stream again.
+func endStreamOnCrewExit(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, userID, crewID string) {
+	if !endStreamIfHost(ctx, logger, nk, crewID, userID, false) {
+		return
+	}
+	logger.Info("Ended the stream of user=%s in crew=%s: the host is no member of the crew now", userID, crewID)
+	// stop_stream resets the presence of the host. The host cannot call it
+	// for this crew now, so the reset is done here.
+	p, err := ReadPresence(ctx, nk, userID)
+	if err != nil || p.Activity == nil || p.Activity.Type != ActivityStreaming || p.Activity.CrewID != crewID {
+		return
+	}
+	p.Activity = &Activity{Type: ActivityNone}
+	p.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if err := WritePresence(ctx, nk, p); err != nil {
+		logger.Warn("Presence of user=%s not reset after the end of its stream in crew=%s: %v", userID, crewID, err)
+	}
+}
+
+// endStreamIfHost does the work of cleanupStreamIfHost and reports whether
+// the user was the host of a stream that it ended. resumable is true when
+// the host can advertise the same stream again: a lost Nakama socket. It is
+// false for a host who is no member of the crew now.
+func endStreamIfHost(ctx context.Context, logger runtime.Logger, nk runtime.NakamaModule, crewID, userID string, resumable bool) bool {
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{Collection: StreamMetaCollection, Key: crewID, UserID: SystemUserID},
 	})
 	if err != nil || len(objects) == 0 {
-		return
+		return false
 	}
 
 	var meta StreamMeta
 	if err := json.Unmarshal([]byte(objects[0].Value), &meta); err != nil {
-		return
+		return false
 	}
 	if meta.StreamerID != userID {
-		return
+		return false
 	}
 
 	logger.Info("StreamCleanupUser: cleaning orphaned stream %s for host %s in crew %s", meta.StreamID, userID, crewID)
@@ -1261,7 +1333,7 @@ func cleanupStreamIfHost(ctx context.Context, logger runtime.Logger, nk runtime.
 	// A Nakama socket drop also ends here, while the host's SFU session and
 	// encoder keep running. Keep what was removed, so the host can
 	// re-advertise the same stream (resumeStream).
-	if sessionMeta != nil {
+	if sessionMeta != nil && resumable {
 		writeStreamResumeRecord(ctx, nk, userID, streamResumeRecord{
 			Meta:          meta,
 			Session:       *sessionMeta,
@@ -1281,6 +1353,7 @@ func cleanupStreamIfHost(ctx context.Context, logger runtime.Logger, nk runtime.
 		"crew_id": crewID,
 		"host_id": userID,
 	})
+	return true
 }
 
 func writeStreamResumeRecord(ctx context.Context, nk runtime.NakamaModule, hostID string, rec streamResumeRecord) {

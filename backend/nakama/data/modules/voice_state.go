@@ -599,9 +599,10 @@ func VoiceSpeakingRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 		return "", runtime.NewError("authentication required", 16)
 	}
 
+	// A client also sends a crew_id. The RPC does not read it: the crew is
+	// the crew of the caller's seat (voiceSeatCrew).
 	var req struct {
-		CrewID   string `json:"crew_id"`
-		Speaking bool   `json:"speaking"`
+		Speaking bool `json:"speaking"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
@@ -628,15 +629,7 @@ func VoiceSpeakingRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	}
 	voiceRoomsMu.Unlock()
 
-	// Resolve crew from channel for push
-	crewID := req.CrewID
-	if crewID == "" {
-		voiceChannelCrewMu.RLock()
-		crewID = voiceChannelCrew[channelID]
-		voiceChannelCrewMu.RUnlock()
-	}
-
-	if crewID != "" {
+	if crewID := voiceSeatCrew(channelID); crewID != "" {
 		// Coalesced: speaking transitions can be very frequent.
 		MarkVoiceDirty(crewID)
 	}
@@ -650,10 +643,11 @@ func VoiceMuteStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 		return "", runtime.NewError("authentication required", 16)
 	}
 
+	// A client also sends a crew_id. The RPC does not read it: the crew is
+	// the crew of the caller's seat (voiceSeatCrew).
 	var req struct {
-		CrewID   string `json:"crew_id"`
-		Muted    bool   `json:"muted"`
-		Deafened bool   `json:"deafened"`
+		Muted    bool `json:"muted"`
+		Deafened bool `json:"deafened"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
@@ -677,14 +671,7 @@ func VoiceMuteStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 	}
 	voiceRoomsMu.Unlock()
 
-	crewID := req.CrewID
-	if crewID == "" {
-		voiceChannelCrewMu.RLock()
-		crewID = voiceChannelCrew[channelID]
-		voiceChannelCrewMu.RUnlock()
-	}
-
-	if crewID != "" {
+	if crewID := voiceSeatCrew(channelID); crewID != "" {
 		// Coalesced: mute/deafen toggles can burst.
 		MarkVoiceDirty(crewID)
 	}
@@ -695,6 +682,16 @@ func VoiceMuteStateRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+// voiceSeatCrew returns the crew of the voice room on channelID, or "" when
+// no room is open there. voice_speaking and voice_mute_state send the voice
+// update to this crew: the crew of the caller's seat. A crew id from the
+// caller does not choose who gets the update.
+func voiceSeatCrew(channelID string) string {
+	voiceChannelCrewMu.RLock()
+	defer voiceChannelCrewMu.RUnlock()
+	return voiceChannelCrew[channelID]
+}
 
 // voiceLeaveInternalOpts controls optional behaviour of voiceLeaveInternal.
 type voiceLeaveInternalOpts struct {

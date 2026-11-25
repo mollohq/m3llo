@@ -243,14 +243,20 @@ func CreateCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk ru
 		inviteCode = code
 	}
 
-	// Send crew invite notifications to requested users
+	// Send crew invite notifications to requested users. Only a user who
+	// shares a crew with the caller gets one, so the name of the new crew
+	// goes to nobody else.
 	if len(req.InviteUserIDs) > 0 {
+		mates, err := crewMates(ctx, nk, userID)
+		if err != nil {
+			logger.Warn("create_crew: crew mates of %s not read, no invite notification is sent: %v", userID, err)
+		}
 		content := map[string]interface{}{
 			"crew_id":   group.Id,
 			"crew_name": group.Name,
 		}
 		for _, targetID := range req.InviteUserIDs {
-			if targetID == userID {
+			if targetID == userID || !mates[targetID] {
 				continue
 			}
 			if err := nk.NotificationSend(ctx, targetID, "crew_invite", content, 200, "", false); err != nil {
@@ -547,6 +553,8 @@ func KickCrewMemberRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, n
 
 	// Remove the kicked user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, req.UserID, req.CrewID)
+	// A stream that the kicked user hosts in this crew ends.
+	endStreamOnCrewExit(ctx, logger, nk, req.UserID, req.CrewID)
 	// The pushes of the crew end with the membership.
 	dropCrewSubscription(req.UserID, req.CrewID)
 
@@ -634,6 +642,8 @@ func AfterLeaveCrew(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 
 	// Remove the departing user from voice if they were in this crew's voice.
 	cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
+	// A stream that the departing user hosts in this crew ends.
+	endStreamOnCrewExit(ctx, logger, nk, userID, crewID)
 	// The pushes of the crew end with the membership.
 	dropCrewSubscription(userID, crewID)
 
@@ -736,6 +746,7 @@ func AfterKickCrewMembers(ctx context.Context, logger runtime.Logger, db *sql.DB
 		}
 		kicked = true
 		cleanupVoiceOnCrewExit(ctx, logger, nk, userID, crewID)
+		endStreamOnCrewExit(ctx, logger, nk, userID, crewID)
 		dropCrewSubscription(userID, crewID)
 		recordMemberLeft(ctx, logger, nk, crewID, userID)
 	}

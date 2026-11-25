@@ -513,6 +513,8 @@ Voice updates now include channel context:
   The last state always goes out. Outside an SFU call it goes at once.
 - Only the local member's own state goes to `voice_speaking`. A remote
   member's in-band state is never sent back to the backend.
+- The backend sends the `voice_update` to the crew of the member's seat. It
+  does not read the `crew_id` of `voice_speaking` or `voice_mute_state`.
 - In an SFU call the client prefers the in-band state over `voice_update`
   for the members of its own channel.
 
