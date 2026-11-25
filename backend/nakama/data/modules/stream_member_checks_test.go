@@ -75,3 +75,42 @@ func TestStopStream_AMemberWithNoStreamGetsTheEmptyAnswer(t *testing.T) {
 		t.Fatalf("stop_stream by a member with no stream: out=%q err=%v, want {}", out, err)
 	}
 }
+
+// ---- stream_thumbnail_upload ----
+
+// thumbnailPayload is a stream_thumbnail_upload request with a small picture.
+func thumbnailPayload(crewID, streamID string) string {
+	return `{"crew_id":"` + crewID + `","stream_id":"` + streamID + `","thumbnail_base64":"aGVsbG8="}`
+}
+
+// The host writes the thumbnail of the live stream of the crew, and only
+// under the id of that stream.
+func TestStreamThumbnailUpload_TakesOnlyTheLiveStreamOfTheCrew(t *testing.T) {
+	nk := seedStreamCrew(t)
+	sessionID := startTestStream(t, nk)
+	const otherStream = "stream_of_another_crew"
+
+	out, err := StreamThumbnailUploadRPC(ctxWithUser(sfuOnlyUser), testLogger(), nil, nk,
+		thumbnailPayload(sfuOnlyCrew, otherStream))
+
+	if rpcCode(err) != 5 {
+		t.Fatalf("a thumbnail for another stream id: out=%q err=%v, want NOT_FOUND (5)", out, err)
+	}
+	if nk.has(ThumbnailCollection, otherStream+"/latest", SystemUserID) {
+		t.Fatal("the RPC stored a thumbnail under a stream id that is not the live stream of the crew")
+	}
+	if meta := readStreamMeta(context.Background(), nk, sfuOnlyCrew); meta == nil || meta.ThumbnailURL != "" {
+		t.Fatalf("a refused upload changed the stream record: %+v", meta)
+	}
+
+	if _, err := StreamThumbnailUploadRPC(ctxWithUser(sfuOnlyUser), testLogger(), nil, nk,
+		thumbnailPayload(sfuOnlyCrew, sessionID)); err != nil {
+		t.Fatalf("the host uploads the thumbnail of its live stream: %v", err)
+	}
+	if !nk.has(ThumbnailCollection, sessionID+"/latest", SystemUserID) {
+		t.Fatal("the thumbnail of the live stream is not stored")
+	}
+	if meta := readStreamMeta(context.Background(), nk, sfuOnlyCrew); meta == nil || meta.ThumbnailURL == "" {
+		t.Fatalf("the stream record has no thumbnail URL: %+v", meta)
+	}
+}

@@ -860,6 +860,12 @@ func StreamThumbnailUploadRPC(ctx context.Context, logger runtime.Logger, db *sq
 	if meta.StreamerID != userID {
 		return "", runtime.NewError("unauthorized: not the streamer", 7)
 	}
+	// The thumbnail is stored under the stream id. Only the id of the live
+	// stream of this crew is accepted, so the host writes no object under
+	// the id of another stream.
+	if req.StreamID != meta.StreamID {
+		return "", runtime.NewError("stream not found", 5)
+	}
 
 	// Validate base64
 	thumbnailBytes, err := base64.StdEncoding.DecodeString(req.ThumbnailBase64)
