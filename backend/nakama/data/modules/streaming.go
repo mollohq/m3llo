@@ -852,6 +852,12 @@ func StreamThumbnailUploadRPC(ctx context.Context, logger runtime.Logger, db *sq
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
+
 	// Verify the user owns the stream by reading stream metadata
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{
 		{
@@ -1040,6 +1046,11 @@ func StreamViewerLeftRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 	if req.CrewID == "" || req.ViewerID == "" {
 		return "", runtime.NewError("crew_id and viewer_id required", 3)
 	}
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
+	}
 	meta := readStreamMeta(ctx, nk, req.CrewID)
 	if meta == nil {
 		return "{}", nil
@@ -1073,6 +1084,12 @@ func UpdateStreamResolutionRPC(ctx context.Context, logger runtime.Logger, db *s
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
+	}
+
+	// Membership comes first. A caller outside the crew gets this answer
+	// for a crew with a live stream and for a crew without one.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", runtime.NewError("not a crew member", 7)
 	}
 
 	objects, err := nk.StorageRead(ctx, []*runtime.StorageRead{

@@ -2,7 +2,11 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
 	"testing"
+
+	"github.com/heroiclabs/nakama-common/runtime"
 )
 
 // The stream RPCs that take a crew id answer a member of the crew only. The
@@ -112,5 +116,56 @@ func TestStreamThumbnailUpload_TakesOnlyTheLiveStreamOfTheCrew(t *testing.T) {
 	}
 	if meta := readStreamMeta(context.Background(), nk, sfuOnlyCrew); meta == nil || meta.ThumbnailURL == "" {
 		t.Fatalf("the stream record has no thumbnail URL: %+v", meta)
+	}
+}
+
+// ---- one answer for an account outside the crew ----
+
+// An account outside the crew gets the same answer from every stream RPC
+// that takes a crew id, for a crew with a live stream and for a crew without
+// one. Its calls change nothing.
+func TestStreamRPCs_AnswerAnOutsiderTheSameWithAndWithoutAStream(t *testing.T) {
+	nk := seedStreamCrew(t)
+	sessionID := startTestStream(t, nk)
+	watchTestStream(t, nk, streamTestViewer, sessionID)
+
+	crew := `"crew_id":"` + sfuOnlyCrew + `"`
+	calls := []struct {
+		name    string
+		rpc     func(context.Context, runtime.Logger, *sql.DB, runtime.NakamaModule, string) (string, error)
+		payload string
+	}{
+		{"start_stream", StartStreamRPC, `{` + crew + `,"title":"x"}`},
+		{"stop_stream", StopStreamRPC, `{` + crew + `}`},
+		{"stream_live", StreamLiveRPC, `{` + crew + `,"session_id":"` + sessionID + `"}`},
+		{"stream_picture", StreamPictureRPC, `{` + crew + `,"session_id":"` + sessionID + `"}`},
+		{"stream_thumbnail_upload", StreamThumbnailUploadRPC, thumbnailPayload(sfuOnlyCrew, sessionID)},
+		{"update_stream_resolution", UpdateStreamResolutionRPC, `{` + crew + `,"width":1,"height":1}`},
+		{"stream_viewer_left", StreamViewerLeftRPC, `{` + crew + `,"viewer_id":"` + streamTestViewer + `"}`},
+	}
+	answer := func(i int) string {
+		out, err := calls[i].rpc(ctxWithUser(streamOutsider), testLogger(), nil, nk, calls[i].payload)
+		if err == nil {
+			return "ok " + out
+		}
+		return fmt.Sprintf("code %d %s", rpcCode(err), err.Error())
+	}
+
+	live := make([]string, len(calls))
+	for i := range calls {
+		live[i] = answer(i)
+	}
+	meta := readStreamMeta(context.Background(), nk, sfuOnlyCrew)
+	if meta == nil || meta.StreamID != sessionID || meta.Width != 0 || meta.ThumbnailURL != "" || len(meta.ViewerIDs) != 1 {
+		t.Fatalf("the calls of an account outside the crew changed the stream: %+v", meta)
+	}
+
+	if _, err := StopStreamRPC(ctxWithUser(sfuOnlyUser), testLogger(), nil, nk, `{`+crew+`}`); err != nil {
+		t.Fatalf("stop_stream by the host: %v", err)
+	}
+	for i, c := range calls {
+		if none := answer(i); none != live[i] {
+			t.Errorf("%s by an account outside the crew: %q with a live stream, %q without. The answers must be the same", c.name, live[i], none)
+		}
 	}
 }
