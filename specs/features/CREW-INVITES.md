@@ -235,8 +235,9 @@ traffic, including for crews without the premium entitlement. Voice is about
 
 ### 4.9 `report_invite_step`
 
-Auth: the Nakama HTTP key. The RPC refuses a call with a user session, so a
-client cannot set a step.
+Auth: a server-to-server RPC (spec 04 section 4): the Nakama HTTP key, and the
+server secret when one is set. The RPC refuses a call with a user session, so
+a client cannot set a step.
 
 The invite page reports two steps (§9.6). The server keeps the first time of
 each step in the crew's quest record (CREW-QUESTS.md section 2).
@@ -643,7 +644,9 @@ Avatar is embedded as a base64 data URI in SVG `<image>` with `rx="16"` for roun
 **File:** `mello-site/functions/_shared/nakama.ts`
 
 Shared utility used by both Pages Functions. It calls Nakama RPCs with the HTTP
-key passed as a query parameter (`&http_key=...`).
+key passed as a query parameter (`&http_key=...`). With `MELLO_SERVER_RPC_SECRET`
+set, each call also carries the header `X-Mello-Server-Secret`: `guest_crew_feed`
+and `report_invite_step` are server-to-server RPCs (spec 04 section 4).
 
 | Function | Used by |
 |---|---|
@@ -657,6 +660,7 @@ The `Env` interface:
 |---|---|---|
 | `NAKAMA_BASE_URL` | Required | Nakama address, used server-side |
 | `NAKAMA_HTTP_KEY` | Required, secret | Admin-level. **Never send to a browser** |
+| `MELLO_SERVER_RPC_SECRET` | Optional, secret | The server secret of the Nakama install. Required when Nakama has one. **Never send to a browser** |
 | `NAKAMA_SERVER_KEY` | Optional | Public client key. The browser needs it for device auth |
 | `NAKAMA_PUBLIC_URL` | Optional | Browser-reachable Nakama address, when it differs from `NAKAMA_BASE_URL` |
 
@@ -664,7 +668,7 @@ Without `NAKAMA_SERVER_KEY` the lounge renders read-only and hides voice. Set
 both optional variables in the Cloudflare Pages environment for production.
 
 The bootstrap payload sent to the browser carries `NAKAMA_SERVER_KEY` and never
-`NAKAMA_HTTP_KEY`.
+`NAKAMA_HTTP_KEY` or `MELLO_SERVER_RPC_SECRET`.
 
 ---
 

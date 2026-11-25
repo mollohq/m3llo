@@ -1281,7 +1281,7 @@ Chat:
 
 ### 10.5 Repair by hand
 
-Both RPCs are server-to-server (`http_key`). Spec 04 has the contracts.
+Both RPCs are server-to-server RPCs (spec 04 section 4). Spec 04 has the contracts.
 
 | RPC | Use |
 |---|---|

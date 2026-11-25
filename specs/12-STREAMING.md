@@ -227,8 +227,9 @@ removed, because a game thread can be inside one; the hook stops capturing
    `no_hook` → deny, `hook_review` → neither. Counter-Strike 2 is always
    denied. An admin tool edits the stored
    policy through `admin_capture_policy_get` and `admin_capture_policy_set`.
-   Those RPCs accept the `http_key` only, refuse a client session, and write
-   only if the storage version still matches the admin's read.
+   Those RPCs are server-to-server RPCs (spec 04 section 4): they refuse a
+   client session. They write only if the storage version still matches the
+   admin's read.
    `hook_policy_seed.json` holds the catalogue lists for tests and has the
    switch off.
 

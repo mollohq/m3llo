@@ -77,9 +77,8 @@ var (
 // The aggregator keeps its own copy keyed on ID, so "recent" here only has to be
 // wide enough to cover the gap between two polls; depth accumulates on the Pi.
 func AdminRecentSignupsRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	// Reject client-session calls; only http_key (no user in context) is allowed.
-	if uid, _ := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string); uid != "" {
-		return "", runtime.NewError("admin_recent_signups is server-to-server only", 7) // PERMISSION_DENIED
+	if err := requireServerCaller(ctx, "admin_recent_signups"); err != nil {
+		return "", err
 	}
 
 	limit, err := parseRecentSignupsLimit(payload)
