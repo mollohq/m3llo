@@ -83,6 +83,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `main.go` | RPC and hook registration |
 | `auth.go` | Post-authentication hooks (create default metadata); `BeforeUpdateAccount`, the display name rule (§4.4) |
 | `text_rules.go` | `cleanName`, `nameLength` and the name limits (§4.4) |
+| `storage_write_hooks.go` | `BeforeWriteStorageObjects`, `BeforeDeleteStorageObjects`: what a client can write and delete through the storage API (§6) |
 | `crews.go` | `CreateCrewRPC`, `DiscoverCrewsRPC`, `UpdateCrewRPC`, `DeleteCrewRPC`, `ChangeCrewRoleRPC`, `KickCrewMemberRPC`, `GetCrewAvatarRPC`, after-join/leave hooks, the kick hooks (`BeforeKickCrewMembers`, `AfterKickCrewMembers`), `recordMemberLeft` |
 | `streaming.go` | `StartStreamRPC`, `StopStreamRPC`, `UploadThumbnailRPC`; `CapturePolicy` and `loadCapturePolicy` for the `capture` block (§4.2) |
 | `search_users.go` | `SearchUsersRPC` — friends first, then other matches by display name |
@@ -501,6 +502,23 @@ Nakama's key-value storage is used for data that doesn't fit built-in models:
 | `stream_resume` | `{host user_id}` | System user (`""`) | The stream records that `StreamCleanupUser` removed, the ledger event id and the time. Read 0, write 0. | `StreamCleanupUser` writes, `start_stream` with `resume_session_id` reads and deletes |
 | `discover` | `curation` | System user | Featured and hidden crew lists (§4.3). Read 0, write 0. | `discover_crews`, `admin_discover_curation_get`, `admin_discover_curation_set` |
 
+**Client writes and deletes.** The server writes storage through the runtime. Two hooks guard the storage API of Nakama for a client write and a client delete (`storage_write_hooks.go`, `BeforeWriteStorageObjects` and `BeforeDeleteStorageObjects`):
+
+| Client call | Result |
+|---|---|
+| Write `avatars/current` | Allowed with read permission 2 and write permission 1. The value is `{format, data, style, seed}`. `format` is `svg` or `png`. `data` is not empty. `style` and `seed` are optional, 128 characters at most. The value has no other field and is 128 KB at most. |
+| Write `chat_read/{crew_id}` | Allowed with read permission 1 and write permission 1, for a member of the crew. The value is `{message_id, time}`, each 64 characters at most. The value has no other field and is 256 bytes at most. |
+| Write any other object | Refused |
+| Delete an object | Refused. No client deletes a storage object. |
+
+- The owner of a client write is the caller. Nakama sets it.
+- A request has one object. A request with more objects is refused.
+- A write names both permissions. A write that leaves one out is refused.
+- A refused call gets the error code 7 (`PERMISSION_DENIED`). A value of another shape gets the error code 3 (`INVALID_ARGUMENT`).
+- The hooks run for a client call only. A write or a delete from the server runtime (`nk.StorageWrite`, `nk.StorageDelete`) does not pass them.
+- The realtime socket has no storage message.
+- A new object that a client writes needs a line in this table and in the hook before the client release.
+
 **Durable crew ledger (SQL):** The ledger events, clips, weekly recaps and stream replays are rows of five tables in the Nakama database (`mello_crew_event`, `mello_crew_event_user`, `mello_crew_event_week`, `mello_crew_event_anchor`, `mello_crew_event_deleted`). The module creates them at start. See [16-CREW-EVENT-LEDGER.md](./16-CREW-EVENT-LEDGER.md) section 3.7.
 
 **Cloud object storage (S3/R2):** Clip media files (MP4/AAC) are stored in an S3-compatible bucket (`mello-clips`). Clients upload directly via presigned PUT URLs — no data passes through Nakama. See [CLIPS.md §6](./features/CLIPS.md) for the full flow.
@@ -644,6 +662,7 @@ Estimated cost: ~$2,000-5,000/mo
 | Transport | WSS (TLS 1.3) |
 | Authentication | Nakama JWT tokens |
 | Session | 24h expiry, refresh tokens (7-day) |
+| Storage writes by a client | Refused, apart from the avatar of the caller and the chat read cursors of the caller. Every client delete is refused (§6) |
 | TURN credentials | Time-limited HMAC-SHA1 (24h TTL) |
 | Rate limiting | Nakama built-in + nginx |
 | DDoS protection | Cloudflare |

@@ -250,7 +250,18 @@ The client caches fetched avatars in memory (`HashMap<String, slint::Image>`) fo
 
 ### 5.4 Size Limits
 
-SVG avatars from DiceBear are typically 2-8 KB. Uploaded images are resized client-side to 256x256 pixels before encoding, keeping uploads under 50 KB. The Nakama storage object value field has a 64 KB default limit which accommodates both cases.
+SVG avatars from DiceBear are typically 2-8 KB. Uploaded images are resized client-side to 256x256 pixels before encoding, keeping uploads under 50 KB. The server takes an avatar value of 128 KB at most. That is the request limit of Nakama (`max_request_size_bytes` in `nakama.yml`).
+
+### 5.5 Server Checks on a Write
+
+The server checks each avatar write (`storage_write_hooks.go`, spec 04 §6):
+
+- The object is `avatars/current` of the caller, with read permission 2 and write permission 1.
+- `format` is `svg` or `png`. `data` is not empty.
+- `style` and `seed` are optional, 128 characters at most.
+- The value has no other field.
+
+A write that does not pass is refused. A client cannot delete the object through the storage API.
 
 ---
 
