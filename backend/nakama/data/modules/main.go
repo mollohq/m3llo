@@ -97,6 +97,14 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	}
 
 	// -----------------------------------------------------------------------
+	// Storage hooks: what a client can write and delete through the storage
+	// API (storage_write_hooks.go, specs/04-BACKEND.md section 6).
+	// -----------------------------------------------------------------------
+	if err := registerStorageWriteHooks(initializer); err != nil {
+		return err
+	}
+
+	// -----------------------------------------------------------------------
 	// Group (crew) hooks
 	// -----------------------------------------------------------------------
 	if err := initializer.RegisterAfterJoinGroup(AfterJoinCrew); err != nil {

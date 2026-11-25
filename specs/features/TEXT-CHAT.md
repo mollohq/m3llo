@@ -160,6 +160,10 @@ at the bottom. The sidebar badge of another crew counts its message previews
 newer than the cursor, the user's own messages excluded; a crew with no
 cursor counts every preview by others.
 
+The client writes the cursor with owner read and owner write. The server takes
+the write from a member of the crew and checks the value: a `message_id` and a
+`time`, each 64 characters at most, and no other field (spec 04 §6).
+
 ### 2.6 Day separators
 
 A message that starts a new local day carries a label: Today, Yesterday, the
