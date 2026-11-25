@@ -36,6 +36,10 @@ var (
 	errBuiltinInternal    = runtime.NewError("internal error", 13)
 )
 
+// errLeaveHandover is what the client gets when the before hook refuses the
+// leave of the only owner of a crew. The text is safe to show.
+var errLeaveHandover = runtime.NewError("You did not leave the crew. The crew could not be handed to another member. Try again in a moment.", 14)
+
 var builtinUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
 // builtinNoCrewName is a group name that no crew has. A list by name that
@@ -118,21 +122,43 @@ func BeforeListGroupUsers(ctx context.Context, logger runtime.Logger, db *sql.DB
 
 // BeforeLeaveGroup runs before the built-in leave. Only the owner, an admin or
 // a member of the crew leaves it. The answer is the same for a crew that does
-// not exist. Nakama then applies its own rules to the leave, and AfterLeaveCrew
-// runs for a leave that Nakama did.
+// not exist.
+//
+// The only owner of a crew with other members hands the crew over before the
+// leave (crew_handover.go): an admin before a member, and among equals the
+// one who joined first. Nakama then takes the leave, because the crew has
+// another owner, and AfterLeaveCrew runs. When the crew cannot be handed
+// over, the hook refuses the leave (errLeaveHandover): the user can try
+// again.
+//
+// The only member of a crew is not handed over and the crew is not deleted
+// here. Nakama refuses that leave. The member deletes the crew with
+// delete_crew.
 func BeforeLeaveGroup(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, in *api.LeaveGroupRequest) (*api.LeaveGroupRequest, error) {
 	callerID := builtinCaller(ctx)
 	if callerID == "" {
 		return nil, errBuiltinNotAMember
 	}
-	member, err := builtinIsMember(ctx, nk, callerID, in.GetGroupId())
+	crewID := in.GetGroupId()
+	member, err := builtinIsMember(ctx, nk, callerID, crewID)
 	if err != nil {
 		logger.Error("built-in leave: crews of %s read failed: %v", callerID, err)
 		return nil, errBuiltinInternal
 	}
 	if !member {
-		logger.Info("built-in leave refused: crew=%s caller=%s", in.GetGroupId(), callerID)
+		logger.Info("built-in leave refused: crew=%s caller=%s", crewID, callerID)
 		return nil, errBuiltinNotAMember
+	}
+	outcome, newOwner, err := handOverCrew(ctx, nk, crewID, callerID)
+	switch outcome {
+	case handoverDone:
+		InvalidateCrewState(crewID)
+		logger.Info("crew_handover user=%s crew=%s new_owner=%s", callerID, crewID, newOwner)
+	case handoverFailed:
+		// A promote can have changed a rank before it failed.
+		InvalidateCrewState(crewID)
+		logger.Error("crew_handover_failed user=%s crew=%s: %v. The leave is refused", callerID, crewID, err)
+		return nil, errLeaveHandover
 	}
 	return in, nil
 }

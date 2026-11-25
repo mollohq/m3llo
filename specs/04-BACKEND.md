@@ -105,7 +105,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `ledger_scrub.go` | The scrub rules of a deleted account. Pure functions |
 | `ledger_scrub_leftovers.go` | The scrub rules outside the ledger: the quests record, the crew emoji, the push queues, the invite codes, the creator of the group |
 | `ledger_user_scrub.go` | `BeforeDeleteAccount`, `AfterDeleteAccount`, the scrub of a deleted account, `StartLedgerDeletionJob`, `AdminScrubUserRPC` |
-| `crew_handover.go` | The new owner of a crew whose only owner deletes the account (`handOverCrew`), the repair of a crew with no owner (`repairOwnerlessCrew`), the membership rows that Nakama keeps of a deleted account and their sweep (`sweepGoneMembers`) |
+| `crew_handover.go` | The new owner of a crew whose only owner deletes the account or leaves the crew (`handOverCrew`), the repair of a crew with no owner (`repairOwnerlessCrew`), the membership rows that Nakama keeps of a deleted account and their sweep (`sweepGoneMembers`) |
 | `ledger_delete_selftest.go` | `DevDeleteSelftestRPC`: the SQL statements of the deletion rules on the real tables |
 | `ledger_purge.go` | `AfterDeleteCrew`, the purge of a deleted crew, `AdminPurgeCrewRPC` |
 | `ledger_purge_chat.go` | The chat part of the purge: the messages of the group channel and the reactions of the crew |
@@ -193,6 +193,7 @@ Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`
 | `AfterDeleteGroup` | `AfterDeleteCrew` | Starts the purge of the crew (spec 16 section 10.3) |
 | `BeforeDeleteAccount` | `BeforeDeleteAccount` | Hands over a crew whose only owner is the user. Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. Fails the delete (`UNAVAILABLE`, 14) only when a crew with other members cannot be handed over (spec 16 section 10.2) |
 | `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2). The scrub purges a crew the user was the only member of |
+| `BeforeLeaveGroup` | `BeforeLeaveGroup` (`builtin_api_hooks.go`) | Refuses a caller who is no member of the crew (§7). Hands over a crew whose only owner is the caller, when it has other members. Refuses the leave (`UNAVAILABLE`, 14) only when such a crew cannot be handed over (spec 16 section 10.1) |
 
 **Background jobs of the durable store.** `StartLedgerReconcile` and `StartLedgerDeletionJob` run at start and every 5 minutes on each node.
 
@@ -601,7 +602,7 @@ A client gets crew data and changes a crew through the RPCs (§4). Of the built-
 | `ListGroupUsers` | For the owner, an admin or a member of the crew. The answer has no provider ids |
 | `GetUsers` | By user id. A lookup by username or by a provider id is refused. The answer has no provider ids (Apple, Google, Steam, Facebook, Game Center) |
 | `ListChannelMessages` | The chat of a crew. Nakama checks that the caller is a member of the crew |
-| `LeaveGroup` | For the owner, an admin or a member of the crew. Another caller is refused, with the same answer for a crew that does not exist. Nakama then applies its own rules: it refuses the leave of the only owner. `AfterLeaveCrew` runs after a leave |
+| `LeaveGroup` | For the owner, an admin or a member of the crew. Another caller is refused, with the same answer for a crew that does not exist. The only owner of a crew with other members hands the crew over first: an admin before a member, and among equals the one who joined first (spec 16 section 10.1). The leave is refused with `UNAVAILABLE` (14) when the crew cannot be handed over. Nakama refuses the leave of the only member of a crew (`INVALID_ARGUMENT`, 3). `AfterLeaveCrew` runs after a leave |
 | `CreateGroup`, `KickGroupUsers`, `DeleteGroup` | Not changed. The role rules of Nakama hold, and the after hooks of `crews.go` and `ledger_purge.go` run |
 | Storage | See §6 |
 | Every other call: `UpdateGroup`, `AddGroupUsers`, `BanGroupUsers`, `PromoteGroupUsers`, `DemoteGroupUsers`, friends, stored notifications, leaderboards, tournaments, matches, purchases and subscriptions | Refused |
