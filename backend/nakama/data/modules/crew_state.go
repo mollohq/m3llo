@@ -452,7 +452,7 @@ func CrewStateGetRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk 
 }
 
 func CrewStateGetSidebarRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
-	_, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
+	userID, ok := ctx.Value(runtime.RUNTIME_CTX_USER_ID).(string)
 	if !ok {
 		return "", runtime.NewError("authentication required", 16)
 	}
@@ -464,8 +464,18 @@ func CrewStateGetSidebarRPC(ctx context.Context, logger runtime.Logger, db *sql.
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	// The answer holds the crews of the caller only. A crew of others is
+	// left out, as a crew that does not exist is.
+	mine, err := memberCrews(ctx, nk, userID)
+	if err != nil {
+		return "", rpcFail(logger, errInternal, "crew_state_get_sidebar: crews of %s: %v", userID, err)
+	}
+
 	crews := make([]*CrewSidebarState, 0, len(req.CrewIDs))
 	for _, cid := range req.CrewIDs {
+		if !mine[cid] {
+			continue
+		}
 		state, err := ComputeCrewState(ctx, logger, nk, cid, false, "")
 		if err != nil {
 			logger.Warn("failed to compute crew state for %s: %v", cid, err)

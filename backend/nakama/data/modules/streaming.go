@@ -319,19 +319,7 @@ func StartStreamRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk r
 		return "", runtime.NewError("invalid request", 3)
 	}
 
-	members, _, err := nk.GroupUsersList(ctx, req.CrewID, 100, nil, "")
-	if err != nil {
-		return "", runtime.NewError("crew not found", 5)
-	}
-
-	isMember := false
-	for _, m := range members {
-		if m.GetUser().GetId() == userID {
-			isMember = true
-			break
-		}
-	}
-	if !isMember {
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
 		return "", runtime.NewError("not a crew member", 7)
 	}
 

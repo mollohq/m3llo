@@ -39,7 +39,9 @@ Codes are stored in Nakama Storage under the system user in one collection:
   `inviter_user_id` when a member created the code.
 
 There is no crew→code index. A member gets a shareable link by calling
-`create_invite_code`, which returns a fresh code.
+`create_invite_code`, which returns a fresh code. Only a member of the crew
+gets a code. A user with a pending join request is not a member and gets
+PERMISSION_DENIED (7).
 
 A crew can also have one custom name, a gift of crew quests
 (`CREW-QUESTS.md` section 3.2). It is a key in the same collection, with
@@ -184,7 +186,8 @@ Auth: a device session. Releases the seat and forgets the guest session.
 
 ### 4.6 `guest_crew_feed`
 
-Auth: the Nakama HTTP key. No user session.
+Auth: the Nakama HTTP key. No user session. A call with a user session gets
+PERMISSION_DENIED (7).
 
 This is the read path for the lounge. It returns a **public-safe projection**.
 

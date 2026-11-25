@@ -120,6 +120,23 @@ func CleanupUser(userID string) {
 	}
 }
 
+// dropCrewSubscription ends the pushes of one crew for a user who left the
+// crew or was kicked. The session and the other crews of the user stay.
+func dropCrewSubscription(userID, crewID string) {
+	if userID == "" || crewID == "" {
+		return
+	}
+	subscriptionsMu.Lock()
+	if sub, ok := subscriptions[userID]; ok {
+		if sub.ActiveCrew == crewID {
+			sub.ActiveCrew = ""
+		}
+		delete(sub.SidebarCrews, crewID)
+	}
+	subscriptionsMu.Unlock()
+	removeCrewSubscriber(crewID, userID)
+}
+
 // ---------------------------------------------------------------------------
 // Subscription RPCs
 // ---------------------------------------------------------------------------
@@ -135,6 +152,12 @@ func SetActiveCrewRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
+	}
+	// Only a member opens a crew. The check runs before any change, so a
+	// refused call keeps the open crew, makes no subscription and writes no
+	// last_seen. The answer is the same for a crew that does not exist.
+	if !isCrewMember(ctx, nk, req.CrewID, userID) {
+		return "", errNotAMember
 	}
 
 	sub := getOrCreateSubscription(userID)
@@ -182,22 +205,36 @@ func SubscribeSidebarRPC(ctx context.Context, logger runtime.Logger, db *sql.DB,
 		return "", runtime.NewError("invalid request", 3)
 	}
 
+	// The caller subscribes to the own crews only. A crew of others is left
+	// out of the subscription and of the answer, as a crew that does not
+	// exist is.
+	mine, err := memberCrews(ctx, nk, userID)
+	if err != nil {
+		return "", rpcFail(logger, errInternal, "subscribe_sidebar: crews of %s: %v", userID, err)
+	}
+	crewIDs := make([]string, 0, len(req.CrewIDs))
+	for _, cid := range req.CrewIDs {
+		if mine[cid] {
+			crewIDs = append(crewIDs, cid)
+		}
+	}
+
 	sub := getOrCreateSubscription(userID)
 
 	subscriptionsMu.Lock()
 	for crewID := range sub.SidebarCrews {
 		removeCrewSubscriber(crewID, userID)
 	}
-	sub.SidebarCrews = make(map[string]bool, len(req.CrewIDs))
-	for _, cid := range req.CrewIDs {
+	sub.SidebarCrews = make(map[string]bool, len(crewIDs))
+	for _, cid := range crewIDs {
 		sub.SidebarCrews[cid] = true
 		addCrewSubscriber(cid, userID)
 	}
 	subscriptionsMu.Unlock()
 
 	// Return initial sidebar state
-	crews := make([]*CrewSidebarState, 0, len(req.CrewIDs))
-	for _, cid := range req.CrewIDs {
+	crews := make([]*CrewSidebarState, 0, len(crewIDs))
+	for _, cid := range crewIDs {
 		state, err := ComputeCrewState(ctx, logger, nk, cid, false, "")
 		if err != nil {
 			logger.Warn("failed to compute sidebar state for %s: %v", cid, err)

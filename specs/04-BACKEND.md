@@ -114,6 +114,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `chat_images.go` | `ChatUploadURLRPC`, `ChatDeleteImagesRPC`, the chat image key rules and `validateChatImages` for the message hook |
 | `chat_reactions.go` | `ChatReactRPC`, `ChatReactionsRPC`; `applyReaction` and `validReactionEmoji` are pure |
 | `crew_quests.go` | The quest record of a new crew, the step writers, the `quests` zone (features/CREW-QUESTS.md) |
+| `crew_membership.go` | `isMemberState`, `memberCrews`, `crewMates`, `mutualFriends`: who is a member of a crew, for the RPCs that give crew data |
 | `crew_gifts.go` | The quest gifts: banner, custom invite name, crew emoji, `giftOpen`, reports, `report_invite_copied`, the m3llo+ grant |
 | `entitlements.go` | `user_plus` and `IsUserPremium` |
 | `admin_media_reports.go` | `AdminMediaReportsListRPC`, `AdminMediaTakedownRPC`, `AdminMediaReportDismissRPC`: server-to-server list and handling of media reports |
@@ -136,7 +137,7 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 | `update_crew` | Yes | Updates crew name, description, avatar, open/closed status, and invite policy. Requires admin role (state ≤ 1). A new name follows §4.4. |
 | `delete_crew` | Yes | Deletes a crew. Requires owner role (state 0). Then starts the purge of everything of the crew, with its chat (spec 16 section 10.3). |
 | `change_crew_role` | Yes | Promotes/demotes a member between admin (1) and member (2). Requires owner role (state 0). |
-| `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. Writes a `member_left` ledger event. |
+| `kick_crew_member` | Yes | Removes a member from the crew. Admins can kick members; owner can kick anyone except self. Ends the kicked user's subscription to the pushes of the crew. Writes a `member_left` ledger event. |
 | `get_ice_servers` | Yes | Returns STUN server URLs + TURN server URLs with time-limited HMAC credentials (24h TTL). |
 | `start_stream` | Yes | Announces stream start to crew members via crew state stream. The response carries the `capture` block: the hook policy (§4.2). With `resume_session_id`, it re-advertises a stream that the host's SFU session still carries after a Nakama realtime reconnect: the records are still there, or `StreamCleanupUser` removed them less than 10 min ago and the `stream_resume` record restores them (same session id and endpoint; the cleanup's `stream_session` ledger event is removed). The response then has `resumed: true`. Any other resume returns NOT_FOUND (5). With `advertise: "on_live"` (streaming-quality stage 6), it signs the host token and writes only the `stream_sessions` record with the pending advertisement; the response echoes `advertise: "on_live"`, and `stream_live` advertises the stream. Without the field it advertises at once (older clients). `fps` is optional and goes to the push. `igdb_id` (0 or absent: not a catalogue game) goes to `active_streams`, `stream_meta`, the push and the crew state. |
 | `stream_live` | Yes | `{crew_id, session_id, width, height, fps, bitrate_kbps}`. The host calls it when its SFU track is open, for a stream that `start_stream` recorded with `advertise: "on_live"`. Writes `active_streams`, `stream_meta` and the host's presence, and pushes `stream_started` with `mode`, `width`, `height`, `fps` and `igdb_id`, so a viewer starts its decoder with no second RPC. Only the host of the session (PERMISSION_DENIED, 7); an unknown session is NOT_FOUND (5); a second call for an advertised stream changes nothing. |
@@ -180,14 +181,16 @@ All custom server logic is written in Go and loaded as Nakama runtime modules. M
 
 Every RPC validates its input and returns typed Nakama errors (`UNAUTHENTICATED`, `INVALID_ARGUMENT`, `NOT_FOUND`, `PERMISSION_DENIED`, `INTERNAL`).
 
+**Crew member checks.** An RPC for crew members checks the group state of the caller in the crew. State 0 (owner), 1 (admin) and 2 (member) are a membership. A pending join request (state 3) and a ban (state 4) are not: the caller gets PERMISSION_DENIED (7). `isCrewMember` reads every page of the member list. `start_stream` and `create_invite_code` use the same rule. `chat_react` sends notification 117 to members only. The crew state, subscription and presence RPCs are in spec 11 section 4, and `crew_catchup` is in spec 16 section 4.1.
+
 **Hooks.** `main.go` registers these hooks next to the RPCs:
 
 | Hook | Function | Does |
 |---|---|---|
 | `AfterJoinGroup` | `AfterJoinCrew` | Writes the `member_joined` ledger event |
-| `AfterLeaveGroup` | `AfterLeaveCrew` | Cleans voice, writes the `member_left` ledger event |
+| `AfterLeaveGroup` | `AfterLeaveCrew` | Cleans voice, ends the user's subscription to the pushes of the crew, writes the `member_left` ledger event |
 | `BeforeKickGroupUsers` | `BeforeKickCrewMembers` | Notes which ids of the request are members. Never changes or refuses the request |
-| `AfterKickGroupUsers` | `AfterKickCrewMembers` | For each noted id that is no member now: cleans voice, writes `member_left` |
+| `AfterKickGroupUsers` | `AfterKickCrewMembers` | For each noted id that is no member now: cleans voice, ends the subscription to the pushes of the crew, writes `member_left` |
 | `AfterDeleteGroup` | `AfterDeleteCrew` | Starts the purge of the crew (spec 16 section 10.3) |
 | `BeforeDeleteAccount` | `BeforeDeleteAccount` | Hands over a crew whose only owner is the user. Writes the scrub record: the names and the crews of the user, and the crews the user is the only member of. Fails the delete (`UNAVAILABLE`, 14) only when a crew with other members cannot be handed over (spec 16 section 10.2) |
 | `AfterDeleteAccount` | `AfterDeleteAccount` | Starts the scrub of the user (spec 16 section 10.2). The scrub purges a crew the user was the only member of |

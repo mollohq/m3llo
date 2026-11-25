@@ -1024,17 +1024,29 @@ func voiceRoomGC(ctx context.Context, logger runtime.Logger, nk runtime.NakamaMo
 // Utility helpers shared across modules
 // ---------------------------------------------------------------------------
 
+// isCrewMember reports whether the user is a member of the crew: the owner,
+// an admin or a member. A pending join request and a ban are not a
+// membership (crew_membership.go). It reads every page of the member list.
 func isCrewMember(ctx context.Context, nk runtime.NakamaModule, crewID, userID string) bool {
-	members, _, err := nk.GroupUsersList(ctx, crewID, 100, nil, "")
-	if err != nil {
+	if crewID == "" || userID == "" {
 		return false
 	}
-	for _, m := range members {
-		if m.GetUser().GetId() == userID {
-			return true
+	cursor := ""
+	for {
+		members, next, err := nk.GroupUsersList(ctx, crewID, 100, nil, cursor)
+		if err != nil {
+			return false
 		}
+		for _, m := range members {
+			if m.GetUser().GetId() == userID {
+				return isMemberState(m.GetState().GetValue())
+			}
+		}
+		if next == "" || len(members) == 0 {
+			return false
+		}
+		cursor = next
 	}
-	return false
 }
 
 func resolveUsername(ctx context.Context, nk runtime.NakamaModule, userID string) string {

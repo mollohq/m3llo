@@ -218,7 +218,8 @@ func ChatReactRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk run
 		logger.Warn("chat_react: members of %s: %v", req.CrewID, err)
 	}
 	for _, m := range members {
-		if m.GetUser() == nil {
+		// A pending join request is in the list and is not a member.
+		if m.GetUser() == nil || !isMemberState(m.GetState().GetValue()) {
 			continue
 		}
 		pushNotification(ctx, nk, m.GetUser().GetId(), NotifyChatReaction, content)

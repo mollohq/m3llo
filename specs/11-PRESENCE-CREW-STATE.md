@@ -380,6 +380,18 @@ Update current user's presence.
 
 Get presence for specific users.
 
+The answer holds the stored presence of these users only:
+
+| User | Rule |
+|---|---|
+| The caller | Always |
+| A crew mate | The user and the caller are members of one crew |
+| A friend | Both sides accepted (state 0 of the Nakama friend list) |
+
+For each other id of the request the answer holds the presence of a user with
+no record: `offline`, activity `none`, no game, no times. This is also the
+answer for an id that does not exist.
+
 **Request:**
 ```json
 {
@@ -409,9 +421,17 @@ Get presence for specific users.
 
 ### 4.2 Crew State RPCs
 
+**Who is a member.** The crew state RPCs and the subscription RPCs answer a
+member of the crew only. A member has group state 0 (owner), 1 (admin) or 2
+(member). A pending join request (state 3) and a ban (state 4) are not a
+membership. `isCrewMember` (`voice_state.go`) and `memberCrews`
+(`crew_membership.go`) hold this rule for every RPC that gives crew data.
+
 #### `crew_state_get`
 
 Get full state for a single crew (used for active crew).
+
+Only a member of the crew. Another caller gets PERMISSION_DENIED (7).
 
 **Request:**
 ```json
@@ -488,6 +508,9 @@ Get full state for a single crew (used for active crew).
 
 Get summary state for multiple crews (sidebar view).
 
+The answer holds the crews that the caller is a member of. Each other crew id
+of the request is left out, as an id that does not exist is.
+
 **Request:**
 ```json
 {
@@ -560,6 +583,10 @@ Get summary state for multiple crews (sidebar view).
 
 Tell server which crew is currently focused.
 
+Only a member of the crew. Another caller gets PERMISSION_DENIED (7) with the
+token `NOT_A_MEMBER`, also for a crew id that does not exist. A refused call
+changes nothing: the open crew, the subscriptions and `last_seen` stay.
+
 **Request:**
 ```json
 {
@@ -578,6 +605,13 @@ Tell server which crew is currently focused.
 #### `subscribe_sidebar`
 
 Subscribe to sidebar updates for crews.
+
+The server subscribes the caller to the crews that the caller is a member of.
+Each other crew id of the request is left out of the subscription and of the
+answer.
+
+A subscription to a crew ends when the user leaves the crew or is kicked
+(`dropCrewSubscription`). The session and the other subscriptions stay.
 
 **Request:**
 ```json
