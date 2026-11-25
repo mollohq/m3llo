@@ -7,7 +7,8 @@ package main
 // at the unread rule. Devs gets a short burst today for the sidebar badge.
 //
 // Every seeded message carries `"seed": true`, so a rerun finds them and
-// does nothing; `{"reset": true}` deletes them first. Dev only.
+// does nothing; `{"reset": true}` deletes them first. Dev only: the RPC
+// exists only with MELLO_ENABLE_DEV_SEED=1 (dev_seed_gate.go).
 
 import (
 	"bytes"
@@ -170,7 +171,13 @@ type DevSeedChatRequest struct {
 	Reset bool `json:"reset"`
 }
 
+// DevSeedChatRPC writes the seed chat history. Only on an install with
+// MELLO_ENABLE_DEV_SEED=1 (dev_seed_gate.go). On every other install it
+// answers as an RPC that does not exist, and reads and writes nothing.
 func DevSeedChatRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
+	if !devSeedEnabled() {
+		return "", errDevSeedOff
+	}
 	var req DevSeedChatRequest
 	if payload != "" && payload != `""` {
 		_ = json.Unmarshal([]byte(payload), &req)

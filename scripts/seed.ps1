@@ -202,8 +202,14 @@ try {
         -ContentType "application/json"
     Write-Host "    $seedResp" -ForegroundColor DarkGray
 } catch {
-    Write-Host "    [!] dev_seed_state failed (backend may need rebuild)" -ForegroundColor Red
+    Write-Host "    [!] dev_seed_state failed" -ForegroundColor Red
     Write-Host "    $_" -ForegroundColor DarkGray
+    # The dev seed RPCs exist only on a Nakama that runs with
+    # MELLO_ENABLE_DEV_SEED=1. backend/docker-compose.yml sets it for the
+    # local stack. A container made before that change does not have it.
+    Write-Host "    The dev seed RPCs need MELLO_ENABLE_DEV_SEED=1 on the Nakama container." -ForegroundColor DarkGray
+    Write-Host "    Local stack: run 'docker compose up -d' in backend\. That makes the container" -ForegroundColor DarkGray
+    Write-Host "    again with the variable. A restart does not. Else the backend needs a rebuild." -ForegroundColor DarkGray
 }
 
 # ── summary ──────────────────────────────────────────────────────

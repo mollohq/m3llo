@@ -158,6 +158,15 @@ done
 
 # ── dev state (presence, voice, streams, chat previews) ──────────
 
+# The two dev seed RPCs exist only on a Nakama that runs with
+# MELLO_ENABLE_DEV_SEED=1. backend/docker-compose.yml sets it for the local
+# stack. A container made before that change does not have it.
+seed_rpc_hint() {
+    echo "    The dev seed RPCs need MELLO_ENABLE_DEV_SEED=1 on the Nakama container."
+    echo "    Local stack: run 'docker compose up -d' in backend/. That makes the container"
+    echo "    again with the variable. A restart does not. Else the backend needs a rebuild."
+}
+
 echo ""
 echo "  dev state"
 
@@ -168,8 +177,9 @@ if seed_resp=$(curl -sf -X POST \
     -d '""' 2>&1); then
     echo "    $seed_resp"
 else
-    echo "    [!] dev_seed_state failed (backend may need rebuild)"
+    echo "    [!] dev_seed_state failed"
     echo "    $seed_resp"
+    seed_rpc_hint
 fi
 
 # ── chat history (Gamers: four days, GIF, images, reactions; Devs: today) ──
@@ -184,8 +194,9 @@ if seed_resp=$(curl -sf -X POST \
     -d '""' 2>&1); then
     echo "    $seed_resp"
 else
-    echo "    [!] dev_seed_chat failed (backend may need rebuild)"
+    echo "    [!] dev_seed_chat failed"
     echo "    $seed_resp"
+    seed_rpc_hint
 fi
 
 # ── summary ──────────────────────────────────────────────────────

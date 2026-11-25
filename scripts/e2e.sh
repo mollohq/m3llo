@@ -51,6 +51,11 @@ export MELLO_E2E_PUSH_PORT PUSH_WORKER_URL PUSH_WORKER_TOKEN PUSH_DESKTOP_GRACE_
 MELLO_ENABLE_DEV_FAULT="${MELLO_ENABLE_DEV_FAULT:-1}"
 export MELLO_ENABLE_DEV_FAULT
 
+# scripts/seed.sh calls the dev seed RPCs (dev_seed_state, dev_seed_chat).
+# They exist only with this variable set to 1. Local stack only.
+MELLO_ENABLE_DEV_SEED="${MELLO_ENABLE_DEV_SEED:-1}"
+export MELLO_ENABLE_DEV_SEED
+
 # No soak time for the crew ledger: the readers move to the durable store at
 # the first clean reconcile, so the suite runs on the store.
 MELLO_LEDGER_SOAK_SECONDS="${MELLO_LEDGER_SOAK_SECONDS:-0}"

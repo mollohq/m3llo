@@ -501,10 +501,8 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	// -----------------------------------------------------------------------
 	// RPCs — dev tools
 	// -----------------------------------------------------------------------
-	if err := initializer.RegisterRpc("dev_seed_state", DevSeedStateRPC); err != nil {
-		return err
-	}
-	if err := initializer.RegisterRpc("dev_seed_chat", DevSeedChatRPC); err != nil {
+	// The seed RPCs exist only with MELLO_ENABLE_DEV_SEED=1 (dev_seed_gate.go).
+	if err := registerDevSeedRPCs(initializer, logger); err != nil {
 		return err
 	}
 	if err := initializer.RegisterRpc("dev_fault", DevFaultRPC); err != nil {
@@ -544,6 +542,29 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 	go StartHead2headDirtyLoop(ctx, nk, logger, head2headDirtyInterval)
 
 	logger.Info("Mello backend initialized successfully")
+	return nil
+}
+
+// rpcRegistrar is the part of runtime.Initializer that registers an RPC.
+type rpcRegistrar interface {
+	RegisterRpc(id string, fn func(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error)) error
+}
+
+// registerDevSeedRPCs registers dev_seed_state and dev_seed_chat when the dev
+// seed is on. When it is off they are not registered: Nakama answers a call
+// as it answers a call of any RPC that does not exist.
+func registerDevSeedRPCs(initializer rpcRegistrar, logger runtime.Logger) error {
+	if !devSeedEnabled() {
+		logger.Info("Dev seed RPCs are off (%s is not 1)", devSeedEnv)
+		return nil
+	}
+	logger.Warn("Dev seed RPCs are ON (%s=1). They rewrite the users and crews with the seed names. For a local or a test stack only.", devSeedEnv)
+	if err := initializer.RegisterRpc("dev_seed_state", DevSeedStateRPC); err != nil {
+		return err
+	}
+	if err := initializer.RegisterRpc("dev_seed_chat", DevSeedChatRPC); err != nil {
+		return err
+	}
 	return nil
 }
 

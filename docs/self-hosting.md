@@ -39,3 +39,4 @@ The compose file is a development stack. Change these first:
 - The S3 credentials `minioadmin` / `minioadmin` in the compose file.
 - The PostgreSQL password `localdev`.
 - The published ports for PostgreSQL (5432) and the S3 store (9000, 9001).
+- The dev seed: set `MELLO_ENABLE_DEV_SEED=0` in `backend/.env`. The compose file turns on two development RPCs that rewrite the users and crews with the seed names (`specs/04-BACKEND.md` section 4.7).
