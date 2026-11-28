@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -275,4 +276,101 @@ func TestInviteJoinErrorCodesAreStable(t *testing.T) {
 			t.Errorf("%q: code %d, want %d", c.err.Message, c.err.Code, c.code)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// resolve_crew_invite: the inviter
+// ---------------------------------------------------------------------------
+
+// resolveInviteFields calls resolve_crew_invite with the HTTP key, as the
+// site and a client with no session do, and returns the top-level fields.
+func resolveInviteFields(t *testing.T, nk *fakeGuestNk, code string) map[string]json.RawMessage {
+	t.Helper()
+	out, err := ResolveCrewInviteRPC(context.Background(), testLogger(), nil, nk, `{"code":"`+code+`"}`)
+	if err != nil {
+		t.Fatalf("resolve_crew_invite failed for %s: %v", code, err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out), &fields); err != nil {
+		t.Fatalf("decode: %v: %s", err, out)
+	}
+	if string(fields["crew_name"]) != `"Night Owls"` {
+		t.Fatalf("the answer must be the crew of the code: %s", out)
+	}
+	return fields
+}
+
+// assertResolveNamesNoInviter fails when the answer has one of the two
+// inviter fields. An absent field is what a code with no inviter gives.
+func assertResolveNamesNoInviter(t *testing.T, what string, fields map[string]json.RawMessage) {
+	t.Helper()
+	for _, key := range []string{"inviter_display_name", "inviter_avatar_seed"} {
+		if v, has := fields[key]; has {
+			t.Errorf("%s: the answer has %s = %s, want the field absent", what, key, v)
+		}
+	}
+}
+
+func TestResolveCrewInvite_NamesAnInviterWhoIsAMember(t *testing.T) {
+	for _, state := range []int32{groupStateSuperadmin, groupStateAdmin, groupStateMember} {
+		nk := seedGuestCrew()
+		nk.addEdge(testGuestCrew, testInviterID, "inviter", state)
+
+		fields := resolveInviteFields(t, nk, testGuestCode)
+		if string(fields["inviter_display_name"]) != `"inviter"` || string(fields["inviter_avatar_seed"]) != `"inviter"` {
+			t.Errorf("state %d: inviter_display_name = %s, inviter_avatar_seed = %s, want \"inviter\" for both",
+				state, fields["inviter_display_name"], fields["inviter_avatar_seed"])
+		}
+		// The name comes from the member list that the RPC reads for the
+		// member previews. The account of the inviter is not read.
+		if nk.userReads != 0 {
+			t.Errorf("state %d: %d account reads, want 0", state, nk.userReads)
+		}
+	}
+}
+
+// A link holder reads the inviter name before the join: on the link preview
+// of the site and on the welcome screen of the client. A user who is not in
+// the crew now must not be named there.
+func TestResolveCrewInvite_DoesNotNameAnInviterWhoIsNotAMember(t *testing.T) {
+	cases := map[string]func(nk *fakeGuestNk){
+		// seedGuestCrew gives the inviter an account and no row in the crew.
+		"left the crew": func(nk *fakeGuestNk) {},
+		"join request":  func(nk *fakeGuestNk) { nk.addEdge(testGuestCrew, testInviterID, "inviter", groupStateJoinRequest) },
+		"banned":        func(nk *fakeGuestNk) { nk.addEdge(testGuestCrew, testInviterID, "inviter", groupStateBanned) },
+	}
+	for name, seed := range cases {
+		nk := seedGuestCrew()
+		seed(nk)
+		assertResolveNamesNoInviter(t, name, resolveInviteFields(t, nk, testGuestCode))
+	}
+}
+
+func TestResolveCrewInvite_CodeWithNoInviterNamesNoInviter(t *testing.T) {
+	cases := map[string]interface{}{
+		"NIGHT-OWLS-HQ": inviteCodeObject{CrewID: testGuestCrew, Custom: true},
+		"OLDC-ODE1":     map[string]string{"crew_id": testGuestCrew},
+	}
+	for code, value := range cases {
+		nk := seedGuestCrew()
+		seedInviterMember(nk)
+		nk.put(InviteCodeCollection, code, SystemUserID, value)
+		assertResolveNamesNoInviter(t, code, resolveInviteFields(t, nk, code))
+	}
+}
+
+// The RPC reads one page of the member list. An inviter after that page is
+// still a member, and a user who left is still not one.
+func TestResolveCrewInvite_InviterBeyondTheFirstMemberPage(t *testing.T) {
+	nk := seedGuestCrew()
+	seedInviterMember(nk) // third in the list
+	nk.memberPage = 2
+	if got := string(resolveInviteFields(t, nk, testGuestCode)["inviter_display_name"]); got != `"inviter"` {
+		t.Errorf("a member after the page: inviter_display_name = %s, want \"inviter\"", got)
+	}
+
+	nk = seedGuestCrew()
+	nk.addMember(testGuestCrew, "member-uuid-carol", "carol")
+	nk.memberPage = 2
+	assertResolveNamesNoInviter(t, "not a member, cut list", resolveInviteFields(t, nk, testGuestCode))
 }

@@ -29,6 +29,8 @@ type fakeGuestNk struct {
 	reads map[string]int
 	// failReads makes a read of this collection fail.
 	failReads string
+	// userReads counts the calls of UsersGetId.
+	userReads int
 	// memberPage, when above zero, is the size of the first page of
 	// GroupUsersList. A longer list is cut there and gets a cursor.
 	memberPage int
@@ -121,6 +123,9 @@ func (f *fakeGuestNk) GroupUsersList(_ context.Context, id string, _ int, _ *int
 }
 
 func (f *fakeGuestNk) UsersGetId(_ context.Context, ids []string, _ []string) ([]*api.User, error) {
+	f.mu.Lock()
+	f.userReads++
+	f.mu.Unlock()
 	var out []*api.User
 	for _, id := range ids {
 		if u, ok := f.users[id]; ok {
