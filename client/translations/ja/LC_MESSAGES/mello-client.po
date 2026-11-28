@@ -3932,10 +3932,6 @@ msgstr[0] "{0}、ゲスト+{n}人"
 
 #. The hints of the steps that are not done.
 #: client/ui/tr.slint
-msgid "Works in the browser"
-msgstr "ブラウザでも使える"
-
-#: client/ui/tr.slint
 msgid "Join voice to clip"
 msgstr "ボイスに参加してクリップ"
 

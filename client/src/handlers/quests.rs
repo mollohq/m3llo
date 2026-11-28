@@ -602,7 +602,6 @@ fn made_row(inp: &Input) -> QuestRow {
 fn friend_row(q: &ZoneQuests, inp: &Input) -> QuestRow {
     let Some(f) = &q.steps.friend else {
         return QuestRow {
-            meta: inp.tr.get_quest_hint_browser(),
             action: "invite".into(),
             ..row(inp, 1)
         };
@@ -751,6 +750,7 @@ mod tests {
             "a gift is a mystery until it is open"
         );
         assert_eq!(c.rows[1].action, "invite");
+        assert_eq!(c.rows[1].meta, "", "the open friend row has no hint");
         assert_eq!(c.rows[2].action, "voice");
         assert_eq!(c.rows[3].key_cap, "F8");
     }
