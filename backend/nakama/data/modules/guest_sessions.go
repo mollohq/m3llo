@@ -537,6 +537,7 @@ type guestCrewFeedResponse struct {
 	MemberCount   int                   `json:"member_count"`
 	Members       []InviteMemberPreview `json:"members,omitempty"`
 	InviterName   string                `json:"inviter_display_name,omitempty"`
+	Inviter       *guestInviter         `json:"inviter,omitempty"`
 	GuestPolicy   string                `json:"guest_policy"`
 	Recap         *WeeklyRecapData      `json:"recap,omitempty"`
 	Clips         []guestClip           `json:"clips,omitempty"`
@@ -552,6 +553,9 @@ type guestCrewFeedResponse struct {
 // the lounge server-side. It returns a public-safe projection only: no media
 // URLs, no local paths, no user IDs. Keep this rule when you add a field. The
 // guest structs carry no field for these values, so a leak needs a new field.
+//
+// The inviter is named only while the inviter is a member of the crew. The
+// inviter block and inviter_display_name are both there or both absent.
 func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	if err := requireServerCaller(ctx, "guest_crew_feed"); err != nil {
 		return "", err
@@ -582,27 +586,27 @@ func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 		LiveStreams:   []guestLiveStream{},
 	}
 
-	if members, _, mErr := nk.GroupUsersList(ctx, crewID, 100, nil, ""); mErr == nil {
-		for _, m := range members {
-			name := m.GetUser().GetDisplayName()
-			if name == "" {
-				name = m.GetUser().GetUsername()
-			}
-			resp.Members = append(resp.Members, InviteMemberPreview{DisplayName: name, AvatarSeed: name})
-			if len(resp.Members) >= 8 {
-				break
-			}
+	members, nextMembers, mErr := nk.GroupUsersList(ctx, crewID, 100, nil, "")
+	if mErr != nil {
+		members = nil
+	}
+	for _, m := range members {
+		name := m.GetUser().GetDisplayName()
+		if name == "" {
+			name = m.GetUser().GetUsername()
+		}
+		resp.Members = append(resp.Members, InviteMemberPreview{DisplayName: name, AvatarSeed: name})
+		if len(resp.Members) >= 8 {
+			break
 		}
 	}
 
-	if inviterUserID != "" {
-		if users, uErr := nk.UsersGetId(ctx, []string{inviterUserID}, nil); uErr == nil && len(users) > 0 {
-			name := users[0].GetDisplayName()
-			if name == "" {
-				name = users[0].GetUsername()
-			}
-			resp.InviterName = name
-		}
+	// The page of a link is the page of the member who shares it. That holds
+	// only while the member is in the crew.
+	wholeList := mErr == nil && nextMembers == ""
+	if inviter := guestInviterFor(ctx, nk, crewID, inviterUserID, members, wholeList, time.Now()); inviter != nil {
+		resp.Inviter = inviter
+		resp.InviterName = inviter.DisplayName
 	}
 
 	_, recap, ledger := buildRecapHighlightWithData(ctx, nk, logger, crewID)

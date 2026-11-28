@@ -411,8 +411,11 @@ const (
 )
 
 // seedGuestCrew builds a crew with an invite code, two members and two voice
-// channels. The channels are stored out of sort order on purpose.
+// channels. The channels are stored out of sort order on purpose. The inviter
+// of the code has an account and is not in the crew (seedInviterMember adds
+// the inviter).
 func seedGuestCrew() *fakeGuestNk {
+	resetGuestHolders()
 	nk := newFakeGuestNk()
 	nk.put(InviteCodeCollection, testGuestCode, SystemUserID, map[string]string{
 		"crew_id": testGuestCrew, "inviter_user_id": testInviterID,
@@ -546,13 +549,23 @@ func TestGuestCrewFeed_PayloadHasNoUserIDs(t *testing.T) {
 
 	nk := seedGuestCrew()
 	seedLiveStream(nk)
+	// An inviter who is a member and holds titles: the feed has the inviter
+	// block, built from a holders doc that is full of user ids.
+	seedInviterMember(nk)
+	seedHolders(nk)
 	out := callGuestCrewFeed(t, nk)
+	if !strings.Contains(out, `"badges":[{"key":"the_carry"`) {
+		t.Fatalf("the fixture must give an inviter block with badges: %s", out)
+	}
 
 	var generic interface{}
 	if err := json.Unmarshal([]byte(out), &generic); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	for _, key := range []string{"user_id", "member_ids", "speaking"} {
+	for _, key := range []string{
+		"user_id", "member_ids", "speaking",
+		"holder_user_id", "previous_holder_user_id", "title_id", "value", "unit", "since_ms", "moved_at_ms",
+	} {
 		if path, found := findJSONKey(generic, key, "$"); found {
 			t.Errorf("guest_crew_feed has a %q key at %s: %s", key, path, out)
 		}

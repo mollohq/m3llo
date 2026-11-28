@@ -492,7 +492,7 @@ func (f *fakeGuestNk) UserGroupsList(_ context.Context, userID string, _ int, _ 
 	for crew, ms := range f.members {
 		for _, m := range ms {
 			if m.GetUser().GetId() == userID {
-				out = append(out, &api.UserGroupList_UserGroup{Group: &api.Group{Id: crew}})
+				out = append(out, &api.UserGroupList_UserGroup{Group: &api.Group{Id: crew}, State: m.GetState()})
 			}
 		}
 	}
