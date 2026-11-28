@@ -3964,10 +3964,6 @@ msgstr[1] "{0}, +{n} convidados"
 
 #. The hints of the steps that are not done.
 #: client/ui/tr.slint
-msgid "Works in the browser"
-msgstr "Funciona no navegador"
-
-#: client/ui/tr.slint
 msgid "Join voice to clip"
 msgstr "Entre na call pra clipar"
 

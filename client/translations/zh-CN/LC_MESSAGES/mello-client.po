@@ -3932,10 +3932,6 @@ msgstr[0] "{0}，+{n}位访客"
 
 #. The hints of the steps that are not done.
 #: client/ui/tr.slint
-msgid "Works in the browser"
-msgstr "可在浏览器中使用"
-
-#: client/ui/tr.slint
 msgid "Join voice to clip"
 msgstr "加入语音即可截取"
 

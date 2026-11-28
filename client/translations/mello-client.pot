@@ -99,7 +99,7 @@ msgstr ""
 msgid "GAME SESSIONS"
 msgstr ""
 
-#: client/ui/components/feed_board.slint
+#: client/ui/components/feed_board.slint client/ui/panels/crew_feed.slint
 msgid "VOICE"
 msgstr ""
 
@@ -4107,10 +4107,6 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. The hints of the steps that are not done.
-#: client/ui/tr.slint
-msgid "Works in the browser"
-msgstr ""
-
 #: client/ui/tr.slint
 msgid "Join voice to clip"
 msgstr ""
