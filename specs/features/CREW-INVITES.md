@@ -196,7 +196,8 @@ This is the read path for the lounge. It returns a **public-safe projection**.
 | Crew name, member count, member names | Yes |
 | Inviter name | Yes, while the inviter is a member of the crew |
 | Head2head titles that the inviter holds | The id and the name of each title |
-| Head2head values, and the titles of other members | No |
+| The inviter's own head2head values | Yes, when the request asks for them. No clock time |
+| Head2head titles and values of other members | No |
 | Weekly recap, including per-player win/loss | Yes |
 | Clip type, clipper, duration, game | Yes |
 | Clip file address | No |
@@ -219,12 +220,21 @@ under-reports. It de-duplicates on clip ID.
 The page of a link is the page of the member who shares it. The feed names
 that member in the `inviter` block.
 
+**Request:** `{ "code": "XXXX-XXXX", "inviter_values": true }`
+
+`inviter_values` is optional. The page load sends it. The voice poll sends
+the code only.
+
 ```json
 "inviter": {
   "display_name": "Jonas",
   "badges": [
-    { "key": "the_carry", "name": "The Carry" },
-    { "key": "night_owl", "name": "Night Owl" }
+    { "key": "the_carry", "name": "The Carry" }
+  ],
+  "values": [
+    { "key": "the_carry", "name": "The Carry", "value": "4,167", "unit": "h" },
+    { "key": "the_collector", "name": "The Collector", "value": "37", "unit": "installed" },
+    { "key": "locked_in", "name": "Locked In", "value": "21.5", "unit": "h" }
   ]
 }
 ```
@@ -235,10 +245,26 @@ that member in the `inviter` block.
 | `badges` | The head2head titles that the inviter holds in this crew now (`HEAD2HEAD.md` section 8). Never null. Empty for an inviter who holds no title |
 | `badges[].key` | The title id, one of the 13 ids of `HEAD2HEAD.md` section 2 |
 | `badges[].name` | The English name of the title |
+| `values` | The inviter's own head2head values (`own_values`, `HEAD2HEAD.md` section 5). Present only when the request has `inviter_values: true`. Then never null: empty for an inviter with no value yet |
+| `values[].key`, `values[].name` | The title id and the English name, as in `badges` |
+| `values[].value` | The value as text, as the head2head card draws it: `"4,167"`, `"21.5"` |
+| `values[].unit` | `h`, `installed`, `games`, `%`, `min`, `clips`, `sessions` or `wins` |
 
-The list is in the display order of the head2head card: The Carry, Night Owl,
-The Collector, Locked In, Has a Life, Sampler, One Trick, then the six session
-titles. A badge has no value, no unit, no time and no user ID.
+Both lists are in the display order of the head2head card: The Carry, Night
+Owl, The Collector, Locked In, Has a Life, Sampler, One Trick, then the six
+session titles.
+
+- A badge has no value, no unit, no time and no user ID.
+- `values` has an entry for each title that the inviter has data for,
+  contested or not. A title with no data is not in the list. So the inviter
+  of a crew of one has values and no badge.
+- `values` never has `night_owl` or `last_one_up`. Their value is a local
+  clock time, and a clock time does not leave the crew. A badge can name
+  these titles.
+- `locked_in` and `has_a_life` have the same value for one member: the game
+  hours of the last 7 days.
+- A value is the figure of the member, not of the crew. A member has the same
+  values in every crew.
 
 | Case | `inviter` | `inviter_display_name` |
 |---|---|---|
@@ -249,8 +275,9 @@ titles. A badge has no value, no unit, no time and no user ID.
 
 - The two fields are both present or both absent. `inviter_display_name` stays
   for a page that does not read the block.
-- There is no consent check and no setting. A member shares the titles when
-  the member shares the link.
+- There is no consent check and no setting. A member shares the titles and
+  the values when the member shares the link.
+- No title and no value of another member is in the feed.
 - `resolve_crew_invite` (§3) does not make the membership check. Its
   `inviter_display_name` names the inviter of the code also after that member
   left.
@@ -267,6 +294,11 @@ titles. A badge has no value, no unit, no time and no user ID.
 - The server keeps the holders of a crew in memory for 60 seconds
   (`guestHoldersTTL`), in each Nakama process. So a title that changed hands
   shows on the page up to 60 seconds late. A failed read is not kept.
+- The values cost three storage reads: the library doc, the game stats docs
+  and the activity doc of the inviter. The server makes them only for a
+  request with `inviter_values: true`. It does not keep the values.
+- A link with no inviter, and an inviter who is not a member, cost no read
+  for the values.
 - Measured: the read of the holders costs 2 ms for a crew of 50 and 9 ms for a
   crew of 100, one time in 60 seconds for each crew.
 

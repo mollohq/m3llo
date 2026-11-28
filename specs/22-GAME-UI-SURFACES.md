@@ -257,6 +257,19 @@ The flag gates every surface in this spec.
 The client clears published presence on the next scan when the user disables the
 flag. `sync_game_presence` recomputes the value and detects the change.
 
+### Outside the crew
+
+One surface shows game figures to a person who is not in the crew: the invite
+page of a member (`features/HEAD2HEAD.md` section 8).
+
+| Rule | Detail |
+|---|---|
+| Whose figures | Only the member who made the invite link, while that member is in the crew |
+| What shows | The head2head titles that the member holds, and the member's own head2head values: hours, minutes, counts and one share |
+| What never shows | A clock time, a game name from the library, and every figure of another member |
+| The flag | The server has no copy of the flag and makes no check for the invite page. The flag is a client setting |
+| With the flag off | The client sends an empty library report and no session end. The server does not delete the game stats and the activity figures that it already has, so a value that comes from them can still show |
+
 ### Per-game hiding
 
 The user can hide single games from the crew. The setting is `hidden_games` in

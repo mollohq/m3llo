@@ -102,7 +102,7 @@ A pair entry also has `values`: one `{title_id, a_value, b_value}` for each titl
 
 ### 3.1 Activity doc
 
-Collection `user_activity_stats`, key `stats`, owner is the user. Read and write permission are both 0, so only the server touches the doc. Head2head reads it as the system user and publishes only the title holders, never the counters.
+Collection `user_activity_stats`, key `stats`, owner is the user. Read and write permission are both 0, so only the server touches the doc. Head2head reads it as the system user and publishes only the title holders, never the counters. The one exception is the invite page of a member, which shows that member's own values (section 8).
 
 The doc has lifetime counters and 14 daily buckets. A bucket key is a UTC date.
 
@@ -231,31 +231,36 @@ A belt move sends a push to the previous holder. A new member sends a push to th
 
 ## 8. The invite page
 
-The titles that a member holds show on the invite page of that member
-(`CREW-INVITES.md` section 4.6, the `inviter` block of `guest_crew_feed`). No
-other head2head data leaves the crew.
+The invite page of a member shows two things of that member
+(`CREW-INVITES.md` section 4.6, the `inviter` block of `guest_crew_feed`):
+the titles that the member holds, and the member's own values. No head2head
+data of another member leaves the crew.
 
 | Rule | Detail |
 |---|---|
-| Whose titles | Only the member who made the invite link, and only while that member is the owner, an admin or a member of the crew |
-| Which titles | The contested titles that the member holds in this crew now |
-| What the page gets | The title id and the English name of each title |
-| What stays in the crew | The value and the unit of a title, `since_ms`, the previous holder, `moved_at_ms`, the pairs, `own_values`, the activity doc and the titles of every other member |
-| A link with no inviter | The custom invite name of the crew, and a code with no inviter. The page gets no title |
-| Consent | No setting and no check. A member shares the titles when the member shares the link |
+| Whose data | Only the member who made the invite link, and only while that member is the owner, an admin or a member of the crew |
+| Titles | The contested titles that the member holds in this crew now: the title id and the English name |
+| Values | The member's `own_values` (section 5): the title id, the English name, `display` and `unit`. They cover every title the member has data for, contested or not |
+| Never a clock time | `night_owl` and `last_one_up` are not in the values. Their value is a local clock time |
+| What stays in the crew | Every title and value of the other members, the value of a title holder in the holders doc, `since_ms`, the previous holder, `moved_at_ms`, the pairs, and the documents that the values come from |
+| A link with no inviter | The custom invite name of the crew, and a code with no inviter. The page gets no title and no value |
+| Consent | No setting and no check. A member shares the titles and the values when the member shares the link |
 
-- The source is the holders doc. `guest_crew_feed` reads `title_id` and
-  `holder_user_id` of each title and decodes no other field.
-- The invite page never computes the doc. A crew with no doc has no title on
-  the page until a member opens the crew feed (section 4).
+- The source of the titles is the holders doc. `guest_crew_feed` reads
+  `title_id` and `holder_user_id` of each title and decodes no other field.
+- The source of the values is `computeOwnValues` for the one member: the
+  library doc, the game stats docs and the activity doc. The server computes
+  them only when the page load asks, not for the voice poll.
+- The invite page never computes the holders doc. A crew with no doc has no
+  title on the page until a member opens the crew feed (section 4).
 - A title needs two contenders (section 2). So the invite page of a crew of
-  one shows no title.
+  one shows no title. It shows the values.
 - A member who leaves does not trigger a recompute (section 4), so the doc can
   name a holder who left. The invite page checks the membership of the inviter
-  at each read and shows no title of a member who left.
+  at each read and shows no title and no value of a member who left.
 - The server keeps the holders of a crew in memory for 60 seconds. A title
   that changed hands shows on the invite page up to 60 seconds after the doc
-  has it.
+  has it. The values are not kept.
 - Code: `guest_inviter.go`. Tests: `guest_inviter_test.go`, and
   `TestGuestCrewFeed_PayloadHasNoUserIDs` in `guest_sessions_test.go`.
 
