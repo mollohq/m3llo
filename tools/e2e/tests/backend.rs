@@ -20,6 +20,9 @@
 
 mod common;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
 use common::{next_send_of_type, stub_push_worker};
 use mello_core::nakama::client::NakamaClient;
 use mello_core::Config;
@@ -204,11 +207,14 @@ fn a_deleted_account_is_gone_and_its_device_id_makes_a_new_account() {
 /// deletes it, and the other member owns the crew.
 ///
 /// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+/// The fault is one counter for the whole server, so the test holds the
+/// handover turn (`handover_turn`).
 #[test]
 fn a_refused_delete_carries_a_text_to_show_and_a_retry_hands_the_crew_over() {
     if !e2e_enabled("a_refused_delete_carries_a_text_to_show_and_a_retry_hands_the_crew_over") {
         return;
     }
+    let _turn = handover_turn();
 
     rt().block_on(async {
         let (owner, crew_id, code) = crew_with_invite(false).await;
@@ -222,21 +228,14 @@ fn a_refused_delete_carries_a_text_to_show_and_a_retry_hands_the_crew_over() {
             .await
             .expect("the joiner joins by the invite code");
 
-        owner
-            .rpc(
-                "dev_fault",
-                &serde_json::json!({"action": "fail_next_handover", "count": 1}),
-            )
-            .await
-            .unwrap_or_else(|e| {
-                panic!("dev_fault failed ({e}). The stack needs MELLO_ENABLE_DEV_FAULT=1")
-            });
+        arm_handover_fault(&owner).await;
 
         let refused = owner
             .delete_account()
             .await
             .expect_err("a failed handover refuses the delete");
         assert_eq!(refused.server_code(), Some(14), "the refusal: {refused}");
+        handover_fault_used();
         assert_eq!(
             refused.server_message().as_deref(),
             Some(
@@ -599,6 +598,74 @@ async fn has_crew(account: &NakamaClient, crew_id: &str) -> bool {
         .any(|c| c.id == crew_id)
 }
 
+/// The lock of the handover turn.
+///
+/// `dev_fault` `fail_next_handover` sets one counter for the whole server
+/// (`handoverFaults` in `crew_handover.go`). The next promote of a handover
+/// takes the fault, in any crew. Tests run in parallel, so without a turn:
+/// - two tests arm the fault, the counter is 1, and one test gets no refusal
+/// - a test that only hands a crew over takes the fault of another test
+///
+/// A test runs a handover when the only owner of a crew with another member
+/// leaves the crew or deletes the account. Each such test holds the turn from
+/// its first step to its last. A test that deletes the other members before
+/// the owner runs no handover and needs no turn.
+///
+/// The turn is for one test process. Do not run the suite two times at the
+/// same moment against one stack.
+static HANDOVER_TURN: Mutex<()> = Mutex::new(());
+
+/// True from the arm of a handover fault until the server answers with the
+/// refusal. A test that fails between the two leaves it true.
+static HANDOVER_FAULT_ARMED: AtomicBool = AtomicBool::new(false);
+
+/// Waits for the handover turn. Take it before `rt().block_on`, and hold it
+/// to the end of the test.
+fn handover_turn() -> MutexGuard<'static, ()> {
+    // A test that fails in its turn poisons the lock. The lock guards no
+    // data, so the next test takes the turn and shows its own result.
+    HANDOVER_TURN.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Makes the next promote of a crew handover fail. The caller holds the
+/// handover turn.
+async fn arm_handover_fault(caller: &NakamaClient) {
+    HANDOVER_FAULT_ARMED.store(true, Ordering::SeqCst);
+    caller
+        .rpc(
+            "dev_fault",
+            &serde_json::json!({"action": "fail_next_handover", "count": 1}),
+        )
+        .await
+        .unwrap_or_else(|e| {
+            panic!("dev_fault failed ({e}). The stack needs MELLO_ENABLE_DEV_FAULT=1")
+        });
+}
+
+/// The server answered with the refusal of the handover (code 14): the fault
+/// is used.
+fn handover_fault_used() {
+    HANDOVER_FAULT_ARMED.store(false, Ordering::SeqCst);
+}
+
+/// Uses a handover fault that a failed test left on the server. Without
+/// this, the handover of the caller takes that fault, and a second test
+/// fails for the cause of the first. The caller holds the handover turn.
+///
+/// `dev_fault` cannot set the counter to 0. A test that arms the fault does
+/// not need this: its arm sets the counter to 1.
+async fn use_up_a_left_handover_fault() {
+    if !HANDOVER_FAULT_ARMED.swap(false, Ordering::SeqCst) {
+        return;
+    }
+    let (owner, crew_id, code) = crew_with_invite(false).await;
+    let (joiner, _) = joined_account(&code).await;
+    // The promote of this leave takes the fault. The answer does not matter.
+    let _ = owner.leave_group(&crew_id).await;
+    let _ = joiner.delete_account().await;
+    let _ = owner.delete_account().await;
+}
+
 /// "Leave crew" ends the membership with the group leave of Nakama
 /// (`POST /v2/group/{id}/leave`), and the leave hooks do the rest.
 ///
@@ -615,13 +682,18 @@ async fn has_crew(account: &NakamaClient, crew_id: &str) -> bool {
 ///    no `voice_leave` for a leave.
 /// 4. The only member of a crew cannot leave. The client hides "Leave crew"
 ///    for that member, and keeps the crew open when the leave is refused.
+///
+/// The leave of step 1 runs a handover, so the test holds the handover turn
+/// (`handover_turn`).
 #[test]
 fn a_leave_ends_the_membership_and_an_only_owner_hands_the_crew_over() {
     if !e2e_enabled("a_leave_ends_the_membership_and_an_only_owner_hands_the_crew_over") {
         return;
     }
+    let _turn = handover_turn();
 
     rt().block_on(async {
+        use_up_a_left_handover_fault().await;
         let (owner, crew_id, code) = crew_with_invite(false).await;
         let owner_id = owner.current_user_id().expect("owner id").to_string();
         // The member joins before the admin: rank must win over the join time.
@@ -731,32 +803,28 @@ fn a_leave_ends_the_membership_and_an_only_owner_hands_the_crew_over() {
 /// crew open (`CrewLeaveFailed`). A retry hands the crew over and leaves.
 ///
 /// The stack needs `MELLO_ENABLE_DEV_FAULT=1`. `scripts/e2e.sh` sets it.
+/// The fault is one counter for the whole server, so the test holds the
+/// handover turn (`handover_turn`).
 #[test]
 fn a_leave_with_a_failed_handover_is_refused_and_a_retry_leaves() {
     if !e2e_enabled("a_leave_with_a_failed_handover_is_refused_and_a_retry_leaves") {
         return;
     }
+    let _turn = handover_turn();
 
     rt().block_on(async {
         let (owner, crew_id, code) = crew_with_invite(false).await;
         let owner_id = owner.current_user_id().expect("owner id").to_string();
         let (joiner, joiner_id) = joined_account(&code).await;
 
-        owner
-            .rpc(
-                "dev_fault",
-                &serde_json::json!({"action": "fail_next_handover", "count": 1}),
-            )
-            .await
-            .unwrap_or_else(|e| {
-                panic!("dev_fault failed ({e}). The stack needs MELLO_ENABLE_DEV_FAULT=1")
-            });
+        arm_handover_fault(&owner).await;
 
         let refused = owner
             .leave_group(&crew_id)
             .await
             .expect_err("a failed handover refuses the leave");
         assert_eq!(refused.server_code(), Some(14), "the refusal: {refused}");
+        handover_fault_used();
         assert_eq!(
             crew_member_state(&joiner, &crew_id, &owner_id).await,
             Some(GROUP_STATE_SUPERADMIN),
