@@ -81,7 +81,7 @@ retries, and never `ctest --repeat until-pass`. A suite you re-run until it
 goes green tells you nothing, and the habit spreads.
 
 Every flaky test found in this codebase so far had the same cause: **the test
-asserted on a race it did not control.** Examples (libmello RTP, and the Node driver tests):
+asserted on a race it did not control.** Examples (libmello RTP, the Node driver tests, and the backend e2e suite):
 
 | Test | The race | The fix |
 |---|---|---|
@@ -89,6 +89,7 @@ asserted on a race it did not control.** Examples (libmello RTP, and the Node dr
 | `BoundedBurst…QueueOverflow` | Same, but through a peer connection with no settable pacing | Overflow by volume instead: 24 × 512 KB against a 4 MB bound |
 | `ParityFecRepairs…WithoutPli` | Needed the queue *not* to overflow; a flat 3 ms sleep assumed the pacer kept up | Keep the sleep (the receiver needs it) and also wait for the queue to drain |
 | `tools/mello-driver` test files that call `runJourney` (`events`, `mic`, `voice`) | The runner's worker sends results to the parent over stdout. `runJourney` wrote its progress lines to the same stdout, so a line landed inside a result frame under load. Parent failed the file with `Unable to deserialize cloned data` (7 of 12 runs) | `RunOptions.log` sink. Tests pass `log: () => {}`, so nothing else writes to the worker's stdout |
+| `a_leave_with_a_failed_handover…` and `a_refused_delete…` (`tools/e2e/tests/backend.rs`) | `dev_fault` `fail_next_handover` sets one counter for the whole server. Two tests armed it in parallel, the counter was 1, and the first promote took the only fault. The other test got no refusal (4 of 5 parallel runs) | One lock, `handover_turn`. Each test that runs a crew handover holds it from its first step to its last |
 
 The pattern to reach for: **make the condition true by construction**, not by
 hoping the machine cooperates. Starve a producer, exceed a bound by volume, or
@@ -1441,6 +1442,11 @@ MELLO_E2E=1 CI=true cargo test -p e2e --test backend -- the_sql_of_the_deletion_
 `dev_fault` with `{"action":"fail_next_handover","count":1}` makes the next
 promote of a crew handover fail, so a run against a live stack sees an
 account delete refused (spec 16 section 10.2).
+The fault is one counter for the whole server: the next promote takes it, in
+any crew. In `tools/e2e/tests/backend.rs`, each test that runs a handover
+holds `handover_turn`, so the tests do not take the fault of each other. The
+lock is for one test process. Do not run two suites that arm the fault
+against one stack at the same time.
 
 Never enable `dev_ledger_selftest` or `dev_delete_selftest` in production.
 
