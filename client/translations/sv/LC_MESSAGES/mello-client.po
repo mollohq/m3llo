@@ -243,7 +243,7 @@ msgstr "MEDEL"
 
 #: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "PRO-POTATO"
-msgstr "PROFFSPOTATIS"
+msgstr "PRO-POTATO"
 
 #: client/ui/components/quality_pills.slint client/ui/tr.slint
 msgid "POTATO"
@@ -263,7 +263,7 @@ msgstr "~4 Mbit/s"
 
 #: client/ui/components/quality_pills.slint
 msgid "~2.5 Mbit/s  (martin mode)"
-msgstr "~2,5 Mbit/s  (martinläge)"
+msgstr "~2,5 Mbit/s (martin mode)"
 
 #: client/ui/components/quality_pills.slint
 msgid "~1.5 Mbit/s"
