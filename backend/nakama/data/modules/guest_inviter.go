@@ -56,6 +56,15 @@ var guestClockTitles = map[string]bool{
 	titleLastOneUp: true,
 }
 
+// guestDoubleTitles are the titles whose own value repeats another one.
+// has_a_life and locked_in are both the game hours of the last 7 days: in a
+// crew they differ by who wins, most or fewest, and for one member they are
+// the same figure. The page draws what it gets, so the server gives the
+// figure one time, as locked_in.
+var guestDoubleTitles = map[string]bool{
+	titleHasALife: true,
+}
+
 const (
 	// guestHoldersTTL is how long the feed keeps the title holders of a crew
 	// in memory. The lounge calls guest_crew_feed every few seconds for the
@@ -167,12 +176,12 @@ func inviterBadges(holders map[string]string, userID string) []guestInviterBadge
 
 // guestValuesFrom projects the own values of a member for the invite page. It
 // keeps the order of own (the display order of the client card), drops the
-// clock titles and keeps the text of each value, not the number. The result
-// is never nil.
+// clock titles and the double, and keeps the text of each value, not the
+// number. The result is never nil.
 func guestValuesFrom(own []Head2headOwnValue) []guestInviterValue {
 	out := []guestInviterValue{}
 	for _, v := range own {
-		if guestClockTitles[v.TitleID] || v.Display == "" {
+		if guestClockTitles[v.TitleID] || guestDoubleTitles[v.TitleID] || v.Display == "" {
 			continue
 		}
 		name := head2headTitleLabels[v.TitleID]

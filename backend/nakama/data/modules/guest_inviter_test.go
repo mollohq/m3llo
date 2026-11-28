@@ -90,13 +90,13 @@ func seedInviterStats(nk *fakeGuestNk) {
 	})
 }
 
-// testInviterValues is the values list of seedInviterStats: 11 titles in the
-// display order of the client card. night_owl and last_one_up are not in it.
+// testInviterValues is the values list of seedInviterStats: 10 titles in the
+// display order of the client card. night_owl, last_one_up and has_a_life are
+// not in it.
 const testInviterValues = `"values":[` +
 	`{"key":"the_carry","name":"The Carry","value":"4,167","unit":"h"},` +
 	`{"key":"the_collector","name":"The Collector","value":"3","unit":"installed"},` +
 	`{"key":"locked_in","name":"Locked In","value":"21.5","unit":"h"},` +
-	`{"key":"has_a_life","name":"Has a Life","value":"21.5","unit":"h"},` +
 	`{"key":"sampler","name":"Sampler","value":"1","unit":"games"},` +
 	`{"key":"one_trick","name":"One Trick","value":"60","unit":"%"},` +
 	`{"key":"mouth","name":"Mouth","value":"90","unit":"min"},` +
@@ -318,7 +318,7 @@ func TestGuestCrewFeed_InviterValuesOnRequest(t *testing.T) {
 	}
 	// 03:15 and 03:16 are the clock values of the inviter, 03:14 is the
 	// night_owl value of the holders doc. 777 is the carry of alice.
-	for _, s := range []string{"03:15", "03:16", testOwlClock, "last_one_up", "777", "steam-", testInviterID} {
+	for _, s := range []string{"03:15", "03:16", testOwlClock, "last_one_up", "has_a_life", "777", "steam-", testInviterID} {
 		if strings.Contains(out, s) {
 			t.Errorf("guest_crew_feed leaked %q: %s", s, out)
 		}
@@ -396,6 +396,7 @@ func TestGuestValuesFrom(t *testing.T) {
 		{TitleID: titleNightOwl, Value: "03:15", Unit: "", Display: "03:15"},
 		{TitleID: "new_title", Value: 5, Unit: "x", Display: "5"}, // no label in this build
 		{TitleID: titleLastOneUp, Value: "03:16", Unit: "", Display: "03:16"},
+		{TitleID: titleHasALife, Value: 21.5, Unit: "h", Display: "21.5"},
 		{TitleID: titleClipper, Value: 12, Unit: "clips", Display: "12"},
 	}
 	got := guestValuesFrom(own)
@@ -425,6 +426,45 @@ func TestClockTitlesAreTheTitlesWithAStringValue(t *testing.T) {
 	}
 	if seen != 13 {
 		t.Fatalf("the member has %d own values, want all 13", seen)
+	}
+}
+
+// has_a_life is left out of the values because it repeats locked_in. That is
+// true only while the two own values of one member are the same figure.
+func TestHasALifeRepeatsLockedInForOneMember(t *testing.T) {
+	for i, m := range scaleMembers(5) {
+		own := computeOwnValues(m, h2hNow)
+		locked, life := ownByID(t, own, titleLockedIn), ownByID(t, own, titleHasALife)
+		if locked.Display != life.Display || locked.Unit != life.Unit {
+			t.Errorf("member %d: locked_in %+v, has_a_life %+v", i, locked, life)
+		}
+	}
+	if len(guestDoubleTitles) != 1 || !guestDoubleTitles[titleHasALife] {
+		t.Errorf("the one double is has_a_life, got %v", guestDoubleTitles)
+	}
+}
+
+// A title that the inviter holds is a badge, also when its value is not in
+// the values: the two clock titles and has_a_life.
+func TestGuestCrewFeed_BadgesKeepTheTitlesThatValuesLeaveOut(t *testing.T) {
+	resetVoiceState()
+	nk := seedGuestCrew()
+	seedInviterMember(nk)
+	seedInviterStats(nk)
+	nk.put(CrewHead2headCollection, head2headKey(testGuestCrew), SystemUserID, Head2headDoc{
+		CrewID: testGuestCrew,
+		Titles: []Head2headTitle{
+			{TitleID: titleHasALife, HolderUserID: testInviterID, Value: 21.5, Unit: "h"},
+			{TitleID: titleNightOwl, HolderUserID: testInviterID, Value: "03:15", Unit: ""},
+			{TitleID: titleLastOneUp, HolderUserID: testInviterID, Value: "03:16", Unit: ""},
+		},
+	})
+
+	out := guestFeedWithValues(t, nk)
+	want := `"badges":[{"key":"night_owl","name":"Night Owl"},{"key":"has_a_life","name":"Has a Life"},` +
+		`{"key":"last_one_up","name":"Last One Up"}],` + testInviterValues
+	if !strings.Contains(out, want) {
+		t.Errorf("got %s\nwant %s", out, want)
 	}
 }
 
