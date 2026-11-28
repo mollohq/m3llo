@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 
 	"github.com/heroiclabs/nakama-common/api"
 	"github.com/heroiclabs/nakama-common/runtime"
+	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 // fakeGuestNk is an in-memory runtime.NakamaModule for the guest RPC tests. It
@@ -23,6 +25,13 @@ type fakeGuestNk struct {
 	users   map[string]*api.User
 	// perms records the last write permissions per storage key: read, write.
 	perms map[string][2]int
+	// reads counts the storage reads per collection.
+	reads map[string]int
+	// failReads makes a read of this collection fail.
+	failReads string
+	// memberPage, when above zero, is the size of the first page of
+	// GroupUsersList. A longer list is cut there and gets a cursor.
+	memberPage int
 }
 
 func newFakeGuestNk() *fakeGuestNk {
@@ -32,6 +41,7 @@ func newFakeGuestNk() *fakeGuestNk {
 		members: make(map[string][]*api.GroupUserList_GroupUser),
 		users:   make(map[string]*api.User),
 		perms:   make(map[string][2]int),
+		reads:   make(map[string]int),
 	}
 }
 
@@ -57,11 +67,23 @@ func (f *fakeGuestNk) addMember(crewID, userID, displayName string) {
 	f.members[crewID] = append(f.members[crewID], &api.GroupUserList_GroupUser{User: u})
 }
 
+// addEdge adds a user to a crew with a group_edge state (invite_codes.go), so
+// a test can make a join request or a banned user.
+func (f *fakeGuestNk) addEdge(crewID, userID, displayName string, state int32) {
+	u := &api.User{Id: userID, Username: displayName, DisplayName: displayName}
+	f.users[userID] = u
+	f.members[crewID] = append(f.members[crewID], &api.GroupUserList_GroupUser{User: u, State: wrapperspb.Int32(state)})
+}
+
 func (f *fakeGuestNk) StorageRead(_ context.Context, reads []*runtime.StorageRead) ([]*api.StorageObject, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []*api.StorageObject
 	for _, r := range reads {
+		f.reads[r.Collection]++
+		if f.failReads != "" && r.Collection == f.failReads {
+			return nil, errors.New("storage read failed")
+		}
 		if v, ok := f.storage[fakeStorageKey(r.Collection, r.Key, r.UserID)]; ok {
 			out = append(out, &api.StorageObject{Collection: r.Collection, Key: r.Key, UserId: r.UserID, Value: v})
 		}
@@ -92,6 +114,9 @@ func (f *fakeGuestNk) GroupsGetId(_ context.Context, ids []string) ([]*api.Group
 }
 
 func (f *fakeGuestNk) GroupUsersList(_ context.Context, id string, _ int, _ *int, _ string) ([]*api.GroupUserList_GroupUser, string, error) {
+	if f.memberPage > 0 && len(f.members[id]) > f.memberPage {
+		return f.members[id][:f.memberPage], "next-page", nil
+	}
 	return f.members[id], "", nil
 }
 
