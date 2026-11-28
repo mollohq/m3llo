@@ -307,7 +307,8 @@ type ResolveCrewInviteResponse struct {
 }
 
 // ResolveCrewInviteRPC returns public crew info for a given invite code.
-// Callable with server key (no auth) or with a user session.
+// Callable with server key (no auth) or with a user session. It names the
+// inviter of the code only while that user is a member of the crew.
 func ResolveCrewInviteRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	var req ResolveCrewInviteRequest
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
@@ -345,8 +346,12 @@ func ResolveCrewInviteRPC(ctx context.Context, logger runtime.Logger, db *sql.DB
 		resp.MostActive = recap.MostActive
 	}
 
-	members, _, err := nk.GroupUsersList(ctx, data.CrewID, 100, nil, "")
-	if err == nil && len(members) > 0 {
+	members, nextMembers, err := nk.GroupUsersList(ctx, data.CrewID, 100, nil, "")
+	wholeList := err == nil && nextMembers == ""
+	if err != nil {
+		members = nil
+	}
+	if len(members) > 0 {
 		previews := make([]InviteMemberPreview, 0, len(members))
 		for _, m := range members {
 			u := m.GetUser()
@@ -368,15 +373,14 @@ func ResolveCrewInviteRPC(ctx context.Context, logger runtime.Logger, db *sql.DB
 		resp.Members = previews
 	}
 
-	// Resolve inviter display name
+	// The answer names the inviter only while the inviter is the owner, an
+	// admin or a member of the crew: the rule of the inviter block of
+	// guest_crew_feed (guest_inviter.go). A link holder reads this name before
+	// the join, on the link preview and in the client. For a member who left,
+	// the answer is the one of a code with no inviter. The join itself still
+	// records who made the code (join_by_invite_code).
 	if data.InviterUserID != "" {
-		users, err := nk.UsersGetId(ctx, []string{data.InviterUserID}, nil)
-		if err == nil && len(users) > 0 {
-			u := users[0]
-			name := u.GetDisplayName()
-			if name == "" {
-				name = u.GetUsername()
-			}
+		if name, isMember := inviterMemberName(ctx, nk, data.CrewID, data.InviterUserID, members, wholeList); isMember {
 			resp.InviterDisplayName = name
 			resp.InviterAvatarSeed = name
 		}

@@ -77,7 +77,7 @@ Every caller uses them. Do not read the collection directly.
 | `highlight` | One line from the latest weekly recap. Empty when no recap exists |
 | `member_count`, `members` | Up to 5 previews, shuffled |
 | `top_game`, `longest_session_min`, `most_active` | From the latest recap |
-| `inviter_display_name`, `inviter_avatar_seed` | Present when the code carries an inviter |
+| `inviter_display_name`, `inviter_avatar_seed` | Present when the code carries an inviter and that user is the owner, an admin or a member of the crew now. Absent for a code with no inviter, and for an inviter who left, was removed or banned, or has only a join request |
 | `banner_url`, `banner_version` | The crew banner (`CREW-QUESTS.md` section 3.1). Absent when the crew has none. The version changes on every save |
 | `recent_clips` | Up to 4. **Includes `media_url`** |
 | `session_snapshots` | Up to 8 image URLs |
@@ -85,8 +85,18 @@ Every caller uses them. Do not read the collection directly.
 **Logic:**
 1. Resolve the code with `lookupInviteCode`. Return `NOT_FOUND` if missing.
 2. Read the group for name, member count and members.
-3. Build `highlight` and the recap fields from the crew event ledger.
-4. Read clips and snapshots from the ledger.
+3. Name the inviter only while the inviter is a member of the crew. The check
+   is the one of the inviter block of `guest_crew_feed` (§4.6,
+   `inviterMemberName`). It uses the member list of step 2, so it makes no
+   read for a crew whose list fits one page of 100 rows. The account read of
+   the inviter is gone for that case.
+4. Build `highlight` and the recap fields from the crew event ledger.
+5. Read clips and snapshots from the ledger.
+
+A link holder reads the inviter name before the join: the link preview, the
+welcome screen and the join modal. The join does not use this field.
+`join_by_invite_code` reads the inviter from the code and records it in the
+`member_joined` event, also when the inviter left the crew.
 
 The highlight approach was chosen over `online_count` to avoid O(n) presence reads per request.
 
@@ -285,9 +295,8 @@ The page draws the list as it gets it.
 - There is no consent check and no setting. A member shares the titles and
   the values when the member shares the link.
 - No title and no value of another member is in the feed.
-- `resolve_crew_invite` (§3) does not make the membership check. Its
-  `inviter_display_name` names the inviter of the code also after that member
-  left.
+- `resolve_crew_invite` (§3) makes the same membership check for its
+  `inviter_display_name`.
 
 **Cost.** The lounge calls this RPC every few seconds for the voice roster.
 
