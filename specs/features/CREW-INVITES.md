@@ -196,7 +196,7 @@ This is the read path for the lounge. It returns a **public-safe projection**.
 | Crew name, member count, member names | Yes |
 | Inviter name | Yes, while the inviter is a member of the crew |
 | Head2head titles that the inviter holds | The id and the name of each title |
-| The inviter's own head2head values | Yes, when the request asks for them. No clock time |
+| The inviter's own head2head values | Yes, when the request asks for them. Ten of the 13 titles, no clock time |
 | Head2head titles and values of other members | No |
 | Weekly recap, including per-player win/loss | Yes |
 | Clip type, clipper, duration, game | Yes |
@@ -254,15 +254,22 @@ Both lists are in the display order of the head2head card: The Carry, Night
 Owl, The Collector, Locked In, Has a Life, Sampler, One Trick, then the six
 session titles.
 
+Three of the 13 titles are never in `values`. A badge can name each of them.
+
+| Title | Why it is not in `values` |
+|---|---|
+| `night_owl` | The value is a local clock time. A clock time does not leave the crew |
+| `last_one_up` | The value is a local clock time |
+| `has_a_life` | The value repeats `locked_in`. Both are the game hours of the last 7 days: in a crew the titles differ by who holds them, the most or the fewest. For one member the figure is the same |
+
+So the order of `values` is: `the_carry`, `the_collector`, `locked_in`,
+`sampler`, `one_trick`, `mouth`, `marathon`, `clipper`, `rage_quit`, `winner`.
+The page draws the list as it gets it.
+
 - A badge has no value, no unit, no time and no user ID.
 - `values` has an entry for each title that the inviter has data for,
   contested or not. A title with no data is not in the list. So the inviter
   of a crew of one has values and no badge.
-- `values` never has `night_owl` or `last_one_up`. Their value is a local
-  clock time, and a clock time does not leave the crew. A badge can name
-  these titles.
-- `locked_in` and `has_a_life` have the same value for one member: the game
-  hours of the last 7 days.
 - A value is the figure of the member, not of the crew. A member has the same
   values in every crew.
 

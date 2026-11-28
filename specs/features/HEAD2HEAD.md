@@ -240,8 +240,9 @@ data of another member leaves the crew.
 |---|---|
 | Whose data | Only the member who made the invite link, and only while that member is the owner, an admin or a member of the crew |
 | Titles | The contested titles that the member holds in this crew now: the title id and the English name |
-| Values | The member's `own_values` (section 5): the title id, the English name, `display` and `unit`. They cover every title the member has data for, contested or not |
+| Values | The member's `own_values` (section 5) for ten of the 13 titles: the title id, the English name, `display` and `unit`. They cover every title the member has data for, contested or not |
 | Never a clock time | `night_owl` and `last_one_up` are not in the values. Their value is a local clock time |
+| No double | `has_a_life` is not in the values. For one member it is the same figure as `locked_in`: the game hours of the last 7 days |
 | What stays in the crew | Every title and value of the other members, the value of a title holder in the holders doc, `since_ms`, the previous holder, `moved_at_ms`, the pairs, and the documents that the values come from |
 | A link with no inviter | The custom invite name of the crew, and a code with no inviter. The page gets no title and no value |
 | Consent | No setting and no check. A member shares the titles and the values when the member shares the link |
