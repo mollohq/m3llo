@@ -553,18 +553,26 @@ func TestGuestCrewFeed_PayloadHasNoUserIDs(t *testing.T) {
 	// block, built from a holders doc that is full of user ids.
 	seedInviterMember(nk)
 	seedHolders(nk)
-	out := callGuestCrewFeed(t, nk)
-	if !strings.Contains(out, `"badges":[{"key":"the_carry"`) {
-		t.Fatalf("the fixture must give an inviter block with badges: %s", out)
+	// The inviter has own values, and the request asks for them, as the page
+	// load does. Alice has a library too: her values must stay on the server.
+	seedInviterStats(nk)
+	seedAliceLibrary(nk)
+	out := guestFeedWithValues(t, nk)
+	if !strings.Contains(out, `"badges":[{"key":"the_carry"`) || !strings.Contains(out, `"values":[{"key":"the_carry"`) {
+		t.Fatalf("the fixture must give an inviter block with badges and values: %s", out)
 	}
 
 	var generic interface{}
 	if err := json.Unmarshal([]byte(out), &generic); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
+	// A value and its unit are in the values of the inviter and in no other
+	// part of the payload. Take that list out, then no such key may be left.
+	delete(generic.(map[string]interface{})["inviter"].(map[string]interface{}), "values")
 	for _, key := range []string{
 		"user_id", "member_ids", "speaking",
 		"holder_user_id", "previous_holder_user_id", "title_id", "value", "unit", "since_ms", "moved_at_ms",
+		"game_id", "playtime_min", "last_played", "tz_offset_min", "latest_end_local_min",
 	} {
 		if path, found := findJSONKey(generic, key, "$"); found {
 			t.Errorf("guest_crew_feed has a %q key at %s: %s", key, path, out)

@@ -502,6 +502,7 @@ func (f *fakeGuestNk) UserGroupsList(_ context.Context, userID string, _ int, _ 
 func (f *fakeGuestNk) StorageList(_ context.Context, _, userID, collection string, _ int, _ string) ([]*api.StorageObject, string, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	f.reads[collection]++
 	prefix := collection + "/"
 	suffix := "/" + userID
 	var out []*api.StorageObject

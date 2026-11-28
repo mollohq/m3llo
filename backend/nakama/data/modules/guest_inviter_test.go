@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/heroiclabs/nakama-common/api"
 )
 
 // ---------------------------------------------------------------------------
@@ -60,6 +62,70 @@ func seedHolders(nk *fakeGuestNk) {
 		OpenSeats:   2,
 		UpdatedAt:   testHoldersMsAt,
 	})
+}
+
+// seedInviterStats gives the inviter a library, one game stats doc and an
+// activity doc, so every one of the 13 titles has an own value. The two clock
+// titles get 03:15 (night_owl) and 03:16 (last_one_up).
+func seedInviterStats(nk *fakeGuestNk) {
+	now := time.Now().UTC()
+	today := now.Format("2006-01-02")
+	nk.put(UserLibraryCollection, UserLibraryKey, testInviterID, hdoc(
+		hgame("steam-730", 250_020), // 4,167 h
+		hgame("steam-2", 100_000),
+		hgame("steam-3", 66_740), // the top game is 60 % of the total
+	))
+	tz := 120
+	nk.put(UserGameStatsCollection, "steam-730", testInviterID, UserGameStats{
+		GameID:          "steam-730",
+		PlayedMinTotal:  250_020,
+		RecentDays:      []RecentDayEntry{{Date: today, WallMin: 1290}}, // 21.5 h
+		LastPlayed:      now.Truncate(24 * time.Hour).Add(75 * time.Minute).UnixMilli(),
+		LastTzOffsetMin: &tz,
+	})
+	end := 3*60 + 16
+	nk.put(UserActivityStatsCollection, userActivityStatsKey, testInviterID, UserActivityStats{
+		VoiceMin: 400, LongestSessionMin: 245, Clips: 12,
+		Days: []ActivityDay{{Date: today, VoiceMin: 90, ShortSessions: 2, WinMoments: 3, LatestEndLocalMin: &end}},
+	})
+}
+
+// testInviterValues is the values list of seedInviterStats: 11 titles in the
+// display order of the client card. night_owl and last_one_up are not in it.
+const testInviterValues = `"values":[` +
+	`{"key":"the_carry","name":"The Carry","value":"4,167","unit":"h"},` +
+	`{"key":"the_collector","name":"The Collector","value":"3","unit":"installed"},` +
+	`{"key":"locked_in","name":"Locked In","value":"21.5","unit":"h"},` +
+	`{"key":"has_a_life","name":"Has a Life","value":"21.5","unit":"h"},` +
+	`{"key":"sampler","name":"Sampler","value":"1","unit":"games"},` +
+	`{"key":"one_trick","name":"One Trick","value":"60","unit":"%"},` +
+	`{"key":"mouth","name":"Mouth","value":"90","unit":"min"},` +
+	`{"key":"marathon","name":"Marathon","value":"245","unit":"min"},` +
+	`{"key":"clipper","name":"Clipper","value":"12","unit":"clips"},` +
+	`{"key":"rage_quit","name":"Rage Quit","value":"2","unit":"sessions"},` +
+	`{"key":"winner","name":"Winner","value":"3","unit":"wins"}]`
+
+// seedAliceLibrary gives another member a library with 777 hours in one game.
+func seedAliceLibrary(nk *fakeGuestNk) {
+	nk.put(UserLibraryCollection, UserLibraryKey, testAliceID, hdoc(hgame("steam-999", 777*60), hgame("steam-998", 60)))
+}
+
+// guestFeedWithValues calls the feed as the page load does: it asks for the
+// own values of the inviter.
+func guestFeedWithValues(t *testing.T, nk *fakeGuestNk) string {
+	t.Helper()
+	out, err := GuestCrewFeedRPC(context.Background(), testLogger(), nil, nk, `{"code":"`+testGuestCode+`","inviter_values":true}`)
+	if err != nil {
+		t.Fatalf("guest_crew_feed with inviter_values failed: %v", err)
+	}
+	return out
+}
+
+// valueReads is the number of storage reads for the own values of a member.
+func valueReads(nk *fakeGuestNk) int {
+	nk.mu.Lock()
+	defer nk.mu.Unlock()
+	return nk.reads[UserLibraryCollection] + nk.reads[UserGameStatsCollection] + nk.reads[UserActivityStatsCollection]
 }
 
 func guestFeedFor(t *testing.T, nk *fakeGuestNk, code string) string {
@@ -156,9 +222,18 @@ func TestGuestCrewFeed_LinkWithNoInviterHasNoInviterBlock(t *testing.T) {
 		nk := seedGuestCrew()
 		seedInviterMember(nk)
 		seedHolders(nk)
+		seedInviterStats(nk)
 		nk.put(InviteCodeCollection, code, SystemUserID, value)
 
 		assertNoInviter(t, code, guestFeedFor(t, nk, code))
+		out, err := GuestCrewFeedRPC(context.Background(), testLogger(), nil, nk, `{"code":"`+code+`","inviter_values":true}`)
+		if err != nil {
+			t.Fatalf("%s with inviter_values: %v", code, err)
+		}
+		assertNoInviter(t, code+" with inviter_values", out)
+		if n := valueReads(nk); n != 0 {
+			t.Errorf("%s: %d reads for the values of a link with no inviter, want 0", code, n)
+		}
 	}
 }
 
@@ -174,9 +249,14 @@ func TestGuestCrewFeed_InviterWhoIsNotAMemberIsNotNamed(t *testing.T) {
 		resetVoiceState()
 		nk := seedGuestCrew()
 		seedHolders(nk)
+		seedInviterStats(nk)
 		seed(nk)
 
 		assertNoInviter(t, name, callGuestCrewFeed(t, nk))
+		assertNoInviter(t, name+" with inviter_values", guestFeedWithValues(t, nk))
+		if n := valueReads(nk); n != 0 {
+			t.Errorf("%s: %d reads for the values of a user who is not a member, want 0", name, n)
+		}
 	}
 }
 
@@ -217,6 +297,135 @@ func TestGuestCrewFeed_InviterBeyondTheFirstMemberPage(t *testing.T) {
 
 		assertNoInviter(t, "cut list", callGuestCrewFeed(t, nk))
 	})
+}
+
+// The page load asks for the own values of the inviter. The list has the
+// text of each value in the display order of the client card, and no clock
+// time. The value of another member is not in the feed.
+func TestGuestCrewFeed_InviterValuesOnRequest(t *testing.T) {
+	resetVoiceState()
+	nk := seedGuestCrew()
+	seedInviterMember(nk)
+	seedHolders(nk)
+	seedInviterStats(nk)
+	seedAliceLibrary(nk)
+
+	out := guestFeedWithValues(t, nk)
+	want := `"inviter":{"display_name":"inviter","badges":[` +
+		`{"key":"the_carry","name":"The Carry"},{"key":"night_owl","name":"Night Owl"}],` + testInviterValues + `}`
+	if !strings.Contains(out, want) {
+		t.Errorf("inviter block\n got: %s\nwant: %s", out, want)
+	}
+	// 03:15 and 03:16 are the clock values of the inviter, 03:14 is the
+	// night_owl value of the holders doc. 777 is the carry of alice.
+	for _, s := range []string{"03:15", "03:16", testOwlClock, "last_one_up", "777", "steam-", testInviterID} {
+		if strings.Contains(out, s) {
+			t.Errorf("guest_crew_feed leaked %q: %s", s, out)
+		}
+	}
+	if n := valueReads(nk); n != 3 {
+		t.Errorf("%d reads for the values, want 3: library, game stats, activity", n)
+	}
+}
+
+// The voice poll sends the code only. It gets no values and the server makes
+// no read for them.
+func TestGuestCrewFeed_NoValuesWithoutTheRequestField(t *testing.T) {
+	for _, payload := range []string{
+		`{"code":"` + testGuestCode + `"}`,
+		`{"code":"` + testGuestCode + `","inviter_values":false}`,
+	} {
+		resetVoiceState()
+		nk := seedGuestCrew()
+		seedInviterMember(nk)
+		seedHolders(nk)
+		seedInviterStats(nk)
+
+		out, err := GuestCrewFeedRPC(context.Background(), testLogger(), nil, nk, payload)
+		if err != nil {
+			t.Fatalf("%s: %v", payload, err)
+		}
+		if !strings.Contains(out, `"badges":[{"key":"the_carry","name":"The Carry"},{"key":"night_owl","name":"Night Owl"}]}`) {
+			t.Errorf("%s: the block must end after the badges: %s", payload, out)
+		}
+		if strings.Contains(out, "values") || strings.Contains(out, "4,167") {
+			t.Errorf("%s: the feed has values that the request did not ask for: %s", payload, out)
+		}
+		if n := valueReads(nk); n != 0 {
+			t.Errorf("%s: %d reads for the values, want 0", payload, n)
+		}
+	}
+}
+
+// The first invite of a crew comes from a crew of one. No title is contested
+// there, so the inviter holds none, and the values are what the page shows.
+func TestGuestCrewFeed_CrewOfOne(t *testing.T) {
+	seedCrewOfOne := func() *fakeGuestNk {
+		resetGuestHolders()
+		nk := newFakeGuestNk()
+		nk.put(InviteCodeCollection, testGuestCode, SystemUserID, map[string]string{
+			"crew_id": testGuestCrew, "inviter_user_id": testInviterID,
+		})
+		nk.groups[testGuestCrew] = &api.Group{Id: testGuestCrew, Name: "Night Owls", EdgeCount: 1}
+		nk.addMember(testGuestCrew, testInviterID, "inviter")
+		return nk
+	}
+
+	t.Run("with values", func(t *testing.T) {
+		resetVoiceState()
+		nk := seedCrewOfOne()
+		seedInviterStats(nk)
+		want := `"inviter":{"display_name":"inviter","badges":[],` + testInviterValues + `}`
+		if out := guestFeedWithValues(t, nk); !strings.Contains(out, want) {
+			t.Errorf("got %s\nwant %s", out, want)
+		}
+	})
+	t.Run("with no value yet", func(t *testing.T) {
+		resetVoiceState()
+		nk := seedCrewOfOne()
+		want := `"inviter":{"display_name":"inviter","badges":[],"values":[]}`
+		if out := guestFeedWithValues(t, nk); !strings.Contains(out, want) {
+			t.Errorf("got %s\nwant %s", out, want)
+		}
+	})
+}
+
+func TestGuestValuesFrom(t *testing.T) {
+	own := []Head2headOwnValue{
+		{TitleID: titleTheCarry, Value: 4167.0, Unit: "h", Display: "4,167"},
+		{TitleID: titleNightOwl, Value: "03:15", Unit: "", Display: "03:15"},
+		{TitleID: "new_title", Value: 5, Unit: "x", Display: "5"}, // no label in this build
+		{TitleID: titleLastOneUp, Value: "03:16", Unit: "", Display: "03:16"},
+		{TitleID: titleClipper, Value: 12, Unit: "clips", Display: "12"},
+	}
+	got := guestValuesFrom(own)
+	want := []guestInviterValue{
+		{Key: "the_carry", Name: "The Carry", Value: "4,167", Unit: "h"},
+		{Key: "clipper", Name: "Clipper", Value: "12", Unit: "clips"},
+	}
+	if len(got) != len(want) || got[0] != want[0] || got[1] != want[1] {
+		t.Errorf("values = %+v, want %+v", got, want)
+	}
+	if list := guestValuesFrom(nil); list == nil || len(list) != 0 {
+		t.Errorf("no own value gives an empty list that is not nil, got %#v", list)
+	}
+}
+
+// Every title whose value is a clock time is in guestClockTitles. A clock
+// value is a string, and every other value is a number.
+func TestClockTitlesAreTheTitlesWithAStringValue(t *testing.T) {
+	m := scaleMembers(5)[4] // the fifth scale member has a figure for every title
+	seen := 0
+	for _, v := range computeOwnValues(m, h2hNow) {
+		seen++
+		_, isClock := v.Value.(string)
+		if isClock != guestClockTitles[v.TitleID] {
+			t.Errorf("title %s: the value is a clock time = %v, in guestClockTitles = %v", v.TitleID, isClock, guestClockTitles[v.TitleID])
+		}
+	}
+	if seen != 13 {
+		t.Fatalf("the member has %d own values, want all 13", seen)
+	}
 }
 
 // guest_crew_feed is readable by anyone with an invite code. The holders doc

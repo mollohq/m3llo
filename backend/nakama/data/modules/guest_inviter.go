@@ -3,9 +3,11 @@ package main
 // The inviter block of guest_crew_feed (CREW-INVITES.md section 4.6).
 //
 // The invite link of a member leads with that member. The block names the
-// member and lists the head2head titles that the member holds in the crew
-// now. A title held is the only head2head fact that leaves the crew, and only
-// for the member whose link it is. The value behind a title stays in the crew.
+// member, lists the head2head titles that the member holds in the crew now,
+// and, when the page asks for them, the member's own head2head values.
+//
+// Only the member whose link it is has data in the block. No title and no
+// value of another member leaves the crew, and no clock time leaves it.
 
 import (
 	"context"
@@ -25,11 +27,33 @@ type guestInviterBadge struct {
 	Name string `json:"name"`
 }
 
+// guestInviterValue is the inviter's own value in one head2head title. Value
+// is the text that the client card draws (the display of own_values), and
+// Unit is the unit beside it. The struct has no field for a user ID.
+type guestInviterValue struct {
+	Key   string `json:"key"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
+	Unit  string `json:"unit"`
+}
+
 // guestInviter is the member whose invite link the visitor followed. Badges
 // is never null: an inviter who holds no title has an empty list.
+//
+// Values is nil when the request did not ask for the values, and the key is
+// then absent. When the request asked, it points to a list that is never
+// null: an inviter with no value yet has an empty list.
 type guestInviter struct {
-	DisplayName string              `json:"display_name"`
-	Badges      []guestInviterBadge `json:"badges"`
+	DisplayName string               `json:"display_name"`
+	Badges      []guestInviterBadge  `json:"badges"`
+	Values      *[]guestInviterValue `json:"values,omitempty"`
+}
+
+// guestClockTitles are the titles whose value is a local clock time. A clock
+// time says when a person is awake, so it never leaves the crew.
+var guestClockTitles = map[string]bool{
+	titleNightOwl:  true,
+	titleLastOneUp: true,
 }
 
 const (
@@ -141,6 +165,34 @@ func inviterBadges(holders map[string]string, userID string) []guestInviterBadge
 	return out
 }
 
+// guestValuesFrom projects the own values of a member for the invite page. It
+// keeps the order of own (the display order of the client card), drops the
+// clock titles and keeps the text of each value, not the number. The result
+// is never nil.
+func guestValuesFrom(own []Head2headOwnValue) []guestInviterValue {
+	out := []guestInviterValue{}
+	for _, v := range own {
+		if guestClockTitles[v.TitleID] || v.Display == "" {
+			continue
+		}
+		name := head2headTitleLabels[v.TitleID]
+		if name == "" {
+			continue
+		}
+		out = append(out, guestInviterValue{Key: v.TitleID, Name: name, Value: v.Display, Unit: v.Unit})
+	}
+	return out
+}
+
+// inviterOwnValues computes the own values of the inviter from the library
+// doc, the game stats docs and the activity doc of that one user: three
+// storage reads. They are the values the member sees on the own chips of the
+// crew feed (HEAD2HEAD.md section 5). The holders doc does not have them: it
+// has a value only for the holder of a contested title.
+func inviterOwnValues(ctx context.Context, nk runtime.NakamaModule, userID string, now time.Time) []guestInviterValue {
+	return guestValuesFrom(computeOwnValues(readMemberData(ctx, nk, userID), now.UnixMilli()))
+}
+
 // userShownName is the name the feed shows for a user.
 func userShownName(u *api.User) string {
 	if name := u.GetDisplayName(); name != "" {
@@ -188,9 +240,12 @@ func inviterMemberName(ctx context.Context, nk runtime.NakamaModule, crewID, inv
 // link with no inviter (a custom invite name, an old code) and for an inviter
 // who is not a member of the crew now. The feed then names no inviter.
 //
+// withValues adds the own values of the inviter. The page load asks for them.
+// The voice poll does not, so it makes no read for them.
+//
 // There is no consent check and no setting: sharing the link is what puts the
-// titles on its page.
-func guestInviterFor(ctx context.Context, nk runtime.NakamaModule, crewID, inviterUserID string, members []*api.GroupUserList_GroupUser, wholeList bool, now time.Time) *guestInviter {
+// titles and the values on its page.
+func guestInviterFor(ctx context.Context, nk runtime.NakamaModule, crewID, inviterUserID string, members []*api.GroupUserList_GroupUser, wholeList, withValues bool, now time.Time) *guestInviter {
 	if inviterUserID == "" {
 		return nil
 	}
@@ -198,8 +253,13 @@ func guestInviterFor(ctx context.Context, nk runtime.NakamaModule, crewID, invit
 	if !isMember {
 		return nil
 	}
-	return &guestInviter{
+	inviter := &guestInviter{
 		DisplayName: name,
 		Badges:      inviterBadges(crewTitleHolders(ctx, nk, crewID, now), inviterUserID),
 	}
+	if withValues {
+		values := inviterOwnValues(ctx, nk, inviterUserID, now)
+		inviter.Values = &values
+	}
+	return inviter
 }

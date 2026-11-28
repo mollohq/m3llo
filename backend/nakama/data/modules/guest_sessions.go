@@ -555,13 +555,19 @@ type guestCrewFeedResponse struct {
 // guest structs carry no field for these values, so a leak needs a new field.
 //
 // The inviter is named only while the inviter is a member of the crew. The
-// inviter block and inviter_display_name are both there or both absent.
+// inviter block and inviter_display_name are both there or both absent. The
+// block is the one place where a head2head value leaves the crew: the own
+// values of the inviter, on request, with no clock time.
 func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	if err := requireServerCaller(ctx, "guest_crew_feed"); err != nil {
 		return "", err
 	}
 	var req struct {
 		Code string `json:"code"`
+		// InviterValues asks for the own head2head values of the inviter. The
+		// page load sends it. The voice poll does not: the values cost three
+		// storage reads, and the poll runs every few seconds.
+		InviterValues bool `json:"inviter_values,omitempty"`
 	}
 	if err := json.Unmarshal([]byte(payload), &req); err != nil {
 		return "", runtime.NewError("invalid request", 3)
@@ -604,7 +610,7 @@ func GuestCrewFeedRPC(ctx context.Context, logger runtime.Logger, db *sql.DB, nk
 	// The page of a link is the page of the member who shares it. That holds
 	// only while the member is in the crew.
 	wholeList := mErr == nil && nextMembers == ""
-	if inviter := guestInviterFor(ctx, nk, crewID, inviterUserID, members, wholeList, time.Now()); inviter != nil {
+	if inviter := guestInviterFor(ctx, nk, crewID, inviterUserID, members, wholeList, req.InviterValues, time.Now()); inviter != nil {
 		resp.Inviter = inviter
 		resp.InviterName = inviter.DisplayName
 	}
