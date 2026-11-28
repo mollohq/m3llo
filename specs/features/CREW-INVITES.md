@@ -11,9 +11,13 @@
 Shareable invite links let any crew member invite people to their crew. A link
 pasted anywhere (Discord, iMessage, Reddit) renders an Open Graph preview card.
 
-Opening the link shows the **web lounge**: a working, cut-down m3llo in the
-browser. A guest hears the crew and speaks to them without an install and
-without an account. Streams, replays, clips and chat need the app.
+Opening the link shows the **invite page** (§9). This spec also calls it the
+lounge, the name of its folder. The page leads with the member who sent the
+link, and its one main button is the install. Browser voice is the bridge:
+after the install click, a guest hears the crew and speaks to them while the
+app installs, without an account. A phone, and a PC that cannot install, get
+browser voice without the install click. Streams, replays, clips and chat need
+the app.
 
 **User-facing link format:** `https://m3llo.app/join/{code}`
 
@@ -569,94 +573,146 @@ The page is server-side rendered so Open Graph tags are in the initial HTML.
 Link previewers do not execute JavaScript. The lounge itself is a set of plain
 ES modules. The site has no build step.
 
+The page has one invite card. Its left side names the inviter and the crew,
+and shows the people in the call and a seat for the visitor. Its right side is
+the install panel (§9.2). Under the card are the cards of §9.4.
+
+| Visitor | Page |
+|---|---|
+| A PC that the app has a build for | The install panel. Browser voice comes after the install click (§9.3) |
+| A phone, or a PC that the app has no build for | Browser voice first, a button that sends the link to a PC, and no install button |
+
 | File | Purpose |
 |---|---|
-| `lounge/main.js` | Entry point. Owns the join, mute and gate state |
+| `lounge/main.js` | Entry point. Owns the flow, browser voice and the voice poll |
+| `lounge/model.js` | The page as data: the crew, the inviter, the flow (`arrive`, `bridge`, `call`, `ended`) and the view of each state. Pure functions |
+| `lounge/page.js` | Draws a view |
 | `lounge/voice.js` | Device auth, guest RPCs, WebRTC to the SFU |
-| `lounge/ui.js` | Frame, rail, feed, chat, control bar, join panel |
-| `lounge/gates.js` | The install dialogs |
-| `lounge/data.js` | Maps the bootstrap payload onto the view model |
+| `lounge/speaking.js` | Finds who speaks from the audio level of each stream |
+| `lounge/links.js` | The installer list, the system of the browser, the deep link, the clipboard write |
+| `lounge/steps.js` | The page steps (§9.6) |
+| `lounge/data.js` | Reads the bootstrap payload, the stored name and what a reload keeps |
+| `lounge/dom.js` | Element helpers and the analytics call |
 | `lounge/fixtures.js` | Sample data for `?mock=1` |
 
 ### 9.1 Request flow
 
 1. Extract `code` from the URL path.
 2. Call `resolve_crew_invite` and `guest_crew_feed` in parallel, with the HTTP key.
+   The feed call asks for the inviter's values (`inviter_values`, §4.6).
 3. On `NOT_FOUND` from the invite: render an "invite not found" page.
-4. Render the shell with OG tags and a JSON bootstrap payload.
+4. Render the shell with OG tags and a JSON bootstrap payload
+   (`id="lounge-boot"`). The payload holds only what the page draws: no member
+   list, no recap and no banner address.
+
+The page polls `/api/lounge/{code}/voice` every 5 seconds for the voice
+channels and the live streams. The poll does not ask for the inviter's values.
 
 `?mock=1` skips both RPCs and renders from fixtures. Use it to work on the page
 with no backend running.
 
-The crew banner (`CREW-QUESTS.md` section 3.1) draws in the lounge head, 96 px
-high, under a black wash. Only an https URL, or http on localhost, draws. An
-uploaded banner has "Report banner" under the crew name:
-`POST /api/report/{code}` resolves the crew and calls `report_crew_media`.
+The page does not draw the crew banner (`CREW-QUESTS.md` section 3.1). The
+link preview card does (§10).
 
 Pages include `<meta name="robots" content="noindex, nofollow">`.
 
-### 9.2 Design source
+### 9.2 Design source and the install panel
 
-The lounge copies the native client. Values come from
-`client/ui/theme.slint`, not from the marketing site.
+The page follows `designs/design-system.html`. Its tokens are in
+`mello-site/assets/graphite.css`, copies of the values in
+`client/ui/theme.slint`. A test in `mello-site` fails when the two differ.
 
-| Element | Value |
-|---|---|
-| Accent | `#FF1E56` |
-| Window, panel surface | `#181818`, `#202020` |
-| Columns | Crew rail 240, stage, chat 340, `Theme.gap` 12 |
-| Control bar | `Theme.control-bar-height` 81px, inside the feed column |
+The heading of the invite card is "{inviter} invited you to {crew}". The
+inviter comes from the `inviter` block of `guest_crew_feed` (§4.6) and from no
+other field. Without the block the heading is "You're invited to {crew}". The
+inviter shows as "In a call" when exactly one member in voice has that name.
 
-When a mockup in `designs/` disagrees with `theme.slint`, `theme.slint` wins.
+The install panel has the one main button of the page. The page takes the
+system from the browser. Links under the button select another system.
 
-An **invite frame** wraps the client. The frame is not from the client: it
-carries the wordmark, the inviter, the crew name and the install button.
+| System | Button | File |
+|---|---|---|
+| Windows | "Install m3llo" | `m3llo-win-x64-stable-Setup.exe` |
+| macOS, Apple Silicon | "Install m3llo for Apple Silicon" | `m3llo-osx-arm64-stable-Setup.pkg` |
+| Linux, x64 | "Download m3llo" | `m3llo-linux-x64-stable.AppImage` |
 
-The frame also has an **"Open in m3llo"** button. It opens `mello://join/{code}`
-for a guest who has the app installed. After a download, the frame shows
-"Installed?" and an "Open m3llo" button. The installed app then shows the welcome
+The top bar has an **"Open in m3llo"** link. It opens `mello://join/{code}`
+for a visitor who has the app installed. The installed app then shows the welcome
 screen ([01-CLIENT.md](../01-CLIENT.md) §6.2). The download URL has no `?invite=`
 parameter: an installer cannot read it.
 
-**On a download** (`main.js`, `onDownload`), from the frame, the rail or a gate:
+**On a download** (`main.js`, `download`), a click on the install button:
 
 1. The lounge writes `https://m3llo.app/join/{code}` to the clipboard with
    `navigator.clipboard.writeText`. The write happens first, inside the click:
    a browser allows it only during a user gesture.
-2. The browser downloads the installer. The page stays, and voice keeps running.
-3. The gate opens in the **installed state**: "Install, then open m3llo", an
-   **"Open in m3llo"** button and "Keep listening in the browser".
-4. When the write succeeds, the gate shows "Your invite is copied. m3llo picks
-   it up when it opens." When it fails, the gate shows no line. The button
-   stays.
+2. The browser downloads the installer. The page stays.
+3. The install panel changes to the install steps: "Downloaded" with the file
+   name, the step that runs the file, and "m3llo opens in {crew}". An
+   **"Open in m3llo"** link is under the steps. On Linux the link works after
+   the first start of the app, which registers the `mello://` scheme.
+4. The join of browser voice shows in the invite card (§9.3).
+5. When the write succeeds, the last step shows "Invite copied". When it
+   fails, the step shows no line. The link stays.
 
 The app reads the clipboard on its first launch (§7.1).
 
 ### 9.3 Joining voice
 
-A panel points at the voice channel in the crew rail and takes the guest's name.
+The page offers browser voice when all three are true:
 
-> **The panel's button is required, not decorative.** Browsers refuse to play
+- The guest policy of the crew is `open` (§14).
+- The deployment has `NAKAMA_SERVER_KEY` (§11).
+- A member is in a voice channel. With no member in a call, there is nobody
+  to talk to, and the page offers no voice.
+
+| Visitor | Where the join is |
+|---|---|
+| A PC, after the install click | In the invite card: "Talk to {inviter} while it installs", a name field and "Join voice" |
+| A PC that cannot install | The link "Talk in the browser" in the install panel opens the same join, with no download |
+| A phone, or a PC that the app has no build for | In the invite card from the start |
+
+The join goes to the channel of the inviter. When the inviter is not in a
+call, it goes to the channel with the most members.
+
+> **The "Join voice" button is required, not decorative.** Browsers refuse to play
 > audio, and Safari refuses `getUserMedia`, until the user interacts with the
 > page. A guest joined automatically sits in the room and hears silence. Do not
-> replace this panel with an automatic join.
+> replace this button with an automatic join.
 
 One click stores the name, unblocks audio playback, satisfies the gesture
-requirement and joins the channel talking. Clicking the channel row rejoins
-after a hangup.
+requirement and joins the channel talking. After a leave, "Join voice again"
+opens the join again while a member is in a call.
 
 A blocked microphone does not fail the join. The guest still hears the crew. A
 silent placeholder track holds the sender open, so granting the microphone later
 is a `replaceTrack` and not a renegotiation.
 
-The panel reports progress and failure in place. The control bar is behind the
-dim while the panel is up, so an error shown only there is invisible.
+The join reports progress and failure in place: the button says "Joining",
+and a failed join shows its line next to the button. A call that ends by
+itself returns to the join, and the page gives the seat back with
+`guest_voice_leave` (§4.5).
 
-### 9.4 Install gates
+The app does not take the seat over. After a download the call shows "Leave
+voice here when m3llo is open", because two clients of one person in one call
+echo.
 
-Five actions open a dialog that names what the app adds: `stream`, `replay`,
-`clip`, `chat`, `broadcast`. Each reports its own analytics event, so the wall a
-guest reaches first is measurable.
+### 9.4 What needs the app
+
+The page plays no stream, replay or clip and has no chat. It has no install
+dialog. Cards under the invite card show what the app has:
+
+- The head2head card: the values of the inviter (§4.6), four at most, against
+  sealed values of the visitor. Without values both sides are sealed.
+- One more card: a live stream, else the crew's numbers for a crew of more
+  than five, else the newest clip, else a list of what the app has. A phone
+  does not get the list.
+
+A stream card and a clip card have a link that opens `mello://join/{code}`
+("Watch in m3llo", "Play in m3llo").
+
+The page sends one analytics event, `Download` with the system, on the install
+click. The page steps are in §9.6.
 
 ### 9.5 Open Graph tags
 
@@ -816,13 +872,13 @@ The policy is set via the `update_crew` RPC and enforced in `CreateInviteCodeRPC
 
 ## 14. Guest Policy
 
-Crew admins control whether the invite link opens a working lounge, via the
+Crew admins control whether the invite page offers browser voice, via the
 `guest_policy` field in group metadata.
 
 | Policy | Effect |
 |--------|--------|
-| `open` (default) | Anyone with the code can join voice from a browser |
-| `off` | `guest_voice_join` refuses. The page still renders and offers the download |
+| `open` (default) | Anyone with the code can join voice from a browser. The page offers the join while a member is in a call (§9.3) |
+| `off` | `guest_voice_join` refuses. The page still renders and offers the download, with no join and no "Talk in the browser" link |
 
 The policy is set via `update_crew` and read by `guestPolicyFor`. A crew that
 never sets it is open. `parseGuestPolicy` treats absent, malformed and unknown
