@@ -1,7 +1,7 @@
 # HEAD2HEAD
 
 > **Component:** Crew Feed, Crew Memory
-> **Version:** 1.2
+> **Version:** 1.3
 > **Status:** built. The zone feed draws head2head as the belts of the Board, the belt hero and the own chips of the Stage, and the seats of the People zone (CREW-FEED-ZONES.md). The You strip draws the chase bars, and the You view the pairs (YOU-STRIP.md).
 > **Depends on:** 16-CREW-EVENT-LEDGER.md (section 3.6, library documents), 19 (per-game stats and recap), CREW-FEED-ZONES.md
 
@@ -61,7 +61,7 @@ Rules for the session titles. They read the activity doc of each crew member (se
 
 Collection `crew_head2head`, key `holders_<crew_id>`, owner is the system user.
 
-Read and write permission are both 0, so only the server touches the doc. The feed RPC reads it as the system user after it checks crew membership, and returns only the trimmed payload for the viewer.
+Read and write permission are both 0, so only the server touches the doc. The feed RPC reads it as the system user after it checks crew membership, and returns only the trimmed payload for the viewer. The invite page gets the titles of one member from it (section 8).
 
 | Field | Meaning |
 |---|---|
@@ -229,7 +229,37 @@ A belt move sends a push to the previous holder. A new member sends a push to th
 - The joiner never gets a join push. The member who causes a recompute never gets a push for a belt they took.
 - Code: `event_push.go` (queue, quiet hours, belt), `crew_join_push.go` (join). Tests: `event_push_test.go`, `crew_join_push_test.go`, and `belt_and_join_pushes_reach_the_push_worker` in `tools/e2e/tests/head2head_feed.rs`.
 
-## 8. Later
+## 8. The invite page
+
+The titles that a member holds show on the invite page of that member
+(`CREW-INVITES.md` section 4.6, the `inviter` block of `guest_crew_feed`). No
+other head2head data leaves the crew.
+
+| Rule | Detail |
+|---|---|
+| Whose titles | Only the member who made the invite link, and only while that member is the owner, an admin or a member of the crew |
+| Which titles | The contested titles that the member holds in this crew now |
+| What the page gets | The title id and the English name of each title |
+| What stays in the crew | The value and the unit of a title, `since_ms`, the previous holder, `moved_at_ms`, the pairs, `own_values`, the activity doc and the titles of every other member |
+| A link with no inviter | The custom invite name of the crew, and a code with no inviter. The page gets no title |
+| Consent | No setting and no check. A member shares the titles when the member shares the link |
+
+- The source is the holders doc. `guest_crew_feed` reads `title_id` and
+  `holder_user_id` of each title and decodes no other field.
+- The invite page never computes the doc. A crew with no doc has no title on
+  the page until a member opens the crew feed (section 4).
+- A title needs two contenders (section 2). So the invite page of a crew of
+  one shows no title.
+- A member who leaves does not trigger a recompute (section 4), so the doc can
+  name a holder who left. The invite page checks the membership of the inviter
+  at each read and shows no title of a member who left.
+- The server keeps the holders of a crew in memory for 60 seconds. A title
+  that changed hands shows on the invite page up to 60 seconds after the doc
+  has it.
+- Code: `guest_inviter.go`. Tests: `guest_inviter_test.go`, and
+  `TestGuestCrewFeed_PayloadHasNoUserIDs` in `guest_sessions_test.go`.
+
+## 9. Later
 
 - The round robin of all pairs, every member against every member. The
   payload carries only the viewer's pairs.

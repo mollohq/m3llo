@@ -194,7 +194,9 @@ This is the read path for the lounge. It returns a **public-safe projection**.
 | Data | Guest sees |
 |---|---|
 | Crew name, member count, member names | Yes |
-| Inviter name | Yes |
+| Inviter name | Yes, while the inviter is a member of the crew |
+| Head2head titles that the inviter holds | The id and the name of each title |
+| Head2head values, and the titles of other members | No |
 | Weekly recap, including per-player win/loss | Yes |
 | Clip type, clipper, duration, game | Yes |
 | Clip file address | No |
@@ -209,6 +211,64 @@ tests serialize the payload and search the text for forbidden strings.
 `collectGuestClips` reads clips from both places a crew keeps them: the durable
 `crew_clips` document and `clip` events in the event ledger. Reading one source
 under-reports. It de-duplicates on clip ID.
+
+#### The inviter
+
+**File:** `backend/nakama/data/modules/guest_inviter.go`
+
+The page of a link is the page of the member who shares it. The feed names
+that member in the `inviter` block.
+
+```json
+"inviter": {
+  "display_name": "Jonas",
+  "badges": [
+    { "key": "the_carry", "name": "The Carry" },
+    { "key": "night_owl", "name": "Night Owl" }
+  ]
+}
+```
+
+| Field | Content |
+|---|---|
+| `display_name` | The display name of the inviter, else the username. The same text as `inviter_display_name` |
+| `badges` | The head2head titles that the inviter holds in this crew now (`HEAD2HEAD.md` section 8). Never null. Empty for an inviter who holds no title |
+| `badges[].key` | The title id, one of the 13 ids of `HEAD2HEAD.md` section 2 |
+| `badges[].name` | The English name of the title |
+
+The list is in the display order of the head2head card: The Carry, Night Owl,
+The Collector, Locked In, Has a Life, Sampler, One Trick, then the six session
+titles. A badge has no value, no unit, no time and no user ID.
+
+| Case | `inviter` | `inviter_display_name` |
+|---|---|---|
+| The inviter is the owner, an admin or a member of the crew | Present | Present |
+| The link has no inviter: the custom invite name of the crew (§2), or a code with no `inviter_user_id` | Absent | Absent |
+| The inviter left the crew, was removed or banned, or has only a join request | Absent | Absent |
+| The account of the inviter is deleted | Absent | Absent |
+
+- The two fields are both present or both absent. `inviter_display_name` stays
+  for a page that does not read the block.
+- There is no consent check and no setting. A member shares the titles when
+  the member shares the link.
+- `resolve_crew_invite` (§3) does not make the membership check. Its
+  `inviter_display_name` names the inviter of the code also after that member
+  left.
+
+**Cost.** The lounge calls this RPC every few seconds for the voice roster.
+
+- The membership check uses the page of the member list that the feed reads
+  for the member names. When that page is the whole list, the check makes no
+  read. For a crew of more than 100 rows, and an inviter not on the page, the
+  feed reads the state of the inviter in the crew and the account.
+- The feed reads only the holder of each title from the holders doc. It never
+  computes the doc. A crew with no doc has no badge until a member opens the
+  crew feed.
+- The server keeps the holders of a crew in memory for 60 seconds
+  (`guestHoldersTTL`), in each Nakama process. So a title that changed hands
+  shows on the page up to 60 seconds late. A failed read is not kept.
+- Measured: the read of the holders costs 2 ms for a crew of 50 and 9 ms for a
+  crew of 100, one time in 60 seconds for each crew.
 
 ### 4.7 Limits
 
