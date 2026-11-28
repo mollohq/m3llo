@@ -3982,7 +3982,7 @@ msgstr "Spelaktivitet är av"
 #. an award.
 #: client/ui/tr.slint
 msgid "The Carry"
-msgstr "Bäraren"
+msgstr "The Carry"
 
 #: client/ui/tr.slint
 msgid "Night Owl"
@@ -4011,7 +4011,7 @@ msgstr "Enkelspårig"
 #. The names of the card titles in upper case, on the board.
 #: client/ui/tr.slint
 msgid "THE CARRY"
-msgstr "BÄRAREN"
+msgstr "THE CARRY"
 
 #: client/ui/tr.slint
 msgid "NIGHT OWL"
